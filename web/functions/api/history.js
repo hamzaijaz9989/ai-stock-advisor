@@ -58,5 +58,29 @@ export async function onRequestGet({request}) {
       return Response.json(result,{headers:{"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"}});
     } catch(error) { failures.push(String(error?.message||error)); }
   }
+  try {
+    const to=new Date();
+    const from=new Date(to); from.setUTCFullYear(from.getUTCFullYear()-1);
+    const iso=d=>d.toISOString().slice(0,10);
+    const endpoint="https://api.nasdaq.com/api/quote/"+encodeURIComponent(ticker)+"/historical?assetclass=stocks&fromdate="+iso(from)+"&todate="+iso(to)+"&limit=500";
+    const response=await fetch(endpoint,{headers:{"Accept":"application/json, text/plain, */*","User-Agent":"Mozilla/5.0 (compatible; AIStockAdvisor/1.0)","Origin":"https://www.nasdaq.com","Referer":"https://www.nasdaq.com/"}});
+    if(!response.ok) throw new Error("Nasdaq historical provider returned HTTP "+response.status);
+    const payload=await response.json();
+    const rows=(payload?.data?.tradesTable?.rows||[]).map(row=>{
+      const number=value=>{if(typeof value!=="string")return null;const n=Number(value.replace(/[$,]/g,"").trim());return Number.isFinite(n)?n:null;};
+      const parts=String(row.date||"").split("/");
+      const date=parts.length===3?parts[2]+"-"+parts[0].padStart(2,"0")+"-"+parts[1].padStart(2,"0"):null;
+      return {date,close:number(row.close),volume:number(row.volume),open:number(row.open),high:number(row.high),low:number(row.low)};
+    }).filter(row=>row.date&&row.close!==null).sort((a,b)=>a.date.localeCompare(b.date));
+    if(rows.length<30) throw new Error("Nasdaq returned fewer than 30 daily observations");
+    const returns=[];
+    for(let i=1;i<rows.length;i++) returns.push(rows[i].close/rows[i-1].close-1);
+    const mean=returns.reduce((a,b)=>a+b,0)/returns.length;
+    const variance=returns.reduce((sum,value)=>sum+(value-mean)**2,0)/(returns.length-1||1);
+    let peak=rows[0].close,maxDrawdown=0;
+    for(const row of rows){peak=Math.max(peak,row.close);maxDrawdown=Math.min(maxDrawdown,row.close/peak-1);}
+    const totalReturn=(rows[rows.length-1].close/rows[0].close-1)*100;
+    return Response.json({ticker,companyName:payload?.data?.symbol||ticker,source:"Nasdaq historical API",interval:"daily",fetchedAt:new Date().toISOString(),currency:"USD",startDate:rows[0].date,endDate:rows[rows.length-1].date,observations:rows.length,totalReturnPercent:Number(totalReturn.toFixed(2)),annualizedVolatilityPercent:Number((Math.sqrt(variance)*Math.sqrt(252)*100).toFixed(2)),maxDrawdownPercent:Number((maxDrawdown*100).toFixed(2)),latestClose:rows[rows.length-1].close,latestAdjustedClose:rows[rows.length-1].close,data:rows,warning:"Nasdaq fallback provides unadjusted close prices. Return and risk metrics exclude dividends and may not reflect total shareholder return. Historical data is not a forecast."},{headers:{"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"}});
+  } catch(error) { failures.push(String(error?.message||error)); }
   return Response.json({ticker,error:"Historical prices are unavailable. No sample or estimated prices have been substituted.",providerErrors:failures,fetchedAt:new Date().toISOString()},{status:503,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }
