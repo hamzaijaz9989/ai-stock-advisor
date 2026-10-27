@@ -29,6 +29,39 @@ async function fetchQuote(host, ticker, range, interval) {
     source: "Yahoo Finance chart endpoint", interval
   };
 }
+function parseEasternQuoteLabel(label) {
+  if (typeof label !== "string") return null;
+  const match = label.trim().match(/^([A-Za-z]{3})\s+(\d{1,2}),\s+(\d{4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)\s+ET$/i);
+  if (!match) return null;
+  const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  const month = months[match[1][0].toUpperCase()+match[1].slice(1,3).toLowerCase()];
+  if (month === undefined) return null;
+  const year = Number(match[3]);
+  const day = Number(match[2]);
+  let hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const meridiem = match[6].toUpperCase();
+  if (hour < 1 || hour > 12 || minute > 59 || day < 1 || day > 31) return null;
+  hour = hour % 12 + (meridiem === "PM" ? 12 : 0);
+  const wallClockAsUtc = Date.UTC(year, month, day, hour, minute);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(new Date(wallClockAsUtc)).map(part => [part.type, part.value]));
+  const localizedAsUtc = Date.UTC(
+    Number(parts.year), Number(parts.month)-1, Number(parts.day),
+    Number(parts.hour), Number(parts.minute)
+  );
+  const easternOffsetMs = localizedAsUtc - wallClockAsUtc;
+  const timestamp = wallClockAsUtc - easternOffsetMs;
+  const check = new Date(timestamp);
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month ||
+      check.getUTCDate() !== day || check.getUTCHours() !== hour ||
+      check.getUTCMinutes() !== minute) return null;
+  return check.toISOString();
+}
+
 export async function onRequestGet({ request }) {
   const url = new URL(request.url);
   const ticker = (url.searchParams.get("ticker") || "").trim().toUpperCase();
@@ -58,7 +91,9 @@ export async function onRequestGet({ request }) {
     const parseMoney = value => { if (typeof value !== "string") return null; const n = Number(value.replace(/[$,%+,]/g, "").trim()); return Number.isFinite(n) ? n : null; };
     const price = parseMoney(primary.lastSalePrice) ?? parseMoney(secondary.lastSalePrice);
     if (!data?.symbol || price === null) throw new Error("Nasdaq returned no usable quote");
-    return Response.json({ticker, companyName:data.companyName || ticker, currency:primary.currency || "USD", exchange:data.exchange || "Unknown", price, previousClose:null, change:parseMoney(primary.netChange) ?? parseMoney(secondary.netChange), changePercent:parseMoney(primary.percentageChange) ?? parseMoney(secondary.percentageChange), quoteTime:null, quoteLabel:primary.lastTradeTimestamp || secondary.lastTradeTimestamp || null, fetchedAt:new Date().toISOString(), marketState:data.marketStatus || "unknown", delayedOrRealtime:primary.isRealTime ? "Provider-labelled real-time; verify independently" : "Latest available quote; may be delayed", source:"Nasdaq quote API", interval:primary.isRealTime ? "provider-labelled real-time" : "latest available", warning:"Provider timing and availability may vary. Verify the price with your broker before acting."}, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
+    const quoteLabel = primary.lastTradeTimestamp || secondary.lastTradeTimestamp || null;
+    const quoteTime = parseEasternQuoteLabel(quoteLabel);
+    return Response.json({ticker, companyName:data.companyName || ticker, currency:primary.currency || "USD", exchange:data.exchange || "Unknown", price, previousClose:null, change:parseMoney(primary.netChange) ?? parseMoney(secondary.netChange), changePercent:parseMoney(primary.percentageChange) ?? parseMoney(secondary.percentageChange), quoteTime, quoteLabel, fetchedAt:new Date().toISOString(), marketState:data.marketStatus || "unknown", delayedOrRealtime:primary.isRealTime ? "Provider-labelled real-time; verify independently" : "Latest available quote; may be delayed", source:"Nasdaq quote API", interval:primary.isRealTime ? "provider-labelled real-time" : "latest available", warning:quoteTime ? "Quote timestamp interpreted from Nasdaq's Eastern Time label; verify price with your broker." : "Provider timestamp could not be normalized. Verify the price with your broker before acting."}, {headers:{"Cache-Control":"public, max-age":15,"X-Content-Type-Options":"nosniff"}});
   } catch (error) { failures.push(String(error?.message || error)); }
   return Response.json({ticker, error:"Current quote unavailable from all configured providers. Do not rely on a cached or guessed price.", fetchedAt:new Date().toISOString(), source:"Yahoo Finance / Nasdaq", providerErrors:failures}, {status:503, headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }
