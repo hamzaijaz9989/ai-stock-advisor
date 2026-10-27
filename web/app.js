@@ -94,6 +94,62 @@ function renderMetrics(observations) {
     card.append(label,value,date); $("metrics-grid").append(card);
   }
 }
+
+function annualSeries(observations, key) {
+  const candidates = observations.filter(row => row.key === key && typeof row.value === "number" &&
+    row.form === "10-K" && row.start && row.end &&
+    (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 >= 329 &&
+    (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 <= 399);
+  const byEnd = new Map();
+  for (const row of candidates) {
+    if (!byEnd.has(row.end)) byEnd.set(row.end, []);
+    byEnd.get(row.end).push(row);
+  }
+  const series = [];
+  for (const [end, rows] of byEnd) {
+    const distinct = new Map(rows.map(row => [String(row.value) + "|" + row.unit, row]));
+    if (distinct.size !== 1) continue;
+    series.push({ end, ...[...distinct.values()][0] });
+  }
+  return series.sort((a,b) => a.end.localeCompare(b.end));
+}
+function renderFundamentalSnapshot(observations) {
+  const panel = $("fundamental-snapshot");
+  panel.innerHTML = "";
+  const revenue = annualSeries(observations, "revenue");
+  const income = annualSeries(observations, "netIncome");
+  const cash = annualSeries(observations, "operatingCashFlow");
+  const capex = annualSeries(observations, "capex");
+  const cards = [];
+  if (revenue.length >= 2) {
+    const latest = revenue[revenue.length - 1], prior = revenue[revenue.length - 2];
+    if (prior.value !== 0) cards.push({label:"Annual revenue growth",value:((latest.value/prior.value-1)*100).toFixed(1)+"%",meta:fmtDate(prior.end)+" → "+fmtDate(latest.end)});
+  }
+  const latestRevenue = revenue[revenue.length-1];
+  const latestIncome = latestRevenue && income.find(row=>row.end===latestRevenue.end);
+  if (latestRevenue && latestIncome && latestRevenue.value !== 0) {
+    cards.push({label:"Net profit margin",value:((latestIncome.value/latestRevenue.value)*100).toFixed(1)+"%",meta:"Matched annual period ended "+fmtDate(latestRevenue.end)});
+  }
+  const latestCash = cash[cash.length-1];
+  const latestCapex = latestCash && capex.find(row=>row.end===latestCash.end);
+  if (latestCash && latestCapex) {
+    const fcf=latestCash.value-Math.abs(latestCapex.value);
+    cards.push({label:"Approx. free cash flow",value:fmtValue(fcf,latestCash.unit),meta:"Operating cash flow minus absolute capex · "+fmtDate(latestCash.end)});
+  }
+  $("fundamental-status").textContent = cards.length ? "Annual 10-K observations" : "Insufficient comparable data";
+  if (!cards.length) {
+    panel.textContent = "Not enough unambiguous annual 10-K observations to calculate a comparable snapshot. Missing or conflicting observations are left blank rather than estimated.";
+    return;
+  }
+  for (const item of cards) {
+    const card=document.createElement("article"); card.className="metric-card";
+    const label=document.createElement("div"); label.className="metric-label"; label.textContent=item.label;
+    const value=document.createElement("div"); value.className="metric-value"; value.textContent=item.value;
+    const meta=document.createElement("div"); meta.className="metric-date"; meta.textContent=item.meta;
+    card.append(label,value,meta); panel.append(card);
+  }
+}
+
 function renderTable(observations) {
   const body=$("facts-body"); body.innerHTML="";
   const rows=observations.filter(row=>row.value!==null).slice(0,100);
@@ -228,7 +284,7 @@ async function analyze(ticker) {
     $("company-name").textContent=company.name;
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(submissions?.filings?.recent?.filingDate?.[0]?" · Most recent filing "+fmtDate(submissions.filings.recent.filingDate[0]):"");
     $("company-panel").classList.remove("hidden");
-    renderMetrics(observations); renderTable(observations);
+    renderMetrics(observations); renderFundamentalSnapshot(observations); renderTable(observations);
     renderFilings(submissions, company);
     loadNews(ticker);
     loadQuote(ticker);
