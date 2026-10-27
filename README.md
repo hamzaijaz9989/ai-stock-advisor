@@ -11,11 +11,7 @@ A research-first platform for long-term US equity investing. It produces evidenc
 - Historical tests must avoid look-ahead and survivorship bias and include realistic costs.
 - No automatic brokerage execution.
 
-## Initial milestone
-
-Build and test a small, deterministic Python core for financial metrics. Data-provider integrations and a dashboard come later, after calculations and data contracts are reliable.
-
-## Quick start
+## Quick start: Python core
 
 Requires Python 3.11+.
 
@@ -24,10 +20,27 @@ python -m venv .venv
 # macOS/Linux:
 source .venv/bin/activate
 # Windows PowerShell:
-# .venv\Scripts\Activate.ps1
+# .venv\\Scripts\\Activate.ps1
 python -m pip install -e ".[dev]"
 pytest
 ```
+
+## Browser dashboard (GitHub Pages)
+
+The static dashboard lives in `web/`. It lets you enter a US stock ticker and attempts to fetch company identity and reported financial facts directly from SEC EDGAR. Filing dates and reporting-period ends are shown separately. It does not make up missing values or place trades.
+
+### Publish the dashboard
+
+A GitHub Actions deployment workflow is included at `.github/workflows/pages.yml`. In the repository, open **Settings → Pages** and choose **GitHub Actions** as the deployment source if prompted. Then open **Actions** and run **Deploy AI Stock Advisor to GitHub Pages**, or push a change under `web/`.
+
+**Visibility note:** this repository is currently private. GitHub Pages availability for private repositories depends on the GitHub plan. Do not change the repository to public unless you intend to publish all source code.
+
+### Dashboard limitations
+
+- This is a static frontend. It does not run the Python SEC client or Python tests in the browser.
+- Browser requests to SEC endpoints may fail due to CORS, network, or SEC access restrictions. The diagnostics panel reports the failure instead of substituting sample data.
+- Different SEC accounting tags are shown as reported and are not fully reconciled into one canonical accounting value.
+- No broker integration, automated trading, personalized investment advice, fabricated price, valuation, or performance data.
 
 ## Planned architecture
 
@@ -43,7 +56,3 @@ pytest
 ## Important limitations
 
 This is an early-stage educational research tool, not a registered investment adviser and not a substitute for professional advice. A score is not a probability of profit. No win rate or return target is promised. Free data may be delayed, incomplete, rate-limited or subject to provider terms.
-
-## Development status
-
-**Stage 1:** project skeleton and tested financial metric primitives.
