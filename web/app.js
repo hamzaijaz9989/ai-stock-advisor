@@ -477,7 +477,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings})
   if(valuation.available) {
     grid.append(
       metricCard("Provisional entry zone",fmtUsd(entryLow)+" – "+fmtUsd(entryHigh),"75–80% of base-case DCF value; watch levels only, not actionable"),
-      metricCard("Base-case value",fmtUsd(valuation.base),"Simplified five-year cash-flow estimate; not a six-month price forecast"),
+      metricCard("Potential exit / fair-value reference",fmtUsd(valuation.base),"Base-case valuation reference; may take longer than six months and is not a forecast"),
       metricCard("Bear / bull value",fmtUsd(valuation.bear)+" / "+fmtUsd(valuation.bull),"Scenario sensitivity, not a prediction"),
       metricCard("Risk trigger",invalidation!==null&&invalidation>0?fmtUsd(invalidation):"Unavailable",atr!==null?"Entry midpoint minus 2 × 14-day ATR":"Complete daily high/low data is needed"),
       metricCard("Upside / downside",rewardRisk!==null?rewardRisk.toFixed(2)+":1":"Unavailable","Uses base-case DCF value and ATR risk trigger"),
@@ -493,6 +493,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings})
     text.append(title,detail);row.append(indicator,text);checks.append(row);
   }
   const caveats=[];
+  caveats.push("The DCF uses matched-period annual diluted weighted-average shares when reported; otherwise it requires recent instant shares outstanding. Share count source: "+(valuation.sharesSource||"not available")+"; filing date: "+(valuation.sharesFiled||"not available")+".");
   caveats.push("The DCF is a simplified cash-flow-per-share proxy using five-year constant-growth scenarios and fixed 12%/10%/9% discount rates with 1.5%/2.5%/3% terminal growth.");
   caveats.push("It omits forecast consensus, debt/cash normalization, share-based compensation and business-specific adjustments; no target is guaranteed.");
   caveats.push("Earnings dates/headlines are third-party data; confirm material items from official investor relations and SEC filings.");
