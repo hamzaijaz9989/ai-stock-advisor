@@ -170,3 +170,38 @@ test("decision panel never issues BUY even when every preliminary check passes",
   assert.ok(title.startsWith("WAIT") || title.startsWith("INSUFFICIENT EVIDENCE"));
   assert.ok(!title.startsWith("BUY"));
 });
+
+
+test("earnings comparison uses SEC actuals and converts third-party revenue consensus from millions", () => {
+  const app = loadAppFunctions();
+  const payload = {
+    ticker:"TEST", quarter:"Q3-2026", available:true, status:"reported",
+    estimates:{consensusEps:1.1,consensusRevenue:110000,numAnalysts:12},
+    headline:"Test results summary",
+    whatItMeans:"Test context",
+    sourceUrl:"https://example.com/earnings"
+  };
+  const quarter = {
+    periodEnd:"2026-06-30", filed:"2026-08-01",
+    currentRevenue:120000000000, currentIncome:20000000000,
+    currentEps:1.2, fiscalQuarterId:"Q3-2026"
+  };
+  app.renderEarningsResult(payload,quarter,"Q3-2026");
+  const root=app.document.getElementById("earnings-results-content");
+  assert.equal(root.children[0].children[1].textContent,"$120.00B");
+  assert.equal(root.children[3].children[1].textContent,"$110.00B");
+  assert.ok(root.children[4].children[1].textContent.includes("9.09%"));
+  assert.ok(root.children[6].children[1].textContent.includes("9.09%"));
+  assert.ok(root.children.some(node=>node.children?.some(child=>child.textContent==="Test results summary")));
+});
+
+test("earnings comparison does not invent consensus when the public brief is unavailable", () => {
+  const app=loadAppFunctions();
+  const payload={available:false,reason:"Provider access unavailable"};
+  const quarter={periodEnd:"2026-06-30",filed:"2026-08-01",currentRevenue:120000000000,currentIncome:20000000000,currentEps:1.2};
+  app.renderEarningsResult(payload,quarter,null);
+  const root=app.document.getElementById("earnings-results-content");
+  assert.equal(root.children.length,4);
+  assert.ok(root.children[3].textContent.includes("Provider access unavailable"));
+  assert.ok(!root.children.some(node=>node.children?.[0]?.textContent==="Revenue vs consensus"));
+});
