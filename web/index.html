@@ -14,9 +14,9 @@
   </header>
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">US STOCKS · LONG-TERM</p>
+      <p class="eyebrow">US STOCKS · WEEKS TO 6 MONTHS</p>
       <h1>Understand a company<span>.</span></h1>
-      <p class="intro">Start with financial facts reported to the SEC. We show the source dates and never invent missing data.</p>
+      <p class="intro">A research-first decision assistant for your $500 portfolio. It checks company filings, price data, news and event risk; it will withhold a BUY when evidence is incomplete.</p>
       <form id="analyze-form" class="search-panel">
         <label for="ticker">Stock ticker</label>
         <div class="search-row">
@@ -41,6 +41,16 @@
       </div>
       <p class="table-note">Every future recommendation must assess company fundamentals, valuation, earnings dates and results, material news, current price and liquidity, downside risk, and portfolio concentration. It must show an entry range, target, invalidation/exit level, expected holding period, rationale, source timestamps, and what could go wrong.</p>
       <p class="table-note"><strong>Decision rules:</strong> BUY only when evidence and risk/reward support it; WAIT when price or an imminent event makes the setup unattractive; AVOID when valuation, business risk, or data quality fails the checks. Missing or stale data means no actionable recommendation.</p>
+    </section>
+    <section class="news-section" aria-labelledby="decision-policy-heading">
+      <div class="section-heading"><div><p class="eyebrow">RECOMMENDATION STANDARD</p><h2 id="decision-policy-heading">How decisions will be made</h2></div><span class="count">Your profile</span></div>
+      <div class="metrics-grid">
+        <article class="metric-card"><div class="metric-label">BUY</div><div class="metric-value">Evidence + value</div><div class="metric-date">Only if valuation, event checks and reward/risk all pass</div></article>
+        <article class="metric-card"><div class="metric-label">WAIT</div><div class="metric-value">No rush</div><div class="metric-date">Price too high, event too close, or setup incomplete</div></article>
+        <article class="metric-card"><div class="metric-label">AVOID</div><div class="metric-value">Risk too high</div><div class="metric-date">Weak thesis, unattractive valuation, or unreliable data</div></article>
+      </div>
+      <p class="table-note"><strong>Risk guardrail for $500:</strong> target planned loss of about $5 per position (1% of capital), with $10 (2%) as a hard ceiling before fees and gaps. Position size must be calculated from entry-to-invalidation distance. If a sensible position cannot fit that risk limit, the advice is WAIT/AVOID—not to widen the risk limit. No leverage or options.</p>
+      <p class="table-note"><strong>Important limitation:</strong> the current prototype still does not calculate validated valuation-based entry/exit levels. Until the valuation, event-calendar, portfolio sizing and historical validation gates are implemented and tested, its experimental ranking is not a BUY signal.</p>
     </section>
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="company-panel" class="company-panel hidden">
