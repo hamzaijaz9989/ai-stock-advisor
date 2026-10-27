@@ -601,9 +601,25 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const latestRevenue=rev[rev.length-1],priorRevenue=rev[rev.length-2];
   const latestIncome=latestRevenue?income.find(item=>item.end===latestRevenue.end):null;
   const latestFcf=latestRevenue?fcf.find(item=>item.end===latestRevenue.end):null;
-  const annualFundamentalPass=Boolean(latestRevenue&&priorRevenue&&priorRevenue.value>0&&latestRevenue.value>0&&latestIncome&&latestIncome.value>0&&latestFcf&&latestFcf.value>0&&(latestRevenue.value/priorRevenue.value-1)>=-0.10);
-  const quarterlyPass=Boolean(quarter?.available&&quarter.currentRevenue>0&&quarter.currentIncome>0&&quarter.revenueYoY!==null&&quarter.revenueYoY>=-0.15);
+  const annualDataAvailable=Boolean(
+    latestRevenue&&priorRevenue&&priorRevenue.value>0&&
+    typeof latestRevenue.value==="number"&&Number.isFinite(latestRevenue.value)&&
+    latestIncome&&Number.isFinite(latestIncome.value)&&
+    latestFcf&&Number.isFinite(latestFcf.value)
+  );
+  const annualRevenueGrowth=annualDataAvailable?latestRevenue.value/priorRevenue.value-1:null;
+  const annualFundamentalPass=Boolean(annualDataAvailable&&latestRevenue.value>0&&
+    latestIncome.value>0&&latestFcf.value>0&&annualRevenueGrowth>=-0.10);
+  const quarterlyDataAvailable=Boolean(
+    quarter&&typeof quarter.currentRevenue==="number"&&Number.isFinite(quarter.currentRevenue)&&
+    typeof quarter.currentIncome==="number"&&Number.isFinite(quarter.currentIncome)&&
+    typeof quarter.revenueYoY==="number"&&Number.isFinite(quarter.revenueYoY)
+  );
+  const quarterlyPass=Boolean(quarterlyDataAvailable&&quarter.currentRevenue>0&&
+    quarter.currentIncome>0&&quarter.revenueYoY>=-0.15);
   const fundamentalPass=annualFundamentalPass&&quarterlyPass;
+  const fundamentalAvoid=(annualDataAvailable&&!annualFundamentalPass)||
+    (quarterlyDataAvailable&&!quarterlyPass);
   const entryLow=valuation.available?valuation.base*0.75:null;
   const entryHigh=valuation.available?valuation.base*0.80:null;
   const entryMid=entryLow!==null?(entryLow+entryHigh)/2:null;
@@ -622,15 +638,20 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     {label:"Historical validation",ok:false,detail:"Walk-forward and untouched holdout backtests are not complete; this blocks BUY signals"}
   ];
   let state="WAIT";
-  if(!quoteCurrent||!valuation.available||!fundamentalPass||!earningsVerified||!recentHeadlines.length||flaggedHeadlines.length||!atr||!rewardRisk) state="INSUFFICIENT EVIDENCE";
+  if(fundamentalAvoid) state="AVOID";
+  else if(!quoteCurrent||!valuation.available||!fundamentalPass||!earningsVerified||!recentHeadlines.length||flaggedHeadlines.length||!atr||!rewardRisk) state="INSUFFICIENT EVIDENCE";
   else if(daysToEarnings<=7||!priceInEntryRange||rewardRisk<2) state="WAIT";
   $("decision-status").textContent=state+" · RESEARCH ONLY";
-  $("decision-title").textContent=state==="INSUFFICIENT EVIDENCE"?"INSUFFICIENT EVIDENCE — DO NOT BUY FROM THIS REPORT":"WAIT — NO BUY SIGNAL IS ENABLED";
+  $("decision-title").textContent=state==="AVOID"?"AVOID — FINANCIAL QUALITY CHECK FAILED":
+    state==="INSUFFICIENT EVIDENCE"?"INSUFFICIENT EVIDENCE — DO NOT BUY FROM THIS REPORT":
+    "WAIT — NO BUY SIGNAL IS ENABLED";
   const reasons=[];
   if(!quoteCurrent) reasons.push("A sufficiently recent quote is missing.");
   if(!valuation.available) reasons.push(valuation.reason);
-  if(!annualFundamentalPass) reasons.push("The annual financial-quality screen did not pass.");
-  if(!quarterlyPass) reasons.push("The latest quarterly results do not pass the minimum trend/data check or are unavailable.");
+  if(!annualDataAvailable) reasons.push("Comparable annual financial data is incomplete or ambiguous.");
+  else if(!annualFundamentalPass) reasons.push("The annual quality screen failed: revenue, net income, free cash flow, or annual revenue trend is below the configured minimum.");
+  if(!quarterlyDataAvailable) reasons.push("The latest quarterly data is incomplete or cannot be matched safely to the previous year.");
+  else if(!quarterlyPass) reasons.push("The latest quarter failed the minimum quality screen: revenue/net income must be positive and revenue must be no worse than -15% year over year.");
   if(!earningsVerified) reasons.push("The next earnings date is not reliably confirmed.");
   if(daysToEarnings!==null&&daysToEarnings<=7) reasons.push("An earnings report is due within 7 days, so event risk is high.");
   if(!recentHeadlines.length) reasons.push("Recent timestamped news coverage is missing.");
