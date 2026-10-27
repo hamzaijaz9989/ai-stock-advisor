@@ -101,6 +101,14 @@ def parse_payload(payload: Any) -> tuple[dict[str, Any], list[TradeSignal], dict
         except (KeyError, TypeError, ValueError) as exc:
             raise InputError(f"signals[{index}] is missing or has invalid fields: {exc}") from exc
 
+    for index, signal in enumerate(signals):
+        try:
+            signal_day = date.fromisoformat(str(signal.signal_date))
+        except ValueError as exc:
+            raise InputError(f"signals[{index}].signal_date must use ISO YYYY-MM-DD format.") from exc
+        if signal_day > as_of_date:
+            raise InputError(f"signals[{index}] occurs after metadata.as_of_date.")
+
     bars: dict[str, list[DailyBar]] = {}
     for raw_symbol, raw_rows in raw_bars.items():
         symbol = str(raw_symbol).strip().upper()
@@ -111,8 +119,11 @@ def parse_payload(payload: Any) -> tuple[dict[str, Any], list[TradeSignal], dict
             if not isinstance(raw, dict):
                 raise InputError(f"bars.{symbol}[{index}] must be an object.")
             try:
+                bar_date = date.fromisoformat(str(raw["date"]))
+                if bar_date > as_of_date:
+                    raise InputError(f"bars.{symbol}[{index}] occurs after metadata.as_of_date.")
                 rows.append(DailyBar(
-                    date=str(raw["date"]),
+                    date=bar_date,
                     open=float(raw["open"]),
                     high=float(raw["high"]),
                     low=float(raw["low"]),
@@ -144,6 +155,7 @@ def json_safe(value: Any) -> Any:
 def run_payload(payload: Any) -> dict[str, Any]:
     metadata, signals, bars_by_symbol, config = parse_payload(payload)
     outcomes = []
+    outcome_objects = []
     for signal in signals:
         symbol = signal.symbol.strip().upper()
         if symbol not in bars_by_symbol:
@@ -154,19 +166,13 @@ def run_payload(payload: Any) -> dict[str, Any]:
                 "detail": f"No historical bars supplied for {symbol}.",
             })
             continue
-        outcomes.append(asdict(simulate_signal(signal, bars_by_symbol[symbol], config)))
+        outcome = simulate_signal(signal, bars_by_symbol[symbol], config)
+        outcome_objects.append(outcome)
+        outcomes.append(asdict(outcome))
 
     quality = metadata["quality_flags"]
     flags_passed = all(quality.values())
-    summary = summarize_outcomes([
-        # Missing-bar signals are not outcomes understood by summarize_outcomes.
-        # They remain separately visible in raw outcomes and signal count.
-        outcome for outcome in (
-            simulate_signal(signal, bars_by_symbol[signal.symbol.strip().upper()], config)
-            for signal in signals
-            if signal.symbol.strip().upper() in bars_by_symbol
-        )
-    ])
+    summary = summarize_outcomes(outcome_objects)
     missing_bars = sum(item.get("status") == "missing_bars" for item in outcomes)
     summary["signals"] = len(signals)
     summary["missing_bars"] = missing_bars
