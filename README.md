@@ -1,17 +1,16 @@
 # AI Stock Advisor
 
-A research-first platform for long-term US equity investing. It produces evidence-backed research summaries and transparent metrics; it does **not** place orders or guarantee investment returns.
+A research-first prototype for US equities configured for a $500 portfolio, a holding window of several weeks to six months, and moderate risk tolerance. It does not place orders or guarantee returns.
 
 ## Project principles
 
 - Capital preservation and data quality before recommendations.
-- Fundamentals, valuation, and risk are separate dimensions.
-- Every figure should be traceable to a source and its publication date.
-- Missing or inconsistent data must result in an explicit warning, not a fabricated score.
-- Historical tests must avoid look-ahead and survivorship bias and include realistic costs.
-- No automatic brokerage execution.
+- Fundamentals, valuation, price behavior, earnings and event risk must be considered together.
+- Every material figure should be traceable to a source and timestamp.
+- Missing or inconsistent data means an explicit warning, not an invented value.
+- No automatic brokerage execution, leverage, options, or short selling.
 
-## Quick start: Python core
+## Python core
 
 Requires Python 3.11+.
 
@@ -23,40 +22,29 @@ source .venv/bin/activate
 # .venv\\Scripts\\Activate.ps1
 python -m pip install -e ".[dev]"
 pytest
+ruff check .
 ```
 
-## Browser dashboard (GitHub Pages)
+## Dashboard
 
-The static dashboard lives in `web/`. It lets you enter a US stock ticker and attempts to fetch company identity and reported financial facts directly from SEC EDGAR. Filing dates and reporting-period ends are shown separately. It does not make up missing values or place trades.
+The dashboard in `web/` is deployed to Cloudflare Pages. The repository must remain private.
 
-### Publish the dashboard
+- [Live dashboard](https://ai-stock-advisor.pages.dev)
+- [Private GitHub repository](https://github.com/hamzaijaz9989/ai-stock-advisor)
 
-A GitHub Actions deployment workflow is included at `.github/workflows/pages.yml`. In the repository, open **Settings → Pages** and choose **GitHub Actions** as the deployment source if prompted. Then open **Actions** and run **Deploy AI Stock Advisor to GitHub Pages**, or push a change under `web/`.
+It includes SEC EDGAR reported facts and filings, best-effort quote and one-year history data, headline discovery, a third-party upcoming-earnings calendar check, a provisional five-year cash-flow-per-share valuation, ATR-based risk levels, and a decision checklist.
 
-**Visibility note:** this repository is currently private. GitHub Pages availability for private repositories depends on the GitHub plan. Do not change the repository to public unless you intend to publish all source code.
+## Decision policy and current limitations
 
-### Dashboard limitations
+The dashboard's decision panel is deliberately gated. It can show preliminary scenario values and conditional watch levels when the SEC facts are sufficiently complete. These are **not validated buy or sell signals**.
 
-- This is a static frontend. It does not run the Python SEC client or Python tests in the browser.
-- Browser requests to SEC endpoints may fail due to CORS, network, or SEC access restrictions. The diagnostics panel reports the failure instead of substituting sample data.
-- Different SEC accounting tags are shown as reported and are not fully reconciled into one canonical accounting value.
-- No broker integration, automated trading, personalized investment advice, fabricated price, valuation, or performance data.
+The DCF uses three comparable annual positive free-cash-flow observations and a recent shares-outstanding fact. It forecasts five years using a growth assumption blended from recent FCF and revenue growth; bear/base/bull discount rates are 12%/10%/9% and terminal-growth assumptions are 1.5%/2.5%/3.0%. The "FCF" input is operating cash flow minus absolute capital expenditures, a simplified proxy. The model does not fully normalize cash/debt, cyclicality, stock-based compensation, business-specific valuation methods, or consensus forecasts. The entry watch range is set to 75%–80% of the base model value; it is a margin-of-safety heuristic, not a forecast that the price will reach it. The risk trigger is two times the recent 14-day ATR below the midpoint watch entry. These assumptions need sensitivity analysis and testing.
 
-## News monitoring
+Earnings dates use the public EarningsNxt calendar as a third-party source, not an official exchange or company source. A missing event in that provider's window is **not** proof that no report is scheduled. Confirm dates with company investor relations. News headlines are discovery signals; simple keyword flags are only warnings and must be checked in original sources.
 
-The dashboard includes best-effort headline discovery using Yahoo Finance RSS and Google News RSS when available. Headlines are not independently verified and do not create a buy recommendation. See [docs/NEWS_AND_SIGNAL_POLICY.md](docs/NEWS_AND_SIGNAL_POLICY.md) for source hierarchy and validation rules.
+A BUY signal remains disabled because no reproducible walk-forward and out-of-sample validation has passed. The app must keep reporting WAIT or INSUFFICIENT EVIDENCE until the full model is backtested with point-in-time inputs, corporate actions, realistic transaction costs, and benchmark comparison. Quotes may be delayed, incomplete or subject to provider terms. Verify execution prices with a broker. No win rate or return target is promised.
 
-## Market quotes and opportunity ranking\n\nA best-effort Yahoo Finance quote endpoint is available for the selected ticker; quotes may be delayed or unavailable and must be checked against a broker. The dashboard does not yet generate ranked buy recommendations, valuation-based entry zones, or exit levels. Those remain gated on validated data and backtesting. See [docs/MARKET_DATA_AND_RECOMMENDATIONS.md](docs/MARKET_DATA_AND_RECOMMENDATIONS.md).\n\n## Planned architecture
-
-1. **Data adapters** — SEC EDGAR, historical prices, FRED and official investor-relations disclosures.
-2. **Validation** — source provenance, publication timestamps, duplicate/missing observations, corporate actions.
-3. **Fundamentals** — growth, margins, cash flow, leverage and dilution, with explicit missing-data handling.
-4. **Valuation** — method selection appropriate to the business; bear/base/bull assumptions.
-5. **Research synthesis** — AI summaries grounded in source documents, clearly separating facts and interpretation.
-6. **Portfolio research** — diversification, sector concentration, correlated exposures and benchmark comparisons.
-7. **Backtesting** — point-in-time inputs, walk-forward validation, costs and reproducible experiment logs.
-8. **Dashboard** — watchlist, reports, evidence links and review history.
-
-## Important limitations
-
-This is an early-stage educational research tool, not a registered investment adviser and not a substitute for professional advice. A score is not a probability of profit. No win rate or return target is promised. Free data may be delayed, incomplete, rate-limited or subject to provider terms.
+See:
+- [News and Signal Policy](docs/NEWS_AND_SIGNAL_POLICY.md)
+- [Market Data and Recommendations Policy](docs/MARKET_DATA_AND_RECOMMENDATIONS.md)
+- [Recommendation Engine Specification](docs/RECOMMENDATION_ENGINE_SPEC.md)
