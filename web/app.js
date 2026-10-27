@@ -85,7 +85,7 @@ function renderMetrics(observations) {
   $("metrics-grid").innerHTML="";
   for(const metric of METRICS) {
     const rows=observations.filter(row=>row.key===metric.key&&row.value!==null);
-    rows.sort((a,b)=>String(b.filed).localeCompare(String(a.filed))||String(b.end).localeCompare(String(a.end)));
+    rows.sort((a,b)=>String(b.end).localeCompare(String(a.end))||String(b.filed).localeCompare(String(a.filed)));
     const row=rows[0];
     const card=document.createElement("article"); card.className="metric-card";
     const label=document.createElement("div"); label.className="metric-label"; label.textContent=metric.label;
@@ -101,7 +101,7 @@ function renderTable(observations) {
   if(!rows.length) { body.innerHTML='<tr><td colspan="4" class="empty">No supported financial observations were returned. Open Data connection details below for diagnostics.</td></tr>'; return; }
   for(const row of rows) {
     const tr=document.createElement("tr");
-    const cells=[row.metric,fmtValue(row.value,row.unit),fmtDate(row.end),fmtDate(row.filed)];
+    const cells=[row.metric+" · "+row.tag,fmtValue(row.value,row.unit),fmtDate(row.end),fmtDate(row.filed)];
     for(const value of cells) { const td=document.createElement("td"); td.textContent=value; tr.append(td); }
     body.append(tr);
   }
