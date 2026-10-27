@@ -44,10 +44,10 @@ async function queryNasdaqDate(date) {
   });
   if (!response.ok) throw new Error("Nasdaq earnings calendar returned HTTP " + response.status + " for " + date);
   const payload = await response.json();
-  if (!Array.isArray(payload?.data?.rows)) {
-    throw new Error("Nasdaq earnings response had no rows for " + date);
-  }
-  return payload.data.rows;
+  if (Array.isArray(payload?.data?.rows)) return payload.data.rows;
+  // Nasdaq represents closed-market/empty calendar dates as rows:null with HTTP 200.
+  if (payload?.data && payload?.status?.rCode === 200 && payload.data.rows == null) return [];
+  throw new Error("Nasdaq earnings response was incomplete for " + date);
 }
 
 function mapNasdaqEvent(row, date) {
