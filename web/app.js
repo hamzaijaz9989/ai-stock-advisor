@@ -480,7 +480,7 @@ function renderEarnings(payload) {
   }
   const now=new Date().toISOString().slice(0,10);
   const events=payload.events.filter(event=>event.reportDate>=now).sort((a,b)=>a.reportDate.localeCompare(b.reportDate));
-  $("earnings-status").textContent=events.length?"Event found":"Date unconfirmed";
+  $("earnings-status").textContent=events.length?(payload.verified?"Event found":"Event found · coverage incomplete"):"Date unconfirmed";
   if(events.length) {
     for(const event of events) {
       const item=document.createElement("article"); item.className="news-item";
@@ -535,7 +535,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     {label:"Valuation inputs",ok:valuation.available,detail:valuation.available?"Three unambiguous annual free-cash-flow periods and recent SEC share count found":valuation.reason},
     {label:"Annual fundamentals",ok:annualFundamentalPass,detail:annualFundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; annual revenue has not dropped more than 10% year over year":"Annual quality filter failed or comparable data is missing"},
     {label:"Latest quarterly trend",ok:quarterlyPass,detail:quarterlyPass?"Quarterly revenue/net income are positive and revenue is no worse than -15% year over year":"Latest quarterly net income, same-quarter revenue comparison, or quality threshold did not pass"},
-    {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next Nasdaq-listed earnings date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
+    {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next "+(earnings?.provider||"provider-listed")+" date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
     {label:"Recent news",ok:recentHeadlines.length>0&&!flaggedHeadlines.length,detail:recentHeadlines.length?(flaggedHeadlines.length?flaggedHeadlines.length+" recent headline(s) contain risk keywords and need source review":recentHeadlines.length+" timestamped headline(s) from the last 7 days"):"No timestamped headlines in the last 7 days"},
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
     {label:"Historical validation",ok:false,detail:"Walk-forward and untouched holdout backtests are not complete; this blocks BUY signals"}
