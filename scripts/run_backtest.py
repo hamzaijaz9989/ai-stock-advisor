@@ -178,7 +178,7 @@ def run_payload(payload: Any) -> dict[str, Any]:
 
     return json_safe({
         "report_version": 1,
-        "generated_at": datetime.now(timezone.utc),
+        "generated_at": datetime.now(UTC),
         "metadata": metadata,
         "configuration": asdict(config),
         "summary": summary,
