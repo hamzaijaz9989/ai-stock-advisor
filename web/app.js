@@ -126,7 +126,7 @@ async function analyze(ticker) {
     setMessage("Loaded SEC financial observations for "+company.name+". Check each filing date and period before comparing metrics.","success");
   } catch(error) {
     $("sec-health").textContent="Request failed";
-    const reason=error instanceof TypeError?"Browser/network/CORS error while contacting SEC. The static page cannot proxy SEC requests.":error.message||"Unknown error";
+    const reason=error instanceof TypeError?"Could not reach the SEC data service. Check your connection and try again.":error.message||"The SEC data request failed.";
     setMessage(reason+" No sample data has been substituted.","error");
   } finally { button.disabled=false; button.innerHTML='Analyze company <span aria-hidden="true">↗</span>'; }
 }
