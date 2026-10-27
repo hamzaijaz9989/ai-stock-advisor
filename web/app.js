@@ -131,6 +131,49 @@ async function loadQuote(ticker) {
     renderQuote({error:error.message,price:null,fetchedAt:new Date().toISOString(),source:"Yahoo Finance"});
   }
 }
+function renderFilings(submissions, company) {
+  const list = $("filings-list");
+  list.innerHTML = "";
+  const recent = submissions?.filings?.recent;
+  const count = Array.isArray(recent?.form) ? recent.form.length : 0;
+  if (!count) {
+    $("filings-status").textContent = "Unavailable";
+    list.textContent = "Official filing data could not be loaded for this company.";
+    return;
+  }
+  const allowedForms = new Set(["10-K", "10-Q", "8-K", "20-F", "6-K", "40-F"]);
+  const entries = [];
+  for (let i = 0; i < count && entries.length < 8; i++) {
+    const form = recent.form[i];
+    const accession = recent.accessionNumber?.[i];
+    const document = recent.primaryDocument?.[i];
+    const filed = recent.filingDate?.[i];
+    if (!allowedForms.has(form) || !accession || !document || !filed) continue;
+    const cik = String(company.cik).replace(/^0+/, "");
+    const accessionPath = accession.replace(/-/g, "");
+    const href = "https://www.sec.gov/Archives/edgar/data/" + cik + "/" + accessionPath + "/" + document;
+    entries.push({form, filed, href, description: recent.primaryDocDescription?.[i] || document, reportDate: recent.reportDate?.[i] || ""});
+  }
+  $("filings-status").textContent = entries.length ? entries.length + " filings" : "No recent matches";
+  if (!entries.length) {
+    list.textContent = "No recent 10-K, 10-Q, 8-K, 20-F, 6-K, or 40-F filings were found in the SEC submissions data.";
+    return;
+  }
+  for (const entry of entries) {
+    const card = document.createElement("article");
+    card.className = "news-item";
+    const link = document.createElement("a");
+    link.href = entry.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = entry.form + " · " + entry.description;
+    const meta = document.createElement("p");
+    meta.className = "muted";
+    meta.textContent = "Filed " + fmtDate(entry.filed) + (entry.reportDate ? " · Reporting period " + fmtDate(entry.reportDate) : "") + " · SEC EDGAR";
+    card.append(link, meta);
+    list.append(card);
+  }
+}
 function renderNews(payload) {
   const list = $("news-list");
   list.innerHTML = "";
@@ -186,6 +229,7 @@ async function analyze(ticker) {
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(submissions?.filings?.recent?.filingDate?.[0]?" · Most recent filing "+fmtDate(submissions.filings.recent.filingDate[0]):"");
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderTable(observations);
+    renderFilings(submissions, company);
     loadNews(ticker);
     loadQuote(ticker);
     $("sec-health").textContent="Connected; received SEC company facts";
