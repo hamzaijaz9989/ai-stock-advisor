@@ -192,7 +192,8 @@ test("earnings comparison uses SEC actuals and converts third-party revenue cons
   assert.equal(root.children[3].children[1].textContent,"$110.00B");
   assert.ok(root.children[4].children[1].textContent.includes("9.09%"));
   assert.ok(root.children[6].children[1].textContent.includes("9.09%"));
-  assert.ok(root.children.some(node=>node.children?.some(child=>child.textContent==="Test results summary")));
+  assert.ok(root.children.some(node=>node.children?.some(child=>String(child.textContent||"").includes("raw actual EPS/revenue"))));
+  assert.ok(!root.children.some(node=>node.children?.some(child=>child.textContent==="Test results summary")));
 });
 
 test("earnings comparison does not invent consensus when the public brief is unavailable", () => {
@@ -226,4 +227,21 @@ test("decision panel says AVOID when quarterly financials are available but fail
     quarter:{available:true,currentRevenue:120e9,currentIncome:-1e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"}
   });
   assert.ok(app.document.getElementById("decision-title").textContent.startsWith("AVOID"));
+});
+
+
+test("earnings brief headline is only displayed when provider raw actuals are present", () => {
+  const app=loadAppFunctions();
+  const payload={
+    available:true,status:"reported",quarter:"Q3-2026",
+    estimates:{consensusEps:1.1,consensusRevenue:110000},
+    actualEps:1.2,actualRevenue:120000,
+    headline:"Provider headline",
+    whatItMeans:"Provider interpretation",
+    sourceUrl:"https://example.com/brief"
+  };
+  const quarter={periodEnd:"2026-06-30",filed:"2026-08-01",currentRevenue:120000000000,currentIncome:20000000000,currentEps:1.2};
+  app.renderEarningsResult(payload,quarter,"Q3-2026");
+  const root=app.document.getElementById("earnings-results-content");
+  assert.ok(root.children.some(node=>node.children?.some(child=>String(child.textContent||"").includes("Provider headline"))));
 });
