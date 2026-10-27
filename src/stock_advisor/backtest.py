@@ -8,10 +8,10 @@ are predictive. Use only information available on or before each signal date.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from statistics import mean, median
-from typing import Iterable
 
 
 def _as_date(value: date | datetime | str) -> date:
@@ -24,7 +24,7 @@ def _as_date(value: date | datetime | str) -> date:
     raise TypeError("Dates must be datetime.date, datetime, or ISO YYYY-MM-DD strings.")
 
 
-def _number(value: float | int | None) -> float | None:
+def _number(value: float | None) -> float | None:
     if value is None or isinstance(value, bool):
         return None
     try:
@@ -121,7 +121,7 @@ def _validate_bars(bars: Iterable[DailyBar]) -> tuple[list[dict[str, float | dat
 def simulate_signal(
     signal: TradeSignal,
     bars: Iterable[DailyBar],
-    config: BacktestConfig = BacktestConfig(),
+    config: BacktestConfig | None = None,
 ) -> TradeOutcome:
     """Simulate one long signal, entering only on the next session's open.
 
@@ -131,9 +131,11 @@ def simulate_signal(
     A stop gap exits at the observed open, not the stop level. Trades without
     enough future bars and without an earlier exit are marked incomplete.
     """
+    if config is None:
+        config = BacktestConfig()
     signal_date = _as_date(signal.signal_date)
     symbol = str(signal.symbol).strip().upper()
-    empty = dict(symbol=symbol, signal_date=signal_date)
+    empty = {"symbol": symbol, "signal_date": signal_date}
     if not symbol:
         return TradeOutcome(**empty, status="invalid_signal", detail="Ticker is blank.")
     signal_values = (
