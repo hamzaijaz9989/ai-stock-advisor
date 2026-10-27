@@ -46,7 +46,7 @@ A GitHub Actions deployment workflow is included at `.github/workflows/pages.yml
 
 The dashboard includes best-effort headline discovery using Yahoo Finance RSS and Google News RSS when available. Headlines are not independently verified and do not create a buy recommendation. See [docs/NEWS_AND_SIGNAL_POLICY.md](docs/NEWS_AND_SIGNAL_POLICY.md) for source hierarchy and validation rules.
 
-## Planned architecture
+## Market quotes and opportunity ranking\n\nA best-effort Yahoo Finance quote endpoint is available for the selected ticker; quotes may be delayed or unavailable and must be checked against a broker. The dashboard does not yet generate ranked buy recommendations, valuation-based entry zones, or exit levels. Those remain gated on validated data and backtesting. See [docs/MARKET_DATA_AND_RECOMMENDATIONS.md](docs/MARKET_DATA_AND_RECOMMENDATIONS.md).\n\n## Planned architecture
 
 1. **Data adapters** — SEC EDGAR, historical prices, FRED and official investor-relations disclosures.
 2. **Validation** — source provenance, publication timestamps, duplicate/missing observations, corporate actions.
