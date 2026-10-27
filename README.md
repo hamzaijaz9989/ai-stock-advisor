@@ -42,6 +42,10 @@ A GitHub Actions deployment workflow is included at `.github/workflows/pages.yml
 - Different SEC accounting tags are shown as reported and are not fully reconciled into one canonical accounting value.
 - No broker integration, automated trading, personalized investment advice, fabricated price, valuation, or performance data.
 
+## News monitoring
+
+The dashboard includes best-effort headline discovery using Yahoo Finance RSS and Google News RSS when available. Headlines are not independently verified and do not create a buy recommendation. See [docs/NEWS_AND_SIGNAL_POLICY.md](docs/NEWS_AND_SIGNAL_POLICY.md) for source hierarchy and validation rules.
+
 ## Planned architecture
 
 1. **Data adapters** — SEC EDGAR, historical prices, FRED and official investor-relations disclosures.
