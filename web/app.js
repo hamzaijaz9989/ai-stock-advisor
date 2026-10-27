@@ -186,7 +186,8 @@ async function analyze(ticker) {
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(submissions?.filings?.recent?.filingDate?.[0]?" · Most recent filing "+fmtDate(submissions.filings.recent.filingDate[0]):"");
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderTable(observations);
-    loadNews(ticker);\n    loadQuote(ticker);
+    loadNews(ticker);
+    loadQuote(ticker);
     $("sec-health").textContent="Connected; received SEC company facts";
     setMessage("Loaded SEC financial observations for "+company.name+". Check each filing date and period before comparing metrics.","success");
   } catch(error) {
@@ -196,5 +197,6 @@ async function analyze(ticker) {
   } finally { button.disabled=false; button.innerHTML='Analyze company <span aria-hidden="true">↗</span>'; }
 }
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});
-document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));\n$("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
+document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
+$("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
 $("ui-health").textContent="Loaded";
