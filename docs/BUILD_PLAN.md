@@ -66,7 +66,7 @@
 - [ ] Add deduplication, relevance/event classification, stale-news handling, and point-in-time news storage.
 - [ ] Test whether news improves out-of-sample results after costs before it can influence a signal.
 
-## Milestone 8 — Dashboard and monitoring
+## Milestone 8 — Live quote and ranking\n\n- [x] Add best-effort Yahoo Finance quote endpoint with provider timestamp and delayed-data warning.\n- [x] Display selected ticker quote and manual refresh control.\n- [ ] Validate quote availability, stale-data detection and provider terms.\n- [ ] Add historical prices and transparent fundamental/valuation/risk score.\n- [ ] Populate a ranked top-five opportunity list only after data and validation gates pass.\n- [ ] Show valuation-based entry zones, thesis-invalidating exit conditions and scenario ranges, not guaranteed prices.\n\n## Milestone 9 — Dashboard and monitoring
 
 - Searchable watchlist and research reports.
 - Evidence links, data freshness and quality warnings.
