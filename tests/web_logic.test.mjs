@@ -245,3 +245,29 @@ test("earnings brief headline is only displayed when provider raw actuals are pr
   const root=app.document.getElementById("earnings-results-content");
   assert.ok(root.children.some(node=>node.children?.some(child=>String(child.textContent||"").includes("Provider headline"))));
 });
+
+
+test("daily-bar snapshot never passes the current-quote decision gate", () => {
+  const app=loadAppFunctions();
+  const observations=[...annualFixtures(),...quarterlyFixtures()];
+  const valuation=app.buildDcfEstimate(observations,{});
+  const entry=valuation.base*0.775;
+  const historyRows=Array.from({length:16},(_,i)=>({
+    date:"2026-01-"+String(i+1).padStart(2,"0"),
+    close:entry,high:entry+2,low:entry-2
+  }));
+  const future=new Date(Date.now()+60*86400000).toISOString().slice(0,10);
+  const quarter={available:true,currentRevenue:120e9,currentIncome:20e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"};
+  app.renderDecision({
+    ticker:"TEST",observations,facts:{},
+    quote:{price:entry,quoteTime:new Date().toISOString(),interval:"1d",delayedOrRealtime:"Daily interval; not real-time",source:"test"},
+    history:{data:historyRows},
+    news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
+    earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
+    quarter
+  });
+  const title=app.document.getElementById("decision-title").textContent;
+  assert.ok(title.startsWith("INSUFFICIENT EVIDENCE"));
+  const checks=app.document.getElementById("decision-checks").children;
+  assert.ok(checks.some(row=>row.children.some(child=>child.textContent?.includes("daily-bar snapshot"))));
+});
