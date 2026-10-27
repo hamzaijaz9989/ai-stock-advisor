@@ -1,4 +1,6 @@
 import importlib.util
+import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -94,3 +96,24 @@ def test_missing_symbol_bars_are_reported_not_silently_dropped():
     assert report["summary"]["signals"] == 2
     assert report["summary"]["missing_bars"] == 1
     assert report["outcomes"][1]["status"] == "missing_bars"
+
+
+def test_cli_runs_synthetic_example_and_emits_json():
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts" / "run_backtest.py"),
+            "--input",
+            str(root / "examples" / "backtest_input.example.json"),
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["summary"]["completed_trades"] == 1
+    assert report["validation"]["decision_eligible"] is False
+    assert report["metadata"]["data_source"].startswith("SYNTHETIC EXAMPLE ONLY")
