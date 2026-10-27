@@ -18,6 +18,9 @@ async function fetchHistory(host, ticker) {
       date: new Date(timestamps[i]*1000).toISOString().slice(0,10),
       close: Number(close.toFixed(4)),
       adjustedClose: Number(adjClose.toFixed(4)),
+      open: Number.isFinite(quote.open?.[i]) ? Number(quote.open[i].toFixed(4)) : null,
+      high: Number.isFinite(quote.high?.[i]) ? Number(quote.high[i].toFixed(4)) : null,
+      low: Number.isFinite(quote.low?.[i]) ? Number(quote.low[i].toFixed(4)) : null,
       volume: Number.isFinite(quote.volume?.[i]) ? quote.volume[i] : null
     });
   }
