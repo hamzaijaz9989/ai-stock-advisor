@@ -29,3 +29,19 @@ A high in-sample win rate alone is not evidence of a robust strategy. No return 
 
 ## Input data contract
 The caller must supply bars whose OHLC prices are already consistently adjusted for stock splits across the tested interval. Adjusted-close factors are used only to approximate dividends/total-return effects; the simulator does not independently repair split discontinuities. If split-consistent bars cannot be sourced, the affected signal must be excluded. Daily OHLC cannot reveal the true intraday order of a stop and target; the stop-first rule is a conservative approximation, not tick-level execution reconstruction. Benchmark return is measured from the same signal-entry session's open to the exit close, while strategy returns include the configured entry/exit cost assumption.
+
+## Run the replay tool
+After installing the project in editable mode, run the synthetic smoke-test example:
+
+```bash
+python scripts/run_backtest.py --input examples/backtest_input.example.json
+```
+
+The example contains **synthetic, non-market data** and is meant only to verify the CLI. For real research inputs, provide a JSON object with:
+- `metadata.data_source`, `metadata.signals_source`, and an ISO `metadata.as_of_date`;
+- `metadata.quality_flags` for point-in-time signals, survivorship control, corporate-action handling, calibrated transaction costs and untouched holdout;
+- `signals` with precomputed symbol, signal date, entry zone, stop, target and holding limit;
+- `bars` keyed by symbol with chronological OHLC values and optional adjusted close;
+- optional per-side slippage and commission basis points under `config`.
+
+The runner rejects signals and market bars after the declared data cutoff, requires provenance metadata, reports absent symbol histories, and **always sets `decision_eligible: false`**. Quality flags record supplied attestations; the runner does not independently verify them.
