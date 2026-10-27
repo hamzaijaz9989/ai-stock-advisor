@@ -149,8 +149,16 @@ def simulate_signal(
     entry_low, entry_high, stop, target = signal_values
     if entry_low > entry_high or stop >= entry_low or target <= entry_high:
         return TradeOutcome(**empty, status="invalid_signal", detail="Require stop < entry zone < target.")
-    if isinstance(signal.max_holding_sessions, bool) or signal.max_holding_sessions < 1:
-        return TradeOutcome(**empty, status="invalid_signal", detail="Maximum holding sessions must be a positive integer.")
+    if (
+        isinstance(signal.max_holding_sessions, bool)
+        or not isinstance(signal.max_holding_sessions, int)
+        or signal.max_holding_sessions < 1
+    ):
+        return TradeOutcome(
+            **empty,
+            status="invalid_signal",
+            detail="Maximum holding sessions must be a positive integer.",
+        )
 
     slip = _number(config.slippage_bps_per_side)
     commission = _number(config.commission_bps_per_side)
@@ -206,9 +214,9 @@ def simulate_signal(
         exit_close = close
         exit_adj_factor = (float(row["adjusted_close"]) / exit_close) if use_adjusted else 1.0
         net_return = exit_fill * exit_adj_factor / entry_total_return_basis - 1
-        benchmark_close_entry = float(entry_bar["adjusted_close"]) if use_adjusted else entry_close
+        benchmark_entry_basis = raw_entry * entry_adj_factor
         benchmark_close_exit = float(row["adjusted_close"]) if use_adjusted else exit_close
-        benchmark_return = benchmark_close_exit / benchmark_close_entry - 1
+        benchmark_return = benchmark_close_exit / benchmark_entry_basis - 1
         return TradeOutcome(
             **empty,
             status="closed",
