@@ -1,30 +1,29 @@
 <!doctype html>
-<!-- Cloudflare Pages deployment trigger: initial private preview setup. -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101827">
-  <title>AI Stock Advisor — Research Dashboard</title>
+  <meta name="theme-color" content="#0b1120">
+  <title>AI Stock Advisor</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="./" aria-label="AI Stock Advisor home"><span class="brand-mark">A</span><span>AI Stock Advisor</span></a>
-    <span class="status"><i></i> Research prototype</span>
+    <a class="brand" href="./"><span class="brand-mark">A</span><span>AI Stock Advisor</span></a>
+    <span class="status"><i></i> Research only</span>
   </header>
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">LONG-TERM INVESTING · US EQUITIES</p>
-      <h1>Research with <span>evidence.</span></h1>
-      <p class="intro">Explore company-reported financials from SEC EDGAR. Every observation keeps its filing date and reporting period—no invented numbers and no automated trades.</p>
+      <p class="eyebrow">US STOCKS · LONG-TERM</p>
+      <h1>Understand a company<span>.</span></h1>
+      <p class="intro">Start with financial facts reported to the SEC. We show the source dates and never invent missing data.</p>
       <form id="analyze-form" class="search-panel">
-        <label for="ticker">Company ticker</label>
+        <label for="ticker">Stock ticker</label>
         <div class="search-row">
-          <input id="ticker" name="ticker" maxlength="12" value="AAPL" placeholder="e.g. AAPL, MSFT, NVDA" autocomplete="off" required>
-          <button id="analyze-button" type="submit">Analyze company <span aria-hidden="true">↗</span></button>
+          <input id="ticker" name="ticker" maxlength="12" value="AAPL" placeholder="e.g. AAPL" autocomplete="off" required>
+          <button id="analyze-button" type="submit">Analyze</button>
         </div>
-        <div class="quick-tickers" aria-label="Example tickers">
+        <div class="quick-tickers" aria-label="Popular tickers">
           <button type="button" data-ticker="AAPL">AAPL</button>
           <button type="button" data-ticker="MSFT">MSFT</button>
           <button type="button" data-ticker="NVDA">NVDA</button>
@@ -32,60 +31,31 @@
         </div>
       </form>
     </section>
-
-    <section id="message" class="message" role="status" aria-live="polite">Enter a ticker to retrieve the latest financial observations available from SEC EDGAR.</section>
-
+    <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="company-panel" class="company-panel hidden">
-      <div>
-        <p class="eyebrow">COMPANY PROFILE</p>
-        <h2 id="company-name">—</h2>
-        <p id="company-meta" class="muted">—</p>
-      </div>
+      <div><p class="eyebrow">COMPANY</p><h2 id="company-name">—</h2><p id="company-meta" class="muted">—</p></div>
       <div class="source-pill"><span class="source-dot"></span> SEC EDGAR</div>
     </section>
-
     <section id="metrics-grid" class="metrics-grid" aria-label="Financial metrics"></section>
-
     <section class="table-section">
-      <div class="section-heading">
-        <div><p class="eyebrow">SOURCE OBSERVATIONS</p><h2>Financial facts</h2></div>
-        <span id="fact-count" class="count">0 observations</span>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Metric</th><th>Reported value</th><th>Period ended</th><th>Filed on</th><th>Form</th></tr></thead>
-          <tbody id="facts-body"><tr><td colspan="5" class="empty">No company selected yet.</td></tr></tbody>
-        </table>
-      </div>
-      <p class="table-note">Values are reported by the company and may use different fiscal periods or accounting tags. They are not yet reconciled into a comparable valuation model.</p>
+      <div class="section-heading"><div><p class="eyebrow">REPORTED DATA</p><h2>Financial facts</h2></div><span id="fact-count" class="count">0 observations</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Metric</th><th>Value</th><th>Period ended</th><th>Filed</th></tr></thead>
+        <tbody id="facts-body"><tr><td colspan="4" class="empty">Analyze a company to see its reported financial facts.</td></tr></tbody>
+      </table></div>
+      <p class="table-note">Different metrics can cover different reporting periods. Check the period and filing date before comparing.</p>
     </section>
-
-    <section class="lower-grid">
-      <article class="info-card">
-        <div class="icon-box">✓</div><h3>Evidence first</h3>
-        <p>Filing dates are shown separately from period-end dates so older financial periods are not mistaken for information available at that time.</p>
-      </article>
-      <article class="info-card">
-        <div class="icon-box">↗</div><h3>No fabricated data</h3>
-        <p>Missing metrics remain missing. This prototype does not invent stock prices, fair values, probabilities, ratings, or historical performance.</p>
-      </article>
-      <article class="info-card">
-        <div class="icon-box">⌁</div><h3>Research only</h3>
-        <p>No broker connection, order placement, portfolio trading, or personalized investment advice is provided.</p>
-      </article>
-    </section>
-
     <details class="diagnostics">
-      <summary>Diagnostics & data source</summary>
+      <summary>Data connection details</summary>
       <div class="diagnostic-content">
-        <p><strong>Interface:</strong> <span id="ui-health">Loaded</span></p>
+        <p><strong>Page:</strong> <span id="ui-health">Loaded</span></p>
         <p><strong>SEC connection:</strong> <span id="sec-health">Not tested yet</span></p>
         <p><strong>Last request:</strong> <span id="last-request">—</span></p>
-        <p class="muted">This GitHub Pages prototype requests public SEC endpoints directly from your browser. If the SEC blocks browser-origin requests or a network/CORS restriction applies, use the message above as the diagnostic. A server-side proxy is not included because this deployment is static.</p>
-        <p><a href="https://www.sec.gov/edgar/sec-api-documentation" target="_blank" rel="noreferrer">SEC EDGAR API documentation ↗</a></p>
+        <p class="muted">Financial facts come from SEC EDGAR. This is a research prototype, not a valuation model or trade recommendation.</p>
+        <p><a href="https://www.sec.gov/edgar/sec-api-documentation" target="_blank" rel="noreferrer">SEC API documentation ↗</a></p>
       </div>
     </details>
-    <footer><span>AI Stock Advisor · Early prototype</span><span>Data source: SEC EDGAR</span></footer>
+    <footer><span>AI Stock Advisor · Early prototype</span><span>SEC EDGAR data · No automated trades</span></footer>
   </main>
   <script src="./app.js" defer></script>
 </body>
