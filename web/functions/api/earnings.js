@@ -92,7 +92,8 @@ function mapEarningsNxtEvent(event) {
     consensusEps: Number.isFinite(event.estimates?.consensusEps) ? event.estimates.consensusEps : null,
     consensusRevenue: Number.isFinite(event.estimates?.consensusRevenue) ? event.estimates.consensusRevenue : null,
     impliedMovePct: Number.isFinite(event.impliedMovePct) ? event.impliedMovePct : null,
-    sourceUrl: typeof event.webUrl === "string" ? event.webUrl : "https://earningsnxt.ai/"
+    sourceUrl: typeof event.webUrl === "string" ? event.webUrl : "https://earningsnxt.ai/",
+    briefUrl: typeof event.briefUrl === "string" ? event.briefUrl : null
   };
 }
 
@@ -132,6 +133,27 @@ export async function onRequestGet({ request }) {
     }
     if (nearTermMatch) {
       const incompleteBeforeMatch=failedDates.some(date=>date<=nearTermMatch.reportDate);
+      // Enrich the Nasdaq event with its fiscal-quarter ID when the public Nxt calendar has it.
+      // Failure to enrich does not invalidate the Nasdaq event date itself.
+      try {
+        const enrichment=await queryEarningsNxtWindow(nearTermMatch.reportDate,nearTermMatch.reportDate);
+        if(!enrichment.capped) {
+          const secondary=enrichment.events.find(event=>
+            String(event.symbol||"").trim().toUpperCase()===ticker &&
+            String(event.reportDate||"")===nearTermMatch.reportDate
+          );
+          if(secondary) {
+            nearTermMatch.fiscalQuarter=String(secondary.fiscalQuarter||"");
+            nearTermMatch.briefUrl=typeof secondary.briefUrl==="string"?secondary.briefUrl:null;
+            nearTermMatch.webUrl=typeof secondary.webUrl==="string"?secondary.webUrl:null;
+            nearTermMatch.consensusRevenue=Number.isFinite(secondary.estimates?.consensusRevenue)?secondary.estimates.consensusRevenue:null;
+            nearTermMatch.impliedMovePct=Number.isFinite(secondary.impliedMovePct)?secondary.impliedMovePct:null;
+            nearTermMatch.nxtProvider="EarningsNxt public calendar";
+          }
+        }
+      } catch (_) {
+        // Keep the primary Nasdaq event and explicitly note third-party enrichment was unavailable.
+      }
       return Response.json({
         ticker, provider:"Nasdaq public earnings calendar", fetchedAt:new Date().toISOString(),
         windowStart:today, windowEnd:nearTermEnd, throughDate, checkedDates:checkedDates.length,
