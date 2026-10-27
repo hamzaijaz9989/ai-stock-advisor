@@ -1,6 +1,18 @@
+import importlib.util
+import sys
+from pathlib import Path
+
 import pytest
 
-from scripts.run_backtest import InputError, run_payload
+_runner_path = Path(__file__).resolve().parents[1] / "scripts" / "run_backtest.py"
+_runner_spec = importlib.util.spec_from_file_location("ai_stock_advisor_backtest_runner", _runner_path)
+if _runner_spec is None or _runner_spec.loader is None:
+    raise RuntimeError("Could not load backtest runner for tests.")
+_runner_module = importlib.util.module_from_spec(_runner_spec)
+sys.modules[_runner_spec.name] = _runner_module
+_runner_spec.loader.exec_module(_runner_module)
+InputError = _runner_module.InputError
+run_payload = _runner_module.run_payload
 
 
 def payload():
