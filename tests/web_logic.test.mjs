@@ -269,5 +269,7 @@ test("daily-bar snapshot never passes the current-quote decision gate", () => {
   const title=app.document.getElementById("decision-title").textContent;
   assert.ok(title.startsWith("INSUFFICIENT EVIDENCE"));
   const checks=app.document.getElementById("decision-checks").children;
-  assert.ok(checks.some(row=>row.children.some(child=>child.textContent?.includes("daily-bar snapshot"))));
+  assert.ok(checks.some(row=>row.children.some(child=>
+    child.children?.some(nested=>nested.textContent?.includes("daily-bar snapshot"))
+  )));
 });
