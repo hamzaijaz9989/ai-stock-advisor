@@ -85,7 +85,7 @@ test("quarterlySeries selects three-month disclosures and matches the prior year
   const current = series[1];
   const prior = app.matchingPriorYear(series, current);
   assert.equal(prior.value, 100);
-  assert.equal(current.value / prior.value - 1, 0.2);
+  assert.ok(Math.abs((current.value / prior.value - 1) - 0.2) < 1e-9);
 });
 
 test("buildDcfEstimate uses matched-period diluted shares and produces ordered scenarios", () => {
@@ -139,7 +139,7 @@ test("quarterly snapshot returns latest-quarter revenue growth and net income", 
   assert.equal(quarter.available, true);
   assert.equal(quarter.currentRevenue, 120e9);
   assert.equal(quarter.currentIncome, 20e9);
-  assert.equal(quarter.revenueYoY, 0.2);
+  assert.ok(Math.abs(quarter.revenueYoY - 0.2) < 1e-9);
   assert.equal(quarter.periodEnd, "2026-06-30");
 });
 
