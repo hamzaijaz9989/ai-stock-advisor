@@ -56,9 +56,14 @@ function parseEasternQuoteLabel(label) {
   const easternOffsetMs = localizedAsUtc - wallClockAsUtc;
   const timestamp = wallClockAsUtc - easternOffsetMs;
   const check = new Date(timestamp);
-  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month ||
-      check.getUTCDate() !== day || check.getUTCHours() !== hour ||
-      check.getUTCMinutes() !== minute) return null;
+  const checkParts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(check).map(part => [part.type, part.value]));
+  if (Number(checkParts.year) !== year || Number(checkParts.month)-1 !== month ||
+      Number(checkParts.day) !== day || Number(checkParts.hour) !== hour ||
+      Number(checkParts.minute) !== minute) return null;
   return check.toISOString();
 }
 
