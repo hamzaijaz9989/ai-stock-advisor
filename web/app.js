@@ -11,7 +11,8 @@ const METRICS = [
   {label:"Stockholders' equity", tags:["StockholdersEquity","StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"], key:"equity"},
   {label:"Operating cash flow", tags:["NetCashProvidedByUsedInOperatingActivities"], key:"operatingCashFlow"},
   {label:"Capital expenditures", tags:["PaymentsToAcquirePropertyPlantAndEquipment"], key:"capex"},
-  {label:"Weighted-average diluted shares", tags:["WeightedAverageNumberOfDilutedSharesOutstanding"], key:"dilutedShares"}
+  {label:"Weighted-average diluted shares", tags:["WeightedAverageNumberOfDilutedSharesOutstanding"], key:"dilutedShares"},
+  {label:"Diluted earnings per share", tags:["EarningsPerShareDiluted"], key:"dilutedEps"}
 ];
 const cache = new Map();
 function setMessage(text, type="") { const el=$("message"); el.textContent=text; el.className="message"+(type?" "+type:""); }
@@ -114,6 +115,38 @@ function annualSeries(observations, key) {
   }
   return series.sort((a,b) => a.end.localeCompare(b.end));
 }
+function quarterlySeries(observations, key) {
+  const candidates = observations.filter(row => row.key === key &&
+    typeof row.value === "number" && ["10-Q","10-K"].includes(row.form) &&
+    row.start && row.end &&
+    (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 >= 70 &&
+    (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 <= 110);
+  const byEnd = new Map();
+  for (const row of candidates) {
+    if (!byEnd.has(row.end)) byEnd.set(row.end, []);
+    byEnd.get(row.end).push(row);
+  }
+  const series = [];
+  for (const [end, rows] of byEnd) {
+    const distinct = new Map(rows.map(row => [String(row.value) + "|" + row.unit, row]));
+    if (distinct.size !== 1) continue;
+    series.push({end,...[...distinct.values()][0]});
+  }
+  return series.sort((a,b) => a.end.localeCompare(b.end));
+}
+function matchingPriorYear(series, current) {
+  if (!current?.end) return null;
+  const currentMs=Date.parse(current.end+"T00:00:00Z");
+  const candidates=series.filter(row=>{
+    const days=(currentMs-Date.parse(row.end+"T00:00:00Z"))/86400000;
+    return days>=350&&days<=380;
+  });
+  return candidates.sort((a,b)=>{
+    const da=Math.abs((currentMs-Date.parse(a.end+"T00:00:00Z"))/86400000-365.25);
+    const db=Math.abs((currentMs-Date.parse(b.end+"T00:00:00Z"))/86400000-365.25);
+    return da-db;
+  })[0]||null;
+}
 function renderFundamentalSnapshot(observations) {
   const panel = $("fundamental-snapshot");
   panel.innerHTML = "";
@@ -149,6 +182,53 @@ function renderFundamentalSnapshot(observations) {
     const meta=document.createElement("div"); meta.className="metric-date"; meta.textContent=item.meta;
     card.append(label,value,meta); panel.append(card);
   }
+}
+
+function renderQuarterlySnapshot(observations) {
+  const panel=$("quarterly-snapshot");
+  panel.innerHTML="";
+  const revenue=quarterlySeries(observations,"revenue");
+  const income=quarterlySeries(observations,"netIncome");
+  const eps=quarterlySeries(observations,"dilutedEps");
+  const latestRevenue=revenue[revenue.length-1]||null;
+  const priorRevenue=latestRevenue?matchingPriorYear(revenue,latestRevenue):null;
+  const latestIncome=latestRevenue?income.find(row=>row.end===latestRevenue.end)||null:null;
+  const priorIncome=latestIncome?matchingPriorYear(income,latestIncome):null;
+  const latestEps=latestRevenue?eps.find(row=>row.end===latestRevenue.end)||null:null;
+  const priorEps=latestEps?matchingPriorYear(eps,latestEps):null;
+  const revenueYoY=latestRevenue&&priorRevenue&&priorRevenue.value>0
+    ? latestRevenue.value/priorRevenue.value-1 : null;
+  $("quarterly-status").textContent=latestRevenue
+    ? "Quarter ended "+fmtDate(latestRevenue.end)+" · filed "+fmtDate(latestRevenue.filed)
+    : "Comparable quarterly facts unavailable";
+  if(!latestRevenue) {
+    panel.textContent="No unambiguous 70–110 day quarterly revenue observation was found in the available SEC facts.";
+    return {available:false,reason:"Quarterly revenue facts missing",currentRevenue:null,currentIncome:null,revenueYoY:null,periodEnd:null};
+  }
+  const dateMeta="Quarter ended "+fmtDate(latestRevenue.end)+" · SEC "+latestRevenue.form+" filed "+fmtDate(latestRevenue.filed);
+  panel.append(metricCard("Latest quarterly revenue",fmtValue(latestRevenue.value,latestRevenue.unit),
+    revenueYoY!==null?"Year over year "+(revenueYoY>=0?"+":"")+(revenueYoY*100).toFixed(1)+"% · prior quarter end "+fmtDate(priorRevenue.end):"Same-quarter prior-year comparison unavailable"));
+  if(latestIncome) {
+    const incomeMeta=priorIncome
+      ?"Prior year: "+fmtValue(priorIncome.value,priorIncome.unit)+" · "+dateMeta
+      :dateMeta+" · prior-year comparison unavailable";
+    panel.append(metricCard("Quarterly net income",fmtValue(latestIncome.value,latestIncome.unit),incomeMeta));
+  }
+  if(latestEps) {
+    const epsMeta=(priorEps?"Prior-year diluted EPS: "+fmtValue(priorEps.value,priorEps.unit)+" · ":"")+dateMeta;
+    panel.append(metricCard("Quarterly diluted EPS",fmtValue(latestEps.value,latestEps.unit),epsMeta));
+  }
+  return {
+    available:Boolean(latestRevenue&&priorRevenue&&latestIncome),
+    currentRevenue:latestRevenue.value,
+    currentIncome:latestIncome?.value??null,
+    revenueYoY,
+    priorRevenue:priorRevenue?.value??null,
+    periodEnd:latestRevenue.end,
+    filed:latestRevenue.filed,
+    netIncomeFiled:latestIncome?.filed??null,
+    reason:!priorRevenue?"Same-quarter prior-year revenue is missing":!latestIncome?"Quarterly net income observation missing":"Quarterly revenue/net income comparison available"
+  };
 }
 
 function renderTable(observations) {
@@ -417,7 +497,7 @@ function renderEarnings(payload) {
   const note=document.createElement("p"); note.className="table-note"; note.textContent=(payload.warning||"")+" Source: EarningsNxt public calendar · Retrieved "+new Date(payload.fetchedAt||Date.now()).toLocaleString()+". Confirm dates with official investor relations.";
   root.append(note);
 }
-function renderDecision({ticker,observations,facts,quote,history,news,earnings}) {
+function renderDecision({ticker,observations,facts,quote,history,news,earnings,quarter}) {
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
   const grid=$("decision-metrics"),checks=$("decision-checks");
   grid.innerHTML=""; checks.innerHTML="";
@@ -440,7 +520,9 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings})
   const latestRevenue=rev[rev.length-1],priorRevenue=rev[rev.length-2];
   const latestIncome=latestRevenue?income.find(item=>item.end===latestRevenue.end):null;
   const latestFcf=latestRevenue?fcf.find(item=>item.end===latestRevenue.end):null;
-  const fundamentalPass=Boolean(latestRevenue&&priorRevenue&&priorRevenue.value>0&&latestRevenue.value>0&&latestIncome&&latestIncome.value>0&&latestFcf&&latestFcf.value>0&&(latestRevenue.value/priorRevenue.value-1)>=-0.10);
+  const annualFundamentalPass=Boolean(latestRevenue&&priorRevenue&&priorRevenue.value>0&&latestRevenue.value>0&&latestIncome&&latestIncome.value>0&&latestFcf&&latestFcf.value>0&&(latestRevenue.value/priorRevenue.value-1)>=-0.10);
+  const quarterlyPass=Boolean(quarter?.available&&quarter.currentRevenue>0&&quarter.currentIncome>0&&quarter.revenueYoY!==null&&quarter.revenueYoY>=-0.15);
+  const fundamentalPass=annualFundamentalPass&&quarterlyPass;
   const entryLow=valuation.available?valuation.base*0.75:null;
   const entryHigh=valuation.available?valuation.base*0.80:null;
   const entryMid=entryLow!==null?(entryLow+entryHigh)/2:null;
@@ -451,7 +533,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings})
   const dataChecks=[
     {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?"Quote timestamp "+quoteDate.toLocaleString():"Quote unavailable or older than 96 hours"},
     {label:"Valuation inputs",ok:valuation.available,detail:valuation.available?"Three unambiguous annual free-cash-flow periods and recent SEC share count found":valuation.reason},
-    {label:"Fundamentals",ok:fundamentalPass,detail:fundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; revenue has not dropped more than 10% year over year":"Basic quality filter did not pass or comparable data is missing"},
+    {label:"Annual fundamentals",ok:annualFundamentalPass,detail:annualFundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; annual revenue has not dropped more than 10% year over year":"Annual quality filter failed or comparable data is missing"},
+    {label:"Latest quarterly trend",ok:quarterlyPass,detail:quarterlyPass?"Quarterly revenue/net income are positive and revenue is no worse than -15% year over year":"Latest quarterly net income, same-quarter revenue comparison, or quality threshold did not pass"},
     {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next Nasdaq-listed earnings date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
     {label:"Recent news",ok:recentHeadlines.length>0&&!flaggedHeadlines.length,detail:recentHeadlines.length?(flaggedHeadlines.length?flaggedHeadlines.length+" recent headline(s) contain risk keywords and need source review":recentHeadlines.length+" timestamped headline(s) from the last 7 days"):"No timestamped headlines in the last 7 days"},
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
@@ -465,7 +548,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings})
   const reasons=[];
   if(!quoteCurrent) reasons.push("A sufficiently recent quote is missing.");
   if(!valuation.available) reasons.push(valuation.reason);
-  if(!fundamentalPass) reasons.push("The basic financial-quality screen did not pass.");
+  if(!annualFundamentalPass) reasons.push("The annual financial-quality screen did not pass.");
+  if(!quarterlyPass) reasons.push("The latest quarterly results do not pass the minimum trend/data check or are unavailable.");
   if(!earningsVerified) reasons.push("The next earnings date is not reliably confirmed.");
   if(daysToEarnings!==null&&daysToEarnings<=7) reasons.push("An earnings report is due within 7 days, so event risk is high.");
   if(!recentHeadlines.length) reasons.push("Recent timestamped news coverage is missing.");
@@ -644,13 +728,14 @@ async function analyze(ticker) {
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(submissions?.filings?.recent?.filingDate?.[0]?" · Most recent filing "+fmtDate(submissions.filings.recent.filingDate[0]):"");
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderFundamentalSnapshot(observations); renderTable(observations);
+    const quarter=renderQuarterlySnapshot(observations);
     renderFilings(submissions, company);
     $("sec-health").textContent="Connected; received SEC company facts";
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
     const [quote,history,news,earnings]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker)
     ]);
-    renderDecision({ticker,company,observations,facts,quote,history,news,earnings});
+    renderDecision({ticker,company,observations,facts,quote,history,news,earnings,quarter});
     setMessage("Research checks completed for "+company.name+". The advisor will not issue a BUY while its model remains unvalidated.","success");
   } catch(error) {
     $("sec-health").textContent="Request failed";
