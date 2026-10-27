@@ -205,3 +205,25 @@ test("earnings comparison does not invent consensus when the public brief is una
   assert.ok(root.children[3].textContent.includes("Provider access unavailable"));
   assert.ok(!root.children.some(node=>node.children?.[0]?.textContent==="Revenue vs consensus"));
 });
+
+
+test("decision panel says AVOID when quarterly financials are available but fail quality checks", () => {
+  const app=loadAppFunctions();
+  const observations=[...annualFixtures(),...quarterlyFixtures()];
+  const valuation=app.buildDcfEstimate(observations,{});
+  const entry=valuation.base*0.775;
+  const historyRows=Array.from({length:16},(_,i)=>({
+    date:"2026-01-"+String(i+1).padStart(2,"0"),
+    close:entry,high:entry+2,low:entry-2
+  }));
+  const future=new Date(Date.now()+60*86400000).toISOString().slice(0,10);
+  app.renderDecision({
+    ticker:"TEST",observations,facts:{},
+    quote:{price:entry,quoteTime:new Date().toISOString(),source:"test"},
+    history:{data:historyRows},
+    news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
+    earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
+    quarter:{available:true,currentRevenue:120e9,currentIncome:-1e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"}
+  });
+  assert.ok(app.document.getElementById("decision-title").textContent.startsWith("AVOID"));
+});
