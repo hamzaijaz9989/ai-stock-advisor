@@ -37,5 +37,5 @@ Every final recommendation must state:
 - Explain what would change the decision.
 - If price, earnings date, valuation inputs or source data cannot be verified, do not manufacture an actionable price. Return WAIT or INSUFFICIENT EVIDENCE.
 
-## Current implementation status
+## Historical validation implementation\nThe repository now includes `src/stock_advisor/backtest.py` for deterministic single-signal simulation and walk-forward date splitting. It is not connected to the live ranking logic and does not represent a completed portfolio-level or point-in-time backtest. See [docs/BACKTESTING.md](BACKTESTING.md) for the protocol. BUY remains disabled until the actual strategy and its input data pass the full validation gate.\n\n## Current implementation status
 The existing dashboard has SEC-reported facts, best-effort headlines and quotes, one-year price history, and an experimental four-stock research-priority score. It does not yet satisfy all BUY gates above. Do not expose that score as a buy recommendation or fabricate a valuation-derived entry/exit.
