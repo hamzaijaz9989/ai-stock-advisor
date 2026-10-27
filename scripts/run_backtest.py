@@ -12,7 +12,7 @@ import json
 import math
 import sys
 from dataclasses import asdict
-from datetime import date, datetime, UTC
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
