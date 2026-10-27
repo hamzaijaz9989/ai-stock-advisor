@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Run reproducible historical single-signal simulations from explicit JSON inputs.
 
 This command does not generate strategy signals. It replays supplied, dated
@@ -13,7 +12,7 @@ import json
 import math
 import sys
 from dataclasses import asdict
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -52,7 +51,7 @@ def parse_payload(payload: Any) -> tuple[dict[str, Any], list[TradeSignal], dict
         as_of_date = date.fromisoformat(metadata["as_of_date"])
     except ValueError as exc:
         raise InputError("metadata.as_of_date must use ISO YYYY-MM-DD format.") from exc
-    if as_of_date > datetime.now(timezone.utc).date():
+    if as_of_date > datetime.now(UTC).date():
         raise InputError("metadata.as_of_date cannot be in the future.")
 
     flags = metadata.get("quality_flags")
