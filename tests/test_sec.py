@@ -48,7 +48,7 @@ def test_extract_facts_preserves_filing_date_and_accession():
 def test_extract_facts_does_not_invent_missing_filed_date():
     payload = {"facts": {"us-gaap": {"Revenues": {"units": {
         "USD": [{"val": 100, "end": "2024-12-31"}]
-    }}}}
+    }}}}}
     assert SECClient.extract_facts(payload, concepts=("Revenues",)) == []
 
 
