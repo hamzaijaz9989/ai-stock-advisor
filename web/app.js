@@ -523,7 +523,7 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
     root.append(note);
     return;
   }
-  root.append(metricCard("Provider consensus revenue",typeof consensusRevenue==="number"?fmtUsd(consensusRevenue):"Unavailable",
+  root.append(metricCard("Provider consensus revenue",typeof consensusRevenue==="number"?fmtValue(consensusRevenue,"USD"):"Unavailable",
     "EarningsNxt third-party estimate"+(typeof estimates.consensusRevenue==="number"?" · source units converted from USD millions":"")));
   root.append(metricCard("Revenue vs consensus",
     revenueVariance===null?"Not comparable":(revenueVariance>=0?"+":"")+(revenueVariance*100).toFixed(2)+"%",
