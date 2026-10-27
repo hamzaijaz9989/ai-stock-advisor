@@ -89,7 +89,6 @@ def reward_to_risk(
 
 def decide(inputs: RecommendationInputs) -> tuple[Decision, tuple[str, ...]]:
     """Apply conservative gates; missing evidence never becomes a BUY."""
-    reasons: list[str] = []
     if inputs.thesis_broken:
         return Decision.AVOID, ("The investment thesis is marked as broken; reassess before considering entry.",)
 
