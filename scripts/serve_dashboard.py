@@ -1,8 +1,8 @@
 """Serve the static dashboard for a private GitHub Codespaces preview."""
 
+import os
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-import os
 
 ROOT = Path(__file__).resolve().parents[1] / "web"
 os.chdir(ROOT)
