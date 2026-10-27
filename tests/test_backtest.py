@@ -96,7 +96,7 @@ def test_adjusted_return_factors_and_costs_are_applied():
     assert outcome.status == "closed"
     assert outcome.adjusted_returns_used is True
     assert outcome.net_return_pct < 10
-    assert outcome.benchmark_return_pct == pytest.approx(104 / 99 - 1 * 100) if False else outcome.benchmark_return_pct
+    assert outcome.benchmark_return_pct == pytest.approx((104 / 99 - 1) * 100)
 
 
 def test_summary_excludes_unfilled_and_incomplete_signals():
