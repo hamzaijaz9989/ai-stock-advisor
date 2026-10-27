@@ -10,7 +10,8 @@ const METRICS = [
   {label:"Total liabilities", tags:["Liabilities"], key:"liabilities"},
   {label:"Stockholders' equity", tags:["StockholdersEquity","StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"], key:"equity"},
   {label:"Operating cash flow", tags:["NetCashProvidedByUsedInOperatingActivities"], key:"operatingCashFlow"},
-  {label:"Capital expenditures", tags:["PaymentsToAcquirePropertyPlantAndEquipment"], key:"capex"}
+  {label:"Capital expenditures", tags:["PaymentsToAcquirePropertyPlantAndEquipment"], key:"capex"},
+  {label:"Weighted-average diluted shares", tags:["WeightedAverageNumberOfDilutedSharesOutstanding"], key:"dilutedShares"}
 ];
 const cache = new Map();
 function setMessage(text, type="") { const el=$("message"); el.textContent=text; el.className="message"+(type?" "+type:""); }
@@ -329,11 +330,18 @@ function buildDcfEstimate(observations, facts) {
   if (flows.length<3) return {available:false,reason:"Fewer than three unambiguous annual free-cash-flow observations."};
   const last3=flows.slice(-3);
   if (last3.some(row=>!Number.isFinite(row.value)||row.value<=0)) return {available:false,reason:"Recent annual free cash flow is not positive in three comparable periods."};
-  const shares=latestSecValue(facts,[
+  const latestFcf=last3[2];
+  const annualDilutedShares=annualSeries(observations,"dilutedShares").find(row=>row.end===latestFcf.end);
+  const currentInstantShares=latestSecValue(facts,[
     {taxonomy:"dei",tag:"EntityCommonStockSharesOutstanding"},
     {taxonomy:"us-gaap",tag:"EntityCommonStockSharesOutstanding"}
   ],"shares",180);
-  if (!shares || shares.value<=0) return {available:false,reason:"A recent, unambiguous SEC shares-outstanding fact was not found."};
+  const shares=annualDilutedShares&&annualDilutedShares.value>0
+    ? {value:annualDilutedShares.value,end:annualDilutedShares.end,filed:annualDilutedShares.filed,source:"Annual diluted weighted-average shares from matched 10-K period"}
+    : currentInstantShares&&currentInstantShares.value>0
+      ? {value:currentInstantShares.value,end:currentInstantShares.end,filed:currentInstantShares.filed,source:"Recent instant shares outstanding"}
+      : null;
+  if (!shares || shares.value<=0) return {available:false,reason:"No recent SEC share count or matched-period diluted weighted-average share count was found."};
   const latestRevenue=revenue[revenue.length-1], previousRevenue=revenue[revenue.length-2];
   if (!latestRevenue || !previousRevenue || previousRevenue.value<=0) return {available:false,reason:"Comparable annual revenue growth is unavailable."};
   const fcfGrowth1=last3[2].value/last3[1].value-1;
@@ -349,7 +357,6 @@ function buildDcfEstimate(observations, facts) {
     const value=(pv+terminalValue/Math.pow(1+discount,5))/shares.value;
     return Number.isFinite(value)&&value>0?value:null;
   }
-  const latestFcf=last3[2];
   const bearGrowth=clamp(baseGrowth-0.10,-0.20,0.05);
   const bullGrowth=clamp(baseGrowth+0.10,-0.05,0.25);
   const bear=perShare(latestFcf.value,bearGrowth,0.12,0.015);
@@ -360,7 +367,7 @@ function buildDcfEstimate(observations, facts) {
   }
   return {
     available:true,bear,base,bull,latestFcf:latestFcf.value,fcfPeriod:latestFcf.end,
-    shares:shares.value,sharesFiled:shares.filed,baseGrowth,fcfGrowth1,fcfGrowth2,revenueGrowth,
+    shares:shares.value,sharesFiled:shares.filed,sharesSource:shares.source,baseGrowth,fcfGrowth1,fcfGrowth2,revenueGrowth,
     assumptions:"Five-year simplified equity-cash-flow proxy; bear/base/bull growth "+(bearGrowth*100).toFixed(1)+"/"+(baseGrowth*100).toFixed(1)+"/"+(bullGrowth*100).toFixed(1)+"%; discount rates 12/10/9%; terminal growth 1.5/2.5/3.0%."
   };
 }
