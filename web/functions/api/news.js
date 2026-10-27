@@ -45,6 +45,36 @@ export async function onRequestGet({ request }) {
     items.push(...parsed);
     sources.push({ name: source, status: "ok", count: parsed.length });
   }
+  if (items.length === 0) {
+    try {
+      const nasdaqUrl = "https://www.nasdaq.com/api/news/topic/articlebysymbol?q=" + encodeURIComponent(ticker + "|STOCKS") + "&offset=0&limit=10&fallback=true";
+      const response = await fetch(nasdaqUrl, { headers: {
+        "Accept": "application/json, text/plain, */*",
+        "User-Agent": "Mozilla/5.0 (compatible; AIStockAdvisor/1.0)",
+        "Origin": "https://www.nasdaq.com",
+        "Referer": "https://www.nasdaq.com/"
+      }});
+      if (!response.ok) throw new Error("Nasdaq news returned HTTP " + response.status);
+      const payload = await response.json();
+      const rows = payload?.data?.rows || [];
+      const relevant = rows.filter(row =>
+        String(row.primarysymbol || "").toLowerCase() === ticker.toLowerCase() ||
+        (Array.isArray(row.related_symbols) && row.related_symbols.some(symbol => String(symbol).toLowerCase().startsWith(ticker.toLowerCase() + "|")))
+      );
+      for (const row of relevant) {
+        if (!row.title || !row.url) continue;
+        items.push({
+          title: String(row.title),
+          url: String(row.url).startsWith("http") ? row.url : "https://www.nasdaq.com" + row.url,
+          publishedAt: row.created ? new Date(row.created).toISOString() : null,
+          source: row.publisher ? "Nasdaq · " + row.publisher : "Nasdaq"
+        });
+      }
+      sources.push({ name: "Nasdaq company news", status: items.length ? "ok" : "no matching headlines", count: items.length });
+    } catch (error) {
+      sources.push({ name: "Nasdaq company news", status: "unavailable" });
+    }
+  }
   const unique = [...new Map(items.map(item => [item.url, item])).values()]
     .sort((a, b) => Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0))
     .slice(0, 15);
