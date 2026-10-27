@@ -48,8 +48,17 @@ export async function onRequestGet({ request }) {
       });
     } catch (error) { failures.push(String(error?.message || error)); }
   }
-  return Response.json({
-    ticker, error: "Current quote unavailable from the configured provider. Do not rely on a cached or guessed price.",
-    fetchedAt: new Date().toISOString(), source: "Yahoo Finance", providerErrors: failures
-  }, { status: 503, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+  try {
+    const response = await fetch("https://api.nasdaq.com/api/quote/" + encodeURIComponent(ticker) + "/info?assetclass=stocks", {headers: {"Accept":"application/json, text/plain, */*", "User-Agent":"Mozilla/5.0 (compatible; AIStockAdvisor/1.0)", "Origin":"https://www.nasdaq.com", "Referer":"https://www.nasdaq.com/"}});
+    if (!response.ok) throw new Error("Nasdaq quote provider returned HTTP " + response.status);
+    const raw = await response.json();
+    const data = raw?.data;
+    const primary = data?.primaryData || {};
+    const secondary = data?.secondaryData || {};
+    const parseMoney = value => { if (typeof value !== "string") return null; const n = Number(value.replace(/[$,%+,]/g, "").trim()); return Number.isFinite(n) ? n : null; };
+    const price = parseMoney(primary.lastSalePrice) ?? parseMoney(secondary.lastSalePrice);
+    if (!data?.symbol || price === null) throw new Error("Nasdaq returned no usable quote");
+    return Response.json({ticker, companyName:data.companyName || ticker, currency:primary.currency || "USD", exchange:data.exchange || "Unknown", price, previousClose:null, change:parseMoney(primary.netChange) ?? parseMoney(secondary.netChange), changePercent:parseMoney(primary.percentageChange) ?? parseMoney(secondary.percentageChange), quoteTime:null, quoteLabel:primary.lastTradeTimestamp || secondary.lastTradeTimestamp || null, fetchedAt:new Date().toISOString(), marketState:data.marketStatus || "unknown", delayedOrRealtime:primary.isRealTime ? "Provider-labelled real-time; verify independently" : "Latest available quote; may be delayed", source:"Nasdaq quote API", interval:primary.isRealTime ? "provider-labelled real-time" : "latest available", warning:"Provider timing and availability may vary. Verify the price with your broker before acting."}, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
+  } catch (error) { failures.push(String(error?.message || error)); }
+  return Response.json({ticker, error:"Current quote unavailable from all configured providers. Do not rely on a cached or guessed price.", fetchedAt:new Date().toISOString(), source:"Yahoo Finance / Nasdaq", providerErrors:failures}, {status:503, headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }
