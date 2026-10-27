@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "data_source": "SYNTHETIC EXAMPLE ONLY — not market data",
+    "signals_source": "SYNTHETIC EXAMPLE ONLY — hand-authored test signal, not an advisor signal",
+    "as_of_date": "2024-01-03",
+    "quality_flags": {
+      "signals_are_point_in_time": false,
+      "universe_survivorship_controlled": false,
+      "corporate_actions_checked": false,
+      "transaction_costs_calibrated": false,
+      "holdout_period_untouched": false
+    },
+    "notes": "This tiny dataset only verifies the command-line runner. Do not use its metrics to make investment decisions."
+  },
+  "config": {
+    "slippage_bps_per_side": 5,
+    "commission_bps_per_side": 0
+  },
+  "signals": [
+    {
+      "symbol": "TEST",
+      "signal_date": "2024-01-01",
+      "entry_low": 99,
+      "entry_high": 101,
+      "stop_price": 95,
+      "target_price": 110,
+      "max_holding_sessions": 2
+    }
+  ],
+  "bars": {
+    "TEST": [
+      {
+        "date": "2024-01-01",
+        "open": 100,
+        "high": 102,
+        "low": 98,
+        "close": 100,
+        "adjusted_close": 100
+      },
+      {
+        "date": "2024-01-02",
+        "open": 100,
+        "high": 102,
+        "low": 98,
+        "close": 101,
+        "adjusted_close": 100
+      },
+      {
+        "date": "2024-01-03",
+        "open": 103,
+        "high": 111,
+        "low": 102,
+        "close": 108,
+        "adjusted_close": 107
+      }
+    ]
+  }
+}
