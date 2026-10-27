@@ -58,7 +58,15 @@
 - Compare total return and risk metrics with a suitable benchmark.
 - Use walk-forward and untouched holdout periods; log all experiments.
 
-## Milestone 7 — Dashboard and monitoring
+## Milestone 7 — News monitoring
+
+- [x] Add best-effort Yahoo Finance RSS and Google News RSS headline discovery endpoint.
+- [x] Display linked headlines and source labels in the dashboard.
+- [ ] Verify material claims against SEC filings and investor-relations releases.
+- [ ] Add deduplication, relevance/event classification, stale-news handling, and point-in-time news storage.
+- [ ] Test whether news improves out-of-sample results after costs before it can influence a signal.
+
+## Milestone 8 — Dashboard and monitoring
 
 - Searchable watchlist and research reports.
 - Evidence links, data freshness and quality warnings.
