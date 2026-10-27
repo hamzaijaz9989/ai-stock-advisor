@@ -533,18 +533,30 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
   root.append(metricCard("Diluted EPS vs consensus",
     epsVariance===null?"Not comparable":(epsVariance>=0?"+":"")+(epsVariance*100).toFixed(2)+"%",
     epsVariance===null?"Actual diluted EPS or third-party estimate unavailable":"Arithmetic comparison only; definitions may differ"));
-  const heading=payload.headline;
-  if(heading) {
-    const article=document.createElement("article");article.className="news-item";
-    const h=document.createElement("strong");h.textContent=heading;article.append(h);
-    if(payload.whatItMeans) {const p=document.createElement("p");p.textContent=payload.whatItMeans;article.append(p);}
-    if(payload.managementCommentary?.summary) {const p=document.createElement("p");p.className="muted";p.textContent="Management commentary: "+payload.managementCommentary.summary;article.append(p);}
-    if(payload.guidanceChanges?.summary) {const p=document.createElement("p");p.className="muted";p.textContent="Guidance: "+payload.guidanceChanges.summary;article.append(p);}
-    if(payload.sourceUrl) {const a=document.createElement("a");a.href=payload.sourceUrl;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Open third-party earnings brief";article.append(a);}
-    root.append(article);
+  const providerActualsAvailable=typeof payload.actualEps==="number"&&Number.isFinite(payload.actualEps)&&
+    typeof payload.actualRevenue==="number"&&Number.isFinite(payload.actualRevenue);
+  const article=document.createElement("article");article.className="news-item";
+  const h=document.createElement("strong");
+  h.textContent=providerActualsAvailable&&payload.headline
+    ?"Third-party provider summary (not independently verified): "+payload.headline
+    :"Secondary provider narrative omitted from the decision";
+  article.append(h);
+  const context=document.createElement("p");
+  context.className="muted";
+  context.textContent=providerActualsAvailable
+    ?"The brief includes its own actual-result fields; this system still calculates the displayed comparisons from SEC facts and clearly labelled consensus estimates."
+    :"The provider API did not include its own raw actual EPS/revenue and surprise values. Its generated headline/commentary is not used to classify the quarter; displayed comparisons above are computed from SEC-reported results and the provider's consensus estimates.";
+  article.append(context);
+  if(providerActualsAvailable&&payload.whatItMeans) {
+    const p=document.createElement("p");p.textContent=payload.whatItMeans;article.append(p);
   }
+  if(payload.sourceUrl) {
+    const link=document.createElement("a");link.href=payload.sourceUrl;link.target="_blank";link.rel="noopener noreferrer";
+    link.textContent="Open third-party earnings brief";article.append(link);
+  }
+  root.append(article);
   const note=document.createElement("p");note.className="table-note";
-  note.textContent="Matched fiscal-quarter request: "+(expectedQuarter||payload.quarter||"unknown")+". SEC reported values above are primary-source facts. Consensus and commentary are third-party secondary data, may be incomplete or inconsistent, and require confirmation against the original company earnings release.";
+  note.textContent="Matched fiscal-quarter request: "+(expectedQuarter||payload.quarter||"unknown")+". SEC reported values above are primary-source facts. Consensus is third-party secondary data and may be adjusted or use a different EPS definition. Confirm material figures against the original company earnings release.";
   root.append(note);
 }
 function renderEarnings(payload) {
