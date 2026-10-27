@@ -34,7 +34,7 @@ The dashboard in `web/` is deployed to Cloudflare Pages. The repository must rem
 
 It includes SEC EDGAR reported facts and filings, best-effort quote and one-year history data, headline discovery, a third-party upcoming-earnings calendar check, a provisional five-year cash-flow-per-share valuation, ATR-based risk levels, and a decision checklist.
 
-## Decision policy and current limitations
+## Historical validation framework\n\nA Python backtesting module now supports next-session entries, risk/target exits, gap-aware stop fills, transaction costs, benchmark comparisons, outcome summaries, and expanding walk-forward folds. It is a framework for testing defined signals, **not a completed backtest of the dashboard strategy**. The recommendation engine remains locked to WAIT/AVOID/INSUFFICIENT EVIDENCE until point-in-time strategy signals pass walk-forward and untouched holdout evaluation. See [Historical Validation Framework](docs/BACKTESTING.md).\n\n## Decision policy and current limitations
 
 The dashboard's decision panel is deliberately gated. It can show preliminary scenario values and conditional watch levels when the SEC facts are sufficiently complete. These are **not validated buy or sell signals**.
 
