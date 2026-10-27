@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 const SEC_MAP_URL = "https://www.sec.gov/files/company_tickers_exchange.json";
 const SEC_DATA_URL = "https://data.sec.gov";
+const SEC_API = "/api/sec?path=";
 const METRICS = [
   {label:"Revenue", tags:["Revenues","RevenueFromContractWithCustomerExcludingAssessedTax","SalesRevenueNet"], key:"revenue"},
   {label:"Net income", tags:["NetIncomeLoss","ProfitLoss"], key:"netIncome"},
@@ -27,7 +28,9 @@ function fmtValue(value, unit) {
 }
 async function getJson(url) {
   if(cache.has(url)) return cache.get(url);
-  const response=await fetch(url,{headers:{"Accept":"application/json"}});
+  const path=url.startsWith("https://www.sec.gov/")?url.slice("https://www.sec.gov/".length):url.startsWith("https://data.sec.gov/")?url.slice("https://data.sec.gov/".length):null;
+  if(!path) throw new Error("Unsupported SEC data path.");
+  const response=await fetch(SEC_API+encodeURIComponent(path),{headers:{"Accept":"application/json"}});
   if(!response.ok) throw new Error("SEC request returned HTTP "+response.status+".");
   const data=await response.json(); cache.set(url,data); return data;
 }
@@ -95,10 +98,10 @@ function renderTable(observations) {
   const body=$("facts-body"); body.innerHTML="";
   const rows=observations.filter(row=>row.value!==null).slice(0,100);
   $("fact-count").textContent=rows.length+" observations";
-  if(!rows.length) { body.innerHTML='<tr><td colspan="5" class="empty">No supported financial observations were returned.</td></tr>'; return; }
+  if(!rows.length) { body.innerHTML='<tr><td colspan="4" class="empty">No supported financial observations were returned. Open Data connection details below for diagnostics.</td></tr>'; return; }
   for(const row of rows) {
     const tr=document.createElement("tr");
-    const cells=[row.metric+" · "+row.tag,fmtValue(row.value,row.unit),fmtDate(row.end),fmtDate(row.filed),row.form];
+    const cells=[row.metric,fmtValue(row.value,row.unit),fmtDate(row.end),fmtDate(row.filed)];
     for(const value of cells) { const td=document.createElement("td"); td.textContent=value; tr.append(td); }
     body.append(tr);
   }
