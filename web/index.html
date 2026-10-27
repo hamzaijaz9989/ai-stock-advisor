@@ -61,6 +61,18 @@
       <div><p class="eyebrow">LATEST QUOTE</p><h2 id="quote-price">—</h2><p id="quote-change" class="muted">Waiting for market data…</p></div>
       <div class="quote-meta"><span id="quote-time">Timestamp unavailable</span><span id="quote-source">Yahoo Finance · indicative data</span><button id="refresh-quote" type="button" class="secondary-button">Refresh price</button></div>
     </section>
+    <section id="earnings-panel" class="news-section hidden" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">EARNINGS & EVENT RISK</p><h2>Next earnings check</h2></div><span id="earnings-status" class="count">Not checked</span></div>
+      <div id="earnings-content"><p class="empty">Analyze a stock to check the public earnings calendar.</p></div>
+    </section>
+    <section id="recommendation-panel" class="news-section hidden" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">YOUR INVESTMENT DECISION</p><h2>Advisor assessment</h2></div><span id="decision-status" class="count">Waiting for evidence</span></div>
+      <h3 id="decision-title">No decision yet</h3>
+      <p id="decision-explanation" class="table-note">Analyze a ticker to receive a data-quality and risk assessment.</p>
+      <div id="decision-metrics" class="metrics-grid"></div>
+      <div id="decision-checks" class="decision-checks"></div>
+      <p id="decision-caveat" class="table-note">Any preliminary valuation is assumption-driven and is not a validated forecast or instruction to trade.</p>
+    </section>
     <section id="history-panel" class="news-section hidden"><div class="section-heading"><div><p class="eyebrow">PRICE HISTORY · 1 YEAR</p><h2>Historical performance and risk</h2></div><span id="history-status" class="count">Loads with analysis</span></div><div id="history-metrics" class="metrics-grid"></div><div id="history-chart-wrap" class="history-chart-wrap"><p class="empty">Analyze a ticker to load historical prices.</p></div><div class="history-labels"><span id="history-start-label">Start</span><span id="history-end-label">End</span></div><p id="history-meta" class="table-note">Daily price history is requested when you analyze a company.</p><p id="history-warning" class="table-note">Historical performance is not a forecast.</p></section>
     <section class="ranking-section">
       <div class="section-heading"><div><p class="eyebrow">RESEARCH SHORTLIST</p><h2>Top opportunities</h2></div><span class="count">Evidence required</span></div>
