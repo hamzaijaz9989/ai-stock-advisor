@@ -170,8 +170,8 @@ function renderHistory(history) {
   $("history-meta").textContent=history.startDate+" to "+history.endDate+" · "+history.source+" · Retrieved "+new Date(history.fetchedAt).toLocaleString();
   $("history-warning").textContent=history.warning;
   const cards=[
-    {label:"1-year price return",value:(history.totalReturnPercent>=0?"+":"")+history.totalReturnPercent.toFixed(2)+"%",meta:"Adjusted close · "+history.startDate+" to "+history.endDate},
-    {label:"Annualized volatility",value:history.annualizedVolatilityPercent.toFixed(2)+"%",meta:"Standard deviation of daily adjusted-close returns × √252"},
+    {label:"1-year price return",value:(history.totalReturnPercent>=0?"+":"")+history.totalReturnPercent.toFixed(2)+"%",meta:"Close-price return · "+history.startDate+" to "+history.endDate},
+    {label:"Annualized volatility",value:history.annualizedVolatilityPercent.toFixed(2)+"%",meta:"Standard deviation of daily close-price returns × √252"},
     {label:"Maximum drawdown",value:history.maxDrawdownPercent.toFixed(2)+"%",meta:"Largest peak-to-trough decline in this observed window"}
   ];
   const grid=$("history-metrics"); grid.innerHTML="";
@@ -185,15 +185,15 @@ function renderHistory(history) {
   const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
   svg.setAttribute("viewBox","0 0 800 180"); svg.setAttribute("role","img"); svg.setAttribute("aria-label","One-year adjusted closing price history");
   svg.setAttribute("class","history-chart");
-  const values=history.data.map(d=>d.adjustedClose);
+  const values=history.data.map(d=>d.close);
   const min=Math.min(...values), max=Math.max(...values), range=max-min||1;
   const points=values.map((v,i)=>[(i/(values.length-1))*780+10,165-((v-min)/range)*145]);
   const path=document.createElementNS(svg.namespaceURI,"path");
   path.setAttribute("d",points.map((p,i)=>(i?"L":"M")+p[0].toFixed(2)+" "+p[1].toFixed(2)).join(" "));
   path.setAttribute("fill","none"); path.setAttribute("stroke","currentColor"); path.setAttribute("stroke-width","2.5"); path.setAttribute("vector-effect","non-scaling-stroke");
   svg.append(path); $("history-chart-wrap").innerHTML=""; $("history-chart-wrap").append(svg);
-  $("history-start-label").textContent=history.startDate+" · $"+history.data[0].adjustedClose.toFixed(2)+" adjusted";
-  $("history-end-label").textContent=history.endDate+" · $"+history.latestAdjustedClose.toFixed(2)+" adjusted";
+  $("history-start-label").textContent=history.startDate+" · $"+history.data[0].close.toFixed(2)+" close";
+  $("history-end-label").textContent=history.endDate+" · $"+history.latestClose.toFixed(2)+" close";
 }
 async function loadHistory(ticker) {
   $("history-status").textContent="Loading…";
