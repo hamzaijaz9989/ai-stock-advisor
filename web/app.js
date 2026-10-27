@@ -162,6 +162,55 @@ function renderTable(observations) {
     body.append(tr);
   }
 }
+
+function renderHistory(history) {
+  const panel=$("history-panel");
+  panel.classList.remove("hidden");
+  $("history-status").textContent=history.observations+" daily observations";
+  $("history-meta").textContent=history.startDate+" to "+history.endDate+" · "+history.source+" · Retrieved "+new Date(history.fetchedAt).toLocaleString();
+  $("history-warning").textContent=history.warning;
+  const cards=[
+    {label:"1-year price return",value:(history.totalReturnPercent>=0?"+":"")+history.totalReturnPercent.toFixed(2)+"%",meta:"Adjusted close · "+history.startDate+" to "+history.endDate},
+    {label:"Annualized volatility",value:history.annualizedVolatilityPercent.toFixed(2)+"%",meta:"Standard deviation of daily adjusted-close returns × √252"},
+    {label:"Maximum drawdown",value:history.maxDrawdownPercent.toFixed(2)+"%",meta:"Largest peak-to-trough decline in this observed window"}
+  ];
+  const grid=$("history-metrics"); grid.innerHTML="";
+  for(const item of cards) {
+    const card=document.createElement("article"); card.className="metric-card";
+    const label=document.createElement("div"); label.className="metric-label"; label.textContent=item.label;
+    const value=document.createElement("div"); value.className="metric-value"; value.textContent=item.value;
+    const meta=document.createElement("div"); meta.className="metric-date"; meta.textContent=item.meta;
+    card.append(label,value,meta); grid.append(card);
+  }
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox","0 0 800 180"); svg.setAttribute("role","img"); svg.setAttribute("aria-label","One-year adjusted closing price history");
+  svg.setAttribute("class","history-chart");
+  const values=history.data.map(d=>d.adjustedClose);
+  const min=Math.min(...values), max=Math.max(...values), range=max-min||1;
+  const points=values.map((v,i)=>[(i/(values.length-1))*780+10,165-((v-min)/range)*145]);
+  const path=document.createElementNS(svg.namespaceURI,"path");
+  path.setAttribute("d",points.map((p,i)=>(i?"L":"M")+p[0].toFixed(2)+" "+p[1].toFixed(2)).join(" "));
+  path.setAttribute("fill","none"); path.setAttribute("stroke","currentColor"); path.setAttribute("stroke-width","2.5"); path.setAttribute("vector-effect","non-scaling-stroke");
+  svg.append(path); $("history-chart-wrap").innerHTML=""; $("history-chart-wrap").append(svg);
+  $("history-start-label").textContent=history.startDate+" · $"+history.data[0].adjustedClose.toFixed(2)+" adjusted";
+  $("history-end-label").textContent=history.endDate+" · $"+history.latestAdjustedClose.toFixed(2)+" adjusted";
+}
+async function loadHistory(ticker) {
+  $("history-status").textContent="Loading…";
+  $("history-meta").textContent="Requesting one year of daily price history…";
+  try {
+    const response=await fetch("/api/history?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
+    const history=await response.json();
+    if(!response.ok) throw new Error(history.error||"Historical price service unavailable");
+    renderHistory(history);
+  } catch(error) {
+    $("history-status").textContent="Unavailable";
+    $("history-meta").textContent=error.message+" No prices were invented.";
+    $("history-metrics").innerHTML="";
+    $("history-chart-wrap").textContent="Historical chart unavailable.";
+  }
+}
+
 function renderQuote(quote) {
   $("quote-panel").classList.remove("hidden");
   if (typeof quote.price !== "number") {
@@ -288,6 +337,7 @@ async function analyze(ticker) {
     renderFilings(submissions, company);
     loadNews(ticker);
     loadQuote(ticker);
+    loadHistory(ticker);
     $("sec-health").textContent="Connected; received SEC company facts";
     setMessage("Loaded SEC financial observations for "+company.name+". Check each filing date and period before comparing metrics.","success");
   } catch(error) {
