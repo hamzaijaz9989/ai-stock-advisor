@@ -114,6 +114,7 @@ class SECClient:
                         "label": item.get("label"),
                         "unit": unit,
                         "value": value,
+                        "period_start": obs.get("start"),
                         "period_end": end,
                         "filed": filed,
                         "form": obs.get("form"),
