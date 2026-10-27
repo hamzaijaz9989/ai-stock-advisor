@@ -106,6 +106,45 @@ function renderTable(observations) {
     body.append(tr);
   }
 }
+function renderNews(payload) {
+  const list = $("news-list");
+  list.innerHTML = "";
+  const items = payload?.items || [];
+  $("news-status").textContent = items.length ? items.length + " headlines" : "No headlines";
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No headlines returned. One or more news feeds may be unavailable.";
+    list.append(empty);
+    return;
+  }
+  for (const item of items) {
+    const card = document.createElement("article");
+    card.className = "news-item";
+    const link = document.createElement("a");
+    link.href = item.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = item.title;
+    const meta = document.createElement("p");
+    meta.className = "muted";
+    const date = item.publishedAt ? new Date(item.publishedAt) : null;
+    meta.textContent = item.source + (date && !Number.isNaN(date.getTime()) ? " · " + date.toLocaleString() : " · Date unavailable");
+    card.append(link, meta);
+    list.append(card);
+  }
+}
+async function loadNews(ticker) {
+  $("news-status").textContent = "Loading…";
+  try {
+    const response = await fetch("/api/news?ticker=" + encodeURIComponent(ticker), {headers: {"Accept":"application/json"}});
+    if (!response.ok) throw new Error("News feeds unavailable");
+    renderNews(await response.json());
+  } catch (error) {
+    $("news-status").textContent = "Unavailable";
+    $("news-list").textContent = "News could not be loaded right now. Try again later; no news-based conclusion has been made.";
+  }
+}
 async function analyze(ticker) {
   ticker=ticker.trim().toUpperCase();
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
@@ -122,6 +161,7 @@ async function analyze(ticker) {
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(submissions?.filings?.recent?.filingDate?.[0]?" · Most recent filing "+fmtDate(submissions.filings.recent.filingDate[0]):"");
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderTable(observations);
+    loadNews(ticker);
     $("sec-health").textContent="Connected; received SEC company facts";
     setMessage("Loaded SEC financial observations for "+company.name+". Check each filing date and period before comparing metrics.","success");
   } catch(error) {
