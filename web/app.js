@@ -203,14 +203,15 @@ async function loadHistory(ticker) {
     const history=await response.json();
     if(!response.ok) throw new Error(history.error||"Historical price service unavailable");
     renderHistory(history);
+    return history;
   } catch(error) {
     $("history-status").textContent="Unavailable";
     $("history-meta").textContent=error.message+" No prices were invented.";
     $("history-metrics").innerHTML="";
     $("history-chart-wrap").textContent="Historical chart unavailable.";
+    return null;
   }
 }
-
 
 function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
 function scoreRange(value,min,max,points){return clamp((value-min)/(max-min)*points,0,points);}
@@ -289,6 +290,207 @@ async function runScreen() {
   button.disabled=false; button.textContent="Refresh ranking";
 }
 
+function fmtUsd(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "Unavailable";
+  return new Intl.NumberFormat("en-US", {style:"currency",currency:"USD",maximumFractionDigits:2}).format(value);
+}
+function latestSecValue(facts, candidates, unit, maxAgeDays=180) {
+  const rows=[];
+  const today=new Date().toISOString().slice(0,10);
+  for (const candidate of candidates) {
+    const fact=facts?.facts?.[candidate.taxonomy]?.[candidate.tag];
+    const values=fact?.units?.[unit];
+    if (!Array.isArray(values)) continue;
+    for (const row of values) {
+      if (typeof row.val!=="number" || !Number.isFinite(row.val) || !row.end || !row.filed) continue;
+      if (row.filed>today || !["10-K","10-Q","20-F","40-F","6-K"].includes(row.form)) continue;
+      const ageDays=(Date.parse(today+"T00:00:00Z")-Date.parse(row.filed+"T00:00:00Z"))/86400000;
+      if (ageDays<0 || ageDays>maxAgeDays) continue;
+      rows.push({value:row.val,end:row.end,filed:row.filed,form:row.form,tag:candidate.tag,taxonomy:candidate.taxonomy,unit});
+    }
+  }
+  rows.sort((a,b)=>b.filed.localeCompare(a.filed)||b.end.localeCompare(a.end));
+  if (!rows.length) return null;
+  const latest=rows[0];
+  const sameFiling=rows.filter(row=>row.filed===latest.filed&&row.end===latest.end);
+  if (new Set(sameFiling.map(row=>String(row.value))).size>1) return null;
+  return latest;
+}
+function buildDcfEstimate(observations, facts) {
+  const cash=annualSeries(observations,"operatingCashFlow");
+  const capex=annualSeries(observations,"capex");
+  const revenue=annualSeries(observations,"revenue");
+  const flows=[];
+  for (const row of cash) {
+    const cap=capex.find(item=>item.end===row.end);
+    if (cap) flows.push({end:row.end,value:row.value-Math.abs(cap.value)});
+  }
+  flows.sort((a,b)=>a.end.localeCompare(b.end));
+  if (flows.length<3) return {available:false,reason:"Fewer than three unambiguous annual free-cash-flow observations."};
+  const last3=flows.slice(-3);
+  if (last3.some(row=>!Number.isFinite(row.value)||row.value<=0)) return {available:false,reason:"Recent annual free cash flow is not positive in three comparable periods."};
+  const shares=latestSecValue(facts,[
+    {taxonomy:"dei",tag:"EntityCommonStockSharesOutstanding"},
+    {taxonomy:"us-gaap",tag:"EntityCommonStockSharesOutstanding"}
+  ],"shares",180);
+  if (!shares || shares.value<=0) return {available:false,reason:"A recent, unambiguous SEC shares-outstanding fact was not found."};
+  const latestRevenue=revenue[revenue.length-1], previousRevenue=revenue[revenue.length-2];
+  if (!latestRevenue || !previousRevenue || previousRevenue.value<=0) return {available:false,reason:"Comparable annual revenue growth is unavailable."};
+  const fcfGrowth1=last3[2].value/last3[1].value-1;
+  const fcfGrowth2=last3[1].value/last3[0].value-1;
+  const revenueGrowth=latestRevenue.value/previousRevenue.value-1;
+  const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+  const baseGrowth=clamp((clamp((fcfGrowth1+fcfGrowth2)/2,-0.20,0.25)+clamp(revenueGrowth,-0.20,0.25))/2,-0.05,0.15);
+  function perShare(fcf,growth,discount,terminal) {
+    if (!(fcf>0&&shares.value>0&&discount>terminal&&terminal>=0)) return null;
+    let cashFlow=fcf,pv=0;
+    for(let year=1;year<=5;year++) { cashFlow*=1+growth; pv+=cashFlow/Math.pow(1+discount,year); }
+    const terminalValue=cashFlow*(1+terminal)/(discount-terminal);
+    const value=(pv+terminalValue/Math.pow(1+discount,5))/shares.value;
+    return Number.isFinite(value)&&value>0?value:null;
+  }
+  const latestFcf=last3[2];
+  const bearGrowth=clamp(baseGrowth-0.10,-0.20,0.05);
+  const bullGrowth=clamp(baseGrowth+0.10,-0.05,0.25);
+  const bear=perShare(latestFcf.value,bearGrowth,0.12,0.015);
+  const base=perShare(latestFcf.value,baseGrowth,0.10,0.025);
+  const bull=perShare(latestFcf.value,bullGrowth,0.09,0.03);
+  if (![bear,base,bull].every(value=>typeof value==="number"&&Number.isFinite(value))||!(bear<=base&&base<=bull)) {
+    return {available:false,reason:"The DCF scenarios did not produce a valid ordered range."};
+  }
+  return {
+    available:true,bear,base,bull,latestFcf:latestFcf.value,fcfPeriod:latestFcf.end,
+    shares:shares.value,sharesFiled:shares.filed,baseGrowth,fcfGrowth1,fcfGrowth2,revenueGrowth,
+    assumptions:"Five-year simplified equity-cash-flow proxy; bear/base/bull growth "+(bearGrowth*100).toFixed(1)+"/"+(baseGrowth*100).toFixed(1)+"/"+(bullGrowth*100).toFixed(1)+"%; discount rates 12/10/9%; terminal growth 1.5/2.5/3.0%."
+  };
+}
+function averageTrueRange(history,period=14) {
+  const rows=history?.data;
+  if(!Array.isArray(rows)||rows.length<period+1) return null;
+  const ranges=[];
+  for(let i=rows.length-period;i<rows.length;i++) {
+    const row=rows[i], previous=rows[i-1];
+    if (![row.high,row.low,previous.close].every(value=>typeof value==="number"&&Number.isFinite(value))) return null;
+    ranges.push(Math.max(row.high-row.low,Math.abs(row.high-previous.close),Math.abs(row.low-previous.close)));
+  }
+  const atr=ranges.reduce((sum,value)=>sum+value,0)/ranges.length;
+  return Number.isFinite(atr)&&atr>0?atr:null;
+}
+function metricCard(label,value,meta) {
+  const card=document.createElement("article"); card.className="metric-card";
+  const title=document.createElement("div"); title.className="metric-label"; title.textContent=label;
+  const main=document.createElement("div"); main.className="metric-value"; main.textContent=value;
+  const detail=document.createElement("div"); detail.className="metric-date"; detail.textContent=meta;
+  card.append(title,main,detail); return card;
+}
+function renderEarnings(payload) {
+  const panel=$("earnings-panel"),root=$("earnings-content");
+  panel.classList.remove("hidden"); root.innerHTML="";
+  if(!payload||!Array.isArray(payload.events)) {
+    $("earnings-status").textContent="Unverified";
+    root.textContent=payload?.error||"Could not verify the upcoming earnings calendar. Treat the event date as unknown.";
+    return;
+  }
+  const now=new Date().toISOString().slice(0,10);
+  const events=payload.events.filter(event=>event.reportDate>=now).sort((a,b)=>a.reportDate.localeCompare(b.reportDate));
+  $("earnings-status").textContent=events.length?"Event found":"Date unconfirmed";
+  if(events.length) {
+    for(const event of events) {
+      const item=document.createElement("article"); item.className="news-item";
+      const heading=document.createElement("strong"); heading.textContent=event.company+" · "+event.fiscalQuarter;
+      const detail=document.createElement("p"); detail.className="muted";
+      detail.textContent=fmtDate(event.reportDate)+" · "+(event.reportTime==="BMO"?"Before market open":event.reportTime==="AMC"?"After market close":"Time not confirmed");
+      const link=document.createElement("a"); link.href=event.sourceUrl; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent="Open calendar entry";
+      item.append(heading,detail,link); root.append(item);
+    }
+  } else {
+    const p=document.createElement("p"); p.className="empty"; p.textContent="No matching upcoming event was found in the provider's returned calendar window; this does not prove that no earnings report is scheduled."; root.append(p);
+  }
+  const note=document.createElement("p"); note.className="table-note"; note.textContent=(payload.warning||"")+" Source: EarningsNxt public calendar · Retrieved "+new Date(payload.fetchedAt||Date.now()).toLocaleString()+". Confirm dates with official investor relations.";
+  root.append(note);
+}
+function renderDecision({ticker,observations,facts,quote,history,news,earnings}) {
+  const panel=$("recommendation-panel"); panel.classList.remove("hidden");
+  const grid=$("decision-metrics"),checks=$("decision-checks");
+  grid.innerHTML=""; checks.innerHTML="";
+  const valuation=buildDcfEstimate(observations,facts);
+  const atr=averageTrueRange(history);
+  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
+  const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
+  const quoteCurrent=typeof quote?.price==="number"&&quote.price>0&&quoteAgeHours>=-2&&quoteAgeHours<=96;
+  const today=new Date().toISOString().slice(0,10);
+  const nextEvent=(earnings?.events||[]).filter(event=>event.reportDate>=today).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]||null;
+  const daysToEarnings=nextEvent?(Date.parse(nextEvent.reportDate+"T00:00:00Z")-Date.parse(today+"T00:00:00Z"))/86400000:null;
+  const earningsVerified=Boolean(nextEvent&&!earnings?.calendarLimitReached);
+  const headlines=Array.isArray(news?.items)?news.items:[];
+  const recentHeadlines=headlines.filter(item=>item.publishedAt&&Number.isFinite(Date.parse(item.publishedAt))&&(Date.now()-Date.parse(item.publishedAt))/86400000<=7&&(Date.now()-Date.parse(item.publishedAt))/86400000>=-0.1);
+  const riskWords=/fraud|investigation|probe|restatement|bankrupt|accounting irregular|recall|antitrust|guidance cut|cuts outlook|data breach|ceo resign|secondary offering|dilution|sec charge|criminal charges|regulatory action|lawsuit|misses estimates/i;
+  const flaggedHeadlines=recentHeadlines.filter(item=>riskWords.test(item.title||""));
+  const rev=annualSeries(observations,"revenue");
+  const income=annualSeries(observations,"netIncome");
+  const fcf=(()=>{const c=annualSeries(observations,"operatingCashFlow"),x=annualSeries(observations,"capex");return c.map(row=>{const cap=x.find(item=>item.end===row.end);return cap?{end:row.end,value:row.value-Math.abs(cap.value)}:null;}).filter(Boolean).sort((a,b)=>a.end.localeCompare(b.end));})();
+  const latestRevenue=rev[rev.length-1],priorRevenue=rev[rev.length-2];
+  const latestIncome=latestRevenue?income.find(item=>item.end===latestRevenue.end):null;
+  const latestFcf=latestRevenue?fcf.find(item=>item.end===latestRevenue.end):null;
+  const fundamentalPass=Boolean(latestRevenue&&priorRevenue&&priorRevenue.value>0&&latestRevenue.value>0&&latestIncome&&latestIncome.value>0&&latestFcf&&latestFcf.value>0&&(latestRevenue.value/priorRevenue.value-1)>=-0.10);
+  const entryLow=valuation.available?valuation.base*0.75:null;
+  const entryHigh=valuation.available?valuation.base*0.80:null;
+  const entryMid=entryLow!==null?(entryLow+entryHigh)/2:null;
+  const invalidation=entryMid!==null&&atr!==null?entryMid-2*atr:null;
+  const rewardRisk=entryMid!==null&&invalidation!==null&&entryMid>invalidation&&valuation.base>entryMid?(valuation.base-entryMid)/(entryMid-invalidation):null;
+  const priceInEntryRange=quoteCurrent&&entryLow!==null&&quote.price>=entryLow&&quote.price<=entryHigh;
+  const plannedShares=entryMid!==null&&invalidation!==null&&invalidation>0&&entryMid>invalidation?Math.min(Math.floor(5/(entryMid-invalidation)),Math.floor(500/entryMid)):0;
+  const dataChecks=[
+    {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?"Quote timestamp "+quoteDate.toLocaleString():"Quote unavailable or older than 96 hours"},
+    {label:"Valuation inputs",ok:valuation.available,detail:valuation.available?"Three unambiguous annual free-cash-flow periods and recent SEC share count found":valuation.reason},
+    {label:"Fundamentals",ok:fundamentalPass,detail:fundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; revenue has not dropped more than 10% year over year":"Basic quality filter did not pass or comparable data is missing"},
+    {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next provider-listed earnings date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
+    {label:"Recent news",ok:recentHeadlines.length>0&&!flaggedHeadlines.length,detail:recentHeadlines.length?(flaggedHeadlines.length?flaggedHeadlines.length+" recent headline(s) contain risk keywords and need source review":recentHeadlines.length+" timestamped headline(s) from the last 7 days"):"No timestamped headlines in the last 7 days"},
+    {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
+    {label:"Historical validation",ok:false,detail:"Walk-forward and untouched holdout backtests are not complete; this blocks BUY signals"}
+  ];
+  let state="WAIT";
+  if(!quoteCurrent||!valuation.available||!fundamentalPass||!earningsVerified||!recentHeadlines.length||flaggedHeadlines.length||!atr||!rewardRisk) state="INSUFFICIENT EVIDENCE";
+  else if(daysToEarnings<=7||!priceInEntryRange||rewardRisk<2) state="WAIT";
+  $("decision-status").textContent=state+" · RESEARCH ONLY";
+  $("decision-title").textContent=state==="INSUFFICIENT EVIDENCE"?"INSUFFICIENT EVIDENCE — DO NOT BUY FROM THIS REPORT":"WAIT — NO BUY SIGNAL IS ENABLED";
+  const reasons=[];
+  if(!quoteCurrent) reasons.push("A sufficiently recent quote is missing.");
+  if(!valuation.available) reasons.push(valuation.reason);
+  if(!fundamentalPass) reasons.push("The basic financial-quality screen did not pass.");
+  if(!earningsVerified) reasons.push("The next earnings date is not reliably confirmed.");
+  if(daysToEarnings!==null&&daysToEarnings<=7) reasons.push("An earnings report is due within 7 days, so event risk is high.");
+  if(!recentHeadlines.length) reasons.push("Recent timestamped news coverage is missing.");
+  if(flaggedHeadlines.length) reasons.push("Recent headlines contain potential risk keywords and need checking against original sources.");
+  if(valuation.available&&!priceInEntryRange) reasons.push(quoteCurrent?(quote.price>entryHigh?"The quote is above the provisional entry zone; do not chase.":"The quote is below the provisional zone; a sharp drop needs review."):"Current price cannot be compared with the model range.");
+  if(rewardRisk!==null&&rewardRisk<2) reasons.push("The provisional reward-to-risk ratio is below 2:1.");
+  reasons.push("The model has not passed walk-forward and out-of-sample validation; this version cannot issue a BUY.");
+  $("decision-explanation").textContent=reasons.join(" ");
+  if(valuation.available) {
+    grid.append(
+      metricCard("Provisional entry zone",fmtUsd(entryLow)+" – "+fmtUsd(entryHigh),"75–80% of base-case DCF value; watch levels only, not actionable"),
+      metricCard("Base-case value",fmtUsd(valuation.base),"Simplified five-year cash-flow estimate; not a six-month price forecast"),
+      metricCard("Bear / bull value",fmtUsd(valuation.bear)+" / "+fmtUsd(valuation.bull),"Scenario sensitivity, not a prediction"),
+      metricCard("Risk trigger",invalidation!==null&&invalidation>0?fmtUsd(invalidation):"Unavailable",atr!==null?"Entry midpoint minus 2 × 14-day ATR":"Complete daily high/low data is needed"),
+      metricCard("Upside / downside",rewardRisk!==null?rewardRisk.toFixed(2)+":1":"Unavailable","Uses base-case DCF value and ATR risk trigger"),
+      metricCard("Whole-share size",plannedShares?plannedShares+" share(s)":"0 shares fit the risk rule",plannedShares?fmtUsd(plannedShares*entryMid)+" planned allocation · approx. "+fmtUsd(plannedShares*(entryMid-invalidation))+" risk":"No whole-share size fits the $5 planned-risk budget")
+    );
+  } else {
+    grid.append(metricCard("Entry price","Not available",valuation.reason),metricCard("Exit / target","Not available","A price level will not be guessed without defensible valuation inputs"));
+  }
+  for(const item of dataChecks) {
+    const row=document.createElement("div");row.className="decision-check";
+    const indicator=document.createElement("span");indicator.className="decision-indicator "+(item.ok?"pass":"hold");indicator.textContent=item.ok?"CHECKED":"REVIEW";
+    const text=document.createElement("div");const title=document.createElement("strong");title.textContent=item.label;const detail=document.createElement("p");detail.textContent=item.detail;detail.className="muted";
+    text.append(title,detail);row.append(indicator,text);checks.append(row);
+  }
+  const caveats=[];
+  caveats.push("The DCF is a simplified cash-flow-per-share proxy using five-year constant-growth scenarios and fixed 12%/10%/9% discount rates with 1.5%/2.5%/3% terminal growth.");
+  caveats.push("It omits forecast consensus, debt/cash normalization, share-based compensation and business-specific adjustments; no target is guaranteed.");
+  caveats.push("Earnings dates/headlines are third-party data; confirm material items from official investor relations and SEC filings.");
+  caveats.push("No stop level guarantees execution. Gaps, fees, slippage and data issues can cause larger losses.");
+  $("decision-caveat").textContent=caveats.join(" ");
+}
 function renderQuote(quote) {
   $("quote-panel").classList.remove("hidden");
   if (typeof quote.price !== "number") {
@@ -304,14 +506,16 @@ function renderQuote(quote) {
 }
 async function loadQuote(ticker) {
   $("quote-panel").classList.remove("hidden");
-  $("quote-price").textContent = "Loading…";
+  $("quote-price").textContent="Loading…";
   try {
-    const response = await fetch("/api/quote?ticker=" + encodeURIComponent(ticker), {headers: {"Accept":"application/json"}});
-    const quote = await response.json();
-    if (!response.ok) throw new Error(quote.error || "Quote service unavailable");
+    const response=await fetch("/api/quote?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
+    const quote=await response.json();
+    if(!response.ok) throw new Error(quote.error||"Quote service unavailable");
     renderQuote(quote);
-  } catch (error) {
+    return quote;
+  } catch(error) {
     renderQuote({error:error.message,price:null,fetchedAt:new Date().toISOString(),source:"Yahoo Finance"});
+    return null;
   }
 }
 function renderFilings(submissions, company) {
@@ -386,23 +590,42 @@ function renderNews(payload) {
   }
 }
 async function loadNews(ticker) {
-  $("news-status").textContent = "Loading…";
+  $("news-status").textContent="Loading…";
   try {
-    const response = await fetch("/api/news?ticker=" + encodeURIComponent(ticker), {headers: {"Accept":"application/json"}});
-    if (!response.ok) throw new Error("News feeds unavailable");
-    renderNews(await response.json());
-  } catch (error) {
-    $("news-status").textContent = "Unavailable";
-    $("news-list").textContent = "News could not be loaded right now. Try again later; no news-based conclusion has been made.";
+    const response=await fetch("/api/news?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
+    if(!response.ok) throw new Error("News feeds unavailable");
+    const payload=await response.json();
+    renderNews(payload);
+    return payload;
+  } catch(error) {
+    $("news-status").textContent="Unavailable";
+    $("news-list").textContent="News could not be loaded right now. Try again later; no news-based conclusion has been made.";
+    return null;
+  }
+}
+async function loadEarnings(ticker) {
+  $("earnings-status").textContent="Checking…";
+  try {
+    const response=await fetch("/api/earnings?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
+    const payload=await response.json();
+    if(!response.ok) throw new Error(payload.error||"Earnings calendar unavailable");
+    renderEarnings(payload);
+    return payload;
+  } catch(error) {
+    const payload={error:"Upcoming earnings could not be verified. "+error.message};
+    renderEarnings(payload);
+    return null;
   }
 }
 async function analyze(ticker) {
   ticker=ticker.trim().toUpperCase();
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
-  const button=$("analyze-button"); button.disabled=true; button.textContent="Loading SEC data…";
+  const button=$("analyze-button"); button.disabled=true; button.textContent="Loading analysis…";
   $("last-request").textContent=new Date().toLocaleString();
-  setMessage("Looking up "+ticker+" and requesting company-reported financial facts…");
+  setMessage("Checking SEC filings, prices, earnings risk and recent news for "+ticker+"…");
   $("sec-health").textContent="Request in progress";
+  $("recommendation-panel").classList.add("hidden");
+  $("earnings-panel").classList.add("hidden");
   try {
     const company=await findCompany(ticker);
     const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
@@ -413,11 +636,13 @@ async function analyze(ticker) {
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderFundamentalSnapshot(observations); renderTable(observations);
     renderFilings(submissions, company);
-    loadNews(ticker);
-    loadQuote(ticker);
-    loadHistory(ticker);
     $("sec-health").textContent="Connected; received SEC company facts";
-    setMessage("Loaded SEC financial observations for "+company.name+". Check each filing date and period before comparing metrics.","success");
+    setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
+    const [quote,history,news,earnings]=await Promise.all([
+      loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker)
+    ]);
+    renderDecision({ticker,company,observations,facts,quote,history,news,earnings});
+    setMessage("Research checks completed for "+company.name+". The advisor will not issue a BUY while its model remains unvalidated.","success");
   } catch(error) {
     $("sec-health").textContent="Request failed";
     const reason=error instanceof TypeError?"Could not reach the SEC data service. Check your connection and try again.":error.message||"The SEC data request failed.";
