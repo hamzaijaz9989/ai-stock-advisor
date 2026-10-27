@@ -128,3 +128,23 @@ def test_walk_forward_rejects_duplicate_dates():
     dates = [date(2024, 1, 1), date(2024, 1, 2), date(2024, 1, 2), date(2024, 1, 3)]
     with pytest.raises(ValueError, match="unique"):
         walk_forward_folds(dates, min_train_sessions=1, test_sessions=1)
+
+def test_invalid_fractional_holding_period_is_rejected():
+    bars = bars_from(date(2024, 1, 1), [
+        (100, 101, 99, 100),
+        (100, 102, 98, 101),
+    ])
+    signal = TradeSignal("TEST", "2024-01-01", 99, 101, 95, 110, 2.5)
+    outcome = simulate_signal(signal, bars, BacktestConfig(0, 0))
+    assert outcome.status == "invalid_signal"
+
+
+def test_duplicate_ohlc_dates_are_rejected():
+    bars = [
+        DailyBar("2024-01-01", 100, 101, 99, 100),
+        DailyBar("2024-01-01", 100, 102, 98, 101),
+    ]
+    signal = TradeSignal("TEST", "2023-12-31", 99, 101, 95, 110, 2)
+    outcome = simulate_signal(signal, bars)
+    assert outcome.status == "invalid_data"
+    assert "Duplicate" in outcome.detail
