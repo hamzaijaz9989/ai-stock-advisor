@@ -15,7 +15,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 SEC_DATA_BASE = "https://data.sec.gov"
-_CIK_RE = re.compile(r"^\\d{1,10}$")
+_CIK_RE = re.compile(r"^\d{1,10}$")
 
 
 class SECDataError(RuntimeError):
