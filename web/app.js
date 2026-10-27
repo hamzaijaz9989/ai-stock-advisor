@@ -211,6 +211,84 @@ async function loadHistory(ticker) {
   }
 }
 
+
+function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
+function scoreRange(value,min,max,points){return clamp((value-min)/(max-min)*points,0,points);}
+async function scoreTicker(ticker) {
+  const company=await findCompany(ticker);
+  const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
+  const observations=getObservations(facts);
+  const revenue=annualSeries(observations,"revenue");
+  const income=annualSeries(observations,"netIncome");
+  const cash=annualSeries(observations,"operatingCashFlow");
+  const capex=annualSeries(observations,"capex");
+  if(revenue.length<2) throw new Error("Insufficient comparable annual revenue data");
+  const latest=revenue[revenue.length-1], prior=revenue[revenue.length-2];
+  if(!prior.value || prior.value<=0) throw new Error("Prior annual revenue is zero or negative");
+  const matchedIncome=income.find(row=>row.end===latest.end);
+  const matchedCash=cash.find(row=>row.end===latest.end);
+  const matchedCapex=capex.find(row=>row.end===latest.end);
+  if(!matchedIncome || !matchedCash || !matchedCapex) throw new Error("Missing matched-period income or cash-flow data");
+  const historyResponse=await fetch("/api/history?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
+  const history=await historyResponse.json();
+  if(!historyResponse.ok) throw new Error(history.error||"Price history unavailable");
+  const growth=(latest.value/prior.value-1)*100;
+  const margin=matchedIncome.value/latest.value*100;
+  const fcf=matchedCash.value-Math.abs(matchedCapex.value);
+  const fcfMargin=fcf/latest.value*100;
+  const components=[
+    {name:"Revenue growth",value:growth,display:growth.toFixed(1)+"%",score:scoreRange(growth,-10,30,25),max:25},
+    {name:"Net profit margin",value:margin,display:margin.toFixed(1)+"%",score:scoreRange(margin,-5,20,15),max:15},
+    {name:"Approx. FCF margin",value:fcfMargin,display:fcfMargin.toFixed(1)+"%",score:scoreRange(fcfMargin,-10,20,20),max:20},
+    {name:"1-year price return",value:history.totalReturnPercent,display:(history.totalReturnPercent>=0?"+":"")+history.totalReturnPercent.toFixed(1)+"%",score:scoreRange(history.totalReturnPercent,-20,30,20),max:20},
+    {name:"Maximum drawdown",value:history.maxDrawdownPercent,display:history.maxDrawdownPercent.toFixed(1)+"%",score:scoreRange(history.maxDrawdownPercent,-50,-10,20),max:20}
+  ];
+  return {ticker,name:company.name,cik:company.cik,score:components.reduce((sum,item)=>sum+item.score,0),components,financialPeriod:latest.end,historyPeriod:history.startDate+" to "+history.endDate,source:history.source};
+}
+function renderScreenResults(results,errors) {
+  const root=$("screen-results"); root.innerHTML="";
+  const ranked=results.sort((a,b)=>b.score-a.score);
+  if(!ranked.length) {
+    const p=document.createElement("p"); p.className="empty"; p.textContent="No companies met the minimum data requirements. "+errors.join(" · "); root.append(p); return;
+  }
+  for(let i=0;i<ranked.length;i++) {
+    const item=ranked[i],card=document.createElement("article"); card.className="screen-card";
+    const header=document.createElement("div"); header.className="screen-card-header";
+    const identity=document.createElement("div");
+    const name=document.createElement("strong"); name.textContent=(i+1)+". "+item.ticker+" · "+item.name;
+    const period=document.createElement("p"); period.className="muted"; period.textContent="Annual financial period: "+item.financialPeriod+" · Price data: "+item.historyPeriod+" · "+item.source;
+    identity.append(name,period);
+    const score=document.createElement("div"); score.className="screen-score"; score.textContent=item.score.toFixed(1)+"/100";
+    header.append(identity,score); card.append(header);
+    const grid=document.createElement("div"); grid.className="screen-components";
+    for(const part of item.components) {
+      const cell=document.createElement("div"); cell.className="screen-component";
+      const label=document.createElement("span"); label.textContent=part.name;
+      const value=document.createElement("strong"); value.textContent=part.display;
+      const scoreLine=document.createElement("small"); scoreLine.textContent=part.score.toFixed(1)+" / "+part.max+" points";
+      cell.append(label,value,scoreLine); grid.append(cell);
+    }
+    card.append(grid);
+    const note=document.createElement("p"); note.className="table-note"; note.textContent="Research-priority score only. Does not include valuation, forward estimates, news/event risk, or validated predictive power."; card.append(note);
+    root.append(card);
+  }
+  if(errors.length) {
+    const p=document.createElement("p"); p.className="table-note"; p.textContent="Excluded candidates: "+errors.join(" · "); root.append(p);
+  }
+}
+async function runScreen() {
+  const button=$("run-screen"); button.disabled=true; button.textContent="Screening…";
+  $("screen-status").textContent="Fetching SEC filings and daily prices";
+  const results=[],errors=[];
+  for(const ticker of ["AAPL","MSFT","NVDA","AMZN"]) {
+    try { results.push(await scoreTicker(ticker)); }
+    catch(error) { errors.push(ticker+": "+(error.message||"Insufficient data")); }
+  }
+  renderScreenResults(results,errors);
+  $("screen-status").textContent=results.length+" ranked · "+errors.length+" excluded";
+  button.disabled=false; button.textContent="Refresh ranking";
+}
+
 function renderQuote(quote) {
   $("quote-panel").classList.remove("hidden");
   if (typeof quote.price !== "number") {
@@ -348,5 +426,6 @@ async function analyze(ticker) {
 }
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
+$("run-screen").addEventListener("click",runScreen);
 $("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
 $("ui-health").textContent="Loaded";
