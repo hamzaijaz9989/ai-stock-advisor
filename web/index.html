@@ -50,7 +50,7 @@
         <article class="metric-card"><div class="metric-label">AVOID</div><div class="metric-value">Risk too high</div><div class="metric-date">Weak thesis, unattractive valuation, or unreliable data</div></article>
       </div>
       <p class="table-note"><strong>Risk guardrail for $500:</strong> target planned loss of about $5 per position (1% of capital), with $10 (2%) as a hard ceiling before fees and gaps. Position size must be calculated from entry-to-invalidation distance. If a sensible position cannot fit that risk limit, the advice is WAIT/AVOID—not to widen the risk limit. No leverage or options.</p>
-      <p class="table-note"><strong>Important limitation:</strong> the current prototype still does not calculate validated valuation-based entry/exit levels. Until the valuation, event-calendar, portfolio sizing and historical validation gates are implemented and tested, its experimental ranking is not a BUY signal.</p>
+      <p class="table-note"><strong>Important limitation:</strong> preliminary scenario valuations, earnings checks, and price-risk levels are available when inputs pass quality checks. These levels are not validated trading instructions. The experimental ranking is not a BUY signal; walk-forward and out-of-sample validation remain incomplete.</p>
     </section>
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="company-panel" class="company-panel hidden">
