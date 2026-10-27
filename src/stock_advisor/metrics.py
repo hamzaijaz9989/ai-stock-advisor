@@ -10,7 +10,7 @@ import math
 from collections.abc import Sequence
 
 
-def _finite_number(value: float | int | None) -> float | None:
+def _finite_number(value: float | None) -> float | None:
     """Return a finite float or None for missing, non-numeric, or infinite values."""
     if value is None or isinstance(value, bool):
         return None
