@@ -1,8 +1,70 @@
 const TICKER_RE = /^[A-Z][A-Z0-9.-]{0,11}$/;
-const API_BASE = "https://earningsnxt.ai/api/v1/calendar";
+const NASDAQ_API = "https://api.nasdaq.com/api/calendar/earnings";
 
-function dateOnly(date) {
+function newYorkDateOnly(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return values.year + "-" + values.month + "-" + values.day;
+}
+
+function dateAdd(dateString, days) {
+  const date = new Date(dateString + "T12:00:00Z");
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function weekdaysInWindow(start, days) {
+  const out = [];
+  for (let n = 0; n <= days; n++) {
+    const date = dateAdd(start, n);
+    const day = new Date(date + "T12:00:00Z").getUTCDay();
+    if (day !== 0 && day !== 6) out.push(date);
+  }
+  return out;
+}
+
+function parseDollar(value) {
+  if (typeof value !== "string") return null;
+  const number = Number(value.replace(/[$,]/g, "").trim());
+  return Number.isFinite(number) ? number : null;
+}
+
+async function queryEarningsDate(date) {
+  const response = await fetch(NASDAQ_API + "?date=" + date, {
+    headers: {
+      "Accept": "application/json, text/plain, */*",
+      "User-Agent": "Mozilla/5.0 (compatible; AIStockAdvisor/1.0)",
+      "Origin": "https://www.nasdaq.com",
+      "Referer": "https://www.nasdaq.com/market-activity/earnings"
+    },
+    signal: AbortSignal.timeout(7000)
+  });
+  if (!response.ok) throw new Error("Nasdaq calendar returned HTTP " + response.status + " for " + date);
+  const payload = await response.json();
+  if (!Array.isArray(payload?.data?.rows)) {
+    throw new Error("Nasdaq calendar response did not contain a rows array for " + date);
+  }
+  return { date, rows: payload.data.rows };
+}
+
+function mapEvent(row, date) {
+  const time = String(row.time || "").toLowerCase();
+  return {
+    symbol: String(row.symbol || "").toUpperCase(),
+    company: String(row.name || row.symbol || ""),
+    reportDate: date,
+    reportTime: time.includes("pre-market") ? "BMO" : time.includes("after-hours") ? "AMC" : "unknown",
+    fiscalQuarterEnding: String(row.fiscalQuarterEnding || "not provided"),
+    consensusEps: parseDollar(row.epsForecast),
+    estimateCount: Number.isFinite(Number(row.noOfEsts)) ? Number(row.noOfEsts) : null,
+    priorYearReportDate: String(row.lastYearRptDt || ""),
+    sourceUrl: "https://www.nasdaq.com/market-activity/earnings/" + date
+  };
 }
 
 export async function onRequestGet({ request }) {
@@ -12,65 +74,52 @@ export async function onRequestGet({ request }) {
     return Response.json({ error: "Enter a valid US stock ticker." }, { status: 400 });
   }
 
-  const from = new Date();
-  from.setUTCDate(from.getUTCDate() - 1);
-  const to = new Date(from);
-  to.setUTCDate(to.getUTCDate() + 31);
-  const windowStart = dateOnly(from);
-  const windowEnd = dateOnly(to);
-  const endpoint = API_BASE + "?from=" + windowStart + "&to=" + windowEnd + "&limit=500";
+  const start = newYorkDateOnly(new Date());
+  const dates = weekdaysInWindow(start, 31);
+  const failedDates = [];
+  const searched = [];
+  let match = null;
+  let matchDate = null;
 
   try {
-    const response = await fetch(endpoint, {
-      headers: { "Accept": "application/json" },
-      signal: AbortSignal.timeout(9000)
-    });
-    if (!response.ok) {
-      throw new Error("Earnings calendar returned HTTP " + response.status);
+    for (let i = 0; i < dates.length; i += 5) {
+      const batch = dates.slice(i, i + 5);
+      const results = await Promise.allSettled(batch.map(queryEarningsDate));
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        const date = batch[j];
+        searched.push(date);
+        if (result.status !== "fulfilled") {
+          failedDates.push(date);
+          continue;
+        }
+        const row = result.value.rows.find(item => String(item.symbol || "").trim().toUpperCase() === ticker);
+        if (row && !match) {
+          match = mapEvent(row, date);
+          matchDate = date;
+        }
+      }
+      if (match) break;
     }
 
-    const payload = await response.json();
-    if (!Array.isArray(payload?.events)) {
-      throw new Error("Earnings calendar response did not contain an events array");
-    }
-
-    const events = payload.events
-      .filter(event => String(event.symbol || "").trim().toUpperCase() === ticker)
-      .filter(event => event.reportDate && event.reportDate >= windowStart && event.reportDate <= windowEnd)
-      .sort((a, b) => String(a.reportDate).localeCompare(String(b.reportDate)))
-      .slice(0, 5)
-      .map(event => ({
-        symbol: ticker,
-        company: String(event.company || ticker),
-        reportDate: String(event.reportDate),
-        reportTime: ["BMO", "AMC"].includes(event.reportTime) ? event.reportTime : "unknown",
-        fiscalQuarter: String(event.fiscalQuarter || "not provided"),
-        status: String(event.status || "unconfirmed"),
-        estimates: event.estimates && typeof event.estimates === "object" ? {
-          consensusEps: Number.isFinite(event.estimates.consensusEps) ? event.estimates.consensusEps : null,
-          consensusRevenue: Number.isFinite(event.estimates.consensusRevenue) ? event.estimates.consensusRevenue : null,
-          numAnalysts: Number.isFinite(event.estimates.numAnalysts) ? event.estimates.numAnalysts : null
-        } : null,
-        impliedMovePct: Number.isFinite(event.impliedMovePct) ? event.impliedMovePct : null,
-        sourceUrl: typeof event.webUrl === "string" ? event.webUrl : "https://earningsnxt.ai/"
-      }));
-
-    const capped = payload.events.length >= 500;
+    const incompleteBeforeMatch = Boolean(match && failedDates.some(date => date <= matchDate));
+    const verified = Boolean(match && !incompleteBeforeMatch);
     return Response.json({
       ticker,
-      provider: "EarningsNxt public calendar",
+      provider: "Nasdaq public earnings calendar",
       fetchedAt: new Date().toISOString(),
-      windowStart,
-      windowEnd,
-      events,
-      found: events.length > 0,
-      calendarLimitReached: capped,
-      warning: events.length
-        ? "Third-party calendar estimate. Confirm the report date and time on the company's investor-relations website before trading."
-        : (capped
-          ? "The provider returned its 500-event limit and no matching event was found. The calendar may be incomplete; the next earnings date is not confirmed."
-          : "No matching event appeared in this provider's returned 31-day window. This does not prove the company has no upcoming earnings; its investor-relations calendar must be checked."),
-      sourceUrl: "https://earningsnxt.ai/docs/api"
+      windowStart: start,
+      windowEnd: dateAdd(start, 31),
+      checkedDates: searched.length,
+      failedDates,
+      events: match ? [match] : [],
+      found: Boolean(match),
+      verified,
+      calendarLimitReached: false,
+      warning: match
+        ? "A date was found in Nasdaq's public calendar. Verify the event on the company's investor-relations website before trading."
+        : "No matching event was found in the returned Nasdaq calendar dates. This does not prove that no earnings report is scheduled; the next date remains unconfirmed.",
+      sourceUrl: "https://www.nasdaq.com/market-activity/earnings"
     }, {
       headers: {
         "Cache-Control": "public, max-age=300",
@@ -80,12 +129,14 @@ export async function onRequestGet({ request }) {
   } catch (error) {
     return Response.json({
       ticker,
-      found: false,
-      provider: "EarningsNxt public calendar",
+      provider: "Nasdaq public earnings calendar",
       fetchedAt: new Date().toISOString(),
+      events: [],
+      found: false,
+      verified: false,
       error: "Upcoming earnings could not be verified. No event date has been assumed.",
       detail: String(error?.message || error),
-      sourceUrl: "https://earningsnxt.ai/docs/api"
+      sourceUrl: "https://www.nasdaq.com/market-activity/earnings"
     }, {
       status: 503,
       headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }
