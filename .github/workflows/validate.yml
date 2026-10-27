@@ -35,3 +35,5 @@ jobs:
           for file in web/functions/api/*.js; do
             node --input-type=module --check < "$file"
           done
+      - name: Run frontend analysis logic tests
+        run: node --test tests/web_logic.test.mjs
