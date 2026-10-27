@@ -26,3 +26,6 @@ This module is **not yet an end-to-end backtest of the dashboard's actual rankin
 9. Keep BUY disabled if results are unstable across folds, too few trades exist, data coverage is incomplete, or net performance does not justify risk.
 
 A high in-sample win rate alone is not evidence of a robust strategy. No return or win-rate guarantee is provided.
+
+## Input data contract
+The caller must supply bars whose OHLC prices are already consistently adjusted for stock splits across the tested interval. Adjusted-close factors are used only to approximate dividends/total-return effects; the simulator does not independently repair split discontinuities. If split-consistent bars cannot be sourced, the affected signal must be excluded. Daily OHLC cannot reveal the true intraday order of a stop and target; the stop-first rule is a conservative approximation, not tick-level execution reconstruction. Benchmark return is measured from the same signal-entry session's open to the exit close, while strategy returns include the configured entry/exit cost assumption.
