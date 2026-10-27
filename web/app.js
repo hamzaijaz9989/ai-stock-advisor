@@ -106,6 +106,31 @@ function renderTable(observations) {
     body.append(tr);
   }
 }
+function renderQuote(quote) {
+  $("quote-panel").classList.remove("hidden");
+  if (typeof quote.price !== "number") {
+    $("quote-price").textContent = "Price unavailable";
+    $("quote-change").textContent = quote.error || "No reliable quote returned.";
+  } else {
+    $("quote-price").textContent = new Intl.NumberFormat(undefined, {style:"currency",currency:quote.currency||"USD",maximumFractionDigits:2}).format(quote.price);
+    const change = typeof quote.changePercent === "number" ? (quote.changePercent >= 0 ? "+" : "") + quote.changePercent.toFixed(2) + "% vs previous close" : "Change unavailable";
+    $("quote-change").textContent = change + " · " + (quote.marketState || "market state unknown");
+  }
+  $("quote-time").textContent = "Quote time: " + (quote.quoteTime ? new Date(quote.quoteTime).toLocaleString() : "unavailable") + " · Retrieved: " + new Date(quote.fetchedAt || Date.now()).toLocaleTimeString();
+  $("quote-source").textContent = (quote.source || "Yahoo Finance") + " · May be delayed";
+}
+async function loadQuote(ticker) {
+  $("quote-panel").classList.remove("hidden");
+  $("quote-price").textContent = "Loading…";
+  try {
+    const response = await fetch("/api/quote?ticker=" + encodeURIComponent(ticker), {headers: {"Accept":"application/json"}});
+    const quote = await response.json();
+    if (!response.ok) throw new Error(quote.error || "Quote service unavailable");
+    renderQuote(quote);
+  } catch (error) {
+    renderQuote({error:error.message,price:null,fetchedAt:new Date().toISOString(),source:"Yahoo Finance"});
+  }
+}
 function renderNews(payload) {
   const list = $("news-list");
   list.innerHTML = "";
@@ -161,7 +186,7 @@ async function analyze(ticker) {
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(submissions?.filings?.recent?.filingDate?.[0]?" · Most recent filing "+fmtDate(submissions.filings.recent.filingDate[0]):"");
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderTable(observations);
-    loadNews(ticker);
+    loadNews(ticker);\n    loadQuote(ticker);
     $("sec-health").textContent="Connected; received SEC company facts";
     setMessage("Loaded SEC financial observations for "+company.name+". Check each filing date and period before comparing metrics.","success");
   } catch(error) {
@@ -171,5 +196,5 @@ async function analyze(ticker) {
   } finally { button.disabled=false; button.innerHTML='Analyze company <span aria-hidden="true">↗</span>'; }
 }
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});
-document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
+document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));\n$("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
 $("ui-health").textContent="Loaded";
