@@ -172,8 +172,8 @@ function renderQuote(quote) {
     const change = typeof quote.changePercent === "number" ? (quote.changePercent >= 0 ? "+" : "") + quote.changePercent.toFixed(2) + "% vs previous close" : "Change unavailable";
     $("quote-change").textContent = change + " · " + (quote.marketState || "market state unknown");
   }
-  $("quote-time").textContent = "Quote time: " + (quote.quoteTime ? new Date(quote.quoteTime).toLocaleString() : "unavailable") + " · Retrieved: " + new Date(quote.fetchedAt || Date.now()).toLocaleTimeString();
-  $("quote-source").textContent = (quote.source || "Yahoo Finance") + " · May be delayed";
+  $("quote-time").textContent = "Quote time: " + (quote.quoteTime ? new Date(quote.quoteTime).toLocaleString() : (quote.quoteLabel || "provider timestamp unavailable")) + " · Retrieved: " + new Date(quote.fetchedAt || Date.now()).toLocaleTimeString();
+  $("quote-source").textContent = (quote.source || "Market data provider") + (quote.warning ? " · " + quote.warning : " · May be delayed");
 }
 async function loadQuote(ticker) {
   $("quote-panel").classList.remove("hidden");
