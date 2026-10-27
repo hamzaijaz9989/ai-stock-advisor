@@ -118,3 +118,55 @@ test("averageTrueRange refuses incomplete OHLC observations", () => {
   rows[15].high = null;
   assert.equal(app.averageTrueRange({data:rows}), null);
 });
+
+function quarterlyFixtures() {
+  const rows = [];
+  const periods = [
+    {start:"2025-04-01",end:"2025-06-30",filed:"2025-08-01",revenue:100,netIncome:10,eps:1.0},
+    {start:"2026-04-01",end:"2026-06-30",filed:"2026-08-01",revenue:120,netIncome:20,eps:1.2}
+  ];
+  for (const q of periods) {
+    rows.push(obs("revenue",q.revenue*1e9,q.start,q.end,"10-Q","USD",q.filed));
+    rows.push(obs("netIncome",q.netIncome*1e9,q.start,q.end,"10-Q","USD",q.filed));
+    rows.push(obs("dilutedEps",q.eps,q.start,q.end,"10-Q","USD/shares",q.filed));
+  }
+  return rows;
+}
+
+test("quarterly snapshot returns latest-quarter revenue growth and net income", () => {
+  const app = loadAppFunctions();
+  const quarter = app.renderQuarterlySnapshot(quarterlyFixtures());
+  assert.equal(quarter.available, true);
+  assert.equal(quarter.currentRevenue, 120e9);
+  assert.equal(quarter.currentIncome, 20e9);
+  assert.equal(quarter.revenueYoY, 0.2);
+  assert.equal(quarter.periodEnd, "2026-06-30");
+});
+
+test("decision panel never issues BUY even when every preliminary check passes", () => {
+  const app = loadAppFunctions();
+  const observations = [...annualFixtures(), ...quarterlyFixtures()];
+  const valuation = app.buildDcfEstimate(observations, {});
+  assert.equal(valuation.available, true);
+  const entry = valuation.base * 0.775;
+  const historyRows = Array.from({length:16},(_,i)=>({
+    date:"2026-01-"+String(i+1).padStart(2,"0"),
+    close:entry, high:entry+2, low:entry-2
+  }));
+  const future = new Date(Date.now()+60*86400000).toISOString().slice(0,10);
+  const elements = app.document;
+  app.renderQuarterlySnapshot(observations);
+  app.renderDecision({
+    ticker:"TEST",
+    observations,
+    facts:{},
+    quote:{price:entry,quoteTime:new Date().toISOString(),source:"test"},
+    history:{data:historyRows},
+    news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
+    earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
+    quarter:app.renderQuarterlySnapshot(observations)
+  });
+  const title=elements.getElementById("decision-title").textContent;
+  assert.ok(title.startsWith("WAIT") || title.startsWith("INSUFFICIENT EVIDENCE"));
+  assert.ok(!title.startsWith("BUY"));
+});
