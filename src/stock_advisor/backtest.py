@@ -276,12 +276,10 @@ def walk_forward_folds(
     step_sessions: int | None = None,
 ) -> list[WalkForwardFold]:
     """Create expanding-window chronological folds with no train/test date overlap."""
-    dates = sorted({_as_date(item) for item in session_dates})
-    if len(dates) != len(list(session_dates)) if not isinstance(session_dates, (list, tuple)) else False:
-        # Uniqueness is enforced below; this branch only avoids silently hiding duplicates in iterables.
-        pass
-    if len(set(dates)) != len(dates):
+    raw_dates = [_as_date(item) for item in session_dates]
+    if len(set(raw_dates)) != len(raw_dates):
         raise ValueError("Session dates must be unique.")
+    dates = sorted(raw_dates)
     if min_train_sessions < 1 or test_sessions < 1:
         raise ValueError("Training and test session counts must be positive.")
     step = test_sessions if step_sessions is None else step_sessions
