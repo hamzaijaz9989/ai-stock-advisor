@@ -1,11 +1,7 @@
 name: Deploy AI Stock Advisor to GitHub Pages
 
+# Kept only for historical/manual use. The active deployment target is Cloudflare Pages.
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "web/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
