@@ -397,9 +397,10 @@ function renderEarnings(payload) {
   if(events.length) {
     for(const event of events) {
       const item=document.createElement("article"); item.className="news-item";
-      const heading=document.createElement("strong"); heading.textContent=event.company+" · "+event.fiscalQuarter;
+      const heading=document.createElement("strong"); heading.textContent=event.company+" · "+(event.fiscalQuarterEnding||event.fiscalQuarter||"Earnings");
       const detail=document.createElement("p"); detail.className="muted";
-      detail.textContent=fmtDate(event.reportDate)+" · "+(event.reportTime==="BMO"?"Before market open":event.reportTime==="AMC"?"After market close":"Time not confirmed");
+      const estimate=typeof event.consensusEps==="number"?" · Consensus EPS "+fmtUsd(event.consensusEps):"";
+      detail.textContent=fmtDate(event.reportDate)+" · "+(event.reportTime==="BMO"?"Before market open":event.reportTime==="AMC"?"After market close":"Time not confirmed")+estimate;
       const link=document.createElement("a"); link.href=event.sourceUrl; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent="Open calendar entry";
       item.append(heading,detail,link); root.append(item);
     }
@@ -415,13 +416,13 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings})
   grid.innerHTML=""; checks.innerHTML="";
   const valuation=buildDcfEstimate(observations,facts);
   const atr=averageTrueRange(history);
-  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
+  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):(quote?.quoteLabel?new Date(String(quote.quoteLabel).replace(/\s+ET$/,"")):null);
   const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
   const quoteCurrent=typeof quote?.price==="number"&&quote.price>0&&quoteAgeHours>=-2&&quoteAgeHours<=96;
   const today=new Date().toISOString().slice(0,10);
   const nextEvent=(earnings?.events||[]).filter(event=>event.reportDate>=today).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]||null;
   const daysToEarnings=nextEvent?(Date.parse(nextEvent.reportDate+"T00:00:00Z")-Date.parse(today+"T00:00:00Z"))/86400000:null;
-  const earningsVerified=Boolean(nextEvent&&!earnings?.calendarLimitReached);
+  const earningsVerified=Boolean(nextEvent&&earnings?.verified);
   const headlines=Array.isArray(news?.items)?news.items:[];
   const recentHeadlines=headlines.filter(item=>item.publishedAt&&Number.isFinite(Date.parse(item.publishedAt))&&(Date.now()-Date.parse(item.publishedAt))/86400000<=7&&(Date.now()-Date.parse(item.publishedAt))/86400000>=-0.1);
   const riskWords=/fraud|investigation|probe|restatement|bankrupt|accounting irregular|recall|antitrust|guidance cut|cuts outlook|data breach|ceo resign|secondary offering|dilution|sec charge|criminal charges|regulatory action|lawsuit|misses estimates/i;
@@ -444,7 +445,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings})
     {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?"Quote timestamp "+quoteDate.toLocaleString():"Quote unavailable or older than 96 hours"},
     {label:"Valuation inputs",ok:valuation.available,detail:valuation.available?"Three unambiguous annual free-cash-flow periods and recent SEC share count found":valuation.reason},
     {label:"Fundamentals",ok:fundamentalPass,detail:fundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; revenue has not dropped more than 10% year over year":"Basic quality filter did not pass or comparable data is missing"},
-    {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next provider-listed earnings date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
+    {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next Nasdaq-listed earnings date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
     {label:"Recent news",ok:recentHeadlines.length>0&&!flaggedHeadlines.length,detail:recentHeadlines.length?(flaggedHeadlines.length?flaggedHeadlines.length+" recent headline(s) contain risk keywords and need source review":recentHeadlines.length+" timestamped headline(s) from the last 7 days"):"No timestamped headlines in the last 7 days"},
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
     {label:"Historical validation",ok:false,detail:"Walk-forward and untouched holdout backtests are not complete; this blocks BUY signals"}
