@@ -203,7 +203,7 @@ function renderQuarterlySnapshot(observations) {
     : "Comparable quarterly facts unavailable";
   if(!latestRevenue) {
     panel.textContent="No unambiguous 70–110 day quarterly revenue observation was found in the available SEC facts.";
-    return {available:false,reason:"Quarterly revenue facts missing",currentRevenue:null,currentIncome:null,currentEps:null,revenueYoY:null,periodEnd:null};
+    return {available:false,reason:"Quarterly revenue facts missing",currentRevenue:null,currentIncome:null,currentEps:null,revenueYoY:null,periodEnd:null,fiscalQuarterId:null};
   }
   const dateMeta="Quarter ended "+fmtDate(latestRevenue.end)+" · SEC "+latestRevenue.form+" filed "+fmtDate(latestRevenue.filed);
   panel.append(metricCard("Latest quarterly revenue",fmtValue(latestRevenue.value,latestRevenue.unit),
@@ -226,6 +226,7 @@ function renderQuarterlySnapshot(observations) {
     revenueYoY,
     priorRevenue:priorRevenue?.value??null,
     periodEnd:latestRevenue.end,
+    fiscalQuarterId:(()=>{const fp=String(latestRevenue.fp||"").toUpperCase().match(/Q([1-4])/);const fy=Number(latestRevenue.fy);return fp&&Number.isInteger(fy)&&fy>=2000?"Q"+fp[1]+"-"+fy:null;})(),
     filed:latestRevenue.filed,
     netIncomeFiled:latestIncome?.filed??null,
     reason:!priorRevenue?"Same-quarter prior-year revenue is missing":!latestIncome?"Quarterly net income observation missing":"Quarterly revenue/net income comparison available"
@@ -562,15 +563,19 @@ function renderEarnings(payload) {
       const item=document.createElement("article"); item.className="news-item";
       const heading=document.createElement("strong"); heading.textContent=event.company+" · "+(event.fiscalQuarterEnding||event.fiscalQuarter||"Earnings");
       const detail=document.createElement("p"); detail.className="muted";
-      const estimate=typeof event.consensusEps==="number"?" · Consensus EPS "+fmtUsd(event.consensusEps):"";
-      detail.textContent=fmtDate(event.reportDate)+" · "+(event.reportTime==="BMO"?"Before market open":event.reportTime==="AMC"?"After market close":"Time not confirmed")+estimate;
+      const estimates=[
+        typeof event.consensusEps==="number"?"EPS est. "+fmtUsd(event.consensusEps):"",
+        typeof event.consensusRevenue==="number"?"Revenue est. "+fmtUsd(event.consensusRevenue*1e6):"",
+        typeof event.impliedMovePct==="number"?"Implied move "+event.impliedMovePct.toFixed(1)+"%":""
+      ].filter(Boolean).join(" · ");
+      detail.textContent=fmtDate(event.reportDate)+" · "+(event.reportTime==="BMO"?"Before market open":event.reportTime==="AMC"?"After market close":"Time not confirmed")+(estimates?" · "+estimates:"");
       const link=document.createElement("a"); link.href=event.sourceUrl; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent="Open calendar entry";
       item.append(heading,detail,link); root.append(item);
     }
   } else {
     const p=document.createElement("p"); p.className="empty"; p.textContent="No matching upcoming event was found in the provider's returned calendar window; this does not prove that no earnings report is scheduled."; root.append(p);
   }
-  const note=document.createElement("p"); note.className="table-note"; note.textContent=(payload.warning||"")+" Source: EarningsNxt public calendar · Retrieved "+new Date(payload.fetchedAt||Date.now()).toLocaleString()+". Confirm dates with official investor relations.";
+  const note=document.createElement("p"); note.className="table-note"; note.textContent=(payload.warning||"")+" Source: "+(payload.provider||"public earnings calendar")+" · Retrieved "+new Date(payload.fetchedAt||Date.now()).toLocaleString()+". Confirm dates with official investor relations.";
   root.append(note);
 }
 function renderDecision({ticker,observations,facts,quote,history,news,earnings,quarter}) {
@@ -811,8 +816,7 @@ async function analyze(ticker) {
     const [quote,history,news,earnings]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker)
     ]);
-    const upcomingEvent=(earnings?.events||[]).filter(event=>event.reportDate>=new Date().toISOString().slice(0,10)).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]||null;
-    const reportedQuarter=previousFiscalQuarter(upcomingEvent?.fiscalQuarter);
+    const reportedQuarter=quarter?.fiscalQuarterId||null;
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
     renderEarningsResult(earningsResult,quarter,reportedQuarter);
     renderDecision({ticker,company,observations,facts,quote,history,news,earnings,quarter});
