@@ -203,7 +203,7 @@ function renderQuarterlySnapshot(observations) {
     : "Comparable quarterly facts unavailable";
   if(!latestRevenue) {
     panel.textContent="No unambiguous 70–110 day quarterly revenue observation was found in the available SEC facts.";
-    return {available:false,reason:"Quarterly revenue facts missing",currentRevenue:null,currentIncome:null,revenueYoY:null,periodEnd:null};
+    return {available:false,reason:"Quarterly revenue facts missing",currentRevenue:null,currentIncome:null,currentEps:null,revenueYoY:null,periodEnd:null};
   }
   const dateMeta="Quarter ended "+fmtDate(latestRevenue.end)+" · SEC "+latestRevenue.form+" filed "+fmtDate(latestRevenue.filed);
   panel.append(metricCard("Latest quarterly revenue",fmtValue(latestRevenue.value,latestRevenue.unit),
@@ -222,6 +222,7 @@ function renderQuarterlySnapshot(observations) {
     available:Boolean(latestRevenue&&priorRevenue&&latestIncome),
     currentRevenue:latestRevenue.value,
     currentIncome:latestIncome?.value??null,
+    currentEps:latestEps?.value??null,
     revenueYoY,
     priorRevenue:priorRevenue?.value??null,
     periodEnd:latestRevenue.end,
@@ -469,6 +470,81 @@ function metricCard(label,value,meta) {
   const main=document.createElement("div"); main.className="metric-value"; main.textContent=value;
   const detail=document.createElement("div"); detail.className="metric-date"; detail.textContent=meta;
   card.append(title,main,detail); return card;
+}
+function previousFiscalQuarter(value) {
+  const match=String(value||"").match(/^Q([1-4])-(20\\d{2})$/i);
+  if(!match) return null;
+  const quarter=Number(match[1]), year=Number(match[2]);
+  return quarter===1?"Q4-"+(year-1):"Q"+(quarter-1)+"-"+year;
+}
+function loadEarningsResult(ticker,quarter) {
+  if(!quarter) return Promise.resolve({
+    available:false,
+    reason:"The earnings-calendar source did not supply an unambiguous fiscal quarter, so the previous quarter could not be matched safely."
+  });
+  return fetch("/api/earnings-result?ticker="+encodeURIComponent(ticker)+"&quarter="+encodeURIComponent(quarter),{
+    headers:{"Accept":"application/json"}
+  }).then(async response=>{
+    const payload=await response.json();
+    if(!response.ok && payload?.available!==false) throw new Error(payload?.reason||"Earnings brief unavailable");
+    return payload;
+  }).catch(error=>({available:false,reason:"The earnings brief could not be loaded. "+(error.message||"No estimate or result has been assumed.")}));
+}
+function renderEarningsResult(payload,quarter,expectedQuarter) {
+  const panel=$("earnings-results-panel"),root=$("earnings-results-content");
+  panel.classList.remove("hidden");root.innerHTML="";
+  if(!quarter||!quarter.periodEnd) {
+    $("earnings-results-status").textContent="SEC data unavailable";
+    root.textContent="The latest reported SEC quarter could not be reconciled, so actual-versus-consensus comparisons are withheld.";
+    return;
+  }
+  $("earnings-results-status").textContent="SEC period ended "+fmtDate(quarter.periodEnd);
+  root.append(metricCard("SEC quarterly revenue",typeof quarter.currentRevenue==="number"?fmtValue(quarter.currentRevenue,"USD"):"Unavailable","Reported quarter ended "+fmtDate(quarter.periodEnd)+(quarter.filed?" · filing "+fmtDate(quarter.filed):"")));
+  root.append(metricCard("SEC quarterly net income",typeof quarter.currentIncome==="number"?fmtValue(quarter.currentIncome,"USD"):"Unavailable","Company-reported quarterly fact; see SEC filings"));
+  root.append(metricCard("SEC diluted EPS",typeof quarter.currentEps==="number"?fmtUsd(quarter.currentEps):"Unavailable","Diluted EPS fact from SEC companyfacts; may differ from adjusted consensus EPS"));
+  if(!payload||!payload.available) {
+    const note=document.createElement("p");note.className="table-note";note.textContent=(payload?.reason||"A public earnings brief is not available for the matched quarter.")+" No third-party estimate has been invented.";
+    root.append(note);
+    return;
+  }
+  const reported=String(payload.status||"").toLowerCase()==="reported";
+  const estimates=payload.estimates||{};
+  const actualRevenue=quarter.currentRevenue;
+  const consensusRevenue=typeof estimates.consensusRevenue==="number"?estimates.consensusRevenue*1e6:null;
+  const actualEps=quarter.currentEps;
+  const consensusEps=typeof estimates.consensusEps==="number"?estimates.consensusEps:null;
+  const revenueVariance=typeof actualRevenue==="number"&&typeof consensusRevenue==="number"&&consensusRevenue>0
+    ?actualRevenue/consensusRevenue-1:null;
+  const epsVariance=typeof actualEps==="number"&&typeof consensusEps==="number"&&Math.abs(consensusEps)>0
+    ?actualEps/consensusEps-1:null;
+  if(!reported) {
+    const note=document.createElement("p");note.className="table-note";note.textContent="The third-party brief is not marked reported, so it is not used to characterize an earnings beat or miss.";
+    root.append(note);
+    return;
+  }
+  root.append(metricCard("Provider consensus revenue",typeof consensusRevenue==="number"?fmtUsd(consensusRevenue):"Unavailable",
+    "EarningsNxt third-party estimate"+(typeof estimates.consensusRevenue==="number"?" · source units converted from USD millions":"")));
+  root.append(metricCard("Revenue vs consensus",
+    revenueVariance===null?"Not comparable":(revenueVariance>=0?"+":"")+(revenueVariance*100).toFixed(2)+"%",
+    revenueVariance===null?"Actual period or consensus estimate unavailable":"Calculated from SEC-reported revenue and third-party consensus"));
+  root.append(metricCard("Provider consensus EPS",typeof consensusEps==="number"?fmtUsd(consensusEps):"Unavailable",
+    "May use an adjusted EPS definition; not guaranteed comparable with SEC GAAP diluted EPS"));
+  root.append(metricCard("Diluted EPS vs consensus",
+    epsVariance===null?"Not comparable":(epsVariance>=0?"+":"")+(epsVariance*100).toFixed(2)+"%",
+    epsVariance===null?"Actual diluted EPS or third-party estimate unavailable":"Arithmetic comparison only; definitions may differ"));
+  const heading=payload.headline;
+  if(heading) {
+    const article=document.createElement("article");article.className="news-item";
+    const h=document.createElement("strong");h.textContent=heading;article.append(h);
+    if(payload.whatItMeans) {const p=document.createElement("p");p.textContent=payload.whatItMeans;article.append(p);}
+    if(payload.managementCommentary?.summary) {const p=document.createElement("p");p.className="muted";p.textContent="Management commentary: "+payload.managementCommentary.summary;article.append(p);}
+    if(payload.guidanceChanges?.summary) {const p=document.createElement("p");p.className="muted";p.textContent="Guidance: "+payload.guidanceChanges.summary;article.append(p);}
+    if(payload.sourceUrl) {const a=document.createElement("a");a.href=payload.sourceUrl;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Open third-party earnings brief";article.append(a);}
+    root.append(article);
+  }
+  const note=document.createElement("p");note.className="table-note";
+  note.textContent="Matched fiscal-quarter request: "+(expectedQuarter||payload.quarter||"unknown")+". SEC reported values above are primary-source facts. Consensus and commentary are third-party secondary data, may be incomplete or inconsistent, and require confirmation against the original company earnings release.";
+  root.append(note);
 }
 function renderEarnings(payload) {
   const panel=$("earnings-panel"),root=$("earnings-content");
@@ -735,6 +811,10 @@ async function analyze(ticker) {
     const [quote,history,news,earnings]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker)
     ]);
+    const upcomingEvent=(earnings?.events||[]).filter(event=>event.reportDate>=new Date().toISOString().slice(0,10)).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]||null;
+    const reportedQuarter=previousFiscalQuarter(upcomingEvent?.fiscalQuarter);
+    const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
+    renderEarningsResult(earningsResult,quarter,reportedQuarter);
     renderDecision({ticker,company,observations,facts,quote,history,news,earnings,quarter});
     setMessage("Research checks completed for "+company.name+". The advisor will not issue a BUY while its model remains unvalidated.","success");
   } catch(error) {
