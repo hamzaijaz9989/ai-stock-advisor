@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": null,
+  "refreshIntervalHours": 3,
+  "status": "pending_first_scheduled_scan",
+  "stocks": [],
+  "note": "The scheduled scanner has not completed its first successful run yet. Use the live scan action if available."
+}
