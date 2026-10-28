@@ -104,7 +104,7 @@ def verify_dataset(
         raise ValueError("request_delay_seconds cannot be negative.")
     companies = dataset.get("companies")
     if not isinstance(companies, list):
-        raise ValueError("Dataset must contain a companies list.")
+        raise TypeError("Dataset must contain a companies list.")
     getter = fetch_text or (lambda url: _fetch_text(url, user_agent=(
         user_agent or os.environ.get("SEC_USER_AGENT", DEFAULT_USER_AGENT)
     )))
