@@ -20,7 +20,8 @@ const METRICS = [
   {label:"Current debt", tags:["LongTermDebtCurrent","ShortTermBorrowings","ShortTermDebtCurrent"], key:"currentDebt"},
   {label:"Long-term debt", tags:["LongTermDebtNoncurrent","LongTermDebt","LongTermDebtAndFinanceLeaseObligationsNoncurrent"], key:"longTermDebt"},
   {label:"Other non-operating income", tags:["NonoperatingIncomeExpense","OtherNonoperatingIncomeExpense"], key:"otherIncome"},
-  {label:"Income before taxes", tags:["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"], key:"pretaxIncome"}
+  {label:"Income before taxes", tags:["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"], key:"pretaxIncome"},
+  {label:"Shares outstanding", tags:["EntityCommonStockSharesOutstanding"], key:"commonShares", taxonomy:"dei"}
 ];
 const cache = new Map();
 function setMessage(text, type="") { const el=$("message"); el.textContent=text; el.className="message"+(type?" "+type:""); }
@@ -127,13 +128,13 @@ function getObservations(payload) {
   for(const metric of METRICS) {
     let found=false;
     for(let tagRank=0;tagRank<metric.tags.length;tagRank++) {
-      const tag=metric.tags[tagRank], fact=gaap[tag];
+      const tag=metric.tags[tagRank], fact=(metric.taxonomy==="dei"?payload?.facts?.dei:gaap)?.[tag];
       if(!fact?.units) continue;
       for(const [unit,values] of Object.entries(fact.units)) {
         if(!Array.isArray(values)) continue;
         for(const obs of values) {
           if(obs.val==null || !obs.end || !obs.filed) continue;
-          observations.push({metric:metric.label,key:metric.key,tag,tagRank,unit,value:obs.val,start:obs.start||null,end:obs.end,filed:obs.filed,form:obs.form||"—",accession:obs.accn||"—",fy:obs.fy,fp:obs.fp,frame:obs.frame||""});
+          observations.push({metric:metric.label,key:metric.key,tag,taxonomy:metric.taxonomy||"us-gaap",tagRank,unit,value:obs.val,start:obs.start||null,end:obs.end,filed:obs.filed,form:obs.form||"—",accession:obs.accn||"—",fy:obs.fy,fp:obs.fp,frame:obs.frame||""});
         }
       }
       found=true;
@@ -238,7 +239,7 @@ function renderFundamentalSnapshot(observations) {
     cards.push({label:"Net profit margin",value:((latestIncome.value/latestRevenue.value)*100).toFixed(1)+"%",meta:"Matched annual period ended "+fmtDate(latestRevenue.end)});
   }
   const latestCash = cash[cash.length-1];
-  const latestCapex = latestCash && capex.find(row=>row.end===latestCash.end);
+  const latestCapex = latestCash && capex.find(row=>row.end===latestCash.end&&row.start===latestCash.start&&row.unit===latestCash.unit);
   if (latestCash && latestCapex) {
     const fcf=latestCash.value-Math.abs(latestCapex.value);
     cards.push({label:"Approx. free cash flow",value:fmtValue(fcf,latestCash.unit),meta:"Operating cash flow minus absolute capex · "+fmtDate(latestCash.end)});
@@ -795,10 +796,12 @@ function buildDcfEstimate(observations, facts) {
   }
   const latestFcf=last3[2];
   const latestRevenue=matchedRevenue[2], previousRevenue=matchedRevenue[1];
-  const currentInstantShares=latestSecValue(facts,[
-    {taxonomy:"dei",tag:"EntityCommonStockSharesOutstanding"},
-    {taxonomy:"us-gaap",tag:"EntityCommonStockSharesOutstanding"}
-  ],"shares",180);
+  const currentInstantShares=observations.filter(row=>row.key==="commonShares"&&!row.start&&String(row.unit).toLowerCase()==="shares"&&row.value>0&&row.end&&row.filed&&
+    (Date.parse(today+"T00:00:00Z")-Date.parse(row.end+"T00:00:00Z"))/86400000>=0&&
+    (Date.parse(today+"T00:00:00Z")-Date.parse(row.end+"T00:00:00Z"))/86400000<=180&&
+    (Date.parse(today+"T00:00:00Z")-Date.parse(row.filed+"T00:00:00Z"))/86400000>=0&&
+    (Date.parse(today+"T00:00:00Z")-Date.parse(row.filed+"T00:00:00Z"))/86400000<=180)
+    .sort((a,b)=>b.end.localeCompare(a.end)||b.filed.localeCompare(a.filed))[0]||null;
   const shares=currentInstantShares&&currentInstantShares.value>0
     ? {value:currentInstantShares.value,end:currentInstantShares.end,filed:currentInstantShares.filed,source:"Recent SEC-reported instant shares outstanding"}
     : null;
@@ -1173,7 +1176,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const flaggedHeadlines=recentHeadlines.filter(item=>riskWords.test(item.title||""));
   const rev=annualSeries(observations,"revenue");
   const income=annualSeries(observations,"netIncome");
-  const fcf=(()=>{const c=annualSeries(observations,"operatingCashFlow"),x=annualSeries(observations,"capex");return c.map(row=>{const cap=x.find(item=>item.end===row.end);return cap?{end:row.end,value:row.value-Math.abs(cap.value)}:null;}).filter(Boolean).sort((a,b)=>a.end.localeCompare(b.end));})();
+  const fcf=(()=>{const c=annualSeries(observations,"operatingCashFlow"),x=annualSeries(observations,"capex");return c.map(row=>{const cap=x.find(item=>item.end===row.end&&item.start===row.start&&item.unit===row.unit);return cap?{end:row.end,start:row.start,value:row.value-Math.abs(cap.value)}:null;}).filter(Boolean).sort((a,b)=>a.end.localeCompare(b.end));})();
   const latestRevenue=rev[rev.length-1],priorRevenue=rev[rev.length-2];
   const latestIncome=latestRevenue?income.find(item=>item.end===latestRevenue.end):null;
   const latestFcf=latestRevenue?fcf.find(item=>item.end===latestRevenue.end):null;
