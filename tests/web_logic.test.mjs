@@ -95,7 +95,7 @@ test("quarterlySeries selects three-month disclosures and matches the prior year
   assert.ok(Math.abs((current.value / prior.value - 1) - 0.2) < 1e-9);
 });
 
-test("buildDcfEstimate uses matched-period diluted shares and produces ordered scenarios", () => {
+test("buildDcfEstimate uses recent shares outstanding and produces ordered scenarios", () => {
   const app = loadAppFunctions();
   const result = app.buildDcfEstimate(annualFixtures(), shareFacts());
   assert.equal(result.available, true);
@@ -106,11 +106,11 @@ test("buildDcfEstimate uses matched-period diluted shares and produces ordered s
   assert.ok(result.base < result.bull);
 });
 
-test("buildDcfEstimate refuses to value when share count is missing or stale", () => {
+test("buildDcfEstimate refuses annual weighted-average shares without a recent shares-outstanding fact", () => {
   const app = loadAppFunctions();
-  const result = app.buildDcfEstimate(annualFixtures({includeShares:false}), {});
+  const result = app.buildDcfEstimate(annualFixtures(), {});
   assert.equal(result.available, false);
-  assert.match(result.reason, /share count/i);
+  assert.match(result.reason, /shares-outstanding fact filed within the last 180 days/i);
 });
 
 test("averageTrueRange refuses incomplete OHLC observations", () => {
