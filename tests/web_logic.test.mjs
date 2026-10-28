@@ -339,7 +339,7 @@ test("screen CSV preserves component evidence, timestamps, exclusions, and escap
     historyPeriod:"2025-10-28 to 2026-10-27",source:"Nasdaq historical API",
     components:[{name:'Revenue "growth"',value:12.5,display:"12.5%",score:15,max:25}]
   }],["BAD: Missing matched-period data"],"2026-10-28T12:00:00.000Z");
-  assert.match(csv,/generated_at_utc,ticker,company,rank,research_score/);
+  assert.match(csv,/"generated_at_utc","ticker","company","rank","research_score"/);
   assert.match(csv,/"Apple, Inc\."/);
   assert.match(csv,/"Revenue ""growth"""/);
   assert.match(csv,/2026-10-28T12:00:00\.000Z/);
