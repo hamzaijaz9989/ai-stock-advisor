@@ -941,10 +941,11 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const historicalValidationPass = false; // Fail closed until a real validation report is reviewed and approved.
   const insufficientData=!quoteCurrent||!annualDataAvailable||!quarterlyDataAvailable||!earningsVerified||!recentHeadlines.length||atr===null;
   let state;
-  if (fundamentalAvoid) state="AVOID";
+  if (annualDataAvailable && !annualFundamentalPass) state="AVOID";
   else if (insufficientData) state="INSUFFICIENT DATA";
   else if (gapCheck.blocked || !valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
-  else if (flaggedHeadlines.length) state="SELL REVIEW";
+  else if ((quarterlyDataAvailable && !quarterlyPass) || flaggedHeadlines.length) state="SELL REVIEW";
+  else if (fundamentalAvoid) state="AVOID";
   else if (buySetupPass && !historicalValidationPass) state="WAIT";
   else if (buySetupPass && historicalValidationPass) state="BUY";
   else state="HOLD";
@@ -955,7 +956,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     !valuationDecisionReady?"Valuation decision gate is not satisfied":
     flaggedHeadlines.length?"Potential material-risk headline requires primary-source review":
     buySetupPass&&!historicalValidationPass?"Entry checks passed, but strategy validation is not complete":
-    state==="BUY"?"Validated entry criteria passed":"No configured sell trigger or validated buy setup";
+    state==="BUY"?"Validated entry criteria passed":"No new entry trigger";
   $("decision-status").textContent=state+" · RESEARCH ONLY";
   const bottomLine = state==="AVOID"
     ? "AVOID — "+reasonRule+". Review the failed financial evidence and original sources before reconsidering."
@@ -971,7 +972,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     ? "SELL REVIEW — recent headlines contain potential material-risk terms. Verify the primary sources and your position thesis; this is not an automatic sell order."
     : state==="BUY"
     ? "BUY — validated entry criteria passed. Research only; no order will be placed."
-    : "HOLD — available evidence does not justify a validated entry and no configured sell-review trigger is active.";
+    : "HOLD — available evidence does not justify a validated entry and there is no clear new-entry setup.";
   $("decision-bottom-line").textContent=bottomLine;
   const nextStep = state==="AVOID"
     ? "Next: inspect the specific failed financial screen, the cited SEC period and the original filing."
@@ -985,7 +986,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     ? "Next: open the original news and SEC filing, confirm materiality, and review your own position and thesis before deciding."
     : state==="BUY"
     ? "Next: independently review the evidence, sizing and downside risks. This research app does not place orders."
-    : "Next: continue holding only if it fits your thesis and risk plan; reassess after new filings, earnings, material news or major price changes.";
+    : "Next: hold off on adding shares; reassess after new filings, earnings, material news or major price changes.";
   $("decision-next-step").textContent=nextStep;
   $("decision-title").textContent=state+" — "+reasonRule.toUpperCase();
   const reasons=[];
