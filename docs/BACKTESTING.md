@@ -52,3 +52,10 @@ The runner rejects signals and market bars after the declared data cutoff, requi
 The dashboard now offers an optional five-year 50/200-day simple-moving-average crossover baseline for the ticker under analysis and compares its daily equity curve with SPY buy-and-hold. It enters on the next session open after a close-based crossover and assumes 5 basis points of costs per side. It reports total and annualized returns, maximum drawdown, volatility, completed/open-at-end trade counts, closed-trade win rate, and a profit factor.
 
 **This is not validation of the live advisor.** The baseline uses current provider history, does not reconstruct point-in-time SEC fundamentals/news or historical index membership, does not independently verify delisted stocks or corporate actions, and relies on unofficial Yahoo Finance chart access. A short or revised history can mislead. The test is explicitly labelled experimental and does not change the live BUY gate. It is useful as an initial diagnostic only; a defensible strategy validation still needs point-in-time inputs, robust survivorship/corporate-action handling, walk-forward folds, an untouched holdout, realistic spread/market-impact costs, and reproducible test artifacts.
+
+
+## Walk-forward dashboard diagnostic
+
+The five-year technical baseline also reports non-overlapping chronological six-month test windows after a 200-session moving-average warm-up. The 50/200-day rule is fixed in advance; no parameter optimization is performed on the test windows. Each fold displays dates, return, drawdown, volatility, and entry/exit counts.
+
+This is a preliminary diagnostic only. The current provider series and adjusted-close daily returns do not reconstruct point-in-time fundamentals, delisted-stock membership, exact intraday fills, or verified corporate-action history. It does not validate the live recommendation engine, and it cannot enable BUY. Treat the fold results as exploratory until the underlying data and execution assumptions are independently validated.
