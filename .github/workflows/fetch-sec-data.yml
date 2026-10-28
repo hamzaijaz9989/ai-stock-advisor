@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - fix/sec-acceptance-timestamp-provenance
-      - feature/sec-header-timestamp-verifier
   workflow_dispatch:
     inputs:
       symbols:
