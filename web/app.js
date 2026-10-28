@@ -1128,7 +1128,7 @@ function renderFilings(submissions, company) {
     const cik = String(company.cik).replace(/^0+/, "");
     const accessionPath = accession.replace(/-/g, "");
     const href = "https://www.sec.gov/Archives/edgar/data/" + cik + "/" + accessionPath + "/" + document;
-    entries.push({form, filed, href, description: recent.primaryDocDescription?.[i] || document, reportDate: recent.reportDate?.[i] || ""});
+    entries.push({form, filed, href, items:recent.items?.[i]||"", description: recent.primaryDocDescription?.[i] || document, reportDate: recent.reportDate?.[i] || ""});
   }
   $("filings-status").textContent = entries.length ? entries.length + " filings" : "No recent matches";
   if (!entries.length) {
