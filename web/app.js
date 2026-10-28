@@ -973,7 +973,176 @@ function renderEarnings(payload) {
   const note=document.createElement("p"); note.className="table-note"; note.textContent=(payload.warning||"")+" Source: "+(payload.provider||"public earnings calendar")+" · Retrieved "+new Date(payload.fetchedAt||Date.now()).toLocaleString()+". Confirm dates with official investor relations.";
   root.append(note);
 }
-function renderDecision({ticker,observations,facts,quote,history,news,earnings,quarter}) {
+
+function latestFact(observations,key,instant=false) {
+  return observations.filter(row=>row.key===key&&typeof row.value==="number"&&Number.isFinite(row.value)&&row.end&&(!instant||!row.start))
+    .sort((a,b)=>String(b.end).localeCompare(String(a.end))||String(b.filed).localeCompare(String(a.filed)))[0]||null;
+}
+function ytdRows(observations,key) {
+  return observations.filter(row=>row.key===key&&typeof row.value==="number"&&row.start&&row.end&&row.form==="10-Q"&&
+    ["USD","SHARES","USD/SHARES"].includes(String(row.unit).toUpperCase())&&
+    periodDurationDays(row)>=150&&periodDurationDays(row)<=300)
+    .sort((a,b)=>a.end.localeCompare(b.end));
+}
+function periodDurationDays(row) {
+  return row?.start&&row?.end?(Date.parse(row.end+"T00:00:00Z")-Date.parse(row.start+"T00:00:00Z"))/86400000:0;
+}
+function ttmValue(observations,key) {
+  const ytd=ytdRows(observations,key), current=ytd[ytd.length-1];
+  if(current) {
+    const duration=periodDurationDays(current);
+    const prior=ytd.filter(row=>row.unit===current.unit&&Math.abs(periodDurationDays(row)-duration)<=20&&
+      (Date.parse(current.end+"T00:00:00Z")-Date.parse(row.end+"T00:00:00Z"))/86400000>=350&&
+      (Date.parse(current.end+"T00:00:00Z")-Date.parse(row.end+"T00:00:00Z"))/86400000<=380)
+      .sort((a,b)=>Math.abs((Date.parse(current.end+"T00:00:00Z")-Date.parse(a.end+"T00:00:00Z"))/86400000-365.25)-Math.abs((Date.parse(current.end+"T00:00:00Z")-Date.parse(b.end+"T00:00:00Z"))/86400000-365.25))[0];
+    const annual=annualSeries(observations,key).filter(row=>row.unit===current.unit&&row.end<current.start)
+      .sort((a,b)=>b.end.localeCompare(a.end))[0];
+    if(prior&&annual&&Math.abs((Date.parse(current.start+"T00:00:00Z")-Date.parse(annual.end+"T00:00:00Z"))/86400000)<=180)
+      return {value:annual.value+current.value-prior.value,end:current.end,start:current.start,method:"Annual + current YTD − prior-year YTD",unit:current.unit};
+  }
+  const quarters=quarterlySeries(observations,key).filter(row=>row.unit==="USD").slice(-4);
+  if(quarters.length===4) {
+    const gaps=quarters.slice(1).map((row,i)=>periodDurationDays({start:quarters[i].end,end:row.end}));
+    if(gaps.every(days=>days>=70&&days<=110)&&
+       (Date.parse(quarters[3].end+"T00:00:00Z")-Date.parse(quarters[0].end+"T00:00:00Z"))/86400000>=250&&
+       (Date.parse(quarters[3].end+"T00:00:00Z")-Date.parse(quarters[0].end+"T00:00:00Z"))/86400000<=400)
+      return {value:quarters.reduce((sum,row)=>sum+row.value,0),end:quarters[3].end,start:quarters[0].start,method:"Sum of four matched reported quarters",unit:quarters[3].unit};
+  }
+  const annual=annualSeries(observations,key).filter(row=>row.unit==="USD").at(-1);
+  const newestEnd=observations.filter(row=>row.key===key&&row.end).map(row=>row.end).sort().at(-1);
+  if(annual&&newestEnd&&(Date.parse(newestEnd+"T00:00:00Z")-Date.parse(annual.end+"T00:00:00Z"))/86400000<=400)
+    return {value:annual.value,end:annual.end,start:annual.start,method:"Latest annual report (TTM proxy; no newer matched YTD data)",unit:annual.unit};
+  return null;
+}
+function ttmFreeCashFlow(observations) {
+  const cashYtd=ytdRows(observations,"operatingCashFlow"),capYtd=ytdRows(observations,"capex");
+  const current=cashYtd[cashYtd.length-1];
+  if(current) {
+    const cap=capYtd.find(row=>row.start===current.start&&row.end===current.end&&row.unit===current.unit);
+    const prior=cashYtd.filter(row=>row.unit===current.unit&&Math.abs(periodDurationDays(row)-periodDurationDays(current))<=20&&
+      (Date.parse(current.end+"T00:00:00Z")-Date.parse(row.end+"T00:00:00Z"))/86400000>=350&&
+      (Date.parse(current.end+"T00:00:00Z")-Date.parse(row.end+"T00:00:00Z"))/86400000<=380)
+      .sort((a,b)=>Math.abs((Date.parse(current.end+"T00:00:00Z")-Date.parse(a.end+"T00:00:00Z"))/86400000-365.25)-Math.abs((Date.parse(current.end+"T00:00:00Z")-Date.parse(b.end+"T00:00:00Z"))/86400000-365.25))[0];
+    const priorCap=prior&&capYtd.find(row=>row.start===prior.start&&row.end===prior.end&&row.unit===prior.unit);
+    const annualCash=annualSeries(observations,"operatingCashFlow").filter(row=>row.unit===current.unit&&row.end<current.start).sort((a,b)=>b.end.localeCompare(a.end))[0];
+    const annualCap=annualCash&&annualSeries(observations,"capex").find(row=>row.start===annualCash.start&&row.end===annualCash.end&&row.unit===annualCash.unit);
+    if(cap&&prior&&priorCap&&annualCash&&annualCap&&Math.abs((Date.parse(current.start+"T00:00:00Z")-Date.parse(annualCash.end+"T00:00:00Z"))/86400000)<=180) {
+      const currentFcf=current.value-Math.abs(cap.value), priorFcf=prior.value-Math.abs(priorCap.value), annualFcf=annualCash.value-Math.abs(annualCap.value);
+      return {value:annualFcf+currentFcf-priorFcf,end:current.end,method:"Annual FCF + current YTD FCF − prior-year YTD FCF"};
+    }
+  }
+  const cash=quarterlySeries(observations,"operatingCashFlow"),cap=quarterlySeries(observations,"capex");
+  const matched=cash.map(row=>{const x=cap.find(item=>item.start===row.start&&item.end===row.end&&item.unit===row.unit);return x?{row,cap:x,value:row.value-Math.abs(x.value)}:null;}).filter(Boolean).slice(-4);
+  if(matched.length===4) {
+    const gaps=matched.slice(1).map((item,i)=>periodDurationDays({start:matched[i].row.end,end:item.row.end}));
+    if(gaps.every(days=>days>=70&&days<=110)) return {value:matched.reduce((sum,item)=>sum+item.value,0),end:matched[3].row.end,method:"Four quarters with exactly matched operating cash flow and capex periods"};
+  }
+  return null;
+}
+function companyDescription(ticker) {
+  const known={
+    AAPL:"Designs consumer devices, software and digital services.",
+    NVDA:"Designs GPUs, AI computing chips and related software platforms.",
+    MRAM:"Develops and supplies magnetoresistive random-access memory products.",
+    JPM:"Provides banking, lending, payments and financial services.",
+    TSM:"Manufactures semiconductors for chip designers and technology companies.",
+    "BRK.B":"A diversified holding company with insurance, rail, energy and other businesses.",
+    MSFT:"Develops software, cloud services, devices and business productivity tools.",
+    AMZN:"Operates online retail, cloud computing and digital services."
+  };
+  return known[ticker]||"A verified plain-English business description is not available in the current data feed.";
+}
+function setText(id,value) { const el=$(id); if(el)el.textContent=value; }
+function addBeginnerNumber(root,{label,value,trend,explain,meta=""}) {
+  const tile=document.createElement("article");tile.className="beginner-number-tile";
+  const h=document.createElement("h4");h.textContent=label;
+  const v=document.createElement("strong");v.textContent=value;
+  const p=document.createElement("p");p.textContent=(trend?trend+" · ":"")+meta;
+  const details=document.createElement("details");const summary=document.createElement("summary");summary.textContent="What is this?";
+  const explanation=document.createElement("p");explanation.textContent=explain;details.append(summary,explanation);
+  tile.append(h,v,p,details);root.append(tile);
+}
+function renderBeginnerOverview(data) {
+  const root=$("beginner-overview");root.classList.remove("hidden");
+  const {ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome,annualFcf,missingInputs,flaggedHeadlines,daysToEarnings}=data;
+  setText("beginner-company-name",titleCaseCompanyName(company?.name||ticker)+" ("+ticker+")");
+  setText("beginner-company-description",companyDescription(ticker));
+  const quoteValid=typeof quote?.price==="number"&&quote.price>0;
+  setText("beginner-price",quoteValid?fmtUsd(quote.price):"Price unavailable");
+  const marketState=String(quote?.marketState||"").toUpperCase();
+  const market=$("beginner-market-state");market.className="market-state "+(marketState==="REGULAR"?"market-open":["CLOSED","POST","POSTPOST","PRE","PREPRE"].includes(marketState)?"market-closed":"");
+  market.textContent=marketState==="REGULAR"?"Market open":["CLOSED","POST","POSTPOST","PRE","PREPRE"].includes(marketState)?"Market closed / outside regular hours":"Market status unknown";
+  setText("beginner-price-time",quote?.quoteTime?"Quote time: "+new Date(quote.quoteTime).toLocaleString()+" · "+(quote.source||"Source not identified"):quote?.quoteLabel?"Provider date: "+quote.quoteLabel+"; exact time not supplied":"No verified quote timestamp. Treat price as unavailable for decision-making.");
+  let verdict="Not enough reliable data",verdictClass="unknown",why="The available evidence does not support a dependable stock decision.";
+  if(state==="AVOID"){verdict="Risky: avoid for now";verdictClass="bad";why="The company's reported financial checks failed. "+reasonRule+".";}
+  else if(!valuationDecisionReady||!quoteValid||!annualDataAvailable||!quarterlyDataAvailable){verdict="Not enough reliable data";verdictClass="unknown";why="At least one key price, valuation or financial input is missing, stale or cannot be matched safely. "+reasonRule+".";}
+  else if(flaggedHeadlines.length){verdict="Risky: avoid for now";verdictClass="bad";why="Recent headlines contain potential risk terms that need checking at their original sources before considering this stock.";}
+  else if(gapCheck?.blocked){verdict="Not enough reliable data";verdictClass="unknown";why="The market price and simplified valuation are outside the system's allowed comparison range, so a fair-price conclusion is withheld.";}
+  else if(quote.price/valuation.base<0.8){verdict="Looks attractive";verdictClass="good";why="The quote is below the illustrative model value, and the configured basic company checks passed. This is not a validated BUY signal or a guarantee.";}
+  else if(quote.price/valuation.base<=1.2){verdict="Fairly priced";verdictClass="caution";why="The quote is within 20% of the illustrative model value. Model assumptions are uncertain; review the risks before acting.";}
+  else {verdict="Looks expensive: wait";verdictClass="bad";why="The quote is more than 20% above the illustrative model value. The model is not a price target, so wait for stronger evidence rather than chase.";}
+  setText("beginner-verdict-title",verdict);setText("beginner-verdict-reason",why);
+  const verdictBox=$("beginner-verdict");verdictBox.className="beginner-verdict verdict-"+verdictClass;
+  const dot=$("beginner-verdict-dot");dot.className="meaning-dot "+verdictClass;
+  const coreCount=[quoteValid,annualDataAvailable,quarterlyDataAvailable,Boolean(earnings?.verified),Boolean(history?.data?.length)].filter(Boolean).length;
+  const confidence=coreCount>=5?"high":coreCount>=3?"medium":"low";
+  const confidenceBadge=$("beginner-confidence");confidenceBadge.className="confidence-badge confidence-"+confidence;
+  confidenceBadge.textContent="Data confidence: "+confidence[0].toUpperCase()+confidence.slice(1)+" ("+coreCount+"/5 core inputs)";
+  const health=annualFundamentalPass&&quarterlyPass?"Strong":(annualDataAvailable&&quarterlyDataAvailable&&(annualFundamentalPass||quarterlyPass)?"OK":annualDataAvailable&&quarterlyDataAvailable?"Weak":"Unknown");
+  setText("score-business",health);
+  setText("score-business-detail",annualDataAvailable&&quarterlyDataAvailable?"Annual revenue growth "+(annualRevenueGrowth*100).toFixed(1)+"%; latest quarter "+(quarter.revenueYoY===null?"YoY comparison unavailable":(quarter.revenueYoY*100).toFixed(1)+" YoY")+".":"Not enough matched annual and quarterly facts to score business health.");
+  let priceLabel="Unknown",priceDetail="A current quote and a reliable matched valuation are both required.";
+  if(valuationDecisionReady&&quoteValid&&!gapCheck?.blocked){const ratio=quote.price/valuation.base;priceLabel=ratio<0.8?"Cheap":ratio<=1.2?"Fair": "Expensive";priceDetail="Quote / illustrative model value: "+ratio.toFixed(2)+"×. This model is a rough scenario, not a target.";}
+  setText("score-price",priceLabel);setText("score-price-detail",priceDetail);
+  const riskCount=(flaggedHeadlines?.length||0)+(missingInputs?.length||0)+(daysToEarnings!==null&&daysToEarnings<=7?1:0);
+  const riskLevel=riskCount>=4?"High":riskCount>=2?"Medium":riskCount===0?"Low":"Medium";
+  setText("score-risk",riskLevel);setText("score-risk-detail",riskCount+" detected warning(s). Missing data lowers confidence; no risk scan can identify every risk.");
+  const next=(earnings?.events||[]).filter(e=>e.reportDate>=newYorkDateOnly()).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0];
+  setText("beginner-earnings",next?"Next earnings: "+fmtDate(next.reportDate)+(earnings?.verified?" · provider-verified":" · date not fully verified"):"Next earnings date: not verified from the current calendar feed.");
+  const guidance=next?.companyGuidance||next?.guidance||earnings?.companyGuidance||earnings?.guidance;
+  setText("beginner-guidance",guidance?"Company guidance from provider: "+String(guidance):"Company guidance: no verified company-issued guidance was returned. Do not substitute analyst estimates.");
+  if(history&&Number.isFinite(history.totalReturnPercent)&&Number.isFinite(history.maxDrawdownPercent)){
+    const finalValue=1000*(1+history.totalReturnPercent/100),drop=1000*Math.abs(history.maxDrawdownPercent)/100;
+    setText("beginner-dollar-summary","$1,000 one year ago would be about "+fmtUsd(finalValue)+" today. Worst peak-to-trough drop: "+history.maxDrawdownPercent.toFixed(1)+"% (about "+fmtUsd(drop)+" on a $1,000 starting value).");
+  }else setText("beginner-dollar-summary","Not enough reliable one-year price history to calculate this comparison.");
+  if(benchmarkHistory&&Number.isFinite(benchmarkHistory.totalReturnPercent)&&history&&Number.isFinite(history.totalReturnPercent)){
+    const diff=history.totalReturnPercent-benchmarkHistory.totalReturnPercent;
+    setText("beginner-benchmark","Stock return "+(history.totalReturnPercent>=0?"+":"")+history.totalReturnPercent.toFixed(1)+"% vs S&P 500 (SPY) "+(benchmarkHistory.totalReturnPercent>=0?"+":"")+benchmarkHistory.totalReturnPercent.toFixed(1)+"% over their reported periods. Difference: "+(diff>=0?"+":"")+diff.toFixed(1)+" percentage points.");
+  }else setText("beginner-benchmark","S&P 500 comparison unavailable because a comparable one-year SPY history was not returned.");
+  const tiles=$("beginner-key-numbers");tiles.innerHTML="";
+  const revenue=ttmValue(observations,"revenue"),income=ttmValue(observations,"netIncome"),fcf=ttmFreeCashFlow(observations);
+  const previousRevenue=annualSeries(observations,"revenue").slice(-2);
+  const growth=previousRevenue.length===2&&previousRevenue[0].value>0?(previousRevenue[1].value/previousRevenue[0].value-1)*100:null;
+  const cash=latestFact(observations,"cash",true),currentDebt=latestFact(observations,"currentDebt",true),longDebt=latestFact(observations,"longTermDebt",true);
+  let debtValue=null,debtDate=null;
+  if(cash&&currentDebt&&longDebt&&cash.end===currentDebt.end&&cash.end===longDebt.end){debtValue=currentDebt.value+longDebt.value-cash.value;debtDate=cash.end;}
+  else if(cash&&longDebt&&cash.end===longDebt.end){debtValue=longDebt.value-cash.value;debtDate=cash.end;}
+  const shares=annualSeries(observations,"dilutedShares").slice(-2);
+  let shareTrend="Unavailable";
+  if(shares.length===2&&shares[0].value>0) shareTrend=((shares[1].value/shares[0].value-1)*100>=0?"+":"")+((shares[1].value/shares[0].value-1)*100).toFixed(1)+"%";
+  const formatTtm=(row)=>row&&Number.isFinite(row.value)?fmtMoney(row.value)+" · "+row.method:"Not enough reliable data";
+  addBeginnerNumber(tiles,{label:"Sales · TTM",value:formatTtm(revenue),trend:growth===null?"Trend unavailable":(growth>=0?"↑ ":"↓ ")+growth.toFixed(1)+"% annual revenue growth",explain:"Sales are the money customers paid the company before subtracting expenses.",meta:revenue?"Period through "+fmtDate(revenue.end):"Input periods could not be matched."});
+  addBeginnerNumber(tiles,{label:"Profit · TTM",value:formatTtm(income),trend:income?(income.value>=0?"Positive reported profit":"Reported loss"):"Trend unavailable",explain:"Profit is what remains after the company records its expenses and other accounting items.",meta:income?"Period through "+fmtDate(income.end):"Input periods could not be matched."});
+  addBeginnerNumber(tiles,{label:"Cash generated · TTM",value:fcf&&Number.isFinite(fcf.value)?fmtMoney(fcf.value):"Not enough reliable data",trend:fcf?"Matched cash-flow periods":"Cash flow and capex periods do not match",explain:"Free cash flow estimates cash left after operating cash flow minus capital spending.",meta:fcf?"Through "+fmtDate(fcf.end)+" · "+fcf.method:"Operating cash flow and capex must have matching start and end dates."});
+  addBeginnerNumber(tiles,{label:"Cash vs debt",value:debtValue===null?"Not enough reliable data":(debtValue>0?fmtMoney(debtValue)+" net debt":fmtMoney(Math.abs(debtValue))+" net cash"),trend:debtDate?"Balance sheet as of "+fmtDate(debtDate):"Matching balance-sheet date unavailable",explain:"Net debt compares reported debt with cash; a positive net debt means debt exceeds cash.",meta:"Only same-date reported cash and debt are compared."});
+  addBeginnerNumber(tiles,{label:"Growth vs last year",value:growth===null?"Not enough reliable data":(growth>=0?"+":"")+growth.toFixed(1)+"%",trend:"Annual revenue comparison",explain:"This compares the latest annual reported sales with the previous annual period.",meta:previousRevenue.length===2?fmtDate(previousRevenue[0].end)+" → "+fmtDate(previousRevenue[1].end):"Comparable annual periods unavailable."});
+  addBeginnerNumber(tiles,{label:"Diluted share trend",value:shareTrend,trend:shares.length===2?"Weighted-average shares; not shares outstanding":"Two comparable annual observations unavailable",explain:"More diluted shares can reduce each existing share's portion of company earnings; this measure is weighted-average diluted shares, not the exact current share count.",meta:shares.length===2?"As of periods ended "+fmtDate(shares[0].end)+" and "+fmtDate(shares[1].end):"Comparable periods unavailable."});
+  const riskRoot=$("beginner-risks");riskRoot.innerHTML="";
+  const risks=[];
+  for(const item of flaggedHeadlines||[]) risks.push({text:"Potential risk headline: "+item.title,meta:(item.source||"Source unavailable")+(item.publishedAt?" · "+new Date(item.publishedAt).toLocaleString():"")});
+  if(daysToEarnings!==null&&daysToEarnings<=7) risks.push({text:"Earnings are expected within "+Math.max(0,Math.round(daysToEarnings))+" day(s). Price swings may be larger than usual.",meta:"Event risk · "+(next?.reportDate||"date not verified")});
+  for(const item of missingInputs||[]) risks.push({text:"Not verified: "+item,meta:"Data-confidence risk"});
+  const other=latestFact(observations,"otherIncome"),pretax=latestFact(observations,"pretaxIncome");
+  if(other&&pretax&&other.end===pretax.end&&pretax.value!==0&&Math.abs(other.value/pretax.value)>0.05) risks.push({text:"Other non-operating income is more than 5% of pre-tax income; reported profit may include one-off or non-core items.",meta:"Same reported period ended "+fmtDate(other.end)});
+  if(!risks.length) risks.push({text:"No high-priority automated warning was identified in the available inputs. This does not mean the stock is risk-free.",meta:"Limited automated screen"});
+  for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.append(dot,document.createTextNode(item.text));const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
+  const headlineRoot=$("beginner-headlines");headlineRoot.innerHTML="";
+  const headlines=(news?.items||[]).filter(item=>item.title).sort((a,b)=>String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3);
+  if(!headlines.length){const empty=document.createElement("p");empty.className="muted";empty.textContent="No timestamped headlines were returned. The absence of headlines is not evidence that nothing happened.";headlineRoot.append(empty);}
+  for(const item of headlines){const card=document.createElement("article");card.className="beginner-list-item";const link=document.createElement("a");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;const meta=document.createElement("p");const date=item.publishedAt?new Date(item.publishedAt):null;meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Time unavailable");card.append(link,meta);headlineRoot.append(card);}
+}
+
+function renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter}) {
   latestDecisionContext = null;
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
   const grid=$("decision-metrics"),checks=$("decision-checks");
@@ -1227,6 +1396,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     checks:dataChecks.map(check=>({label:check.label,passed:Boolean(check.ok),detail:check.detail})),
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
+  renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
 }
 function readResearchLog() {
   try {
@@ -1458,15 +1628,17 @@ async function analyze(ticker) {
     $("sec-health").textContent="Connected; received SEC company facts";
     setActivityStage(1,"Company facts loaded. Fetching quote and historical prices…");
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
-    const [quote,history,news,earnings]=await Promise.all([
-      loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker),loadStrategyBacktest(ticker)
+    const [quote,history,news,earnings,benchmarkHistory]=await Promise.all([
+      loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker),
+      fetch("/api/history?ticker=SPY",{headers:{"Accept":"application/json"}}).then(async response=>{if(!response.ok)throw new Error("S&P 500 benchmark unavailable");return response.json();}).catch(()=>null),
+      loadStrategyBacktest(ticker)
     ]);
     setActivityStage(2,"Price, news and earnings responses received. Reviewing event risk…");
     const reportedQuarter=quarter?.fiscalQuarterId||null;
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
     renderEarningsResult(earningsResult,quarter,reportedQuarter);
     setActivityStage(3,"Assessing financial health and valuation limits…");
-    renderDecision({ticker,company,observations,facts,quote,history,news,earnings,quarter});
+    renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter});
     setActivityStage(4,"Preparing the decision explanation and next steps…");
     setMessage("Research checks complete for "+company.name+". Read the Bottom line for the decision and next step; model-based levels appear only when input and quote checks pass.","success");
     finishActivity("All available checks finished. Review the evidence and any warnings.");
