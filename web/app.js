@@ -1610,9 +1610,12 @@ function renderNews(payload) {
   };
   const score = item => { const impact=getImpact(item); return (["impact-negative","impact-positive","impact-mixed"].includes(impact.cls)?3:impact.cls==="impact-watch"?2:0)+(material.test(item.title||"")?1:0); };
   // Keep the bottom impact feed distinct from the three overview headlines.
-  const overviewRoot = $("beginner-headlines");
-  const overviewUrls = new Set(overviewRoot ? [...overviewRoot.querySelectorAll("a")].map(a => a.href) : []);
-  const distinctItems = items.filter(item => !overviewUrls.has(item.url));
+  const importantHeadlineTerms=/\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\b/i;
+  const riskHeadlineTerms=/\b(misses|loss|lawsuit|investigation|probe|recall|downgrade|fraud|breach|outage|layoff|decline|warning|fine|ban|weak demand|disappoint)\b/i;
+  const positiveHeadlineTerms=/\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand)\b/i;
+  const headlineRank=item=>(importantHeadlineTerms.test(item.title)?3:0)+(riskHeadlineTerms.test(item.title)||positiveHeadlineTerms.test(item.title)?2:0)+(item.publishedAt&&Number.isFinite(Date.parse(item.publishedAt))?1:0);
+  const topHeadlineUrls=new Set([...items].sort((a,b)=>headlineRank(b)-headlineRank(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3).map(item=>item.url));
+  const distinctItems = items.filter(item => !topHeadlineUrls.has(item.url));
   const sorted = [...distinctItems].sort((a,b)=>score(b)-score(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||"")));
   for (const item of items) {
     const card=document.createElement("article"); card.className="news-item";
