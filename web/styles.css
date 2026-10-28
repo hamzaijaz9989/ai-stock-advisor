@@ -280,3 +280,30 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .decision-indicator.good { color: #a6efbb; border-color: rgba(98,220,139,.35); }
 .decision-indicator.bad { color: #ff9a9e; border-color: rgba(255,102,109,.35); }
 .decision-indicator.caution { color: #f4d28c; border-color: rgba(244,193,93,.35); }
+
+
+/* A separate, prominent entry point for beginner-friendly stock suggestions. */
+.stock-suggestions-cta { max-width: 680px; margin: 18px 0 0; }
+.suggest-stocks-button {
+  display: flex; align-items: center; gap: 13px; width: 100%; min-height: 70px;
+  padding: 14px 16px; text-align: left; border: 1px solid #596344; border-radius: 14px;
+  color: #f4f6ef; background: linear-gradient(110deg,#171d11,#101210);
+  cursor: pointer; transition: border-color .18s ease, transform .18s ease;
+}
+.suggest-stocks-button:hover { border-color: var(--accent); transform: translateY(-1px); }
+.suggest-stocks-button:disabled { opacity: .65; cursor: progress; transform: none; }
+.suggest-icon { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border-radius: 11px; color: #10130b; background: var(--accent); font-size: 22px; }
+.suggest-stocks-button > span:nth-child(2) { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.suggest-stocks-button strong { font-size: 14px; font-weight: 760; }
+.suggest-stocks-button small { color: #b4b8ad; font-size: 11px; line-height: 1.45; }
+.suggest-arrow { font-size: 20px; color: var(--accent); }
+.stock-suggestions-cta > p { max-width: 600px; margin: 9px 2px 0; color: var(--muted); font-size: 10px; line-height: 1.65; }
+.suggestion-results-section { scroll-margin-top: 90px; border: 2px solid #48494d; }
+.suggestion-results-section .section-heading h2 { font-size: clamp(23px,4vw,32px); }
+@media(max-width:600px) {
+ .stock-suggestions-cta { margin-top: 14px; }
+ .suggest-stocks-button { min-height: 66px; padding: 12px; gap: 10px; }
+ .suggest-stocks-button strong { font-size: 13px; }
+ .suggest-stocks-button small { font-size: 10px; }
+ .suggestion-results-section { padding: 17px; }
+}

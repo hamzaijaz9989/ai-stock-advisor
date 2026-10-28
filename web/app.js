@@ -473,7 +473,7 @@ function renderScreenResults(results,errors) {
   exportButton.addEventListener("click",()=>downloadScreenCsv(ranked,errors));
   root.append(exportButton);
   const intro=document.createElement("p"); intro.className="table-note";
-  intro.textContent="The list below ranks up to 10 research candidates from the 60-stock starter universe. It is NOT a list of validated BUY signals. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
+  intro.textContent="These five companies rank highest on the available screening score within the 60-stock starter universe. They are research candidates, NOT validated BUY signals or forecasts. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
   root.append(intro);
   const bestPick=document.createElement("article");
   bestPick.className="screen-card screen-best-pick";
@@ -483,7 +483,7 @@ function renderScreenResults(results,errors) {
   if(!ranked.length) {
     const p=document.createElement("p"); p.className="empty"; p.textContent="No companies met the minimum data requirements. "+errors.join(" · "); root.append(p); return;
   }
-  for(let i=0;i<Math.min(10,ranked.length);i++) {
+  for(let i=0;i<Math.min(5,ranked.length);i++) {
     const item=ranked[i],card=document.createElement("article"); card.className="screen-card";
     const header=document.createElement("div"); header.className="screen-card-header";
     const identity=document.createElement("div");
@@ -514,8 +514,8 @@ function renderScreenResults(results,errors) {
     const note=document.createElement("p"); note.className="table-note"; note.textContent="Research priority only. This score excludes news/event risk and is not a validated predictive model. Do not treat these candidates as buy recommendations."; card.append(note);
     root.append(card);
   }
-  if(ranked.length>10) {
-    const p=document.createElement("p"); p.className="table-note"; p.textContent=(ranked.length-10)+" additional qualified stocks are omitted from the Top 10 display but remain in the downloadable audit CSV."; root.append(p);
+  if(ranked.length>5) {
+    const p=document.createElement("p"); p.className="table-note"; p.textContent=(ranked.length-5)+" additional qualified stocks are omitted from the Top 5 display but remain in the downloadable audit CSV."; root.append(p);
   }
   if(errors.length) {
     const p=document.createElement("p"); p.className="table-note"; p.textContent="Excluded candidates: "+errors.join(" · "); root.append(p);
@@ -542,7 +542,7 @@ function assessResearchQuoteEligibility(quote, nowMs=Date.now()) {
 }
 
 async function enrichTopCandidates(results) {
-  const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,10);
+  const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,5);
   await Promise.all(candidates.map(async item=>{
     const plan=[...document.querySelectorAll(".candidate-plan")].find(node=>node.dataset.ticker===item.ticker);
     if(!plan) return;
@@ -634,7 +634,7 @@ async function enrichTopCandidates(results) {
 }
 
 async function runScreen() {
-  const button=$("run-screen"); button.disabled=true; button.textContent="Screening…";
+  const button=$("run-screen"); const suggestButton=$("suggest-stocks-button"); button.disabled=true; suggestButton.disabled=true; button.textContent="Screening…"; suggestButton.querySelector("strong").textContent="Screening stocks…";
   $("screen-status").textContent="Fetching SEC filings and daily prices";
   const results=[],errors=[];
   // A 60-stock, cross-sector starter universe. This is not the full US market.
@@ -660,7 +660,7 @@ async function runScreen() {
     setMessage("Screen stopped safely: "+(error?.message||"Unexpected error"),"error");
     renderScreenResults(results,errors);
   } finally {
-    button.disabled=false; button.textContent="Refresh 60-stock ranking";
+    button.disabled=false; suggestButton.disabled=false; button.textContent="Refresh 60-stock ranking"; suggestButton.querySelector("strong").textContent="Suggest me stocks";
   }
 }
 
@@ -1401,6 +1401,10 @@ async function analyze(ticker) {
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
 $("run-screen").addEventListener("click",runScreen);
+$("suggest-stocks-button").addEventListener("click",()=>{
+  $("ranking").scrollIntoView({behavior:"smooth",block:"start"});
+  runScreen();
+});
 $("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
 $("save-research-snapshot").addEventListener("click",saveResearchSnapshot);
 $("export-research-csv").addEventListener("click",exportResearchCsv);
