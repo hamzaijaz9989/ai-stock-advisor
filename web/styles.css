@@ -108,3 +108,56 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 }
 @media(max-width:390px){.brand{font-size:11px;gap:8px}.brand-mark{width:30px;height:30px}.status{letter-spacing:.02em}.search-row button{padding:0 10px}.hero h1{font-size:44px}.metric-card{padding:11px}.metric-value{font-size:17px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
+
+
+/* Beginner-first guidance: explain the workflow before exposing dense research data. */
+.beginner-guide {
+  margin: 22px 0 18px;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--line, #292929);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #0d0d0d, #080808);
+}
+.guide-heading { max-width: 760px; }
+.guide-heading h2 { margin: 8px 0 10px; font-size: clamp(1.35rem, 3vw, 1.8rem); letter-spacing: -.035em; }
+.guide-heading > p:last-child, .guide-steps p, .guide-verdicts span, .guide-disclaimer {
+  color: var(--muted, #a3a3a3);
+  line-height: 1.6;
+  font-size: .93rem;
+}
+.guide-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0;
+}
+.guide-steps article {
+  padding: 16px;
+  border: 1px solid #252525;
+  border-radius: 12px;
+  background: #0a0a0a;
+}
+.guide-number { color: #b9f27c; font-size: .76rem; font-weight: 800; letter-spacing: .1em; }
+.guide-steps h3 { margin: 10px 0 6px; font-size: 1rem; }
+.guide-steps p { margin: 0; }
+.guide-verdicts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.guide-verdicts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px 14px;
+  border-left: 2px solid #383838;
+  background: rgba(255,255,255,.025);
+}
+.guide-verdicts strong { font-size: .8rem; letter-spacing: .015em; }
+.guide-verdicts span { font-size: .86rem; }
+.guide-disclaimer { margin: 18px 0 0; padding-top: 14px; border-top: 1px solid #242424; }
+@media (max-width: 680px) {
+  .guide-steps { grid-template-columns: 1fr; }
+  .guide-steps article { padding: 14px; }
+  .guide-verdicts { grid-template-columns: 1fr; }
+}
