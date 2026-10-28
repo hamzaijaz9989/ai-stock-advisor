@@ -357,3 +357,30 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
   .decision-plain-summary { font-size: 15px; }
   .decision-action { font-size: 13px; padding: 11px; }
 }
+
+.search-row { display:block; }
+.search-row input { width:100%; min-width:0; }
+.analyze-button { display:flex; width:100%; min-height:54px; align-items:center; justify-content:center; gap:10px; margin-top:12px; border:1px solid #d1ff78; border-radius:14px; background:#c6ff54; color:#101509; font-size:15px; font-weight:800; }
+.analyze-button:disabled { cursor:wait; opacity:.8; }
+.activity-progress { margin-top:16px; padding:16px; border:1px solid #41434a; border-radius:16px; background:#0c0d0b; }
+.activity-top { display:flex; align-items:center; gap:12px; }
+.activity-spinner { width:24px; height:24px; flex:0 0 24px; border:3px solid #30352a; border-top-color:#c6ff54; border-radius:50%; animation:northstar-spin .8s linear infinite; }
+.activity-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:4px; }
+.activity-copy strong { color:#f5f5f5; font-size:14px; }
+.activity-copy span { color:#b5b7b0; font-size:12px; line-height:1.45; }
+.activity-elapsed { color:#c6ff54; font-variant-numeric:tabular-nums; font-size:12px; white-space:nowrap; }
+.activity-track { height:4px; overflow:hidden; margin:15px 0 12px; border-radius:99px; background:#252720; }
+.activity-track span { display:block; width:20%; height:100%; border-radius:inherit; background:#c6ff54; transition:width .25s ease; }
+.activity-progress.is-indeterminate .activity-track span { animation:northstar-progress 1.25s ease-in-out infinite; }
+.activity-steps { display:grid; gap:7px; list-style:none; padding:0; margin:0; }
+.activity-steps li { display:flex; gap:8px; align-items:flex-start; color:#777b73; font-size:12px; line-height:1.4; }
+.activity-steps li::before { content:"○"; color:#6d7168; }
+.activity-steps li.active { color:#f0f0ec; }
+.activity-steps li.active::before { content:"◌"; color:#c6ff54; }
+.activity-steps li.done { color:#a8dca0; }
+.activity-steps li.done::before { content:"✓"; color:#62dc8b; }
+.activity-note { margin:12px 0 0; color:#858981; font-size:11px; line-height:1.5; }
+.stock-suggestions-cta > p { display:none; }
+@keyframes northstar-spin { to { transform:rotate(360deg); } }
+@keyframes northstar-progress { 0% { transform:translateX(-120%); } 100% { transform:translateX(450%); } }
+@media (prefers-reduced-motion:reduce) { .activity-spinner,.activity-progress.is-indeterminate .activity-track span { animation:none; } }

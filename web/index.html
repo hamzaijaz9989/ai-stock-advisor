@@ -20,20 +20,23 @@
       <p class="intro">Research a ticker. See the signal, the evidence, and the risks — without the noise.</p>
       <form id="analyze-form" class="search-panel">
         <label for="ticker">TICKER SYMBOL</label>
-        <div class="search-row">
-          <input id="ticker" name="ticker" maxlength="12" value="AAPL" placeholder="e.g. AAPL" autocomplete="off" required>
-          <button id="analyze-button" type="submit">Analyze stock <span aria-hidden="true">↗</span></button>
-        </div>
+        <div class="search-row"><input id="ticker" name="ticker" maxlength="12" value="AAPL" placeholder="e.g. AAPL" autocomplete="off" required></div>
+        <button id="analyze-button" class="analyze-button" type="submit">Analyze stock <span aria-hidden="true">↗</span></button>
         <div class="quick-tickers" aria-label="Popular tickers">
           <button type="button" data-ticker="AAPL">AAPL</button>
           <button type="button" data-ticker="MSFT">MSFT</button>
           <button type="button" data-ticker="NVDA">NVDA</button>
           <button type="button" data-ticker="AMZN">AMZN</button>
         </div>
+        <div id="activity-progress" class="activity-progress hidden" role="status" aria-live="polite">
+          <div class="activity-top"><span class="activity-spinner" aria-hidden="true"></span><div class="activity-copy"><strong id="activity-title">Analyzing stock</strong><span id="activity-stage">Preparing reliable data sources…</span></div><span id="activity-elapsed" class="activity-elapsed">0s</span></div>
+          <div class="activity-track"><span id="activity-bar"></span></div>
+          <ol id="activity-steps" class="activity-steps"></ol>
+          <p class="activity-note">Elapsed time is shown honestly; progress steps update as checks finish.</p>
+        </div>
       </form>
       <div class="stock-suggestions-cta">
         <button id="suggest-stocks-button" type="button" class="suggest-stocks-button"><span class="suggest-icon" aria-hidden="true">✦</span><span><strong>Suggest me stocks</strong><small>Find up to 5 data-screened research candidates</small></span><span class="suggest-arrow" aria-hidden="true">↗</span></button>
-        <p>Ranks available companies by reported growth, profitability, cash flow and price history. Results are research candidates, not guaranteed winners or validated BUY signals.</p>
       </div>
     </section>
 <details class="beginner-guide"><summary>New to stocks? How to use Northstar AI</summary><div class="guide-content">
