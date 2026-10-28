@@ -1108,7 +1108,6 @@ function renderBeginnerOverview(data) {
   const marketState=String(quote?.marketState||"").toUpperCase();
   const market=$("beginner-market-state");market.className="market-state "+(marketState==="REGULAR"?"market-open":["CLOSED","POST","POSTPOST","PRE","PREPRE"].includes(marketState)?"market-closed":"");
   market.textContent=marketState==="REGULAR"?"Market open":["CLOSED","POST","POSTPOST","PRE","PREPRE"].includes(marketState)?"Market closed / outside regular hours":"Market status unknown";
-  setText("beginner-price-time",quote?.quoteTime?"Quote time: "+new Date(quote.quoteTime).toLocaleString()+" · "+(quote.source||"Source not identified"):quote?.quoteLabel?"Provider date: "+quote.quoteLabel+"; exact time not supplied":"No verified quote timestamp. Treat price as unavailable for decision-making.");
   let verdict="Not enough reliable data",verdictClass="unknown",why="The available evidence does not support a dependable stock decision.";
   if(state==="AVOID"){verdict="Risky: avoid for now";verdictClass="bad";why="The company's reported financial checks failed. "+reasonRule+".";}
   else if(!valuationDecisionReady||!quoteValid||!annualDataAvailable||!quarterlyDataAvailable){verdict="Not enough reliable data";verdictClass="unknown";why="At least one key price, valuation or financial input is missing, stale or cannot be matched safely. "+reasonRule+".";}
@@ -1145,10 +1144,6 @@ function renderBeginnerOverview(data) {
   const riskCount=(flaggedHeadlines?.length||0)+(missingInputs?.length||0)+(daysToEarnings!==null&&daysToEarnings<=7?1:0)+(gapCheck?.blocked?1:0)+(oneOffFlag?1:0);
   const riskLevel=riskCount>=4?"High":riskCount>=2?"Medium":riskCount===0?"Low":"Medium";
   setText("score-risk",riskLevel);setText("score-risk-detail",riskCount+" detected warning(s). Missing data lowers confidence; no risk scan can identify every risk.");
-  const next=(earnings?.events||[]).filter(e=>e.reportDate>=newYorkDateOnly()).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0];
-  setText("beginner-earnings",next?"Next earnings: "+fmtDate(next.reportDate)+(earnings?.verified?" · provider-verified":" · date not fully verified"):"Next earnings date: not verified from the current calendar feed.");
-  const guidance=next?.companyGuidance||next?.guidance||earnings?.companyGuidance||earnings?.guidance;
-  setText("beginner-guidance",guidance?"Company guidance from provider: "+String(guidance):"Company guidance: no verified company-issued guidance was returned. Do not substitute analyst estimates.");
   const riskRoot=$("beginner-risks");riskRoot.innerHTML="";
   const risks=[];
   for(const item of flaggedHeadlines||[]) risks.push({text:"Potential risk headline: "+item.title,meta:(item.source||"Source unavailable")+(item.publishedAt?" · "+new Date(item.publishedAt).toLocaleString():"")});
