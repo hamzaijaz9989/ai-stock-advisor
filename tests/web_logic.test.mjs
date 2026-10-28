@@ -273,3 +273,18 @@ test("daily-bar snapshot never passes the current-quote decision gate", () => {
     child.children?.some(nested=>nested.textContent?.includes("daily-bar snapshot"))
   )));
 });
+
+
+test("date-only quote labels do not imply a precise trade timestamp", () => {
+  const app=loadAppFunctions();
+  app.renderQuote({
+    ticker:"TEST",price:100,currency:"USD",changePercent:1,
+    marketState:"Closed",quoteTime:null,quoteLabel:"Oct 27, 2026",
+    fetchedAt:"2026-10-28T07:00:00.000Z",source:"Nasdaq quote API",
+    delayedOrRealtime:"Latest available quote; may be delayed"
+  });
+  const label=app.document.getElementById("quote-time").textContent;
+  assert.ok(label.includes("Provider quote date: Oct 27, 2026"));
+  assert.ok(label.includes("time not supplied"));
+  assert.ok(!label.includes("Quote timestamp:"));
+});
