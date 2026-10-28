@@ -68,3 +68,7 @@ See:
 - [News and Signal Policy](docs/NEWS_AND_SIGNAL_POLICY.md)
 - [Market Data and Recommendations Policy](docs/MARKET_DATA_AND_RECOMMENDATIONS.md)
 - [Recommendation Engine Specification](docs/RECOMMENDATION_ENGINE_SPEC.md)
+
+
+## Strongest current research setup
+The 60-stock screen now adds a conservative, provisional opportunity check across recent quote timestamps, valuation sanity, model watch zone, risk/reward, basic fundamentals, earnings and recent news. It can surface the strongest *current research setup* only if all implemented checks pass; otherwise it says WAIT. This remains research-only and does not enable a validated BUY or promise profit. The full strategy still needs point-in-time walk-forward and untouched holdout validation, and production use requires licensed market data.
