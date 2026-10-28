@@ -255,13 +255,7 @@ function renderFundamentalSnapshot(observations) {
   }
   for (const item of cards) {
     const card=document.createElement("article"); card.className="metric-card";
-    const label=document.createElement("div"); label.className="metric-label";
-    const labelText=document.createElement("span"); labelText.textContent=item.label;
-    const numericValue=Number.parseFloat(String(item.value).replace(/[^0-9.+-]/g,""));
-    const status=Number.isFinite(numericValue)?(numericValue>0?"good":numericValue<0?"bad":"caution"):"unknown";
-    const dot=document.createElement("span"); dot.className="meaning-dot "+status;
-    dot.title=status==="good"?"Positive indicator":status==="bad"?"Negative indicator":status==="caution"?"Needs attention":"Status unclear";
-    label.append(dot,labelText);
+    const label=document.createElement("div"); label.className="metric-label"; label.textContent=item.label;
     const value=document.createElement("div"); value.className="metric-value"; value.textContent=item.value;
     const meta=document.createElement("div"); meta.className="metric-date"; meta.textContent=item.meta;
     card.append(label,value,meta); panel.append(card);
@@ -292,6 +286,8 @@ function renderQuarterlySnapshot(observations) {
   const dateMeta="Quarter ended "+fmtDate(latestRevenue.end)+" · SEC "+latestRevenue.form+" filed "+fmtDate(latestRevenue.filed);
   const revenueCard=metricCard("Latest quarterly revenue",fmtValue(latestRevenue.value,latestRevenue.unit),
     revenueYoY!==null?"Year over year "+(revenueYoY>=0?"+":"")+(revenueYoY*100).toFixed(1)+"% · prior quarter end "+fmtDate(priorRevenue.end):"Same-quarter prior-year comparison unavailable");
+  const trendStatus=revenueYoY===null?"unknown":revenueYoY>0?"good":revenueYoY<0?"bad":"caution";
+  revenueCard.classList.add("trend-"+trendStatus);
   panel.append(revenueCard);
   if(latestIncome) {
     const incomeMeta=priorIncome
@@ -1368,10 +1364,13 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   } else {
     grid.append(metricCard("Illustrative DCF value","Not available",valuation.reason),metricCard("Entry / exit levels","WITHHELD","No price levels will be guessed without defensible valuation inputs"));
   }
+  const legend=document.createElement("div"); legend.className="meaning-legend";
+  legend.innerHTML='<span class="legend-good">Positive check passed</span><span class="legend-bad">Risk / failed check</span><span class="legend-caution">Needs attention / missing data</span><span class="legend-unknown">Status unavailable</span>';
+  checks.append(legend);
   for(const item of dataChecks) {
     const row=document.createElement("div");row.className="decision-check";
     const detailText=String(item.detail||"").toLowerCase();
-    const missing=/missing|unavailable|not confirmed|not finished|incomplete|no timestamped|not available|withheld|not supplied/.test(detailText);
+    const missing=/missing|unavailable|not confirmed|not finished|incomplete|no timestamped|not available|withheld|not supplied|cannot be validated|not eligible/.test(detailText);
     const status=item.ok?"good":missing?"caution":"bad";
     const indicator=document.createElement("span");indicator.className="decision-indicator "+status;
     indicator.textContent=item.ok?"CHECKED":missing?"REVIEW":"RISK";
