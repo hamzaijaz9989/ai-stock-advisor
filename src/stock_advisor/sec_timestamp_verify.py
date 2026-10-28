@@ -1,6 +1,6 @@
-"""Verify a bounded SEC filing sample against its complete-submission SGML header.
+"""Verify a bounded SEC filing sample against SEC filing-index header pages.
 
-The header's ACCEPTANCE-DATETIME is converted from SEC Eastern time to UTC.
+The filing-index header's ACCEPTANCE-DATETIME is converted from SEC Eastern time to UTC.
 This verifies filing acceptance time, not the exact moment the filing became
 publicly retrievable on sec.gov. The dataset remains decision-ineligible.
 """
@@ -165,12 +165,12 @@ def verify_dataset(
         **totals,
         "scope": "bounded_latest_filings_per_company",
         "max_filings_per_company": max_filings_per_company,
-        "source": "SEC complete-submission SGML header",
+        "source": "SEC filing-index header",
         "timestamp_semantics": "EDGAR acceptance time converted from America/New_York to UTC; not proof of public web availability time",
     }
     result["decision_eligible"] = False
     result["note"] = (
-        "A bounded sample of SEC acceptance timestamps was reconciled against complete-submission SGML headers. "
+        "A bounded sample of SEC acceptance timestamps was reconciled against filing-index header pages. "
         "This is not a complete point-in-time strategy dataset; decision_eligible remains false."
     )
     return result
