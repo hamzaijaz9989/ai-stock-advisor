@@ -73,6 +73,15 @@
       <div class="section-heading"><div><p class="eyebrow">YOUR INVESTMENT DECISION</p><h2>Advisor assessment</h2></div><span id="decision-status" class="count">Waiting for evidence</span></div>
       <h3 id="decision-title">No decision yet</h3>
       <p id="decision-explanation" class="table-note">Analyze a ticker to receive a data-quality and risk assessment.</p>
+      <div class="holding-review">
+        <div><p class="eyebrow">IF YOU ALREADY OWN THIS STOCK</p><h3>Position review</h3><p class="table-note">Enter your position to get a rule-based HOLD / SELL REVIEW. This does not place an order.</p></div>
+        <div class="holding-fields">
+          <label for="holding-shares">Shares owned</label><input id="holding-shares" type="number" min="0" step="any" placeholder="e.g. 5">
+          <label for="holding-cost">Average cost per share (USD)</label><input id="holding-cost" type="number" min="0" step="any" placeholder="e.g. 120">
+          <button id="review-holding" type="button" class="secondary-button">Review my position</button>
+        </div>
+        <div id="holding-result" class="holding-result" role="status">Analyze a stock and enter your position to review it.</div>
+      </div>
       <div id="decision-metrics" class="metrics-grid"></div>
       <div id="decision-checks" class="decision-checks"></div>
       <p id="decision-caveat" class="table-note">Any preliminary valuation is assumption-driven and is not a validated forecast or instruction to trade.</p>
