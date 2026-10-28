@@ -19,6 +19,35 @@ const METRICS = [
 ];
 const cache = new Map();
 function setMessage(text, type="") { const el=$("message"); el.textContent=text; el.className="message"+(type?" "+type:""); }
+let activityTimer=null, activityStartedAt=0;
+function beginActivity(title, stages) {
+ const panel=$("activity-progress"); if(!panel)return;
+ if(activityTimer)clearInterval(activityTimer);
+ panel.classList.remove("hidden"); panel.classList.add("is-indeterminate");
+ $("activity-title").textContent=title; $("activity-stage").textContent=stages[0]||"Preparing data…";
+ $("activity-elapsed").textContent="0s"; $("activity-bar").style.width="20%"; $("activity-steps").innerHTML="";
+ stages.forEach((label,i)=>{const li=document.createElement("li");li.dataset.step=String(i);li.textContent=label;$("activity-steps").append(li);});
+ activityStartedAt=Date.now(); setActivityStage(0,stages[0]||"Working…");
+ activityTimer=setInterval(()=>{$("activity-elapsed").textContent=Math.floor((Date.now()-activityStartedAt)/1000)+"s";},1000);
+}
+function setActivityStage(index,message) {
+ const panel=$("activity-progress"); if(!panel||panel.classList.contains("hidden"))return;
+ const items=[...$("activity-steps").querySelectorAll("li")];
+ items.forEach((item,i)=>{item.classList.toggle("done",i<index);item.classList.toggle("active",i===index);});
+ if(message)$("activity-stage").textContent=message;
+ $("activity-bar").style.width=Math.min(92,Math.max(8,((index+1)/Math.max(items.length,1))*100))+"%";
+}
+function finishActivity(message,failed=false) {
+ const panel=$("activity-progress"); if(!panel)return;
+ if(activityTimer)clearInterval(activityTimer); activityTimer=null;
+ panel.classList.remove("is-indeterminate");
+ if(message)$("activity-stage").textContent=message;
+ $("activity-bar").style.width="100%";
+ if(!failed)[...$("activity-steps").querySelectorAll("li")].forEach(item=>{item.classList.remove("active");item.classList.add("done");});
+ $("activity-title").textContent=failed?"Could not complete all checks":"Analysis finished";
+ $("activity-elapsed").textContent=Math.floor((Date.now()-activityStartedAt)/1000)+"s";
+ if(!failed)setTimeout(()=>panel.classList.add("hidden"),4500);
+}
 function newYorkDateOnly(date=new Date()) {
   const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
   const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
@@ -634,7 +663,7 @@ async function enrichTopCandidates(results) {
 }
 
 async function runScreen() {
-  const button=$("run-screen"); const suggestButton=$("suggest-stocks-button"); button.disabled=true; suggestButton.disabled=true; button.textContent="Screening…"; suggestButton.querySelector("strong").textContent="Screening stocks…";
+  const button=$("run-screen"); const suggestButton=$("suggest-stocks-button"); button.disabled=true; suggestButton.disabled=true; button.textContent="Screening…"; suggestButton.querySelector("strong").textContent="Screening stocks…"; beginActivity("Finding research candidates",["Scan company fundamentals","Check price history and risk","Rank available candidates","Verify top results"]);
   $("screen-status").textContent="Fetching SEC filings and daily prices";
   const results=[],errors=[];
   // A 60-stock, cross-sector starter universe. This is not the full US market.
@@ -645,6 +674,7 @@ async function runScreen() {
     for(let i=0;i<universe.length;i+=batchSize) {
       const batch=universe.slice(i,i+batchSize);
       $("screen-status").textContent="Screening "+Math.min(i+batch.length,universe.length)+"/"+universe.length+" · "+results.length+" qualified";
+      setActivityStage(0,"Screening companies "+Math.min(i+batch.length,universe.length)+" of "+universe.length+"…");
       const settled=await Promise.allSettled(batch.map(ticker=>scoreTicker(ticker)));
       for(let j=0;j<settled.length;j++) {
         const outcome=settled[j],ticker=batch[j];
@@ -654,10 +684,14 @@ async function runScreen() {
     }
     renderScreenResults(results,errors);
     $("screen-status").textContent=results.length+" ranked · "+errors.length+" excluded from "+universe.length;
+    setActivityStage(2,"Ranking candidates. "+results.length+" qualified; "+errors.length+" excluded for insufficient data.");
     await enrichTopCandidates(results);
+    setActivityStage(3,"Top candidates checked. Open a ticker for complete analysis.");
+    finishActivity("Screening finished. Review the evidence behind each candidate.");
   } catch(error) {
     $("screen-status").textContent="Screen interrupted · "+results.length+" ranked so far";
     setMessage("Screen stopped safely: "+(error?.message||"Unexpected error"),"error");
+    finishActivity("Screen interrupted. Partial results are shown.",true);
     renderScreenResults(results,errors);
   } finally {
     button.disabled=false; suggestButton.disabled=false; button.textContent="Refresh 60-stock ranking"; suggestButton.querySelector("strong").textContent="Suggest me stocks";
@@ -1379,7 +1413,9 @@ async function loadEarnings(ticker) {
 async function analyze(ticker) {
   ticker=String(ticker||"").trim().toUpperCase().replace(/\s+/g,"");
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
-  const button=$("analyze-button"); button.disabled=true; button.textContent="Loading analysis…";
+  const button=$("analyze-button"); button.disabled=true; button.textContent="Analyzing…";
+  const stages=["Find company and official filings","Check price and history","Review news and earnings risk","Check financial health and valuation","Prepare plain-English decision"];
+  beginActivity("Analyzing "+ticker,stages);
   const results=$("stock-results"); results.classList.remove("hidden"); results.dataset.ticker=ticker;
   $("last-request").textContent=new Date().toLocaleString();
   setMessage("Checking SEC filings, prices, earnings risk and recent news for "+ticker+"…");
@@ -1387,6 +1423,7 @@ async function analyze(ticker) {
   $("recommendation-panel").classList.add("hidden");
   $("earnings-panel").classList.add("hidden");
   try {
+    setActivityStage(0,"Finding company and reading official SEC filings…");
     const company=await findCompany(ticker);
     const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
     const submissions=await getJson(SEC_DATA_URL+"/submissions/CIK"+company.cik+".json").catch(()=>null);
@@ -1404,22 +1441,28 @@ async function analyze(ticker) {
     const quarter=renderQuarterlySnapshot(observations);
     renderFilings(submissions, company);
     $("sec-health").textContent="Connected; received SEC company facts";
+    setActivityStage(1,"Company facts loaded. Fetching quote and historical prices…");
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
     const [quote,history,news,earnings]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker),loadStrategyBacktest(ticker)
     ]);
+    setActivityStage(2,"Price, news and earnings responses received. Reviewing event risk…");
     const reportedQuarter=quarter?.fiscalQuarterId||null;
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
     renderEarningsResult(earningsResult,quarter,reportedQuarter);
+    setActivityStage(3,"Assessing financial health and valuation limits…");
     renderDecision({ticker,company,observations,facts,quote,history,news,earnings,quarter});
+    setActivityStage(4,"Preparing the decision explanation and next steps…");
     setMessage("Research checks complete for "+company.name+". Read the Bottom line for the decision and next step; model-based levels appear only when input and quote checks pass.","success");
+    finishActivity("All available checks finished. Review the evidence and any warnings.");
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } catch(error) {
     $("sec-health").textContent="Request failed";
     const reason=error instanceof TypeError?"Could not reach the SEC data service. Check your connection and try again.":error.message||"The SEC data request failed.";
     setMessage(reason+" No sample data has been substituted.","error");
+    finishActivity("Analysis stopped safely. Review the error above and try again.",true);
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
-  } finally { button.disabled=false; button.innerHTML='Analyze company <span aria-hidden="true">↗</span>'; }
+  } finally { button.disabled=false; button.innerHTML='Analyze stock <span aria-hidden="true">↗</span>'; }
 }
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
