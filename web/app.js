@@ -1221,9 +1221,15 @@ async function analyze(ticker) {
     const company=await findCompany(ticker);
     const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
     const submissions=await getJson(SEC_DATA_URL+"/submissions/CIK"+company.cik+".json").catch(()=>null);
+    const recentForms=submissions?.filings?.recent?.form||[];
+    const supportedIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K","20-F","6-K","40-F"].includes(form));
+    const usDomesticIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K"].includes(form));
+    if(usDomesticIndex<0&&recentForms.some(form=>["20-F","6-K"].includes(form))) throw new Error("UNSUPPORTED FOREIGN FILER: this version supports domestic SEC 10-K/10-Q/8-K workflows only. TSM and other foreign-filer reporting formats are not scored.");
     const observations=getObservations(facts);
-    $("company-name").textContent=company.name;
-    $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(submissions?.filings?.recent?.filingDate?.[0]?" · Most recent filing "+fmtDate(submissions.filings.recent.filingDate[0]):"");
+    $("company-name").textContent=titleCaseCompanyName(company.name);
+    const recentDate=supportedIndex>=0?submissions.filings.recent.filingDate?.[supportedIndex]:null;
+    const recentForm=supportedIndex>=0?recentForms[supportedIndex]:null;
+    $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(recentDate?" · Most recent supported filing "+recentForm+" · "+fmtDate(recentDate):"");
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderFundamentalSnapshot(observations); renderTable(observations);
     const quarter=renderQuarterlySnapshot(observations);
