@@ -1079,6 +1079,23 @@ function renderResearchLog() {
     root.append(card);
   }
 }
+function csvCell(value) {
+  const text= value===null||value===undefined ? "" : typeof value==="object" ? JSON.stringify(value) : String(value);
+  return '"' + text.replace(/"/g,'""') + '"';
+}
+function exportResearchCsv() {
+  const records=readResearchLog();
+  if(!records.length) { setMessage("No saved snapshots to export yet.", "error"); return; }
+  const columns=["savedAt","id","ticker","company","decision","reasonRule","quote","quoteTime","source","valuationBase","valuationReady","valuationGapBlocked","valuationGapRatio","entryLow","entryHigh","invalidation","rewardRisk","explanation","checks","disclaimer"];
+  const lines=[columns.map(csvCell).join(",")];
+  for(const record of records) lines.push(columns.map(key=>csvCell(record[key])).join(","));
+  const blob=new Blob(["\\uFEFF"+lines.join("\\r\\n")],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=url; link.download="northstar-research-snapshots.csv"; link.hidden=true;
+  document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  setMessage("Exported "+records.length+" browser-local research snapshot(s) to CSV. This export does not include server-side records.", "success");
+}
 function saveResearchSnapshot() {
   if (!latestResearchSnapshot) {
     setMessage("Analyze a company first, then save its research snapshot.", "error");
@@ -1269,7 +1286,7 @@ $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analy
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
 $("run-screen").addEventListener("click",runScreen);
 $("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
-$("save-research-snapshot").addEventListener("click",saveResearchSnapshot);
+$("save-research-snapshot").addEventListener("click",saveResearchSnapshot);\n$("export-research-csv").addEventListener("click",exportResearchCsv);
 function reviewHolding() {
   const output=$("holding-result"); output.className="holding-result"; output.innerHTML="";
   const shares=Number($("holding-shares").value), cost=Number($("holding-cost").value), ctx=latestDecisionContext;
