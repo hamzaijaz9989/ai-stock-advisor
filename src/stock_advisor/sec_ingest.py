@@ -46,7 +46,7 @@ def _fetch_json(url: str, *, user_agent: str, timeout: float = 30.0) -> Any:
             body = response.read()
             # SEC endpoints may return gzip bytes even when urllib does not
             # transparently decompress the response body.
-            if body.startswith(b"\\x1f\\x8b"):
+            if body.startswith(bytes((0x1F, 0x8B))):
                 body = gzip.decompress(body)
             return json.loads(body.decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
