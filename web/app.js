@@ -514,6 +514,26 @@ function renderScreenResults(results,errors) {
     const p=document.createElement("p"); p.className="table-note"; p.textContent="Excluded candidates: "+errors.join(" · "); root.append(p);
   }
 }
+function assessResearchQuoteEligibility(quote, nowMs=Date.now()) {
+  const price=quote?.price;
+  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
+  const ageHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(nowMs-quoteDate.getTime())/3600000:Infinity;
+  if(typeof price!=="number"||!Number.isFinite(price)||price<=0) {
+    return {eligible:false,reason:"quote price is missing or invalid",ageHours};
+  }
+  if(ageHours<-(5/60)) {
+    return {eligible:false,reason:"quote timestamp is unexpectedly in the future",ageHours};
+  }
+  if(!Number.isFinite(ageHours)||ageHours>48) {
+    return {eligible:false,reason:"no recent timestamped intraday quote",ageHours};
+  }
+  if(String(quote?.interval||"").toLowerCase()==="1d"||
+     String(quote?.delayedOrRealtime||"").toLowerCase().includes("daily interval")) {
+    return {eligible:false,reason:"daily-only quote is not eligible for entry readiness",ageHours};
+  }
+  return {eligible:true,reason:null,ageHours};
+}
+
 async function enrichTopCandidates(results) {
   const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,10);
   await Promise.all(candidates.map(async item=>{
@@ -532,16 +552,9 @@ async function enrichTopCandidates(results) {
       const earnings=earningsResponse.ok?await earningsResponse.json():null;
       const valuation=buildDcfEstimate(item.observations,item.facts);
       const atr=averageTrueRange(item.history);
-      const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
-      const quoteAge=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
-      // A provider timestamp more than five minutes in the future is untrustworthy.
-      // Keep the provisional shortlist fail-closed rather than tolerating clock skew of hours.
-      const quoteTimestampPlausible=quoteAge>=-(5/60)&&quoteAge<=48;
-      const current=typeof quote?.price==="number"&&Number.isFinite(quote.price)&&quote.price>0&&quoteTimestampPlausible&&
-        String(quote?.interval||"").toLowerCase()!=="1d"&&!String(quote?.delayedOrRealtime||"").toLowerCase().includes("daily interval");
-      if(!current) {
-        gateNotes.push(quoteAge<-(5/60)?"quote timestamp is unexpectedly in the future":"no recent timestamped intraday quote");
-      }
+      const quoteGate=assessResearchQuoteEligibility(quote);
+      const current=quoteGate.eligible;
+      if(!current) gateNotes.push(quoteGate.reason);
       if(!valuation.available||!atr||!Number.isFinite(atr)||atr<=0) {
         gateNotes.push(!valuation.available?"valuation unavailable":"ATR risk data unavailable");
       }
