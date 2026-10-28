@@ -174,7 +174,8 @@ test("quarterly snapshot returns latest-quarter revenue growth and net income", 
 test("decision panel surfaces a qualifying setup as unvalidated and never calls it validated BUY", () => {
   const app = loadAppFunctions();
   const observations = [...annualFixtures(), ...quarterlyFixtures()];
-  const valuation = app.buildDcfEstimate(observations, shareFacts());
+  const testFacts = shareFacts(90e9);
+  const valuation = app.buildDcfEstimate(observations, testFacts);
   assert.equal(valuation.available, true);
   const entry = valuation.base * 0.775;
   const historyRows = Array.from({length:16},(_,i)=>({
@@ -185,7 +186,7 @@ test("decision panel surfaces a qualifying setup as unvalidated and never calls 
   app.renderDecision({
     ticker:"TEST",
     observations,
-    facts:shareFacts(),
+    facts:testFacts,
     quote:{price:entry,quoteTime:new Date().toISOString(),source:"test"},
     history:{data:historyRows},
     news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
