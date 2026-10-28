@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 
 from stock_advisor.sec_ingest import (
+    SEC_TICKERS_URL,
     SEC_COMPANYFACTS_URL,
     SEC_SUBMISSIONS_URL,
     collect_company,
@@ -64,9 +65,6 @@ def sec_responses():
             }
         },
     }
-
-
-from stock_advisor.sec_ingest import SEC_TICKERS_URL
 
 
 def test_collect_company_preserves_acceptance_time_and_excludes_future_filed_facts(sec_responses):
