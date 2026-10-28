@@ -48,11 +48,16 @@ def parse_sec_header(text: str, expected_accession: str, expected_filed_date: st
         expected_filed = date.fromisoformat(expected_filed_date[:10])
     except ValueError:
         return {"verified": False, "reason": "header_date_invalid"}
-    if filed != expected_filed or accepted_local.date() != filed:
+    # SEC's official filing date can differ from the EDGAR acceptance date,
+    # notably for submissions accepted after the filing-day cutoff. Validate the
+    # official filed date against submissions metadata, but preserve acceptance
+    # date/time independently; do not require their calendar dates to match.
+    if filed != expected_filed:
         return {
             "verified": False,
             "reason": "filing_date_conflict",
             "header_filed_date": filed.isoformat(),
+            "expected_filed_date": expected_filed.isoformat(),
             "header_acceptance_date": accepted_local.date().isoformat(),
         }
     accepted_utc = accepted_local.astimezone(UTC).isoformat()
