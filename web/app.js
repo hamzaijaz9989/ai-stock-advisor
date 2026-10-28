@@ -423,17 +423,17 @@ function buildDcfEstimate(observations, facts) {
       previousRevenueForFcf.end!==last3[1].end) {
     return {available:false,reason:"Annual revenue and free-cash-flow periods do not match exactly; valuation is withheld."};
   }
-  const annualDilutedShares=annualSeries(observations,"dilutedShares").find(row=>row.end===latestFcf.end);
   const currentInstantShares=latestSecValue(facts,[
     {taxonomy:"dei",tag:"EntityCommonStockSharesOutstanding"},
     {taxonomy:"us-gaap",tag:"EntityCommonStockSharesOutstanding"}
   ],"shares",180);
-  const shares=annualDilutedShares&&annualDilutedShares.value>0
-    ? {value:annualDilutedShares.value,end:annualDilutedShares.end,filed:annualDilutedShares.filed,source:"Annual diluted weighted-average shares from matched 10-K period"}
-    : currentInstantShares&&currentInstantShares.value>0
-      ? {value:currentInstantShares.value,end:currentInstantShares.end,filed:currentInstantShares.filed,source:"Recent instant shares outstanding"}
-      : null;
-  if (!shares || shares.value<=0) return {available:false,reason:"No recent SEC share count or matched-period diluted weighted-average share count was found."};
+  // Per-share valuation needs a recent point-in-time shares-outstanding count.
+  // Annual diluted weighted-average shares are a period average and can materially
+  // misstate per-share value after buybacks, issuance, or stock-based compensation.
+  const shares=currentInstantShares&&currentInstantShares.value>0
+    ? {value:currentInstantShares.value,end:currentInstantShares.end,filed:currentInstantShares.filed,source:"Recent SEC-reported shares outstanding"}
+    : null;
+  if (!shares || shares.value<=0) return {available:false,reason:"No unambiguous SEC shares-outstanding fact filed within the last 180 days; per-share valuation is withheld."};
   const latestRevenue=revenue[revenue.length-1], previousRevenue=revenue[revenue.length-2];
   if (!latestRevenue || !previousRevenue || previousRevenue.value<=0) return {available:false,reason:"Comparable annual revenue growth is unavailable."};
   const fcfGrowth1=last3[2].value/last3[1].value-1;
