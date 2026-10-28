@@ -1368,6 +1368,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   } else {
     grid.append(metricCard("Illustrative DCF value","Not available",valuation.reason),metricCard("Entry / exit levels","WITHHELD","No price levels will be guessed without defensible valuation inputs"));
   }
+  const legend=document.createElement("div"); legend.className="meaning-legend"; legend.textContent="GREEN = positive check   ·   RED = risk / failed check   ·   AMBER = needs review"; checks.append(legend);
   for(const item of dataChecks) {
     const row=document.createElement("div");row.className="decision-check";
     const detailText=String(item.detail||"").toLowerCase();
