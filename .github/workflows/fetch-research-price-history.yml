@@ -1,0 +1,62 @@
+name: Fetch research price history
+
+on:
+  push:
+    branches:
+      - run/price-data-collection-2026-10-28
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "Space-separated symbols (default includes SPY benchmark)"
+        required: true
+        default: "AAPL MSFT NVDA AMZN GOOGL SPY"
+        type: string
+      start_date:
+        description: "Start date (YYYY-MM-DD)"
+        required: true
+        default: "2010-01-01"
+        type: string
+      cutoff_date:
+        description: "Cutoff date (YYYY-MM-DD; blank means today UTC)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  fetch-price-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch daily OHLC and corporate actions
+        env:
+          SYMBOLS_INPUT: ${{ inputs.symbols || 'AAPL MSFT NVDA AMZN GOOGL SPY' }}
+          START_INPUT: ${{ inputs.start_date || '2010-01-01' }}
+          CUTOFF_INPUT: ${{ inputs.cutoff_date || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$SYMBOLS_INPUT" =~ ^[A-Za-z0-9.^=-]+([[:space:]]+[A-Za-z0-9.^=-]+){0,9}$ ]]; then
+            echo "Provide 1–10 space-separated symbols." >&2
+            exit 2
+          fi
+          read -r -a symbols <<< "$SYMBOLS_INPUT"
+          cutoff="$CUTOFF_INPUT"
+          if [[ -z "$cutoff" ]]; then cutoff="$(date -u +%F)"; fi
+          python -c 'from datetime import date; [date.fromisoformat(x) for x in __import__("sys").argv[1:]]' "$START_INPUT" "$cutoff"
+          python scripts/fetch_research_price_history.py --symbols "${symbols[@]}" --start "$START_INPUT" --cutoff "$cutoff" --output research-price-history.json
+      - name: Upload research-only price history artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: northstar-research-prices-${{ github.run_id }}
+          path: research-price-history.json
+          if-no-files-found: error
+          retention-days: 7
