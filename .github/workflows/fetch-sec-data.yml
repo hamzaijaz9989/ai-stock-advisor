@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/sec-acceptance-timestamp-provenance
+      - feature/sec-header-timestamp-verifier
   workflow_dispatch:
     inputs:
       symbols:
@@ -58,11 +59,19 @@ jobs:
           fi
           python -c 'from datetime import date; date.fromisoformat(__import__("sys").argv[1])' "$cutoff"
           python scripts/fetch_sec_history.py --symbols "${symbols[@]}" --cutoff "$cutoff" --output sec-source-bundle.json
+          python scripts/verify_sec_timestamps.py --input sec-source-bundle.json --output sec-verified-sample.json --max-filings-per-company 100 --delay 0.12
           echo "SEC_CUTOFF_DATE=$cutoff" >> "$GITHUB_ENV"
       - name: Upload private-run source bundle artifact
         uses: actions/upload-artifact@v4
         with:
           name: northstar-sec-source-${{ github.run_id }}
           path: sec-source-bundle.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload timestamp-verified sample artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: northstar-sec-verified-sample-${{ github.run_id }}
+          path: sec-verified-sample.json
           if-no-files-found: error
           retention-days: 7
