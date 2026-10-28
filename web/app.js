@@ -1343,6 +1343,7 @@ async function analyze(ticker) {
   ticker=String(ticker||"").trim().toUpperCase().replace(/\s+/g,"");
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
   const button=$("analyze-button"); button.disabled=true; button.textContent="Loading analysis…";
+  const results=$("stock-results"); results.classList.remove("hidden"); results.dataset.ticker=ticker;
   $("last-request").textContent=new Date().toLocaleString();
   setMessage("Checking SEC filings, prices, earnings risk and recent news for "+ticker+"…");
   $("sec-health").textContent="Request in progress";
@@ -1375,10 +1376,12 @@ async function analyze(ticker) {
     renderEarningsResult(earningsResult,quarter,reportedQuarter);
     renderDecision({ticker,company,observations,facts,quote,history,news,earnings,quarter});
     setMessage("Research checks complete for "+company.name+". Read the Bottom line for the decision and next step; model-based levels appear only when input and quote checks pass.","success");
+    requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } catch(error) {
     $("sec-health").textContent="Request failed";
     const reason=error instanceof TypeError?"Could not reach the SEC data service. Check your connection and try again.":error.message||"The SEC data request failed.";
     setMessage(reason+" No sample data has been substituted.","error");
+    requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } finally { button.disabled=false; button.innerHTML='Analyze company <span aria-hidden="true">↗</span>'; }
 }
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});

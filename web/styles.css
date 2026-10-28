@@ -161,3 +161,36 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
   .guide-steps article { padding: 14px; }
   .guide-verdicts { grid-template-columns: 1fr; }
 }
+
+
+/* Stock-specific results are grouped directly below search into one clearly bounded workspace. */
+.stock-results {
+  margin: 20px 0 30px;
+  padding: clamp(12px, 2.4vw, 24px);
+  border: 2px solid #55565b;
+  border-radius: 22px;
+  background: #09090a;
+  box-shadow: 0 18px 55px rgba(0,0,0,.28);
+  scroll-margin-top: 88px;
+}
+.stock-results > .message { margin-bottom: 16px; }
+.stock-results > .company-panel,
+.stock-results > .quote-panel,
+.stock-results > .news-section,
+.stock-results > .metrics-grid { margin-top: 14px; margin-bottom: 14px; }
+.stock-results > .news-section { border-color: #3a3b40; background: #0d0d0f; }
+.stock-results > .company-panel { border-color: #55565b; background: #111113; }
+.stock-results > .quote-panel { border-color: #48494e; background: linear-gradient(135deg,#151517,#0d0d0f); }
+.beginner-guide { max-width: 820px; margin: 0 auto 16px; padding: 0 14px; color: var(--muted); font-size: 12px; }
+.beginner-guide summary { width: fit-content; cursor: pointer; padding: 8px 0; color: #b8b8bf; font-weight: 650; }
+.guide-content { padding: 12px 0 8px; }
+.guide-content .guide-heading h2 { font-size: 18px; }
+.guide-content .guide-steps { margin: 12px 0; }
+.guide-content .guide-verdicts { margin-top: 12px; }
+.guide-content .guide-disclaimer { font-size: 11px; }
+@media (max-width: 680px) {
+  .stock-results { padding: 10px; border-width: 2px; border-radius: 16px; margin-top: 14px; }
+  .stock-results .section-heading { align-items: flex-start; gap: 10px; }
+  .stock-results .section-heading h2 { font-size: 19px; }
+  .stock-results .company-panel, .stock-results .quote-panel { padding: 16px; }
+}
