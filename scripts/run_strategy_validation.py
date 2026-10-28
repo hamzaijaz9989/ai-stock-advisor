@@ -116,6 +116,8 @@ def run(payload: Any) -> dict[str, Any]:
     report["configuration"] = {
         "slippage_bps_per_side": config.slippage_bps_per_side,
         "commission_bps_per_side": config.commission_bps_per_side,
+        "benchmark_symbol": str(payload.get("benchmark_symbol", "SPY")).strip().upper(),
+        "benchmark_bar_counts": {symbol: len(values) for symbol, values in benchmark_bars.items()},
     }
     return _json_safe(report)
 
