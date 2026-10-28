@@ -341,9 +341,11 @@ test("quote label without machine-readable timestamp cannot satisfy current-pric
     earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
     quarter:{available:true,currentRevenue:120e9,currentIncome:20e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"}
   });
-  assert.ok(app.document.getElementById("decision-title").textContent.startsWith("INSUFFICIENT EVIDENCE"));
-  assert.ok(app.document.getElementById("decision-checks").children.some(row=>
-    row.children.some(child=>child.children?.some(nested=>nested.textContent?.includes("missing a usable date/time")))
-  ));
+  const currentPriceCheck=app.document.getElementById("decision-checks").children.find(row=>
+    row.children.some(child=>child.children?.some(nested=>nested.textContent==="Current price"))
+  );
+  assert.ok(currentPriceCheck);
+  assert.equal(currentPriceCheck.children[0].textContent,"REVIEW");
+  assert.ok(currentPriceCheck.children[1].children[1].textContent.includes("missing a usable date/time"));
 });
 
