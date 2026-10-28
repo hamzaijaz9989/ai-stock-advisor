@@ -20,6 +20,16 @@ python scripts/fetch_sec_history.py --symbols AAPL MSFT NVDA --cutoff 2026-10-28
 
 See [SEC point-in-time ingestion](docs/SEC_POINT_IN_TIME_INGESTION.md). The bundle preserves accession IDs and exact acceptance timestamps where available; it never guesses timestamps. It is explicitly not decision-eligible and does not unlock BUY.
 
+## Research-only historical price collection
+
+A manual workflow can fetch daily OHLC, adjusted closes, dividends, and splits for up to 10 symbols:
+
+```bash
+python scripts/fetch_research_price_history.py --symbols AAPL MSFT NVDA AMZN GOOGL SPY --start 2010-01-01 --cutoff 2026-10-28 --output research-price-history.json
+```
+
+The source is an **unofficial Yahoo Finance chart endpoint**. Output is explicitly marked `commercial_use_authorized: false` and `decision_eligible: false`. Use it only for internal research/pipeline testing after reviewing applicable terms; do not use it for commercial display or redistribution. Replace it with a licensed market-data provider before production or commercial use. This price bundle does not include historical universe membership or the live strategy's historical valuation, earnings, timestamped news, and risk-headline inputs.
+
 ## Python core
 
 Requires Python 3.11+.
