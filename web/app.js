@@ -1027,8 +1027,9 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   let state;
   if (annualDataAvailable && !annualFundamentalPass) state="AVOID";
   else if (dailySnapshot) state="WAIT";
+  else if (gapCheck.blocked) state="WAIT";
   else if (insufficientData) state="INSUFFICIENT DATA";
-  else if (gapCheck.blocked || !valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
+  else if (!valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
   else if (fundamentalAvoid) state="AVOID";
   else if (flaggedHeadlines.length) state="WAIT";
   else if (buySetupPass && !historicalValidationPass) state="BUY SETUP — UNVALIDATED";
@@ -1036,8 +1037,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   else state="WAIT";
   const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":
     dailySnapshot?"Provider supplied a daily-bar snapshot, not a verified current quote":
+    gapCheck.blocked?"Valuation model outside the 0.40×–2.50× review band"+(missingInputs.length?"; also missing: "+missingInputs.join("; "):""):
     insufficientData?"Missing required inputs: "+missingInputs.join("; "):
-    gapCheck.blocked?"Quote/model ratio outside 0.40×–2.50×":
     daysToEarnings!==null&&daysToEarnings<=3?"Earnings event is within 3 calendar days":
     !valuationDecisionReady?"Valuation decision gate is not satisfied":
     flaggedHeadlines.length?"Potential material-risk headline requires primary-source review":
@@ -1049,7 +1050,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     : state==="INSUFFICIENT DATA"
     ? "INSUFFICIENT DATA — Northstar could not verify: "+missingInputs.join("; ")+". No trade-like conclusion is supported until these inputs are available."
     : state==="WAIT" && gapCheck.blocked
-    ? "WAIT — quote/model ratio is "+gapCheck.ratio.toFixed(2)+"×, outside the allowed 0.40×–2.50× band. Valuation levels are withheld."
+    ? "WAIT — the simplified valuation is outside the 0.40×–2.50× review band (quote/model ratio "+gapCheck.ratio.toFixed(2)+"×). This does not by itself prove the stock is overvalued. Valuation levels are withheld."+(missingInputs.length?" Additional missing inputs: "+missingInputs.join("; ")+".":"")
     : state==="BUY SETUP — UNVALIDATED"
     ? "BUY SETUP — UNVALIDATED. All current entry checks passed, but historical strategy validation is not approved. Research only; this is not a validated BUY and no order will be placed."
     : state==="WAIT"
@@ -1078,7 +1079,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const heroCopy={
     "BUY":{symbol:"✓",label:"VALIDATED SETUP",title:"BUY CANDIDATE — review before acting",summary:"The configured entry checks and historical validation passed. This is still research, not a guarantee that the price will rise.",action:"Before buying: review the risk, price timestamp and downside plan. Northstar never places orders."},
     "BUY SETUP — UNVALIDATED":{symbol:"!",label:"NOT APPROVED TO BUY",title:"Do not buy based on this result",summary:"Some checks look promising, but the strategy has not passed full historical validation.",action:"Action: wait. Treat this as a research lead only; it is not a validated BUY signal."},
-    "WAIT":{symbol:"Ⅱ",label:"WAIT — NO NEW BUY",title:dailySnapshot?"Do not buy yet — price data is not current":"Wait until the warning is resolved",summary:dailySnapshot?"The provider supplied a daily price snapshot, not a verified current quote. The system cannot safely judge the price to buy at.":"At least one important entry check is not satisfied. Buying now would mean ignoring an unresolved warning.",action:dailySnapshot?"Action: wait for a reliable timestamped quote, then analyze the stock again.":"Action: do not open a new position yet. Read the reason below and re-run the analysis when the issue is resolved."},
+    "WAIT":{symbol:"Ⅱ",label:"WAIT — NO NEW BUY",title:dailySnapshot?"WAIT — price data is not current":gapCheck.blocked?"WAIT — valuation needs review":"WAIT — resolve the warning first",summary:dailySnapshot?"The provider supplied a daily price snapshot, not a verified current quote. The system cannot safely judge the price to buy at.":"At least one important entry check is not satisfied. Buying now would mean ignoring an unresolved warning.",action:dailySnapshot?"Action: wait for a reliable timestamped quote, then analyze the stock again.":"Action: do not open a new position yet. Read the reason below and re-run the analysis when the issue is resolved."},
     "AVOID":{symbol:"×",label:"IMPORTANT RISK FOUND",title:"Avoid this setup for now",summary:"The stock failed one or more configured company-quality checks. That does not predict the future, but it is a reason not to rush in.",action:"Action: do not buy based on this analysis. Review the failed checks and official filings before reconsidering."},
     "INSUFFICIENT DATA":{symbol:"?",label:"NOT ENOUGH RELIABLE DATA",title:"No safe decision yet",summary:"Northstar could not verify all the information needed for a dependable assessment.",action:"Action: do not buy or sell based on this result. Refresh the missing data and analyze again."},
     "SELL REVIEW":{symbol:"!",label:"REVIEW YOUR POSITION",title:"A warning needs your attention",summary:"Recent headlines contain possible risk terms. A headline scan alone does not prove the company is in trouble.",action:"Action: if you own this stock, check the original news and SEC filing before deciding. This is not an automatic sell instruction."},
