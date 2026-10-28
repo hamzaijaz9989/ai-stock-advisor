@@ -16,7 +16,7 @@
     <section class="hero">
       <p class="eyebrow">US STOCKS · WEEKS TO 6 MONTHS</p>
       <h1>Understand a company<span>.</span></h1>
-      <p class="intro">A research-first decision assistant for your $500 portfolio. It checks company filings, price data, news and event risk; it will withhold a BUY when evidence is incomplete.</p>
+      <p class="intro">A research-first decision assistant for your $500 portfolio. It checks company filings, price data, news and event risk; it activates provisional BUY, SELL REVIEW, HOLD and WAIT labels while clearly marking unvalidated signals.</p>
       <form id="analyze-form" class="search-panel">
         <label for="ticker">Stock ticker</label>
         <div class="search-row">
@@ -96,8 +96,8 @@
       <div id="strategy-backtest-details" class="table-note"></div><div id="strategy-walk-forward" class="table-note"></div>
     </section>
     <section class="ranking-section">
-      <div class="section-heading"><div><p class="eyebrow">RESEARCH SHORTLIST</p><h2>Top 10 research candidates</h2></div><span class="count">Not validated BUY signals</span></div>
-      <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are not actionable buy or sell signals while historical validation remains incomplete.</p>
+      <div class="section-heading"><div><p class="eyebrow">RESEARCH SHORTLIST</p><h2>Top 10 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
+      <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
       <p class="table-note">Run a comparison of 60 selected US stocks. The system displays up to 10 research candidates and, where the latest quote and valuation inputs pass checks, shows a model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are not guaranteed buy/exit instructions; the strategy has not passed walk-forward and untouched holdout validation.</p><div class="ranking-actions"><button id="run-screen" type="button" class="secondary-button">Run 60-stock research screen</button><span id="screen-status" class="count">Not run</span></div><div id="screen-results" class="screen-results"><p class="empty">Run a cross-sector screen of 60 selected US stocks. The starter universe is not the full market; results depend on provider availability and strict data-quality checks.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
     </section>
     <section class="news-section"><div class="section-heading"><div><p class="eyebrow">FUNDAMENTAL SNAPSHOT</p><h2>Annual financial trends</h2></div><span id="fundamental-status" class="count">Loads with analysis</span></div><p class="table-note">Calculated only from unambiguous annual 10-K observations. Free cash flow is an approximation: operating cash flow minus absolute capital expenditures. Not a recommendation.</p><div id="fundamental-snapshot" class="metrics-grid"><p class="empty">Analyze a company to calculate annual trends.</p></div></section>
