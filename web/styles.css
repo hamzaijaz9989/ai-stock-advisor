@@ -307,3 +307,53 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
  .suggest-stocks-button small { font-size: 10px; }
  .suggestion-results-section { padding: 17px; }
 }
+
+
+/* Plain-language decision hero for people unfamiliar with investing. */
+.decision-hero {
+  display: grid;
+  grid-template-columns: 54px minmax(0,1fr);
+  gap: 16px;
+  align-items: start;
+  margin: 18px 0 16px;
+  padding: clamp(18px,3vw,26px);
+  border: 1px solid #3d3e43;
+  border-left: 4px solid #9297a3;
+  border-radius: 18px;
+  background: linear-gradient(135deg,#141416,#0b0b0d);
+}
+.decision-symbol {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: rgba(146,151,163,.12);
+  border: 1px solid rgba(146,151,163,.4);
+  color: #c7c9d0;
+  font-size: 27px;
+  font-weight: 800;
+}
+.decision-hero-copy { min-width: 0; }
+.decision-hero-copy .eyebrow { margin: 2px 0 9px; }
+.decision-hero-copy h3 { margin: 0 0 12px; font-size: clamp(23px,4.7vw,34px); line-height: 1.13; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.decision-plain-summary { margin: 0 0 14px; color: #d0d0d5; font-size: 16px; line-height: 1.55; }
+.decision-action { margin: 0; padding: 13px 14px; border-radius: 12px; background: rgba(255,255,255,.045); color: #f2f2f4; font-size: 14px; line-height: 1.55; border: 1px solid #303136; }
+.decision-hero.state-buy { border-left-color: #62dc8b; }
+.decision-hero.state-buy .decision-symbol { color: #8bf0a8; border-color: rgba(98,220,139,.4); background: rgba(98,220,139,.12); }
+.decision-hero.state-buy .decision-plain-label, .decision-hero.state-buy .eyebrow { color: #9cebb2; }
+.decision-hero.state-wait, .decision-hero.state-hold { border-left-color: #f4c15d; }
+.decision-hero.state-wait .decision-symbol, .decision-hero.state-hold .decision-symbol { color: #f4d28c; border-color: rgba(244,193,93,.4); background: rgba(244,193,93,.1); }
+.decision-hero.state-wait .decision-plain-label, .decision-hero.state-hold .decision-plain-label { color: #f4d28c; }
+.decision-hero.state-avoid, .decision-hero.state-sell-review { border-left-color: #ff666d; }
+.decision-hero.state-avoid .decision-symbol, .decision-hero.state-sell-review .decision-symbol { color: #ff969a; border-color: rgba(255,102,109,.4); background: rgba(255,102,109,.1); }
+.decision-hero.state-avoid .decision-plain-label, .decision-hero.state-sell-review .decision-plain-label { color: #ff969a; }
+.decision-hero.state-insufficient-data, .decision-hero.state-unvalidated { border-left-color: #a4a6b0; }
+.decision-hero.state-unvalidated .decision-plain-label { color: #f4d28c; }
+@media (max-width: 520px) {
+  .decision-hero { grid-template-columns: 38px minmax(0,1fr); gap: 12px; padding: 16px 13px; border-radius: 15px; }
+  .decision-symbol { width: 36px; height: 36px; border-radius: 11px; font-size: 21px; }
+  .decision-hero-copy h3 { font-size: 23px; }
+  .decision-plain-summary { font-size: 15px; }
+  .decision-action { font-size: 13px; padding: 11px; }
+}

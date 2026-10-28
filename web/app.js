@@ -1067,7 +1067,23 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     ? "Next: independently review the evidence, sizing and downside risks. This research app does not place orders."
     : "Next: hold off on adding shares; reassess after new filings, earnings, material news or major price changes.";
   $("decision-next-step").textContent=nextStep;
-  $("decision-title").textContent=state+" — "+reasonRule.toUpperCase();
+  const decisionHero=$("decision-hero");
+  const heroCopy={
+    "BUY":{symbol:"✓",label:"VALIDATED SETUP",title:"BUY CANDIDATE — review before acting",summary:"The configured entry checks and historical validation passed. This is still research, not a guarantee that the price will rise.",action:"Before buying: review the risk, price timestamp and downside plan. Northstar never places orders."},
+    "BUY SETUP — UNVALIDATED":{symbol:"!",label:"NOT APPROVED TO BUY",title:"Do not buy based on this result",summary:"Some checks look promising, but the strategy has not passed full historical validation.",action:"Action: wait. Treat this as a research lead only; it is not a validated BUY signal."},
+    "WAIT":{symbol:"Ⅱ",label:"WAIT — NO NEW BUY",title:dailySnapshot?"Do not buy yet — price data is not current":"Wait until the warning is resolved",summary:dailySnapshot?"The provider supplied a daily price snapshot, not a verified current quote. The system cannot safely judge the price to buy at.":"At least one important entry check is not satisfied. Buying now would mean ignoring an unresolved warning.",action:dailySnapshot?"Action: wait for a reliable timestamped quote, then analyze the stock again.":"Action: do not open a new position yet. Read the reason below and re-run the analysis when the issue is resolved."},
+    "AVOID":{symbol:"×",label:"IMPORTANT RISK FOUND",title:"Avoid this setup for now",summary:"The stock failed one or more configured company-quality checks. That does not predict the future, but it is a reason not to rush in.",action:"Action: do not buy based on this analysis. Review the failed checks and official filings before reconsidering."},
+    "INSUFFICIENT DATA":{symbol:"?",label:"NOT ENOUGH RELIABLE DATA",title:"No safe decision yet",summary:"Northstar could not verify all the information needed for a dependable assessment.",action:"Action: do not buy or sell based on this result. Refresh the missing data and analyze again."},
+    "SELL REVIEW":{symbol:"!",label:"REVIEW YOUR POSITION",title:"A warning needs your attention",summary:"Recent headlines contain possible risk terms. A headline scan alone does not prove the company is in trouble.",action:"Action: if you own this stock, check the original news and SEC filing before deciding. This is not an automatic sell instruction."},
+    "HOLD":{symbol:"Ⅱ",label:"NO NEW BUY SIGNAL",title:"Hold off on adding shares",summary:"The available evidence does not support a new validated entry, and the configured sell-review trigger has not fired.",action:"Action: if you already own it, review your original reason for buying. If you do not own it, wait for stronger evidence."}
+  };
+  const copy=heroCopy[state]||heroCopy["INSUFFICIENT DATA"];
+  decisionHero.className="decision-hero state-"+(state==="BUY SETUP — UNVALIDATED"?"unvalidated":state.toLowerCase().replace(/[^a-z]+/g,"-"));
+  $("decision-symbol").textContent=copy.symbol;
+  $("decision-plain-label").textContent=copy.label;
+  $("decision-title").textContent=copy.title;
+  $("decision-plain-summary").textContent=copy.summary;
+  $("decision-action").textContent=copy.action;
   const reasons=[];
   if(!quoteCurrent) reasons.push(dailySnapshot?"The available price is a daily-bar snapshot, not a verified current quote.":"A sufficiently recent timestamped quote is missing.");
   if(!valuation.available) reasons.push(valuation.reason);
