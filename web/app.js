@@ -133,7 +133,7 @@ function getObservations(payload) {
       for(const [unit,values] of Object.entries(fact.units)) {
         if(!Array.isArray(values)) continue;
         for(const obs of values) {
-          if(obs.val==null || !obs.end || !obs.filed) continue;
+          if(obs.val==null || !obs.end || !obs.filed || obs.filed>newYorkDateOnly() || obs.end>newYorkDateOnly()) continue;
           observations.push({metric:metric.label,key:metric.key,tag,taxonomy:metric.taxonomy||"us-gaap",tagRank,unit,value:obs.val,start:obs.start||null,end:obs.end,filed:obs.filed,form:obs.form||"—",accession:obs.accn||"—",fy:obs.fy,fp:obs.fp,frame:obs.frame||""});
         }
       }
@@ -234,7 +234,7 @@ function renderFundamentalSnapshot(observations) {
     if (prior.value !== 0) cards.push({label:"Annual revenue growth",value:((latest.value/prior.value-1)*100).toFixed(1)+"%",meta:fmtDate(prior.end)+" → "+fmtDate(latest.end)});
   }
   const latestRevenue = revenue[revenue.length-1];
-  const latestIncome = latestRevenue && income.find(row=>row.end===latestRevenue.end);
+  const latestIncome = latestRevenue && income.find(row=>row.end===latestRevenue.end&&row.start===latestRevenue.start&&row.unit===latestRevenue.unit);
   if (latestRevenue && latestIncome && latestRevenue.value !== 0) {
     cards.push({label:"Net profit margin",value:((latestIncome.value/latestRevenue.value)*100).toFixed(1)+"%",meta:"Matched annual period ended "+fmtDate(latestRevenue.end)});
   }
@@ -272,9 +272,9 @@ function renderQuarterlySnapshot(observations) {
   const eps=quarterlySeries(observations,"dilutedEps");
   const latestRevenue=revenue[revenue.length-1]||null;
   const priorRevenue=latestRevenue?matchingPriorYear(revenue,latestRevenue):null;
-  const latestIncome=latestRevenue?income.find(row=>row.end===latestRevenue.end)||null:null;
+  const latestIncome=latestRevenue?income.find(row=>row.end===latestRevenue.end&&row.start===latestRevenue.start&&row.unit===latestRevenue.unit)||null:null;
   const priorIncome=latestIncome?matchingPriorYear(income,latestIncome):null;
-  const latestEps=latestRevenue?eps.find(row=>row.end===latestRevenue.end)||null:null;
+  const latestEps=latestRevenue?eps.find(row=>row.end===latestRevenue.end&&row.start===latestRevenue.start)||null:null;
   const priorEps=latestEps?matchingPriorYear(eps,latestEps):null;
   const revenueYoY=latestRevenue&&priorRevenue&&priorRevenue.value>0
     ? latestRevenue.value/priorRevenue.value-1 : null;
@@ -787,7 +787,7 @@ function buildDcfEstimate(observations, facts) {
   if (last3.some((row,index)=>index>0&&(daysBetween(last3[index-1].end,row.end)<300||daysBetween(last3[index-1].end,row.end)>400))) {
     return {available:false,reason:"Not enough reliable data: annual free-cash-flow periods are stale or are not spaced within the 400-day matching limit."};
   }
-  const matchedRevenue=last3.map(row=>revenue.find(item=>item.end===row.end)||null);
+  const matchedRevenue=last3.map(row=>revenue.find(item=>item.end===row.end&&item.start===row.start&&item.unit===row.unit)||null);
   if (matchedRevenue.some(row=>!row)) {
     return {available:false,reason:"Valuation withheld: each of the latest three annual free-cash-flow periods must match an unambiguous annual revenue period."};
   }
@@ -1087,10 +1087,20 @@ function renderBeginnerOverview(data) {
   setText("beginner-verdict-title",verdict);setText("beginner-verdict-reason",why);
   const verdictBox=$("beginner-verdict");verdictBox.className="beginner-verdict verdict-"+verdictClass;
   const dot=$("beginner-verdict-dot");dot.className="meaning-dot "+verdictClass;
-  const coreCount=[quoteValid,annualDataAvailable,quarterlyDataAvailable,Boolean(earnings?.verified),Boolean(history?.data?.length)].filter(Boolean).length;
+  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
+  const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
+  const quoteFresh=quoteValid&&quoteAgeHours>=-2&&quoteAgeHours<=48&&!["1d","daily"].includes(String(quote?.interval||"").toLowerCase());
+  const confidenceInputs=[quoteFresh,annualDataAvailable,quarterlyDataAvailable,Boolean(earnings?.verified),Boolean(history?.data?.length)];
+  const coreCount=confidenceInputs.filter(Boolean).length;
   const confidence=coreCount>=5?"high":coreCount>=3?"medium":"low";
+  const confidenceReasons=[];
+  if(!quoteFresh)confidenceReasons.push("quote is stale or has no exact timestamp");
+  if(!annualDataAvailable)confidenceReasons.push("annual facts are not fully matched");
+  if(!quarterlyDataAvailable)confidenceReasons.push("latest-quarter facts are incomplete");
+  if(!earnings?.verified)confidenceReasons.push("earnings date is not verified");
+  if(!history?.data?.length)confidenceReasons.push("price history is unavailable");
   const confidenceBadge=$("beginner-confidence");confidenceBadge.className="confidence-badge confidence-"+confidence;
-  confidenceBadge.textContent="Data confidence: "+confidence[0].toUpperCase()+confidence.slice(1)+" ("+coreCount+"/5 core inputs)";
+  confidenceBadge.textContent="Data confidence: "+confidence[0].toUpperCase()+confidence.slice(1)+" ("+coreCount+"/5 inputs"+(confidenceReasons.length?"; "+confidenceReasons.slice(0,2).join(", "):"")+")";
   const health=annualFundamentalPass&&quarterlyPass?"Strong":(annualDataAvailable&&quarterlyDataAvailable&&(annualFundamentalPass||quarterlyPass)?"OK":annualDataAvailable&&quarterlyDataAvailable?"Weak":"Unknown");
   setText("score-business",health);
   setText("score-business-detail",annualDataAvailable&&quarterlyDataAvailable?"Annual revenue growth "+(annualRevenueGrowth*100).toFixed(1)+"%; latest quarter "+(quarter.revenueYoY===null?"YoY comparison unavailable":(quarter.revenueYoY*100).toFixed(1)+" YoY")+".":"Not enough matched annual and quarterly facts to score business health.");
@@ -1178,8 +1188,8 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const income=annualSeries(observations,"netIncome");
   const fcf=(()=>{const c=annualSeries(observations,"operatingCashFlow"),x=annualSeries(observations,"capex");return c.map(row=>{const cap=x.find(item=>item.end===row.end&&item.start===row.start&&item.unit===row.unit);return cap?{end:row.end,start:row.start,value:row.value-Math.abs(cap.value)}:null;}).filter(Boolean).sort((a,b)=>a.end.localeCompare(b.end));})();
   const latestRevenue=rev[rev.length-1],priorRevenue=rev[rev.length-2];
-  const latestIncome=latestRevenue?income.find(item=>item.end===latestRevenue.end):null;
-  const latestFcf=latestRevenue?fcf.find(item=>item.end===latestRevenue.end):null;
+  const latestIncome=latestRevenue?income.find(item=>item.end===latestRevenue.end&&item.start===latestRevenue.start&&item.unit===latestRevenue.unit):null;
+  const latestFcf=latestRevenue?fcf.find(item=>item.end===latestRevenue.end&&item.start===latestRevenue.start):null;
   const annualDataAvailable=Boolean(
     latestRevenue&&priorRevenue&&priorRevenue.value>0&&
     typeof latestRevenue.value==="number"&&Number.isFinite(latestRevenue.value)&&
