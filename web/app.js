@@ -1696,7 +1696,7 @@ async function analyze(ticker) {
     const errorMessage=error?.message||"Unknown analysis error";
     const reason="Failed during "+analysisPhase+" — "+errorName+": "+errorMessage;
     setText("developer-error",reason);
-    setMessage("Northstar stopped before completing the report. No sample data or guessed prices were substituted. Check Developer diagnostics for the exact failed step, then retry; if the problem persists, the source or analysis step needs attention.","error");
+    setMessage("Northstar stopped during "+analysisPhase+". "+errorName+": "+errorMessage+". No sample data or guessed prices were substituted.","error");
     finishActivity("Analysis stopped safely. Technical detail: "+errorMessage,true);
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } finally { button.disabled=false; button.innerHTML='Analyze stock <span aria-hidden="true">↗</span>'; }
