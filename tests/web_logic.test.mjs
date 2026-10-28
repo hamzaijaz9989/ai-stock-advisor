@@ -453,3 +453,10 @@ test("history API rejects malformed tickers before calling providers", async () 
   assert.equal(called,false);
 });
 
+test("snapshot CSV cell escaping quotes commas and structured rule results", () => {
+  const app=loadAppFunctions();
+  assert.equal(app.csvCell('A "quote", and comma'), '"A ""quote"", and comma"');
+  assert.equal(app.csvCell({label:"Growth",passed:false}), '"{""label"":""Growth"",""passed"":false}"');
+  assert.equal(app.csvCell(null), '""');
+});
+\n
