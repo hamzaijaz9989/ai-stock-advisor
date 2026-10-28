@@ -32,14 +32,15 @@ button:active{transform:translateY(1px)}button:disabled{opacity:.55;cursor:wait}
 .search-row input:focus{border-color:#b7dc38;box-shadow:0 0 0 3px #d6ff3f12}
 .search-row button{background:var(--accent);color:#0b0b09;border:0;border-radius:11px;padding:0 20px;font-size:12px;font-weight:850;white-space:nowrap;min-height:50px}
 .search-row button:hover{background:#e5ff7e}.search-row button span{font-size:15px;margin-left:8px}
-.quick-tickers-wrap{margin-top:16px;min-width:0}
+.quick-tickers-wrap{margin-top:16px;min-width:0;width:100%;overflow:hidden}
 .quick-tickers-label{font-size:9px;letter-spacing:.1em;color:var(--muted-2);font-weight:800;margin:0 0 9px 2px}
-.quick-tickers{display:flex;align-items:center;gap:8px;margin:0 -1px 2px;padding:2px 2px 10px;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;white-space:nowrap;max-width:100%;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:#6d7c3b #171719;-webkit-overflow-scrolling:touch;touch-action:pan-x}
-.quick-tickers button{flex:0 0 auto;min-width:62px;min-height:40px;border:1px solid #29292c;background:#ffffff03;color:#b6b6bd;border-radius:9px;padding:8px 13px;font-size:11px;font-weight:800;letter-spacing:.04em;cursor:pointer}
-.quick-tickers button:hover,.quick-tickers button:focus-visible{border-color:var(--accent);color:var(--accent);background:#d6ff3f08;outline:none}
-.quick-tickers::-webkit-scrollbar{height:5px}
-.quick-tickers::-webkit-scrollbar-track{background:#171719;border-radius:8px}
-.quick-tickers::-webkit-scrollbar-thumb{background:#6d7c3b;border-radius:8px}
+.quick-tickers-wrap .quick-tickers{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;margin:0 -1px 2px;padding:2px 2px 10px;overflow-x:auto!important;overflow-y:hidden!important;flex-wrap:nowrap!important;white-space:nowrap!important;width:100%;max-width:100%;box-sizing:border-box;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:#6d7c3b #171719;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+.quick-tickers-wrap .quick-tickers:before{content:none!important;display:none!important}
+.quick-tickers-wrap .quick-tickers button{display:inline-flex!important;flex:0 0 auto!important;min-width:62px;min-height:40px;white-space:nowrap;align-items:center;justify-content:center;border:1px solid #29292c;background:#ffffff03;color:#b6b6bd;border-radius:9px;padding:8px 13px;font-size:11px;font-weight:800;letter-spacing:.04em;cursor:pointer}
+.quick-tickers-wrap .quick-tickers button:hover,.quick-tickers-wrap .quick-tickers button:focus-visible{border-color:var(--accent);color:var(--accent);background:#d6ff3f08;outline:none}
+.quick-tickers-wrap .quick-tickers::-webkit-scrollbar{height:5px}
+.quick-tickers-wrap .quick-tickers::-webkit-scrollbar-track{background:#171719;border-radius:8px}
+.quick-tickers-wrap .quick-tickers::-webkit-scrollbar-thumb{background:#6d7c3b;border-radius:8px}
 .message{margin:0 0 20px;padding:12px 15px;border:1px solid var(--line);border-radius:var(--radius-sm);background:#0b0b0c;color:var(--muted);font-size:12px}
 .message.error{border-color:#6e3434;color:var(--bad)}.message.success{border-color:#40521b;color:var(--good)}
 .company-panel,.quote-panel{display:flex;justify-content:space-between;align-items:center;gap:22px;padding:24px 26px;margin:14px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
@@ -98,7 +99,7 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
  .topbar{height:64px;padding:0 17px}.topbar-right{gap:10px}.nav-link{display:none}.status{font-size:8px;padding:6px 8px}
  .shell{padding:36px 15px 30px}.hero{margin-bottom:28px}.hero-kicker{font-size:9px;margin-bottom:18px}.hero h1{font-size:clamp(45px,12vw,66px)}.intro{font-size:13px;margin:16px auto 22px;max-width:330px}
  .search-panel{padding:13px;border-radius:15px}.search-row{gap:7px}.search-row input{padding:12px;font-size:15px}.search-row button{padding:0 13px;font-size:11px}
- .quick-tickers{gap:6px}.quick-tickers:before{width:100%;margin-bottom:2px}
+ .quick-tickers-wrap .quick-tickers{gap:6px!important}.quick-tickers-wrap .quick-tickers:before{content:none!important;display:none!important}
  .company-panel,.quote-panel{padding:18px;gap:12px}.company-panel h2,.section-heading h2{font-size:20px}
  .news-section,.ranking-section,.table-section{padding:17px;margin:13px 0;border-radius:15px}
  .section-heading{align-items:flex-start;gap:10px;margin-bottom:15px}.section-heading .count{font-size:8px;padding:5px 7px;max-width:44%}
