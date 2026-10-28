@@ -491,3 +491,28 @@ test("snapshot CSV cell escaping quotes commas and structured rule results", () 
   assert.equal(app.csvCell(null), '""');
 });
 
+
+
+test("research quote eligibility rejects stale, future-dated, daily-only, and invalid quotes", () => {
+  const app=loadAppFunctions();
+  const now=Date.parse("2026-10-28T15:00:00Z");
+  const valid={price:100,quoteTime:new Date(now-60_000).toISOString(),interval:"1m",delayedOrRealtime:"Provider-dependent; real-time not guaranteed"};
+  assert.equal(app.assessResearchQuoteEligibility(valid,now).eligible,true);
+  assert.equal(app.assessResearchQuoteEligibility({...valid,quoteTime:new Date(now+6*60_000).toISOString()},now).reason,
+    "quote timestamp is unexpectedly in the future");
+  assert.equal(app.assessResearchQuoteEligibility({...valid,quoteTime:new Date(now-49*3600_000).toISOString()},now).eligible,false);
+  assert.equal(app.assessResearchQuoteEligibility({...valid,interval:"1d",delayedOrRealtime:"Daily interval; not real-time"},now).reason,
+    "daily-only quote is not eligible for entry readiness");
+  assert.equal(app.assessResearchQuoteEligibility({...valid,price:Infinity},now).reason,
+    "quote price is missing or invalid");
+  assert.equal(app.assessResearchQuoteEligibility({...valid,quoteTime:"not-a-date"},now).eligible,false);
+});
+
+test("research quote eligibility allows only a small five-minute future clock skew", () => {
+  const app=loadAppFunctions();
+  const now=Date.parse("2026-10-28T15:00:00Z");
+  const quote={price:100,quoteTime:new Date(now+4*60_000).toISOString(),interval:"1m",delayedOrRealtime:"Provider-dependent"};
+  assert.equal(app.assessResearchQuoteEligibility(quote,now).eligible,true);
+  quote.quoteTime=new Date(now+6*60_000).toISOString();
+  assert.equal(app.assessResearchQuoteEligibility(quote,now).eligible,false);
+});
