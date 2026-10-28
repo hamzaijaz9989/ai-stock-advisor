@@ -180,7 +180,7 @@ test("decision panel surfaces a qualifying setup as unvalidated and never calls 
   const entry = valuation.base * 0.775;
   const historyRows = Array.from({length:16},(_,i)=>({
     date:"2026-01-"+String(i+1).padStart(2,"0"),
-    close:entry, high:entry+0.1, low:entry-0.1
+    close:entry, high:entry+0.005, low:entry-0.005
   }));
   const future = new Date(Date.now()+60*86400000).toISOString().slice(0,10);
   app.renderDecision({
