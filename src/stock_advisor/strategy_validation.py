@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Mapping
-from datetime import date, datetime, timezone
-from statistics import mean, stdev
+from datetime import UTC, date, datetime
+from statistics import stdev
 from typing import Any
 
 from stock_advisor.backtest import (
@@ -54,12 +54,12 @@ def _timestamp(value: Any, field: str) -> datetime:
     if not isinstance(value, str) or "T" not in value:
         raise ValueError(f"{field} must be a full ISO timestamp with timezone.")
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value)
     except ValueError as exc:
         raise ValueError(f"{field} must be a valid ISO timestamp.") from exc
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError(f"{field} must include an explicit timezone offset.")
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 def _finite(value: Any) -> float | None:
@@ -129,9 +129,9 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
         if values[name] is not None and values[name] <= 0:
             failed.append(f"{name}_quality_gate_failed")
     annual_revenue, prior_revenue = values["annual_revenue"], values["prior_annual_revenue"]
-    if annual_revenue is not None and prior_revenue is not None and prior_revenue > 0:
-        if annual_revenue / prior_revenue - 1 < -0.10:
-            failed.append("annual_revenue_decline_exceeds_10pct")
+    if (annual_revenue is not None and prior_revenue is not None and prior_revenue > 0
+            and annual_revenue / prior_revenue - 1 < -0.10):
+        failed.append("annual_revenue_decline_exceeds_10pct")
     if values["quarter_revenue_yoy"] is not None and values["quarter_revenue_yoy"] < -0.15:
         failed.append("quarterly_revenue_decline_exceeds_15pct")
 
