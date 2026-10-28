@@ -893,7 +893,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next "+(earnings?.provider||"provider-listed")+" date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
     {label:"Recent news",ok:recentHeadlines.length>0&&!flaggedHeadlines.length,detail:recentHeadlines.length?(flaggedHeadlines.length?flaggedHeadlines.length+" recent headline(s) contain risk keywords and need source review":recentHeadlines.length+" timestamped headline(s) from the last 7 days"):"No timestamped headlines in the last 7 days"},
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
-    {label:"Historical validation",ok:false,detail:"Walk-forward and untouched holdout backtests are not complete; this blocks BUY signals"}
+    {label:"Historical validation",ok:false,detail:"Complete walk-forward and untouched holdout validation is not finished; any BUY shown remains provisional and unvalidated."}
   ];
   // Action labels are now active, but BUY is explicitly provisional/unvalidated.
   // This rule is conservative and is not evidence of a profitable strategy.
@@ -909,7 +909,9 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   else if(buySetupPass) state="BUY — PROVISIONAL";
   else state="HOLD";
   $("decision-status").textContent=state+" · RESEARCH ONLY";
-  const bottomLine = state==="BUY — PROVISIONAL"
+  const bottomLine = state==="WAIT" && gapCheck.blocked
+    ? "WAIT — the market quote and simplified DCF disagree by "+gapCheck.ratio.toFixed(2)+"×. Entry and exit levels are withheld until this gap is reviewed."
+    : state==="BUY — PROVISIONAL"
     ? "BUY SETUP (PROVISIONAL) — entry conditions pass, but this strategy is not validated. Treat as a watchlist candidate, not a proven recommendation."
     : state==="SELL REVIEW"
     ? "SELL REVIEW — check the original filing/news and your own position before deciding. This alert is not an instruction to sell."
@@ -923,6 +925,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     ? "Next: open the source filing or headline, confirm whether it materially changes the investment thesis, then review your entry price and risk limit."
     : state==="HOLD"
     ? "Next: hold off on adding solely because of this result. Recheck after the next earnings report, material filing, or meaningful price change."
+    : state==="WAIT" && gapCheck.blocked
+    ? "Next: review matched annual USD cash flows, recent SEC share count and filing date, corporate actions, DCF assumptions, and a broker-verified quote. A wide gap is not proof either value is wrong."
     : "Next: fix the REVIEW items below first. If price, filings, earnings date, or news cannot be verified, keep this ticker on WAIT.";
   $("decision-next-step").textContent=nextStep;
   $("decision-title").textContent=state==="SELL REVIEW"?"SELL REVIEW — CHECK THESIS AND RISK PROMPTLY":

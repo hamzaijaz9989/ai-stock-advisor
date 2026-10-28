@@ -324,7 +324,7 @@ test("buildDcfEstimate refuses mismatched annual revenue and free-cash-flow peri
   const rows=annualFixtures().filter(row=>!(row.key==="revenue"&&row.end==="2023-12-31"));
   const result=app.buildDcfEstimate(rows,{});
   assert.equal(result.available,false);
-  assert.match(result.reason,/periods do not match/i);
+  assert.match(result.reason,/each of the latest three annual free-cash-flow periods must match/i);
 });
 
 
