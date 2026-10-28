@@ -198,6 +198,10 @@ test("decision panel refuses BUY when no whole share fits the planned-risk budge
   assert.ok(title.startsWith("HOLD — NO NEW ENTRY TRIGGER"));
   assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("no clear new-entry setup"));
   assert.ok(elements.getElementById("decision-next-step").textContent.includes("hold off on adding"));
+  const renderedChecks=elements.getElementById("decision-checks").children.map(row=>row.children[1].children[0].textContent);
+  for(const label of ["Growth screen","Profitability screen","Liquidity screen","Cash-flow screen","Event-risk screen"]) {
+    assert.ok(renderedChecks.includes(label), "missing separate financial screen: "+label);
+  }
 });
 
 
@@ -335,7 +339,7 @@ test("screen CSV preserves component evidence, timestamps, exclusions, and escap
     historyPeriod:"2025-10-28 to 2026-10-27",source:"Nasdaq historical API",
     components:[{name:'Revenue "growth"',value:12.5,display:"12.5%",score:15,max:25}]
   }],["BAD: Missing matched-period data"],"2026-10-28T12:00:00.000Z");
-  assert.match(csv,/generated_at_utc,ticker,company,rank,research_score/);
+  assert.match(csv,/"generated_at_utc","ticker","company","rank","research_score"/);
   assert.match(csv,/"Apple, Inc\."/);
   assert.match(csv,/"Revenue ""growth"""/);
   assert.match(csv,/2026-10-28T12:00:00\.000Z/);
@@ -392,5 +396,67 @@ test("quote label without machine-readable timestamp cannot satisfy current-pric
   assert.ok(currentPriceCheck);
   assert.equal(currentPriceCheck.children[0].textContent,"REVIEW");
   assert.ok(currentPriceCheck.children[1].children[1].textContent.includes("missing a usable date/time"));
+});
+
+test("money formatter uses compact whole-unit K/M values and preserves negative signs", () => {
+  const app=loadAppFunctions();
+  assert.equal(app.fmtMoney(729000), "$729K");
+  assert.equal(app.fmtMoney(18740000), "$19M");
+  assert.equal(app.fmtMoney(-670000), "-$670K");
+  assert.equal(app.fmtMoney(-0.15,{compact:false,decimals:2}), "-$0.15");
+  assert.equal(app.fmtMoney(Number.NaN), "Not reported");
+});
+
+test("company name cleanup title-cases uppercase SEC names and removes duplicate terminal periods", () => {
+  const app=loadAppFunctions();
+  assert.equal(app.titleCaseCompanyName("ACME TECHNOLOGIES INC.."), "Acme Technologies Inc.");
+  assert.equal(app.titleCaseCompanyName("MICROSOFT CORP."), "Microsoft Corp.");
+  assert.equal(app.titleCaseCompanyName("NVIDIA CORPORATION"), "Nvidia Corporation");
+  assert.equal(app.titleCaseCompanyName("Apple Inc."), "Apple Inc.");
+});
+
+test("history API falls back to Nasdaq after Yahoo HTTP 429 and returns an explicit quality scan", async () => {
+  const historySource=readFileSync(new URL("../web/functions/api/history.js",import.meta.url),"utf8")
+    .replace("export async function onRequestGet","async function onRequestGet")+"\nglobalThis.__historyHandler=onRequestGet;";
+  const calls=[];
+  const rows=Array.from({length:40},(_,i)=>{
+    const date=new Date(Date.UTC(2026,0,1+i));
+    return {date:(date.getUTCMonth()+1)+"/"+date.getUTCDate()+"/"+date.getUTCFullYear(),
+      close:String(100+i),open:String(99.5+i),high:String(101+i),low:String(99+i),volume:"1000000"};
+  });
+  const context={URL,Response,Date,Math,Number,String,Array,Object,JSON,AbortSignal,
+    fetch:async url=>{
+      calls.push(String(url));
+      if(String(url).includes("finance.yahoo.com")) return {ok:false,status:429,json:async()=>({})};
+      return {ok:true,status:200,json:async()=>({data:{symbol:"TEST",tradesTable:{rows}}})};
+    }};
+  runInNewContext(historySource,context,{filename:"web/functions/api/history.js"});
+  const response=await context.__historyHandler({request:new Request("https://example.test/api/history?ticker=TEST")});
+  const payload=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(payload.source,"Nasdaq historical API");
+  assert.equal(payload.observations,40);
+  assert.equal(payload.dataQuality.status,"NO_RULE_TRIGGERED");
+  assert.equal(calls.filter(url=>url.includes("finance.yahoo.com")).length,2);
+  assert.ok(calls.some(url=>url.includes("api.nasdaq.com")));
+});
+
+test("history API rejects malformed tickers before calling providers", async () => {
+  const historySource=readFileSync(new URL("../web/functions/api/history.js",import.meta.url),"utf8")
+    .replace("export async function onRequestGet","async function onRequestGet")+"\nglobalThis.__historyHandler=onRequestGet;";
+  let called=false;
+  const context={URL,Response,Date,Math,Number,String,Array,Object,JSON,AbortSignal,
+    fetch:async()=>{called=true;throw new Error("Provider must not be called");}};
+  runInNewContext(historySource,context,{filename:"web/functions/api/history.js"});
+  const response=await context.__historyHandler({request:new Request("https://example.test/api/history?ticker=!!!")});
+  assert.equal(response.status,400);
+  assert.equal(called,false);
+});
+
+test("snapshot CSV cell escaping quotes commas and structured rule results", () => {
+  const app=loadAppFunctions();
+  assert.equal(app.csvCell('A "quote", and comma'), '"A ""quote"", and comma"');
+  assert.equal(app.csvCell({label:"Growth",passed:false}), '"{""label"":""Growth"",""passed"":false}"');
+  assert.equal(app.csvCell(null), '""');
 });
 

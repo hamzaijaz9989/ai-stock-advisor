@@ -25,16 +25,34 @@ function newYorkDateOnly(date=new Date()) {
   return values.year+"-"+values.month+"-"+values.day;
 }
 function fmtDate(s) { if(!s) return "Not reported"; const d=new Date(s+"T00:00:00Z"); return Number.isNaN(d.getTime())?s:d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric",timeZone:"UTC"}); }
+function fmtMoney(value, {compact=true, decimals=2}={}) {
+  if(typeof value!=="number" || !Number.isFinite(value)) return "Not reported";
+  const abs=Math.abs(value), sign=value<0?"-":"";
+  if(compact && abs>=1e12) return sign+"$"+(abs/1e12).toFixed(Math.min(decimals,2))+"T";
+  if(compact && abs>=1e9) return sign+"$"+(abs/1e9).toFixed(Math.min(decimals,2))+"B";
+  if(compact && abs>=1e6) return sign+"$"+(abs/1e6).toFixed(0)+"M";
+  if(compact && abs>=1e3) return sign+"$"+(abs/1e3).toFixed(0)+"K";
+  return sign+"$"+abs.toFixed(decimals);
+}
 function fmtValue(value, unit) {
   if(typeof value!=="number" || !Number.isFinite(value)) return "Not reported";
-  if(unit==="USD" || unit==="USD/shares") {
-    const abs=Math.abs(value);
-    if(abs>=1e12)return (value<0?"−":"")+"$"+(abs/1e12).toFixed(2)+"T";
-    if(abs>=1e9)return (value<0?"−":"")+"$"+(abs/1e9).toFixed(2)+"B";
-    if(abs>=1e6)return (value<0?"−":"")+"$"+(abs/1e6).toFixed(2)+"M";
-    return new Intl.NumberFormat(undefined,{style:"currency",currency:"USD",maximumFractionDigits:0}).format(value);
-  }
-  return new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(value)+(unit?" "+unit:"");
+  if(unit==="USD/shares") return fmtMoney(value,{compact:false,decimals:2});
+  if(unit==="USD") return fmtMoney(value);
+  return new Intl.NumberFormat("en-US",{maximumFractionDigits:2}).format(value)+(unit?" "+unit:"");
+}
+function periodDuration(row) {
+  if(!row?.start || !row?.end) return "Duration unavailable";
+  const days=(Date.parse(row.end+"T00:00:00Z")-Date.parse(row.start+"T00:00:00Z"))/86400000+1;
+  const period=days>=329&&days<=399?"FY":days>=250&&days<=290?"9M":days>=160&&days<=200?"6M":days>=70&&days<=110?"3M":"Period";
+  return period+" · "+row.start+"–"+row.end+" · "+(row.form||"Form unavailable");
+}
+function titleCaseCompanyName(name) {
+  const clean=String(name||"Unknown company").replace(/\.+$/,".").replace(/\.\.+/g,".").trim();
+  if(clean!==clean.toUpperCase()) return clean;
+  return clean.toLowerCase().replace(/\b([a-z])/g,c=>c.toUpperCase())
+    .replace(/\b(Inc|Llc|Llp|L P|Ltd|Plc|Corp|Co)\b/g,m=>({"Inc":"Inc.","Llc":"LLC","Llp":"LLP","L P":"LP","Ltd":"Ltd.","Plc":"PLC","Corp":"Corp.","Co":"Co."}[m]||m))
+    .replace(/\b(Usa|Nv|Ag|Sa|Se|N V)\b/g,m=>({"Usa":"USA","Nv":"N.V.","Ag":"AG","Sa":"S.A.","Se":"SE","N V":"N.V."}[m]||m))
+    .replace(/\.\.+/g,".");
 }
 async function getJson(url) {
   if(cache.has(url)) return cache.get(url);
@@ -57,11 +75,12 @@ function companyRows(payload) {
 }
 async function findCompany(ticker) {
   const payload=await getJson(SEC_MAP_URL);
-  const matches=companyRows(payload).filter(row=>String(row.ticker||row.symbol||"").trim().toUpperCase()===ticker);
+  const lookupTicker=(ticker==="BRK.B"||ticker==="BRK-B")?"BRK":ticker;
+  const matches=companyRows(payload).filter(row=>{const symbol=String(row.ticker||row.symbol||"").trim().toUpperCase();return symbol===ticker||((lookupTicker==="BRK")&&["BRK.B","BRK-B"].includes(symbol));});
   const unique=new Map();
   for(const row of matches) {
     const cik=String(row.cik??row.cik_str??"").replace(/\D/g,"");
-    if(cik) unique.set(cik,{cik:cik.padStart(10,"0"),name:String(row.name||row.title||"Unknown company"),ticker,exchange:row.exchange||"Exchange not listed"});
+    if(cik) unique.set(cik,{cik:cik.padStart(10,"0"),name:titleCaseCompanyName(row.name||row.title||"Unknown company"),ticker,exchange:row.exchange||"Exchange not listed"});
   }
   if(!unique.size) throw new Error("No company was found for "+ticker+" in the SEC ticker mapping. Check the symbol.");
   if(unique.size>1) throw new Error("This ticker maps to multiple SEC issuers. Use a less ambiguous symbol.");
@@ -100,7 +119,7 @@ function renderMetrics(observations) {
     const card=document.createElement("article"); card.className="metric-card";
     const label=document.createElement("div"); label.className="metric-label"; label.textContent=metric.label;
     const value=document.createElement("div"); value.className="metric-value"; value.textContent=row?fmtValue(row.value,row.unit):"—";
-    const date=document.createElement("div"); date.className="metric-date"; date.textContent=row?"Filed "+fmtDate(row.filed)+" · Period "+fmtDate(row.end):"No supported observation found";
+    const date=document.createElement("div"); date.className="metric-date"; date.textContent=row?"Filed "+fmtDate(row.filed)+" · "+periodDuration(row):"No supported observation found";
     card.append(label,value,date); $("metrics-grid").append(card);
   }
 }
@@ -248,7 +267,7 @@ function renderTable(observations) {
   if(!rows.length) { body.innerHTML='<tr><td colspan="4" class="empty">No supported financial observations were returned. Open Data connection details below for diagnostics.</td></tr>'; return; }
   for(const row of rows) {
     const tr=document.createElement("tr");
-    const cells=[row.metric+" · "+row.tag,fmtValue(row.value,row.unit),fmtDate(row.end),fmtDate(row.filed)];
+    const cells=[row.metric+" · "+row.tag,fmtValue(row.value,row.unit),periodDuration(row),fmtDate(row.filed)];
     for(const value of cells) { const td=document.createElement("td"); td.textContent=value; tr.append(td); }
     body.append(tr);
   }
@@ -259,7 +278,7 @@ function renderHistory(history) {
   panel.classList.remove("hidden");
   $("history-status").textContent=history.observations+" daily observations";
   $("history-meta").textContent=history.startDate+" to "+history.endDate+" · "+history.source+" · Retrieved "+new Date(history.fetchedAt).toLocaleString();
-  $("history-warning").textContent=history.warning;
+  $("history-warning").textContent=history.warning+" Data-quality scan: "+(history.dataQuality?.status||"NOT AVAILABLE")+". "+(history.dataQuality?.largestDailyMove?"Largest daily move "+history.dataQuality.largestDailyMove.percent+"% on "+history.dataQuality.largestDailyMove.date+". ":"")+(history.dataQuality?.suspectedBadTicks?.length?history.dataQuality.suspectedBadTicks.length+" suspected OHLC outlier(s) require source verification. ":"")+(history.dataQuality?.largeGaps?.length?history.dataQuality.largeGaps.length+" large opening gap(s) flagged. ":"")+"Thresholds: "+(history.dataQuality?.rules||"outlier scan unavailable");
   const cards=[
     {label:"1-year price return",value:(history.totalReturnPercent>=0?"+":"")+history.totalReturnPercent.toFixed(2)+"%",meta:"Close-price return · "+history.startDate+" to "+history.endDate},
     {label:"Annualized volatility",value:history.annualizedVolatilityPercent.toFixed(2)+"%",meta:"Standard deviation of daily close-price returns × √252"},
@@ -736,7 +755,7 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
   $("earnings-results-status").textContent="SEC period ended "+fmtDate(quarter.periodEnd);
   root.append(metricCard("SEC quarterly revenue",typeof quarter.currentRevenue==="number"?fmtValue(quarter.currentRevenue,"USD"):"Unavailable","Reported quarter ended "+fmtDate(quarter.periodEnd)+(quarter.filed?" · filing "+fmtDate(quarter.filed):"")));
   root.append(metricCard("SEC quarterly net income",typeof quarter.currentIncome==="number"?fmtValue(quarter.currentIncome,"USD"):"Unavailable","Company-reported quarterly fact; see SEC filings"));
-  root.append(metricCard("SEC diluted EPS",typeof quarter.currentEps==="number"?fmtUsd(quarter.currentEps):"Unavailable","Diluted EPS fact from SEC companyfacts; may differ from adjusted consensus EPS"));
+  root.append(metricCard("SEC diluted EPS (GAAP tag)",typeof quarter.currentEps==="number"?fmtValue(quarter.currentEps,"USD/shares"):"Unavailable","SEC us-gaap EarningsPerShareDiluted fact; source period and filing shown above"));
   if(!payload||!payload.available) {
     const note=document.createElement("p");note.className="table-note";note.textContent=(payload?.reason||"A public earnings brief is not available for the matched quarter.")+" No third-party estimate has been invented.";
     root.append(note);
@@ -748,6 +767,8 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
   const consensusRevenue=typeof estimates.consensusRevenue==="number"?estimates.consensusRevenue*1e6:null;
   const actualEps=quarter.currentEps;
   const consensusEps=typeof estimates.consensusEps==="number"?estimates.consensusEps:null;
+  const consensusEpsBasis=String(estimates.epsBasis||"").toUpperCase();
+  const epsBasisKnown=["GAAP","NON-GAAP"].includes(consensusEpsBasis);
   const revenueVariance=typeof actualRevenue==="number"&&typeof consensusRevenue==="number"&&consensusRevenue>0
     ?actualRevenue/consensusRevenue-1:null;
   const epsVariance=typeof actualEps==="number"&&typeof consensusEps==="number"&&Math.abs(consensusEps)>0
@@ -766,7 +787,7 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
     "May use an adjusted EPS definition; not guaranteed comparable with SEC GAAP diluted EPS"));
   root.append(metricCard("Diluted EPS vs consensus",
     epsVariance===null?"Not comparable":(epsVariance>=0?"+":"")+(epsVariance*100).toFixed(2)+"%",
-    epsVariance===null?"Actual diluted EPS or third-party estimate unavailable":"Arithmetic comparison only; definitions may differ"));
+    epsVariance===null?"Not compared: estimate basis is unverified or EPS values are unavailable":"SEC actual is labelled GAAP-tag diluted EPS; provider estimate basis is "+consensusEpsBasis));
   const providerActualsAvailable=typeof payload.actualEps==="number"&&Number.isFinite(payload.actualEps)&&
     typeof payload.actualRevenue==="number"&&Number.isFinite(payload.actualRevenue);
   const article=document.createElement("article");article.className="news-item";
@@ -895,44 +916,81 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
     {label:"Historical validation",ok:false,detail:"Complete walk-forward and untouched holdout validation is not finished; any BUY shown remains provisional and unvalidated."}
   ];
-  // Action labels are now active, but BUY is explicitly provisional/unvalidated.
-  // This rule is conservative and is not evidence of a profitable strategy.
-  const sellReview = fundamentalAvoid || flaggedHeadlines.length>0;
+  const latestAssets=latestRevenue?annualSeries(observations,"assets").find(item=>item.end===latestRevenue.end):null;
+  const latestLiabilities=latestRevenue?annualSeries(observations,"liabilities").find(item=>item.end===latestRevenue.end):null;
+  const liquidityAvailable=Boolean(latestAssets&&latestLiabilities&&Number.isFinite(latestAssets.value)&&Number.isFinite(latestLiabilities.value));
+  const liquidityRatio=liquidityAvailable&&latestLiabilities.value>0?latestAssets.value/latestLiabilities.value:null;
+  const growthScreen={label:"Growth screen",ok:annualDataAvailable&&annualRevenueGrowth>=0&&quarterlyDataAvailable&&quarter.revenueYoY>=0,
+    detail:!annualDataAvailable||!quarterlyDataAvailable?"WARN — comparable annual or quarterly revenue is missing.": "Annual revenue growth "+(annualRevenueGrowth*100).toFixed(1)+"% (period ending "+latestRevenue.end+"); latest-quarter revenue YoY "+(quarter.revenueYoY*100).toFixed(1)+"% (period ending "+quarter.periodEnd+"). Rule: both must be >= 0%."};
+  const profitabilityScreen={label:"Profitability screen",ok:annualDataAvailable&&latestIncome.value>0&&latestFcf.value>0&&quarterlyDataAvailable&&quarter.currentIncome>0,
+    detail:!annualDataAvailable||!quarterlyDataAvailable?"WARN — comparable net income or FCF is missing.":"Annual net income "+fmtMoney(latestIncome.value)+" and approximate annual FCF "+fmtMoney(latestFcf.value)+" (period ending "+latestRevenue.end+"); latest-quarter net income "+fmtMoney(quarter.currentIncome)+". Rule: all reported values must be positive."};
+  const liquidityScreen={label:"Liquidity screen",ok:liquidityAvailable&&latestAssets.value>=latestLiabilities.value,
+    detail:!liquidityAvailable?"WARN — matched annual assets/liabilities are unavailable.":"Assets "+fmtMoney(latestAssets.value)+"; liabilities "+fmtMoney(latestLiabilities.value)+" (period ending "+latestRevenue.end+"); assets/liabilities "+(liquidityRatio===null?"not calculable":liquidityRatio.toFixed(2)+"x")+". Rule: assets must be >= liabilities. This is a broad balance-sheet check, not a current ratio."};
+  const cashFlowScreen={label:"Cash-flow screen",ok:annualDataAvailable&&latestFcf.value>0,
+    detail:!annualDataAvailable?"WARN — matched annual operating cash flow and capex are unavailable.":"Approximate FCF = operating cash flow minus absolute capex = "+fmtMoney(latestFcf.value)+" (period ending "+latestFcf.end+"). Rule: positive latest annual FCF; no TTM substitution is claimed."};
+  const eventRiskScreen={label:"Event-risk screen",ok:earningsVerified&&daysToEarnings>3&&flaggedHeadlines.length===0,
+    detail:!earningsVerified?"WARN — next earnings date is not verified.":daysToEarnings<=3?"FAIL — earnings expected within "+Math.max(0,Math.round(daysToEarnings))+" days.":flaggedHeadlines.length?"WARN — "+flaggedHeadlines.length+" recent headline(s) match risk keywords.":"No keyword-triggered risk headline found in recent timestamped coverage; this is not proof that no material event exists."};
+  dataChecks.push(growthScreen,profitabilityScreen,liquidityScreen,cashFlowScreen,eventRiskScreen);
+  // Explicit decision states are shown for every research run. BUY remains locked until
+  // point-in-time walk-forward and untouched holdout validation demonstrate a credible edge.
   const coreEvidencePass = quoteCurrent && valuationDecisionReady && annualFundamentalPass &&
     quarterlyPass && earningsVerified && recentHeadlines.length>0 && flaggedHeadlines.length===0 &&
     atr!==null && Number.isFinite(atr) && rewardRisk!==null && Number.isFinite(rewardRisk);
   const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
     rewardRisk>=2 && invalidation!==null && invalidation>0 && plannedShares>0;
-  let state="HOLD";
-  if(sellReview) state="SELL REVIEW";
-  else if(!coreEvidencePass) state="WAIT";
-  else if(buySetupPass) state="BUY — PROVISIONAL";
+  const historicalValidationPass = false; // Fail closed until a real validation report is reviewed and approved.
+  const insufficientData=!quoteCurrent||!annualDataAvailable||!quarterlyDataAvailable||!earningsVerified||!recentHeadlines.length||atr===null;
+  let state;
+  if (annualDataAvailable && !annualFundamentalPass) state="AVOID";
+  else if (dailySnapshot) state="WAIT";
+  else if (insufficientData) state="INSUFFICIENT DATA";
+  else if (gapCheck.blocked || !valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
+  else if ((quarterlyDataAvailable && !quarterlyPass) || flaggedHeadlines.length) state="SELL REVIEW";
+  else if (fundamentalAvoid) state="AVOID";
+  else if (buySetupPass && !historicalValidationPass) state="WAIT";
+  else if (buySetupPass && historicalValidationPass) state="BUY";
   else state="HOLD";
+  const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":
+    dailySnapshot?"Provider supplied a daily-bar snapshot, not a verified current quote":
+    insufficientData?"One or more required data inputs are missing, stale, or not comparable":
+    gapCheck.blocked?"Quote/model ratio outside 0.40×–2.50×":
+    daysToEarnings!==null&&daysToEarnings<=3?"Earnings event is within 3 calendar days":
+    !valuationDecisionReady?"Valuation decision gate is not satisfied":
+    flaggedHeadlines.length?"Potential material-risk headline requires primary-source review":
+    buySetupPass&&!historicalValidationPass?"Entry checks passed, but strategy validation is not complete":
+    state==="BUY"?"Validated entry criteria passed":"No new entry trigger";
   $("decision-status").textContent=state+" · RESEARCH ONLY";
-  const bottomLine = state==="WAIT" && gapCheck.blocked
-    ? "WAIT — the market quote and simplified DCF disagree by "+gapCheck.ratio.toFixed(2)+"×. Entry and exit levels are withheld until this gap is reviewed."
-    : state==="BUY — PROVISIONAL"
-    ? "BUY SETUP (PROVISIONAL) — entry conditions pass, but this strategy is not validated. Treat as a watchlist candidate, not a proven recommendation."
-    : state==="SELL REVIEW"
-    ? "SELL REVIEW — check the original filing/news and your own position before deciding. This alert is not an instruction to sell."
-    : state==="HOLD"
-    ? "HOLD — no clear new-entry setup and no configured sell-review trigger. Keep monitoring; this is not a guarantee that holding is best."
-    : "WAIT — do not force a trade. Required evidence is missing, stale, conflicting, or the entry/event-risk checks do not pass.";
-  $("decision-bottom-line").textContent=bottomLine;
-  const nextStep = state==="BUY — PROVISIONAL"
-    ? "Next: verify the latest SEC filing, original news, quote timestamp, and your position size. The app has not proven this signal profitable."
-    : state==="SELL REVIEW"
-    ? "Next: open the source filing or headline, confirm whether it materially changes the investment thesis, then review your entry price and risk limit."
-    : state==="HOLD"
-    ? "Next: hold off on adding solely because of this result. Recheck after the next earnings report, material filing, or meaningful price change."
+  const bottomLine = state==="AVOID"
+    ? "AVOID — "+reasonRule+". Review the failed financial evidence and original sources before reconsidering."
+    : state==="INSUFFICIENT DATA"
+    ? "INSUFFICIENT DATA — required evidence is missing, stale, or not comparable. No trade-like conclusion is supported."
     : state==="WAIT" && gapCheck.blocked
-    ? "Next: review matched annual USD cash flows, recent SEC share count and filing date, corporate actions, DCF assumptions, and a broker-verified quote. A wide gap is not proof either value is wrong."
-    : "Next: fix the REVIEW items below first. If price, filings, earnings date, or news cannot be verified, keep this ticker on WAIT.";
+    ? "WAIT — quote/model ratio is "+gapCheck.ratio.toFixed(2)+"×, outside the allowed 0.40×–2.50× band. Valuation levels are withheld."
+    : state==="WAIT" && buySetupPass && !historicalValidationPass
+    ? "WAIT — entry checks passed, but BUY is disabled until walk-forward and untouched holdout validation pass. This is not a validated signal."
+    : state==="WAIT"
+    ? "WAIT — "+reasonRule+". Do not force a trade while this rule remains unresolved."
+    : state==="SELL REVIEW"
+    ? "SELL REVIEW — recent headlines contain potential material-risk terms. Verify the primary sources and your position thesis; this is not an automatic sell order."
+    : state==="BUY"
+    ? "BUY — validated entry criteria passed. Research only; no order will be placed."
+    : "HOLD — available evidence does not justify a validated entry and there is no clear new-entry setup.";
+  $("decision-bottom-line").textContent=bottomLine;
+  const nextStep = state==="AVOID"
+    ? "Next: inspect the specific failed financial screen, the cited SEC period and the original filing."
+    : state==="INSUFFICIENT DATA"
+    ? "Next: refresh the missing quote, filing, earnings, news or OHLC input. Do not substitute estimates for missing facts."
+    : state==="WAIT" && buySetupPass && !historicalValidationPass
+    ? "Next: review a real point-in-time walk-forward and untouched holdout validation report. Until then, treat this as a watch candidate, not a BUY."
+    : state==="WAIT"
+    ? "Next: resolve the named rule above. Where valuation is withheld, verify the quote, shares, cash-flow periods and model assumptions."
+    : state==="SELL REVIEW"
+    ? "Next: open the original news and SEC filing, confirm materiality, and review your own position and thesis before deciding."
+    : state==="BUY"
+    ? "Next: independently review the evidence, sizing and downside risks. This research app does not place orders."
+    : "Next: hold off on adding shares; reassess after new filings, earnings, material news or major price changes.";
   $("decision-next-step").textContent=nextStep;
-  $("decision-title").textContent=state==="SELL REVIEW"?"SELL REVIEW — CHECK THESIS AND RISK PROMPTLY":
-    state==="BUY — PROVISIONAL"?"BUY SETUP — PROVISIONAL, NOT BACKTEST-VALIDATED":
-    state==="HOLD"?"HOLD — NO NEW ENTRY TRIGGER":
-    "WAIT — REQUIRED EVIDENCE OR ENTRY CONDITIONS NOT MET";
+  $("decision-title").textContent=state+" — "+reasonRule.toUpperCase();
   const reasons=[];
   if(!quoteCurrent) reasons.push(dailySnapshot?"The available price is a daily-bar snapshot, not a verified current quote.":"A sufficiently recent timestamped quote is missing.");
   if(!valuation.available) reasons.push(valuation.reason);
@@ -948,9 +1006,10 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(flaggedHeadlines.length) reasons.push("Recent headlines contain potential risk keywords and need checking against original sources.");
   if(valuationDecisionReady&&!priceInEntryRange) reasons.push(quote.price>entryHigh?"The quote is above the illustrative entry watch zone; do not chase.":"The quote is below the illustrative zone; reassess whether this is a value trap or a data/event shock.");
   if(rewardRisk!==null&&rewardRisk<2) reasons.push("The provisional reward-to-risk ratio is below 2:1.");
-  if(state==="BUY — PROVISIONAL") reasons.push("PROVISIONAL BUY SETUP: configured data, event, fundamentals, entry-zone, and minimum 2:1 reward/risk checks passed. Historical validation is incomplete, so this is not a proven strategy, a reliable probability estimate, or a guarantee.");
-  else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because a fundamental quality check failed or a recent headline contains a potential material-risk keyword. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
-  else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a provisional entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
+  if(state==="BUY") reasons.push("BUY criteria passed and historical validation is approved. This is research only; no order is placed.");
+  else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because recent headlines contain potential material-risk keywords. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
+  else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a validated entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
+  else if(state==="WAIT" && buySetupPass) reasons.push("The configured quote, valuation, fundamental, event, price-zone, and reward/risk checks passed, but BUY remains blocked until point-in-time walk-forward and untouched holdout validation are completed and reviewed.");
   else reasons.push("WAIT means one or more required data-quality, event-risk, fundamental, valuation, or price-entry checks did not pass. Do not force a trade from incomplete evidence.");
   $("decision-explanation").textContent=reasons.join(" ");
   if(valuationDecisionReady) {
@@ -1048,6 +1107,23 @@ function renderResearchLog() {
     root.append(card);
   }
 }
+function csvCell(value) {
+  const text= value===null||value===undefined ? "" : typeof value==="object" ? JSON.stringify(value) : String(value);
+  return '"' + text.replace(/"/g,'""') + '"';
+}
+function exportResearchCsv() {
+  const records=readResearchLog();
+  if(!records.length) { setMessage("No saved snapshots to export yet.", "error"); return; }
+  const columns=["savedAt","id","ticker","company","decision","reasonRule","quote","quoteTime","source","valuationBase","valuationReady","valuationGapBlocked","valuationGapRatio","entryLow","entryHigh","invalidation","rewardRisk","explanation","checks","disclaimer"];
+  const lines=[columns.map(csvCell).join(",")];
+  for(const record of records) lines.push(columns.map(key=>csvCell(record[key])).join(","));
+  const blob=new Blob(["\\uFEFF"+lines.join("\\r\\n")],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=url; link.download="northstar-research-snapshots.csv"; link.hidden=true;
+  document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+  setMessage("Exported "+records.length+" browser-local research snapshot(s) to CSV. This export does not include server-side records.", "success");
+}
 function saveResearchSnapshot() {
   if (!latestResearchSnapshot) {
     setMessage("Analyze a company first, then save its research snapshot.", "error");
@@ -1113,7 +1189,7 @@ function renderFilings(submissions, company) {
     const cik = String(company.cik).replace(/^0+/, "");
     const accessionPath = accession.replace(/-/g, "");
     const href = "https://www.sec.gov/Archives/edgar/data/" + cik + "/" + accessionPath + "/" + document;
-    entries.push({form, filed, href, description: recent.primaryDocDescription?.[i] || document, reportDate: recent.reportDate?.[i] || ""});
+    entries.push({form, filed, href, items:recent.items?.[i]||"", description: recent.primaryDocDescription?.[i] || document, reportDate: recent.reportDate?.[i] || ""});
   }
   $("filings-status").textContent = entries.length ? entries.length + " filings" : "No recent matches";
   if (!entries.length) {
@@ -1127,7 +1203,8 @@ function renderFilings(submissions, company) {
     link.href = entry.href;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = entry.form + " · " + entry.description;
+    const description=String(entry.description||"").trim();
+    link.textContent = description.toUpperCase().startsWith(entry.form) ? description : entry.form+" · "+description;
     const meta = document.createElement("p");
     meta.className = "muted";
     meta.textContent = "Filed " + fmtDate(entry.filed) + (entry.reportDate ? " · Reporting period " + fmtDate(entry.reportDate) : "") + " · SEC EDGAR";
@@ -1192,7 +1269,7 @@ async function loadEarnings(ticker) {
   }
 }
 async function analyze(ticker) {
-  ticker=ticker.trim().toUpperCase();
+  ticker=String(ticker||"").trim().toUpperCase().replace(/\s+/g,"");
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
   const button=$("analyze-button"); button.disabled=true; button.textContent="Loading analysis…";
   $("last-request").textContent=new Date().toLocaleString();
@@ -1204,9 +1281,15 @@ async function analyze(ticker) {
     const company=await findCompany(ticker);
     const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
     const submissions=await getJson(SEC_DATA_URL+"/submissions/CIK"+company.cik+".json").catch(()=>null);
+    const recentForms=submissions?.filings?.recent?.form||[];
+    const supportedIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K","20-F","6-K","40-F"].includes(form));
+    const usDomesticIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K"].includes(form));
+    if(usDomesticIndex<0&&recentForms.some(form=>["20-F","6-K"].includes(form))) throw new Error("UNSUPPORTED FOREIGN FILER: this version supports domestic SEC 10-K/10-Q/8-K workflows only. TSM and other foreign-filer reporting formats are not scored.");
     const observations=getObservations(facts);
-    $("company-name").textContent=company.name;
-    $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(submissions?.filings?.recent?.filingDate?.[0]?" · Most recent filing "+fmtDate(submissions.filings.recent.filingDate[0]):"");
+    $("company-name").textContent=titleCaseCompanyName(company.name);
+    const recentDate=supportedIndex>=0?submissions.filings.recent.filingDate?.[supportedIndex]:null;
+    const recentForm=supportedIndex>=0?recentForms[supportedIndex]:null;
+    $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(recentDate?" · Most recent supported filing "+recentForm+" · "+fmtDate(recentDate):"");
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderFundamentalSnapshot(observations); renderTable(observations);
     const quarter=renderQuarterlySnapshot(observations);
@@ -1232,6 +1315,7 @@ document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListen
 $("run-screen").addEventListener("click",runScreen);
 $("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
 $("save-research-snapshot").addEventListener("click",saveResearchSnapshot);
+$("export-research-csv").addEventListener("click",exportResearchCsv);
 function reviewHolding() {
   const output=$("holding-result"); output.className="holding-result"; output.innerHTML="";
   const shares=Number($("holding-shares").value), cost=Number($("holding-cost").value), ctx=latestDecisionContext;
@@ -1247,10 +1331,10 @@ function reviewHolding() {
     show("SELL REVIEW — INVESTIGATE PROMPTLY",why+" "+stats+" This is a review flag, not an automatic sell order. Confirm the filing/news, your tax situation and whether the original thesis is broken before acting.","review");return;
   }
   if(!ctx.annualFundamentalPass||!ctx.quarterlyPass||!ctx.eventVerified||!ctx.hasRecentNews||!ctx.valuationAvailable){
-    show("HOLD / WAIT FOR BETTER EVIDENCE","No sell trigger was confirmed, but important evidence is incomplete or the valuation is not decision-ready. "+(ctx.valuationGapBlocked?"The quote/model gap needs review before using valuation levels. ":"")+stats+" Re-check verified filings, quote and news; do not add shares solely because this review says HOLD.");return;
+    show("HOLD — EVIDENCE INCOMPLETE","No sell trigger was confirmed, but important evidence is incomplete or the valuation is not decision-ready. "+(ctx.valuationGapBlocked?"The quote/model gap needs review before using valuation levels. ":"")+stats+" Re-check verified filings, quote and news; do not add shares solely because this review says HOLD.");return;
   }
   if(ctx.valuationAvailable&&ctx.valuationBase&&ctx.quotePrice>=ctx.valuationBase){
-    show("HOLD / CONSIDER TRIMMING","The quote is at or above the simplified base-case valuation reference ("+fmtUsd(ctx.valuationBase)+"). Upside may be limited under this model. "+stats+" The valuation is approximate, so verify assumptions before trimming.","hold");return;
+    show("HOLD — VALUATION REVIEW","The quote is at or above the simplified base-case valuation reference ("+fmtUsd(ctx.valuationBase)+"). Upside may be limited under this model. "+stats+" The valuation is approximate, so verify assumptions before trimming.","hold");return;
   }
   show("HOLD — NO RULE-BASED EXIT TRIGGER","The available checks did not identify the configured risk-review trigger. "+stats+" This is not a BUY signal and does not mean losses are unlikely; reassess after new filings, earnings, material news or a major price move.","hold");
 }

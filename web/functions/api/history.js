@@ -1,4 +1,17 @@
 const ALLOWED = /^[A-Z0-9.^=-]{1,12}$/;
+function scanOutliers(rows) {
+  const moves=[]; const gaps=[]; const badTicks=[];
+  for(let i=0;i<rows.length;i++) {
+    const r=rows[i], prior=rows[i-1];
+    if(prior&&prior.close>0&&r.close>0) {
+      const move=r.close/prior.close-1;
+      if(Math.abs(move)>=0.15) moves.push({date:r.date,percent:Number((move*100).toFixed(2)),previousClose:prior.close,close:r.close});
+      if(typeof r.open==="number"&&r.open>0) {const gap=r.open/prior.close-1;if(Math.abs(gap)>=0.10)gaps.push({date:r.date,percent:Number((gap*100).toFixed(2)),previousClose:prior.close,open:r.open});}
+    }
+    if(!(r.high>=r.close&&r.close>=r.low&&r.low>0)|| (r.high/r.low)>1.5) badTicks.push({date:r.date,open:r.open,high:r.high,low:r.low,close:r.close,reason:"OHLC ordering or intraday range needs verification"});
+  }
+  return {largestDailyMove:moves.sort((a,b)=>Math.abs(b.percent)-Math.abs(a.percent))[0]||null,largeDailyMoves:moves.slice(0,10),largeGaps:gaps.slice(0,10),suspectedBadTicks:badTicks.slice(0,10),status:badTicks.length||moves.length||gaps.length?"REVIEW":"NO_RULE_TRIGGERED",rules:"Large close-to-close move >=15%; open gap >=10%; OHLC order invalid or high/low range >50%. These are review flags, not proof of bad data."};
+}
 async function fetchHistory(host, ticker) {
   const endpoint = "https://" + host + "/v8/finance/chart/" + encodeURIComponent(ticker) + "?range=1y&interval=1d&events=div%2Csplits";
   const response = await fetch(endpoint, {headers: {"Accept":"application/json"}});
@@ -46,19 +59,19 @@ async function fetchHistory(host, ticker) {
     annualizedVolatilityPercent:Number(volatility.toFixed(2)),
     maxDrawdownPercent:Number((maxDrawdown*100).toFixed(2)),
     latestClose:last.close, latestAdjustedClose:last.adjustedClose,
-    data:rows,
+    data:rows, dataQuality:scanOutliers(rows),
     warning:"Historical price series may be incomplete or revised by the provider. Adjusted closes are used for return and drawdown calculations; these are historical descriptions, not forecasts."
   };
 }
 export async function onRequestGet({request}) {
   const url=new URL(request.url);
-  const ticker=(url.searchParams.get("ticker")||"").trim().toUpperCase();
+  const ticker=(url.searchParams.get("ticker")||"").trim().toUpperCase().replace(/\s+/g,"");
   if(!ALLOWED.test(ticker)) return Response.json({error:"Enter a valid ticker."},{status:400});
   const failures=[];
   for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]) {
     try {
       const result=await fetchHistory(host,ticker);
-      return Response.json(result,{headers:{"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"}});
+      return Response.json(result,{headers:{"Cache-Control":"public, max-age=86400, s-maxage=86400","X-Content-Type-Options":"nosniff"}});
     } catch(error) { failures.push(String(error?.message||error)); }
   }
   try {
@@ -83,7 +96,7 @@ export async function onRequestGet({request}) {
     let peak=rows[0].close,maxDrawdown=0;
     for(const row of rows){peak=Math.max(peak,row.close);maxDrawdown=Math.min(maxDrawdown,row.close/peak-1);}
     const totalReturn=(rows[rows.length-1].close/rows[0].close-1)*100;
-    return Response.json({ticker,companyName:payload?.data?.symbol||ticker,source:"Nasdaq historical API",interval:"daily",fetchedAt:new Date().toISOString(),currency:"USD",startDate:rows[0].date,endDate:rows[rows.length-1].date,observations:rows.length,totalReturnPercent:Number(totalReturn.toFixed(2)),annualizedVolatilityPercent:Number((Math.sqrt(variance)*Math.sqrt(252)*100).toFixed(2)),maxDrawdownPercent:Number((maxDrawdown*100).toFixed(2)),latestClose:rows[rows.length-1].close,latestAdjustedClose:rows[rows.length-1].close,data:rows,warning:"Nasdaq fallback provides unadjusted close prices. Return and risk metrics exclude dividends and may not reflect total shareholder return. Historical data is not a forecast."},{headers:{"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"}});
+    return Response.json({dataQuality:scanOutliers(rows),ticker,companyName:payload?.data?.symbol||ticker,source:"Nasdaq historical API",interval:"daily",fetchedAt:new Date().toISOString(),currency:"USD",startDate:rows[0].date,endDate:rows[rows.length-1].date,observations:rows.length,totalReturnPercent:Number(totalReturn.toFixed(2)),annualizedVolatilityPercent:Number((Math.sqrt(variance)*Math.sqrt(252)*100).toFixed(2)),maxDrawdownPercent:Number((maxDrawdown*100).toFixed(2)),latestClose:rows[rows.length-1].close,latestAdjustedClose:rows[rows.length-1].close,data:rows,warning:"Nasdaq fallback provides unadjusted close prices. Return and risk metrics exclude dividends and may not reflect total shareholder return. Historical data is not a forecast."},{headers:{"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"}});
   } catch(error) { failures.push(String(error?.message||error)); }
   return Response.json({ticker,error:"Historical prices are unavailable. No sample or estimated prices have been substituted.",providerErrors:failures,fetchedAt:new Date().toISOString()},{status:503,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }
