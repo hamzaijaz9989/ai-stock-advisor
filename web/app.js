@@ -1673,7 +1673,7 @@ async function analyze(ticker) {
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker),
       fetch("/api/history?ticker=SPY",{headers:{"Accept":"application/json"}}).then(async response=>{if(!response.ok)throw new Error("S&P 500 benchmark unavailable");return response.json();}).catch(()=>null),
     ]);
-    void loadStrategyBacktest(ticker);
+    loadStrategyBacktest(ticker).catch(error=>{const status=$("strategy-backtest-status");const details=$("strategy-backtest-details");if(status)status.textContent="Unavailable";if(details)details.textContent=(error?.message||"Historical backtest unavailable")+". The main research report is unaffected.";});
     setActivityStage(2,"Price, news and earnings responses received. Reviewing event risk…");
     const reportedQuarter=quarter?.fiscalQuarterId||null;
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
