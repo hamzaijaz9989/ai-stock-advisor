@@ -947,7 +947,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   else if (gapCheck.blocked || !valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
   else if ((quarterlyDataAvailable && !quarterlyPass) || flaggedHeadlines.length) state="SELL REVIEW";
   else if (fundamentalAvoid) state="AVOID";
-  else if (buySetupPass && !historicalValidationPass) state="WAIT";
+  else if (buySetupPass && !historicalValidationPass) state="BUY SETUP — UNVALIDATED";
   else if (buySetupPass && historicalValidationPass) state="BUY";
   else state="HOLD";
   const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":
@@ -966,8 +966,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     ? "INSUFFICIENT DATA — required evidence is missing, stale, or not comparable. No trade-like conclusion is supported."
     : state==="WAIT" && gapCheck.blocked
     ? "WAIT — quote/model ratio is "+gapCheck.ratio.toFixed(2)+"×, outside the allowed 0.40×–2.50× band. Valuation levels are withheld."
-    : state==="WAIT" && buySetupPass && !historicalValidationPass
-    ? "WAIT — entry checks passed, but BUY is disabled until walk-forward and untouched holdout validation pass. This is not a validated signal."
+    : state==="BUY SETUP — UNVALIDATED"
+    ? "BUY SETUP — UNVALIDATED. All current entry checks passed, but historical strategy validation is not approved. Research only; this is not a validated BUY and no order will be placed."
     : state==="WAIT"
     ? "WAIT — "+reasonRule+". Do not force a trade while this rule remains unresolved."
     : state==="SELL REVIEW"
@@ -980,8 +980,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     ? "Next: inspect the specific failed financial screen, the cited SEC period and the original filing."
     : state==="INSUFFICIENT DATA"
     ? "Next: refresh the missing quote, filing, earnings, news or OHLC input. Do not substitute estimates for missing facts."
-    : state==="WAIT" && buySetupPass && !historicalValidationPass
-    ? "Next: review a real point-in-time walk-forward and untouched holdout validation report. Until then, treat this as a watch candidate, not a BUY."
+    : state==="BUY SETUP — UNVALIDATED"
+    ? "Next: review the reproducible point-in-time walk-forward and untouched-holdout report. Keep the validated BUY gate closed until it passes."
     : state==="WAIT"
     ? "Next: resolve the named rule above. Where valuation is withheld, verify the quote, shares, cash-flow periods and model assumptions."
     : state==="SELL REVIEW"
@@ -1009,7 +1009,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(state==="BUY") reasons.push("BUY criteria passed and historical validation is approved. This is research only; no order is placed.");
   else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because recent headlines contain potential material-risk keywords. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
   else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a validated entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
-  else if(state==="WAIT" && buySetupPass) reasons.push("The configured quote, valuation, fundamental, event, price-zone, and reward/risk checks passed, but BUY remains blocked until point-in-time walk-forward and untouched holdout validation are completed and reviewed.");
+  else if(state==="BUY SETUP — UNVALIDATED") reasons.push("The configured quote, valuation, fundamental, event, price-zone, reward/risk, and share-sizing checks passed. The historical strategy validation gate remains closed; this is not a validated BUY.");
   else reasons.push("WAIT means one or more required data-quality, event-risk, fundamental, valuation, or price-entry checks did not pass. Do not force a trade from incomplete evidence.");
   $("decision-explanation").textContent=reasons.join(" ");
   if(valuationDecisionReady) {

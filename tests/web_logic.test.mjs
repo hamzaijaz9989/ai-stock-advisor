@@ -171,6 +171,37 @@ test("quarterly snapshot returns latest-quarter revenue growth and net income", 
   assert.equal(quarter.periodEnd, "2026-06-30");
 });
 
+test("decision panel surfaces a qualifying setup as unvalidated and never calls it validated BUY", () => {
+  const app = loadAppFunctions();
+  const observations = [...annualFixtures(), ...quarterlyFixtures()];
+  const testFacts = shareFacts(90e9);
+  const valuation = app.buildDcfEstimate(observations, testFacts);
+  assert.equal(valuation.available, true);
+  const entry = valuation.base * 0.775;
+  const historyRows = Array.from({length:16},(_,i)=>({
+    date:"2026-01-"+String(i+1).padStart(2,"0"),
+    close:entry, high:entry+0.005, low:entry-0.005
+  }));
+  const future = new Date(Date.now()+60*86400000).toISOString().slice(0,10);
+  app.renderDecision({
+    ticker:"TEST",
+    observations,
+    facts:testFacts,
+    quote:{price:entry,quoteTime:new Date().toISOString(),source:"test"},
+    history:{data:historyRows},
+    news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
+    earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
+    quarter:app.renderQuarterlySnapshot(observations)
+  });
+  const title=app.document.getElementById("decision-title").textContent;
+  const status=app.document.getElementById("decision-status").textContent;
+  const bottomLine=app.document.getElementById("decision-bottom-line").textContent;
+  assert.ok(title.startsWith("BUY SETUP — UNVALIDATED"), title);
+  assert.ok(status.startsWith("BUY SETUP — UNVALIDATED"), status);
+  assert.match(bottomLine,/historical strategy validation is not approved/i);
+  assert.doesNotMatch(bottomLine,/BUY — validated entry criteria passed/i);
+});
+
 test("decision panel refuses BUY when no whole share fits the planned-risk budget", () => {
   const app = loadAppFunctions();
   const observations = [...annualFixtures(), ...quarterlyFixtures()];
