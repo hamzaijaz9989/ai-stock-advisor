@@ -1,0 +1,43 @@
+name: Refresh cached top-stock shortlist
+
+on:
+  schedule:
+    - cron: "7 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-stock-shortlist
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install browser
+        run: |
+          npm init -y
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Scan the live 60-stock universe and save top five
+        run: node .github/scripts/refresh-stock-cache.mjs
+      - name: Commit updated shortlist only when changed
+        run: |
+          if git diff --quiet -- web/data/top-stocks-cache.json; then
+            echo "Cache unchanged; no commit needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/data/top-stocks-cache.json
+          git commit -m "Refresh cached top-stock shortlist"
+          git push
