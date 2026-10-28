@@ -150,7 +150,7 @@ test("quarterly snapshot returns latest-quarter revenue growth and net income", 
   assert.equal(quarter.periodEnd, "2026-06-30");
 });
 
-test("decision panel never issues BUY even when every preliminary check passes", () => {
+test("decision panel clearly labels a passing setup as provisional BUY, not validated", () => {
   const app = loadAppFunctions();
   const observations = [...annualFixtures(), ...quarterlyFixtures()];
   const valuation = app.buildDcfEstimate(observations, shareFacts());
@@ -174,8 +174,9 @@ test("decision panel never issues BUY even when every preliminary check passes",
     quarter:app.renderQuarterlySnapshot(observations)
   });
   const title=elements.getElementById("decision-title").textContent;
-  assert.ok(title.startsWith("WAIT") || title.startsWith("INSUFFICIENT EVIDENCE"));
-  assert.ok(!title.startsWith("BUY"));
+  assert.ok(title.startsWith("BUY SETUP — PROVISIONAL"));
+  assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("not validated"));
+  assert.ok(elements.getElementById("decision-next-step").textContent.includes("not proven"));
 });
 
 
