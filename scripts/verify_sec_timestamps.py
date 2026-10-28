@@ -31,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = verified["timestamp_verification"]
     print(
         f"Attempted {summary['attempted']} filings; verified {summary['verified']}; "
-        f"blocked {summary['blocked']}; facts timestamped {summary['facts_timestamped']}."
+        f"blocked {summary['blocked']}; facts with verified acceptance timestamps {summary['facts_acceptance_verified']}."
     )
     print("decision_eligible remains false; a bounded sample is not a complete strategy dataset.")
     return 0
