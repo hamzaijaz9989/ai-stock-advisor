@@ -384,3 +384,40 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 @keyframes northstar-spin { to { transform:rotate(360deg); } }
 @keyframes northstar-progress { 0% { transform:translateX(-120%); } 100% { transform:translateX(450%); } }
 @media (prefers-reduced-motion:reduce) { .activity-spinner,.activity-progress.is-indeterminate .activity-track span { animation:none; } }
+
+
+/* Keep experimental stock suggestions out of the main workflow until validated. */
+.stock-suggestions-cta { display: none !important; }
+.ranking-disclosure {
+  margin: 18px 0 24px;
+  border: 1px solid #34353a;
+  border-radius: 16px;
+  background: #0b0b0d;
+  overflow: hidden;
+}
+.ranking-disclosure-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+.ranking-disclosure-summary::-webkit-details-marker { display: none; }
+.ranking-disclosure-summary > span:first-child { display: grid; gap: 5px; }
+.ranking-disclosure-summary strong { font-size: 14px; color: #dedee2; }
+.ranking-disclosure-summary small { color: #92939b; line-height: 1.4; }
+.disclosure-chevron { color: var(--accent, #c6ff54); font-size: 23px; }
+.ranking-disclosure[open] .disclosure-chevron { transform: rotate(45deg); }
+.decision-indicator::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.decision-indicator .meaning-dot { display: none; }
