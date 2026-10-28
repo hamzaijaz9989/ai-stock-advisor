@@ -58,7 +58,7 @@ def _acceptance_by_accession(submissions: Mapping[str, Any]) -> dict[str, str]:
         timestamp = accepted[index]
         if isinstance(accession, str) and isinstance(timestamp, str) and timestamp:
             try:
-                parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                parsed = datetime.fromisoformat(timestamp)
             except ValueError:
                 continue
             if parsed.tzinfo is not None and parsed.utcoffset() is not None:
