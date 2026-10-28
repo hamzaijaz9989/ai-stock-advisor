@@ -209,7 +209,7 @@ function renderFundamentalSnapshot(observations) {
     const numericValue=Number.parseFloat(String(item.value).replace(/[^0-9.+-]/g,""));
     const status=Number.isFinite(numericValue)?(numericValue>0?"good":numericValue<0?"bad":"caution"):"unknown";
     const dot=document.createElement("span"); dot.className="meaning-dot "+status;
-    dot.setAttribute("role","img"); dot.setAttribute("aria-label",status==="good"?"Positive indicator":status==="bad"?"Negative indicator":status==="caution"?"Needs attention":"Status unclear");
+    dot.title=status==="good"?"Positive indicator":status==="bad"?"Negative indicator":status==="caution"?"Needs attention":"Status unclear";
     label.append(dot,labelText);
     const value=document.createElement("div"); value.className="metric-value"; value.textContent=item.value;
     const meta=document.createElement("div"); meta.className="metric-date"; meta.textContent=item.meta;
@@ -221,10 +221,8 @@ function addMeaningIndicator(card,status,label) {
   const heading=card.querySelector(".metric-label")||card.querySelector("strong");
   if(!heading)return;
   const dot=document.createElement("span");dot.className="meaning-dot "+status;
-  dot.setAttribute("role","img");
-  dot.setAttribute("aria-label",status==="good"?"Positive indicator":status==="bad"?"Negative indicator":status==="caution"?"Needs attention":"Status unclear");
   dot.title=label;
-  heading.prepend(dot);
+  heading.append(dot);
 }
 
 function renderQuarterlySnapshot(observations) {
@@ -1138,7 +1136,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     const status=item.ok?"good":missing?"caution":"bad";
     const indicator=document.createElement("span");indicator.className="decision-indicator "+status;
     indicator.innerHTML='<i class="meaning-dot '+status+'"></i><span>'+(item.ok?"PASS":missing?"CHECK":"RISK")+'</span>';
-    indicator.setAttribute("aria-label",item.ok?"Positive check":missing?"Needs attention":"Risk check failed");
+    indicator.title=item.ok?"Positive check":missing?"Needs attention":"Risk check failed";
     const text=document.createElement("div");const title=document.createElement("strong");title.textContent=item.label;const detail=document.createElement("p");detail.textContent=item.detail;detail.className="muted";
     text.append(title,detail);row.append(indicator,text);checks.append(row);
   }
