@@ -32,7 +32,7 @@ The output always marks `decision_eligible: false`. It must not be fed directly 
 
 ## Bounded SGML-header timestamp verification
 
-Use the verifier to cross-check a bounded sample of filings against each complete-submission text file's official EDGAR header. The SEC documents that the header contains the acceptance date and time; the script checks accession and filing-date consistency and converts the acceptance time from America/New_York to UTC. This is an acceptance timestamp, **not** proof of the exact time the filing became publicly retrievable on sec.gov.
+Use the verifier to cross-check a bounded sample of filings against the compact SEC filing-index header page. The SEC documents that the header contains the acceptance date and time; the script checks accession and filing-date consistency and converts the acceptance time from America/New_York to UTC. This is an acceptance timestamp, **not** proof of the exact time the filing became publicly retrievable on sec.gov.
 
 ```bash
 python scripts/verify_sec_timestamps.py --input sec-source-bundle.json --output sec-verified-sample.json --max-filings-per-company 100 --delay 0.12
