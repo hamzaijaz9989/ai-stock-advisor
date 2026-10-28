@@ -394,3 +394,20 @@ test("quote label without machine-readable timestamp cannot satisfy current-pric
   assert.ok(currentPriceCheck.children[1].children[1].textContent.includes("missing a usable date/time"));
 });
 
+test("money formatter uses compact whole-unit K/M values and preserves negative signs", () => {
+  const app=loadAppFunctions();
+  assert.equal(app.fmtMoney(729000), "$729K");
+  assert.equal(app.fmtMoney(18740000), "$19M");
+  assert.equal(app.fmtMoney(-670000), "-$670K");
+  assert.equal(app.fmtMoney(-0.15,{compact:false,decimals:2}), "-$0.15");
+  assert.equal(app.fmtMoney(Number.NaN), "Not reported");
+});
+
+test("company name cleanup title-cases uppercase SEC names and removes duplicate terminal periods", () => {
+  const app=loadAppFunctions();
+  assert.equal(app.titleCaseCompanyName("ACME TECHNOLOGIES INC.."), "Acme Technologies Inc.");
+  assert.equal(app.titleCaseCompanyName("MICROSOFT CORP."), "Microsoft Corp.");
+  assert.equal(app.titleCaseCompanyName("NVIDIA CORPORATION"), "Nvidia Corporation");
+  assert.equal(app.titleCaseCompanyName("Apple Inc."), "Apple Inc.");
+});
+
