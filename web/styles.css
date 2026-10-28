@@ -421,3 +421,71 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
   background: currentColor;
 }
 .decision-indicator .meaning-dot { display: none; }
+
+
+/* Beginner-first stock answer: compact, plain English, and mobile-first. */
+.beginner-overview { display:grid; gap:14px; margin:12px 0 24px; }
+.answer-card,.beginner-score,.beginner-subpanel {
+  border:1.5px solid #515158; border-radius:18px; background:#0c0c0e; padding:clamp(15px,3vw,22px);
+}
+.answer-card { border-width:2px; border-color:#65666d; background:linear-gradient(145deg,#111113,#09090a); }
+.answer-topline,.answer-price-row,.beginner-subhead { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.answer-card h2 { margin:12px 0 6px; font-size:clamp(23px,5vw,32px); letter-spacing:-.035em; }
+.answer-description { margin:0 0 18px; color:#c3c4cb; line-height:1.55; }
+.answer-price-row { justify-content:flex-start; flex-wrap:wrap; margin-top:8px; }
+.answer-price-row strong { font-size:clamp(26px,5vw,36px); letter-spacing:-.035em; }
+.market-state,.confidence-badge { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border:1px solid #38393f; border-radius:999px; color:#c4c5cb; font-size:11px; font-weight:700; }
+.market-state::before { content:""; width:7px; height:7px; border-radius:50%; background:#9699a3; }
+.market-state.market-open::before { background:#62dc8b; }
+.market-state.market-closed::before { background:#f4c15d; }
+.confidence-high { border-color:#286f45; color:#a6efbb; }
+.confidence-medium { border-color:#78602b; color:#f4d28c; }
+.confidence-low { border-color:#55565d; color:#c4c5cb; }
+.beginner-verdict { display:flex; align-items:flex-start; gap:12px; margin-top:18px; padding:16px; border:1px solid #35363c; border-radius:14px; background:#080809; }
+.beginner-verdict .meaning-dot { margin-top:7px; }
+.beginner-verdict strong { display:block; font-size:clamp(18px,4vw,23px); }
+.beginner-verdict p { margin:6px 0 0; color:#c3c4cb; line-height:1.55; }
+.verdict-good { border-color:#286f45; }
+.verdict-bad { border-color:#79383d; }
+.verdict-caution { border-color:#79622d; }
+.beginner-scorecards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.beginner-score { padding:15px; }
+.beginner-score .eyebrow { font-size:10px; margin:0 0 12px; }
+.beginner-score strong { display:block; font-size:clamp(17px,3vw,23px); letter-spacing:-.025em; }
+.beginner-score p:last-child { margin:8px 0 0; color:#b4b5bd; font-size:12px; line-height:1.5; }
+.beginner-subpanel h3 { margin:0; font-size:17px; }
+.beginner-subpanel > p { line-height:1.6; margin:12px 0 0; color:#d0d0d5; }
+.beginner-subpanel .muted { color:#a2a3ac; }
+.beginner-key-numbers { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:14px; }
+.beginner-number-tile { min-width:0; padding:14px; border:1px solid #303137; border-radius:13px; background:#09090b; }
+.beginner-number-tile h4 { margin:0; font-size:12px; color:#bfc0c8; font-weight:650; }
+.beginner-number-tile strong { display:block; margin:9px 0 6px; font-size:clamp(16px,3vw,21px); overflow-wrap:anywhere; }
+.beginner-number-tile p { color:#9fa0a9; font-size:11px; line-height:1.5; margin:0 0 9px; }
+.beginner-number-tile details summary { cursor:pointer; font-size:11px; color:#c6ff54; }
+.beginner-number-tile details p { margin-top:8px; }
+.beginner-lists { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.beginner-list { display:grid; gap:10px; margin-top:12px; }
+.beginner-list-item { padding:11px 12px; border:1px solid #2f3035; border-radius:12px; background:#09090b; }
+.beginner-list-item strong,.beginner-list-item a { color:#e9e9ed; font-size:13px; line-height:1.5; }
+.beginner-list-item p { color:#a2a3ac; font-size:11px; line-height:1.5; margin:6px 0 0; }
+.beginner-list-item .meaning-dot { margin-right:8px; }
+.beginner-disclaimer { color:#a2a3ac; font-size:11px; line-height:1.6; margin:0; padding:4px 2px; }
+.full-details { border:1px solid #38393f; border-radius:16px; margin:16px 0 24px; overflow:hidden; background:#080809; }
+.full-details > summary { display:flex; justify-content:space-between; align-items:center; gap:14px; list-style:none; cursor:pointer; padding:17px; }
+.full-details > summary::-webkit-details-marker { display:none; }
+.full-details > summary strong,.full-details > summary small { display:block; }
+.full-details > summary strong { font-size:16px; }
+.full-details > summary small { color:#a2a3ac; font-size:12px; margin-top:5px; }
+.full-details[open] > summary { border-bottom:1px solid #33343a; }
+.full-details[open] > summary .disclosure-chevron { transform:rotate(45deg); }
+.full-details-content { padding:12px; }
+@media(max-width:680px) {
+  .beginner-scorecards { grid-template-columns:1fr; }
+  .beginner-score { display:grid; grid-template-columns:1fr auto; align-items:center; gap:6px 12px; }
+  .beginner-score .eyebrow { grid-column:1/-1; margin-bottom:2px; }
+  .beginner-score p:last-child { margin:0; text-align:right; max-width:55%; }
+  .beginner-key-numbers { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .beginner-lists { grid-template-columns:1fr; }
+  .answer-topline { align-items:flex-start; flex-wrap:wrap; }
+  .full-details-content { padding:8px; }
+}
