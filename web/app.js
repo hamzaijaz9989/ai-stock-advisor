@@ -1509,21 +1509,14 @@ function saveResearchSnapshot() {
   }
 }
 function renderQuote(quote) {
-  $("quote-panel").classList.remove("hidden");
-  if (typeof quote.price !== "number") {
-    $("quote-price").textContent = "Price unavailable";
-    $("quote-change").textContent = quote.error || "No reliable quote returned.";
-  } else {
-    $("quote-price").textContent = new Intl.NumberFormat(undefined, {style:"currency",currency:quote.currency||"USD",maximumFractionDigits:2}).format(quote.price);
-    const change = typeof quote.changePercent === "number" ? (quote.changePercent >= 0 ? "+" : "") + quote.changePercent.toFixed(2) + "% vs previous close" : "Change unavailable";
-    $("quote-change").textContent = change + " · " + (quote.marketState || "market state unknown");
+  // Quote details card was removed; the main overview renders the validated price.
+  // Keep this helper safe for quote-loading success and error paths.
+  const price = $("beginner-price");
+  if (price && typeof quote?.price === "number" && quote.price > 0) {
+    price.textContent = new Intl.NumberFormat(undefined, {style:"currency",currency:quote.currency||"USD",maximumFractionDigits:2}).format(quote.price);
   }
-  $("quote-time").textContent = (quote.quoteTime ? "Quote timestamp: " + new Date(quote.quoteTime).toLocaleString() : quote.quoteLabel ? "Provider quote date: " + quote.quoteLabel + " (time not supplied)" : "Provider timestamp unavailable") + " · Retrieved: " + new Date(quote.fetchedAt || Date.now()).toLocaleTimeString();
-  $("quote-source").textContent = (quote.source || "Market data provider") + (quote.warning ? " · " + quote.warning : " · May be delayed");
 }
 async function loadQuote(ticker) {
-  $("quote-panel").classList.remove("hidden");
-  $("quote-price").textContent="Loading…";
   try {
     const response=await fetch("/api/quote?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
     const quote=await response.json();
