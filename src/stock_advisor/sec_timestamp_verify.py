@@ -81,12 +81,12 @@ def _fetch_text(url: str, *, user_agent: str, timeout: float = 30.0) -> str:
         raise SecDataError(f"SEC filing-header request failed for {url}: {exc}") from exc
 
 
-def _submission_url(cik: str, accession: str) -> str:
+def _header_url(cik: str, accession: str) -> str:
     digits = re.sub(r"\D", "", accession)
     cik_digits = re.sub(r"\D", "", cik)
     if len(digits) != 18 or not cik_digits or not accession:
         raise ValueError("Invalid CIK or accession number in SEC bundle.")
-    return f"{SEC_ARCHIVES}/{int(cik_digits)}/{digits}/{accession}.txt"
+    return f"{SEC_ARCHIVES}/{int(cik_digits)}/{digits}/{accession}-index-headers.html"
 
 
 def verify_dataset(
@@ -129,7 +129,7 @@ def verify_dataset(
             accession = str(filing["accession"])
             totals["attempted"] += 1
             try:
-                header = getter(_submission_url(cik, accession))
+                header = getter(_header_url(cik, accession))
                 outcome = parse_sec_header(header, accession, str(filing["filed_date"]))
             except (SecDataError, ValueError) as exc:
                 outcome = {"verified": False, "reason": "source_fetch_or_input_error", "detail": str(exc)}
