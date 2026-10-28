@@ -11,7 +11,7 @@ import json
 import os
 import time
 from collections.abc import Callable, Mapping
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -199,18 +199,14 @@ def collect_company(
         "company_name": match.get("title"),
         "source": "SEC EDGAR",
         "cutoff_filing_date": cutoff.isoformat(),
-        "retrieved_at_utc": datetime.now().astimezone().isoformat(),
-        "filings": _filings_from_submissions(submissions, acceptance, cutoff),
-        "facts": _facts_from_companyfacts(companyfacts, acceptance, cutoff),
+        "retrieved_at_utc": datetime.now(UTC).isoformat(),
+        "filings": filings,
+        "facts": facts,
         "quality": {
             "official_source": True,
             "fact_values_preserved_as_reported": True,
-            "exact_acceptance_timestamp_coverage": (
-                sum(bool(row["availability_timestamp_verified"]) for row in _facts_from_companyfacts(companyfacts, acceptance, cutoff))
-            ),
-            "facts_missing_exact_acceptance_timestamp": (
-                sum(not row["availability_timestamp_verified"] for row in _facts_from_companyfacts(companyfacts, acceptance, cutoff))
-            ),
+            "exact_acceptance_timestamp_coverage": sum(bool(row["availability_timestamp_verified"]) for row in facts),
+            "facts_missing_exact_acceptance_timestamp": sum(not row["availability_timestamp_verified"] for row in facts),
             "historical_index_membership_included": False,
             "prices_included": False,
             "news_and_earnings_calendar_included": False,
@@ -221,7 +217,7 @@ def collect_company(
             "SEC companyfacts may contain multiple contexts and later amendments; select facts by accession and availability timestamp before use.",
             "Facts without exact acceptance timestamps must not be used in timestamp-sensitive historical signals.",
             "The SEC feed does not provide daily prices, historical universe membership, timestamped news, or a complete earnings calendar.",
-            "Only filing history in the SEC submissions response is retained here; archival filing metadata needs a separate completeness reconciliation.",
+            "Filing history is limited to the recent submissions array; older archive files are not ingested by this initial version.",
         ],
     }
 
