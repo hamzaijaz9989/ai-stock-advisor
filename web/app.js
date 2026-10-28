@@ -28,10 +28,10 @@ function fmtDate(s) { if(!s) return "Not reported"; const d=new Date(s+"T00:00:0
 function fmtMoney(value, {compact=true, decimals=2}={}) {
   if(typeof value!=="number" || !Number.isFinite(value)) return "Not reported";
   const abs=Math.abs(value), sign=value<0?"-":"";
-  if(compact && abs>=1e12) return sign+"$"+(abs/1e12).toFixed(decimals)+"T";
-  if(compact && abs>=1e9) return sign+"$"+(abs/1e9).toFixed(decimals)+"B";
-  if(compact && abs>=1e6) return sign+"$"+(abs/1e6).toFixed(decimals)+"M";
-  if(compact && abs>=1e3) return sign+"$"+(abs/1e3).toFixed(decimals)+"K";
+  if(compact && abs>=1e12) return sign+"$"+(abs/1e12).toFixed(Math.min(decimals,2))+"T";
+  if(compact && abs>=1e9) return sign+"$"+(abs/1e9).toFixed(Math.min(decimals,2))+"B";
+  if(compact && abs>=1e6) return sign+"$"+(abs/1e6).toFixed(0)+"M";
+  if(compact && abs>=1e3) return sign+"$"+(abs/1e3).toFixed(0)+"K";
   return sign+"$"+abs.toFixed(decimals);
 }
 function fmtValue(value, unit) {
@@ -47,12 +47,12 @@ function periodDuration(row) {
   return period+" · "+row.start+"–"+row.end+" · "+(row.form||"Form unavailable");
 }
 function titleCaseCompanyName(name) {
-  const clean=String(name||"Unknown company").replace(/\\.+$/,".").replace(/\\.\\.+/g,".").trim();
+  const clean=String(name||"Unknown company").replace(/\.+$/,".").replace(/\.\.+/g,".").trim();
   if(clean!==clean.toUpperCase()) return clean;
-  return clean.toLowerCase().replace(/\\b([a-z])/g,c=>c.toUpperCase())
-    .replace(/\\b(Inc|Llc|Llp|L P|Ltd|Plc|Corp|Co)\\b/g,m=>({"Inc":"Inc.","Llc":"LLC","Llp":"LLP","L P":"LP","Ltd":"Ltd.","Plc":"PLC","Corp":"Corp.","Co":"Co."}[m]||m))
-    .replace(/\\b(Usa|Nv|Ag|Sa|Se|N V)\\b/g,m=>({"Usa":"USA","Nv":"N.V.","Ag":"AG","Sa":"S.A.","Se":"SE","N V":"N.V."}[m]||m))
-    .replace(/\\.\\.+/g,".");
+  return clean.toLowerCase().replace(/\b([a-z])/g,c=>c.toUpperCase())
+    .replace(/\b(Inc|Llc|Llp|L P|Ltd|Plc|Corp|Co)\b/g,m=>({"Inc":"Inc.","Llc":"LLC","Llp":"LLP","L P":"LP","Ltd":"Ltd.","Plc":"PLC","Corp":"Corp.","Co":"Co."}[m]||m))
+    .replace(/\b(Usa|Nv|Ag|Sa|Se|N V)\b/g,m=>({"Usa":"USA","Nv":"N.V.","Ag":"AG","Sa":"S.A.","Se":"SE","N V":"N.V."}[m]||m))
+    .replace(/\.\.+/g,".");
 }
 async function getJson(url) {
   if(cache.has(url)) return cache.get(url);
