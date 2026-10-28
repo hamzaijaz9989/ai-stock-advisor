@@ -59,3 +59,8 @@ The dashboard now activates four decision states:
 - **WAIT:** required data/evidence is missing or the setup is not eligible for a new entry.
 
 These are rule-based research labels, not proven profitable instructions. The BUY state is deliberately marked provisional while robust historical validation and licensed, reliable real-time data remain unresolved.
+
+
+## Quote-to-valuation sanity gate
+
+Before valuation-derived entry zones or fair-value references are displayed, the UI compares the timestamped quote with the simplified base-case per-share estimate. If the ratio is above 2.5× or below 0.4×, valuation outputs are withheld and the user is asked to verify cash-flow units, share count, corporate actions, and assumptions. This coarse guard is not proof that values inside the band are accurate; all DCF values remain simplified and unvalidated.
