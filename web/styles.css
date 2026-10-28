@@ -15,3 +15,5 @@
 #decision-checks .muted{margin:4px 0 0;font-size:12px;line-height:1.5}
 #earnings-content .news-item{margin-bottom:10px}
 @media(max-width:600px){.decision-check{gap:8px;padding:10px}.decision-indicator{font-size:8px}}
+
+#research-log-list{display:grid;gap:10px;margin-top:10px}#research-log-list .news-item{overflow-wrap:anywhere}
