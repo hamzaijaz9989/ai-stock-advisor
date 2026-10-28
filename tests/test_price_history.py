@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from scripts.fetch_research_price_history import PriceDataError, fetch_symbol
+from stock_advisor.research_price_history import PriceDataError, fetch_symbol
 
 
 def chart_payload():
