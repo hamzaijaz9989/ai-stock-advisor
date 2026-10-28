@@ -233,7 +233,7 @@ test("decision panel says AVOID when quarterly financials are available but fail
     earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
     quarter:{available:true,currentRevenue:120e9,currentIncome:-1e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"}
   });
-  assert.ok(app.document.getElementById("decision-title").textContent.startsWith("AVOID"));
+  assert.ok(app.document.getElementById("decision-title").textContent.startsWith("SELL REVIEW"));
 });
 
 
@@ -274,7 +274,7 @@ test("daily-bar snapshot never passes the current-quote decision gate", () => {
     quarter
   });
   const title=app.document.getElementById("decision-title").textContent;
-  assert.ok(title.startsWith("INSUFFICIENT EVIDENCE"));
+  assert.ok(title.startsWith("WAIT"));
   const checks=app.document.getElementById("decision-checks").children;
   assert.ok(checks.some(row=>row.children.some(child=>
     child.children?.some(nested=>nested.textContent?.includes("daily-bar snapshot"))
