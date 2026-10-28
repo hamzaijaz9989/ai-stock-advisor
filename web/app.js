@@ -754,7 +754,7 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
   $("earnings-results-status").textContent="SEC period ended "+fmtDate(quarter.periodEnd);
   root.append(metricCard("SEC quarterly revenue",typeof quarter.currentRevenue==="number"?fmtValue(quarter.currentRevenue,"USD"):"Unavailable","Reported quarter ended "+fmtDate(quarter.periodEnd)+(quarter.filed?" · filing "+fmtDate(quarter.filed):"")));
   root.append(metricCard("SEC quarterly net income",typeof quarter.currentIncome==="number"?fmtValue(quarter.currentIncome,"USD"):"Unavailable","Company-reported quarterly fact; see SEC filings"));
-  root.append(metricCard("SEC diluted EPS",typeof quarter.currentEps==="number"?fmtUsd(quarter.currentEps):"Unavailable","Diluted EPS fact from SEC companyfacts; may differ from adjusted consensus EPS"));
+  root.append(metricCard("SEC diluted EPS (GAAP tag)",typeof quarter.currentEps==="number"?fmtValue(quarter.currentEps,"USD/shares"):"Unavailable","SEC us-gaap EarningsPerShareDiluted fact; source period and filing shown above"));
   if(!payload||!payload.available) {
     const note=document.createElement("p");note.className="table-note";note.textContent=(payload?.reason||"A public earnings brief is not available for the matched quarter.")+" No third-party estimate has been invented.";
     root.append(note);
@@ -765,7 +765,7 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
   const actualRevenue=quarter.currentRevenue;
   const consensusRevenue=typeof estimates.consensusRevenue==="number"?estimates.consensusRevenue*1e6:null;
   const actualEps=quarter.currentEps;
-  const consensusEps=typeof estimates.consensusEps==="number"?estimates.consensusEps:null;
+  const consensusEps=typeof estimates.consensusEps==="number"?estimates.consensusEps:null;\n  const consensusEpsBasis=String(estimates.epsBasis||"").toUpperCase();\n  const epsBasisKnown=["GAAP","NON-GAAP"].includes(consensusEpsBasis);
   const revenueVariance=typeof actualRevenue==="number"&&typeof consensusRevenue==="number"&&consensusRevenue>0
     ?actualRevenue/consensusRevenue-1:null;
   const epsVariance=typeof actualEps==="number"&&typeof consensusEps==="number"&&Math.abs(consensusEps)>0
@@ -784,7 +784,7 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
     "May use an adjusted EPS definition; not guaranteed comparable with SEC GAAP diluted EPS"));
   root.append(metricCard("Diluted EPS vs consensus",
     epsVariance===null?"Not comparable":(epsVariance>=0?"+":"")+(epsVariance*100).toFixed(2)+"%",
-    epsVariance===null?"Actual diluted EPS or third-party estimate unavailable":"Arithmetic comparison only; definitions may differ"));
+    epsVariance===null?"Not compared: estimate basis is unverified or EPS values are unavailable":"SEC actual is labelled GAAP-tag diluted EPS; provider estimate basis is "+consensusEpsBasis));
   const providerActualsAvailable=typeof payload.actualEps==="number"&&Number.isFinite(payload.actualEps)&&
     typeof payload.actualRevenue==="number"&&Number.isFinite(payload.actualRevenue);
   const article=document.createElement("article");article.className="news-item";
@@ -1260,10 +1260,10 @@ function reviewHolding() {
     show("SELL REVIEW — INVESTIGATE PROMPTLY",why+" "+stats+" This is a review flag, not an automatic sell order. Confirm the filing/news, your tax situation and whether the original thesis is broken before acting.","review");return;
   }
   if(!ctx.annualFundamentalPass||!ctx.quarterlyPass||!ctx.eventVerified||!ctx.hasRecentNews||!ctx.valuationAvailable){
-    show("HOLD / WAIT FOR BETTER EVIDENCE","No sell trigger was confirmed, but important evidence is incomplete or the valuation is not decision-ready. "+(ctx.valuationGapBlocked?"The quote/model gap needs review before using valuation levels. ":"")+stats+" Re-check verified filings, quote and news; do not add shares solely because this review says HOLD.");return;
+    show("HOLD — EVIDENCE INCOMPLETE","No sell trigger was confirmed, but important evidence is incomplete or the valuation is not decision-ready. "+(ctx.valuationGapBlocked?"The quote/model gap needs review before using valuation levels. ":"")+stats+" Re-check verified filings, quote and news; do not add shares solely because this review says HOLD.");return;
   }
   if(ctx.valuationAvailable&&ctx.valuationBase&&ctx.quotePrice>=ctx.valuationBase){
-    show("HOLD / CONSIDER TRIMMING","The quote is at or above the simplified base-case valuation reference ("+fmtUsd(ctx.valuationBase)+"). Upside may be limited under this model. "+stats+" The valuation is approximate, so verify assumptions before trimming.","hold");return;
+    show("HOLD — VALUATION REVIEW","The quote is at or above the simplified base-case valuation reference ("+fmtUsd(ctx.valuationBase)+"). Upside may be limited under this model. "+stats+" The valuation is approximate, so verify assumptions before trimming.","hold");return;
   }
   show("HOLD — NO RULE-BASED EXIT TRIGGER","The available checks did not identify the configured risk-review trigger. "+stats+" This is not a BUY signal and does not mean losses are unlikely; reassess after new filings, earnings, material news or a major price move.","hold");
 }
