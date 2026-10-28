@@ -32,9 +32,14 @@ button:active{transform:translateY(1px)}button:disabled{opacity:.55;cursor:wait}
 .search-row input:focus{border-color:#b7dc38;box-shadow:0 0 0 3px #d6ff3f12}
 .search-row button{background:var(--accent);color:#0b0b09;border:0;border-radius:11px;padding:0 20px;font-size:12px;font-weight:850;white-space:nowrap;min-height:50px}
 .search-row button:hover{background:#e5ff7e}.search-row button span{font-size:15px;margin-left:8px}
-.quick-tickers{display:flex;align-items:center;gap:7px;margin-top:13px;flex-wrap:wrap}.quick-tickers:before{content:"QUICK ACCESS";font-size:9px;letter-spacing:.1em;color:var(--muted-2);font-weight:800;margin:0 5px 0 2px}
-.quick-tickers button{border:1px solid #29292c;background:#ffffff03;color:#b6b6bd;border-radius:7px;padding:5px 10px;font-size:10px;font-weight:700;letter-spacing:.05em}
-.quick-tickers button:hover{border-color:var(--accent);color:var(--accent);background:#d6ff3f08}
+.quick-tickers-wrap{margin-top:16px;min-width:0}
+.quick-tickers-label{font-size:9px;letter-spacing:.1em;color:var(--muted-2);font-weight:800;margin:0 0 9px 2px}
+.quick-tickers{display:flex;align-items:center;gap:8px;margin:0 -1px 2px;padding:2px 2px 10px;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;white-space:nowrap;max-width:100%;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:#6d7c3b #171719;-webkit-overflow-scrolling:touch;touch-action:pan-x}
+.quick-tickers button{flex:0 0 auto;min-width:62px;min-height:40px;border:1px solid #29292c;background:#ffffff03;color:#b6b6bd;border-radius:9px;padding:8px 13px;font-size:11px;font-weight:800;letter-spacing:.04em;cursor:pointer}
+.quick-tickers button:hover,.quick-tickers button:focus-visible{border-color:var(--accent);color:var(--accent);background:#d6ff3f08;outline:none}
+.quick-tickers::-webkit-scrollbar{height:5px}
+.quick-tickers::-webkit-scrollbar-track{background:#171719;border-radius:8px}
+.quick-tickers::-webkit-scrollbar-thumb{background:#6d7c3b;border-radius:8px}
 .message{margin:0 0 20px;padding:12px 15px;border:1px solid var(--line);border-radius:var(--radius-sm);background:#0b0b0c;color:var(--muted);font-size:12px}
 .message.error{border-color:#6e3434;color:var(--bad)}.message.success{border-color:#40521b;color:var(--good)}
 .company-panel,.quote-panel{display:flex;justify-content:space-between;align-items:center;gap:22px;padding:24px 26px;margin:14px 0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
