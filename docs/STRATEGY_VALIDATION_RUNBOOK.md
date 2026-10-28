@@ -12,6 +12,7 @@ Use `scripts/run_strategy_validation.py` with a JSON file containing:
 - `snapshots`: one row per ticker and decision date. Each row must contain all fields used by `evaluate_snapshot` and an `as_of_timestamp` with an explicit timezone.
 - `available_at`: timezone-aware timestamps for price, annual fundamentals, quarterly fundamentals, earnings, news and universe membership. A field becoming available after the decision timestamp is a look-ahead failure.
 - `bars`: daily OHLC and optional adjusted close, keyed by ticker, with split-consistent prices and data through the final cutoff.
+- `benchmark_bars`: separate daily bars for a broad-market benchmark (default `SPY`), covering the exact entry and exit dates of completed trades. The report never substitutes the stock's own buy-and-hold return for a broad-market benchmark.
 - `quality_attestations`: external evidence statements. These are attestations, not proof; the validator does not infer them.
 - optional transaction cost settings and sample-size thresholds.
 
@@ -37,7 +38,7 @@ Do not use synthetic examples as evidence of strategy performance. A report shou
 2. The input builder must produce snapshots from source records; manual or today's revised values are not acceptable for historical dates.
 3. The validator now includes a cash-only, single-position-at-a-time portfolio equity curve with fixed-dollar risk sizing, cash/notional limits, overlap skips and drawdown. This is deliberately conservative and does not simulate overlapping positions or margin.
 4. Fold construction currently uses unique snapshot dates as a calendar. Production validation should use the market's actual session calendar and maintain an untouched final holdout.
-5. Review uncertainty, confidence intervals, benchmark comparisons, parameter sensitivity and missing/delisted-stock coverage independently.
+5. The report now compares trade returns with separately supplied benchmark bars (default SPY); missing or date-incomplete benchmark bars block validation. The same-stock buy-and-hold figure is reported separately. Review uncertainty, confidence intervals, parameter sensitivity and missing/delisted-stock coverage independently.
 6. The validated BUY gate remains disabled until these gaps are addressed and an independent reviewer approves a versioned report.
 
 ## Release checklist

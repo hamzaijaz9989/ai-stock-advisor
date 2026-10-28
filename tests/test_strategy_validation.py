@@ -112,3 +112,44 @@ def test_stop_inside_full_entry_zone_blocks_signal():
     assert result["eligible"] is False
     assert "stop_not_below_full_entry_zone" in result["failed_gates"]
 
+
+
+
+def test_report_uses_separate_spy_benchmark_not_same_stock_buy_and_hold():
+    snapshots = [snapshot()]
+    strategy_bars = [
+        DailyBar(date(2025, 1, 3) + timedelta(days=i), 77.5, 79, 76, 78, 78)
+        for i in range(140)
+    ]
+    spy_bars = [
+        DailyBar(
+            date(2025, 1, 3) + timedelta(days=i),
+            100 + i * 0.1,
+            101 + i * 0.1,
+            99 + i * 0.1,
+            100 + i * 0.1,
+            100 + i * 0.1,
+        )
+        for i in range(140)
+    ]
+    report = build_validation_report(
+        snapshots,
+        {"TEST": strategy_bars},
+        benchmark_bars_by_symbol={"SPY": spy_bars},
+    )
+    summary = report["summary"]
+    assert summary["benchmark_symbol"] == "SPY"
+    assert summary["benchmark_matched_trades"] == 1
+    assert summary["average_benchmark_return_pct"] > 0
+    assert summary["average_underlying_buy_hold_return_pct"] < summary["average_benchmark_return_pct"]
+    assert summary["average_excess_return_pct"] < 0
+
+
+def test_missing_broad_market_benchmark_blocks_validation():
+    strategy_bars = [
+        DailyBar(date(2025, 1, 3) + timedelta(days=i), 77.5, 79, 76, 78, 78)
+        for i in range(140)
+    ]
+    report = build_validation_report([snapshot()], {"TEST": strategy_bars})
+    assert "broad_market_benchmark_data_missing" in report["validation"]["blockers"]
+    assert report["summary"]["average_excess_return_pct"] is None

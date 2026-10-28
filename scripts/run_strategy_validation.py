@@ -35,6 +35,9 @@ def run(payload: Any) -> dict[str, Any]:
         raise TypeError("Input root must be a JSON object.")
     snapshots = payload.get("snapshots")
     raw_bars = payload.get("bars")
+    raw_benchmark_bars = payload.get("benchmark_bars", {})
+    if not isinstance(raw_benchmark_bars, dict):
+        raise TypeError("benchmark_bars must be an object keyed by benchmark ticker.")
     if not isinstance(snapshots, list) or not snapshots:
         raise ValueError("snapshots must be a non-empty array of point-in-time rows.")
     if not isinstance(raw_bars, dict) or not raw_bars:
@@ -68,6 +71,23 @@ def run(payload: Any) -> dict[str, Any]:
                 low=float(row["low"]), close=float(row["close"]),
                 adjusted_close=None if row.get("adjusted_close") is None else float(row["adjusted_close"]),
             ))
+    benchmark_bars: dict[str, list[DailyBar]] = {}
+    for raw_ticker, values in raw_benchmark_bars.items():
+        ticker = str(raw_ticker).strip().upper()
+        if not ticker or not isinstance(values, list):
+            raise ValueError(f"benchmark_bars.{raw_ticker} must be an array.")
+        benchmark_bars[ticker] = []
+        for index, row in enumerate(values):
+            if not isinstance(row, dict):
+                raise TypeError(f"benchmark_bars.{ticker}[{index}] must be an object.")
+            bar_date = date.fromisoformat(str(row["date"]))
+            if bar_date > cutoff:
+                raise ValueError(f"benchmark_bars.{ticker}[{index}] is after the declared data cutoff.")
+            benchmark_bars[ticker].append(DailyBar(
+                date=bar_date, open=float(row["open"]), high=float(row["high"]),
+                low=float(row["low"]), close=float(row["close"]),
+                adjusted_close=None if row.get("adjusted_close") is None else float(row["adjusted_close"]),
+            ))
     config_raw = payload.get("config", {})
     if not isinstance(config_raw, dict):
         raise TypeError("config must be an object.")
@@ -80,6 +100,8 @@ def run(payload: Any) -> dict[str, Any]:
         raise TypeError("quality_attestations must be an object.")
     report = build_validation_report(
         snapshots, bars,
+        benchmark_bars_by_symbol=benchmark_bars,
+        benchmark_symbol=str(payload.get("benchmark_symbol", "SPY")),
         data_provenance_verified=attestations.get("data_provenance_verified") is True,
         point_in_time_coverage_verified=attestations.get("point_in_time_coverage_verified") is True,
         survivorship_control_verified=attestations.get("survivorship_control_verified") is True,
