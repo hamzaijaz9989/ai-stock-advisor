@@ -15,7 +15,12 @@ const METRICS = [
   {label:"Operating cash flow", tags:["NetCashProvidedByUsedInOperatingActivities"], key:"operatingCashFlow"},
   {label:"Capital expenditures", tags:["PaymentsToAcquirePropertyPlantAndEquipment"], key:"capex"},
   {label:"Weighted-average diluted shares", tags:["WeightedAverageNumberOfDilutedSharesOutstanding"], key:"dilutedShares"},
-  {label:"Diluted earnings per share", tags:["EarningsPerShareDiluted"], key:"dilutedEps"}
+  {label:"Diluted earnings per share (GAAP)", tags:["EarningsPerShareDiluted"], key:"dilutedEps"},
+  {label:"Cash and cash equivalents", tags:["CashAndCashEquivalentsAtCarryingValue","CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"], key:"cash"},
+  {label:"Current debt", tags:["LongTermDebtCurrent","ShortTermBorrowings","ShortTermDebtCurrent"], key:"currentDebt"},
+  {label:"Long-term debt", tags:["LongTermDebtNoncurrent","LongTermDebt","LongTermDebtAndFinanceLeaseObligationsNoncurrent"], key:"longTermDebt"},
+  {label:"Other non-operating income", tags:["NonoperatingIncomeExpense","OtherNonoperatingIncomeExpense"], key:"otherIncome"},
+  {label:"Income before taxes", tags:["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"], key:"pretaxIncome"}
 ];
 const cache = new Map();
 function setMessage(text, type="") { const el=$("message"); el.textContent=text; el.className="message"+(type?" "+type:""); }
@@ -121,23 +126,35 @@ function getObservations(payload) {
   const observations=[];
   for(const metric of METRICS) {
     let found=false;
-    for(const tag of metric.tags) {
-      const fact=gaap[tag];
+    for(let tagRank=0;tagRank<metric.tags.length;tagRank++) {
+      const tag=metric.tags[tagRank], fact=gaap[tag];
       if(!fact?.units) continue;
       for(const [unit,values] of Object.entries(fact.units)) {
         if(!Array.isArray(values)) continue;
         for(const obs of values) {
           if(obs.val==null || !obs.end || !obs.filed) continue;
-          observations.push({metric:metric.label,key:metric.key,tag,unit,value:obs.val,start:obs.start||null,end:obs.end,filed:obs.filed,form:obs.form||"—",accession:obs.accn||"—",fy:obs.fy,fp:obs.fp,frame:obs.frame||""});
+          observations.push({metric:metric.label,key:metric.key,tag,tagRank,unit,value:obs.val,start:obs.start||null,end:obs.end,filed:obs.filed,form:obs.form||"—",accession:obs.accn||"—",fy:obs.fy,fp:obs.fp,frame:obs.frame||""});
         }
       }
       found=true;
-      // Explicit aliases are not reconciled: keep all tags as reported.
     }
-    if(!found) observations.push({metric:metric.label,key:metric.key,tag:"",unit:"",value:null,start:null,end:null,filed:null,form:"—",accession:"—"});
+    if(!found) observations.push({metric:metric.label,key:metric.key,tag:"",tagRank:999,unit:"",value:null,start:null,end:null,filed:null,form:"—",accession:"—"});
   }
-  observations.sort((a,b)=>String(b.end||"").localeCompare(String(a.end||""))||String(b.filed||"").localeCompare(String(a.filed||"")));
-  return observations;
+  // One canonical row per metric/unit/period/form. Prefer the first documented alias in METRICS.tags.
+  // If a preferred alias has duplicate submissions for the same key, use the latest filed row.
+  const selected=new Map();
+  for(const row of observations) {
+    if(row.value===null) continue;
+    const key=[row.key,row.unit,row.start||"instant",row.end,row.form].join("|");
+    const prior=selected.get(key);
+    if(!prior||row.tagRank<prior.tagRank||(row.tagRank===prior.tagRank&&String(row.filed)>String(prior.filed))) selected.set(key,row);
+  }
+  const cleaned=[...selected.values()];
+  for(const metric of METRICS) {
+    if(!cleaned.some(row=>row.key===metric.key)) cleaned.push({metric:metric.label,key:metric.key,tag:"",tagRank:999,unit:"",value:null,start:null,end:null,filed:null,form:"—",accession:"—"});
+  }
+  cleaned.sort((a,b)=>String(b.end||"").localeCompare(String(a.end||""))||String(b.filed||"").localeCompare(String(a.filed||""))||String(a.key).localeCompare(String(b.key)));
+  return cleaned;
 }
 function renderMetrics(observations) {
   $("metrics-grid").innerHTML="";
@@ -748,7 +765,7 @@ function buildDcfEstimate(observations, facts) {
   const isUsd=row=>String(row?.unit||"").trim().toUpperCase()==="USD";
   const flows=[];
   for (const row of cash) {
-    const cap=capex.find(item=>item.end===row.end);
+    const cap=capex.find(item=>item.end===row.end&&item.start===row.start&&item.unit===row.unit);
     if (cap) {
       flows.push({
         end:row.end,
@@ -759,14 +776,14 @@ function buildDcfEstimate(observations, facts) {
     }
   }
   flows.sort((a,b)=>a.end.localeCompare(b.end));
-  if (flows.length<3) return {available:false,reason:"Fewer than three unambiguous annual free-cash-flow observations."};
+  if (flows.length<3) return {available:false,reason:"Not enough reliable data: fewer than three annual free-cash-flow periods with matching operating-cash-flow and capex start/end dates and units."};
   const last3=flows.slice(-3);
   if (last3.some(row=>!Number.isFinite(row.value)||!isUsd(row)||!isUsd({unit:row.capexUnit}))) {
     return {available:false,reason:"Valuation withheld: the latest three cash-flow periods contain non-USD, mixed-unit, or non-finite observations."};
   }
   if (last3.some(row=>row.value<=0)) return {available:false,reason:"Recent annual free cash flow is not positive in all three comparable periods."};
   const daysBetween=(left,right)=>(Date.parse(right+"T00:00:00Z")-Date.parse(left+"T00:00:00Z"))/86400000;
-  if (last3.some((row,index)=>index>0&&(daysBetween(last3[index-1].end,row.end)<300||daysBetween(last3[index-1].end,row.end)>430))) {
+  if (last3.some((row,index)=>index>0&&(daysBetween(last3[index-1].end,row.end)<300||daysBetween(last3[index-1].end,row.end)>400))) {
     return {available:false,reason:"Recent free-cash-flow observations are not spaced like consecutive annual periods."};
   }
   const matchedRevenue=last3.map(row=>revenue.find(item=>item.end===row.end)||null);
@@ -785,7 +802,7 @@ function buildDcfEstimate(observations, facts) {
   const shares=currentInstantShares&&currentInstantShares.value>0
     ? {value:currentInstantShares.value,end:currentInstantShares.end,filed:currentInstantShares.filed,source:"Recent SEC-reported instant shares outstanding"}
     : null;
-  if (!shares || shares.value<=0) return {available:false,reason:"No unambiguous SEC shares-outstanding fact whose fact date and filing date are both within the last 180 days; per-share valuation is withheld."};
+  if (!shares || shares.value<=0) return {available:false,reason:"Not enough reliable data: recent SEC-reported shares outstanding is missing or older than 180 days; per-share valuation is withheld."};
   const fcfGrowth1=last3[2].value/last3[1].value-1;
   const fcfGrowth2=last3[1].value/last3[0].value-1;
   const revenueGrowth=latestRevenue.value/previousRevenue.value-1;
