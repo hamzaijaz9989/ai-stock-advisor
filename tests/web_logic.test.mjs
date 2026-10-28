@@ -324,6 +324,27 @@ test("screen CSV preserves component evidence, timestamps, exclusions, and escap
   assert.match(csv,/not a validated investment signal/i);
 });
 
+test("decision panel withholds valuation targets when quote and model value are implausibly far apart", () => {
+  const app=loadAppFunctions();
+  const observations=[...annualFixtures(),...quarterlyFixtures()];
+  const valuation=app.buildDcfEstimate(observations,shareFacts());
+  assert.equal(valuation.available,true);
+  const price=valuation.base*3;
+  const historyRows=Array.from({length:16},(_,i)=>({date:"2026-01-"+String(i+1).padStart(2,"0"),close:price,high:price+2,low:price-2}));
+  const future=new Date(Date.now()+60*86400000).toISOString().slice(0,10);
+  app.renderDecision({
+    ticker:"TEST",observations,facts:shareFacts(),quote:{price,quoteTime:new Date().toISOString(),source:"test"},
+    history:{data:historyRows},news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
+    earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
+    quarter:{available:true,currentRevenue:120e9,currentIncome:20e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"}
+  });
+  assert.ok(app.document.getElementById("decision-title").textContent.startsWith("WAIT"));
+  assert.ok(app.document.getElementById("decision-explanation").textContent.includes("Valuation withheld"));
+  const labels=app.document.getElementById("decision-metrics").children.map(card=>card.children[0].textContent);
+  assert.ok(!labels.includes("Provisional entry zone"));
+  assert.ok(!labels.includes("Potential exit / fair-value reference"));
+});
+
 test("quote label without machine-readable timestamp cannot satisfy current-price gate", () => {
   const app=loadAppFunctions();
   const observations=[...annualFixtures(),...quarterlyFixtures()];
