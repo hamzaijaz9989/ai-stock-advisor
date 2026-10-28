@@ -127,10 +127,11 @@ test("valuation gap check flags extreme divergence without claiming either value
 });
 
 
+test("buildDcfEstimate refuses annual weighted-average shares without a recent shares-outstanding fact", () => {
   const app = loadAppFunctions();
   const result = app.buildDcfEstimate(annualFixtures(), {});
   assert.equal(result.available, false);
-  assert.match(result.reason, /shares-outstanding fact filed within the last 180 days/i);
+  assert.match(result.reason, /fact date and filing date are both within the last 180 days/i);
 });
 
 test("averageTrueRange refuses incomplete OHLC observations", () => {
