@@ -589,3 +589,6 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 #earnings-reconciliation-details,
 #developer-diagnostics-details,
 #technical-validation-details{display:none!important}
+
+/* Quote metadata is intentionally removed from the visible interface. */
+.quote-panel .quote-meta{display:none!important}
