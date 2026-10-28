@@ -1016,7 +1016,14 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
     rewardRisk>=2 && invalidation!==null && invalidation>0 && invalidation<entryLow && plannedShares>0;
   const historicalValidationPass = false; // Fail closed until a real validation report is reviewed and approved.
-  const insufficientData=!quoteCurrent||!annualDataAvailable||!quarterlyDataAvailable||!earningsVerified||!recentHeadlines.length||atr===null;
+  const missingInputs=[];
+  if(!quoteCurrent) missingInputs.push(dailySnapshot?"a verified current quote (the available price is a daily snapshot)":"a recent timestamped market quote");
+  if(!annualDataAvailable) missingInputs.push("comparable annual financial statements");
+  if(!quarterlyDataAvailable) missingInputs.push("a comparable latest-quarter financial report");
+  if(!earningsVerified) missingInputs.push("a verified upcoming earnings date");
+  if(!recentHeadlines.length) missingInputs.push("recent timestamped news coverage");
+  if(atr===null||!Number.isFinite(atr)) missingInputs.push("complete daily high/low price history for risk measurement");
+  const insufficientData=missingInputs.length>0;
   let state;
   if (annualDataAvailable && !annualFundamentalPass) state="AVOID";
   else if (dailySnapshot) state="WAIT";
@@ -1029,7 +1036,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   else state="WAIT";
   const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":
     dailySnapshot?"Provider supplied a daily-bar snapshot, not a verified current quote":
-    insufficientData?"One or more required data inputs are missing, stale, or not comparable":
+    insufficientData?"Missing required inputs: "+missingInputs.join("; "):
     gapCheck.blocked?"Quote/model ratio outside 0.40×–2.50×":
     daysToEarnings!==null&&daysToEarnings<=3?"Earnings event is within 3 calendar days":
     !valuationDecisionReady?"Valuation decision gate is not satisfied":
@@ -1040,7 +1047,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const bottomLine = state==="AVOID"
     ? "AVOID — "+reasonRule+". Review the failed financial evidence and original sources before reconsidering."
     : state==="INSUFFICIENT DATA"
-    ? "INSUFFICIENT DATA — required evidence is missing, stale, or not comparable. No trade-like conclusion is supported."
+    ? "INSUFFICIENT DATA — Northstar could not verify: "+missingInputs.join("; ")+". No trade-like conclusion is supported until these inputs are available."
     : state==="WAIT" && gapCheck.blocked
     ? "WAIT — quote/model ratio is "+gapCheck.ratio.toFixed(2)+"×, outside the allowed 0.40×–2.50× band. Valuation levels are withheld."
     : state==="BUY SETUP — UNVALIDATED"
@@ -1056,7 +1063,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const nextStep = state==="AVOID"
     ? "Next: inspect the specific failed financial screen, the cited SEC period and the original filing."
     : state==="INSUFFICIENT DATA"
-    ? "Next: refresh the missing quote, filing, earnings, news or OHLC input. Do not substitute estimates for missing facts."
+    ? "Next: "+missingInputs.map(item=>"verify "+item).join("; ")+". Re-run the analysis after the missing inputs are available. Do not substitute estimates for missing facts."
     : state==="BUY SETUP — UNVALIDATED"
     ? "Next: review the reproducible point-in-time walk-forward and untouched-holdout report. Keep the validated BUY gate closed until it passes."
     : state==="WAIT"
@@ -1088,7 +1095,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(!quoteCurrent) reasons.push(dailySnapshot?"The available price is a daily-bar snapshot, not a verified current quote.":"A sufficiently recent timestamped quote is missing.");
   if(!valuation.available) reasons.push(valuation.reason);
   else if(!quoteCurrent) reasons.push("The raw DCF calculation is available for inspection, but no reliable current timestamped quote is available. Entry and exit levels are withheld.");
-  else if(gapCheck.blocked) reasons.push("Valuation withheld: the quote is "+gapCheck.ratio.toFixed(2)+"× the simplified base-case DCF estimate. This can reflect real market expectations or model limitations; it is not proof of a unit error. No entry/exit levels are derived from this gap.");
+  else if(gapCheck.blocked) reasons.push("Valuation model check failed: the market quote is "+gapCheck.ratio.toFixed(2)+"× the simplified DCF estimate, outside the permitted 0.40×–2.50× review band. Treat the DCF as unreliable for this decision until its cash-flow, share-count, corporate-action and growth assumptions are independently checked. This ratio alone does not mean the stock is overpriced or underpriced. Entry/exit levels are withheld.");
   if(!annualDataAvailable) reasons.push("Comparable annual financial data is incomplete or ambiguous.");
   else if(!annualFundamentalPass) reasons.push("The annual quality screen failed: revenue, net income, free cash flow, or annual revenue trend is below the configured minimum.");
   if(!quarterlyDataAvailable) reasons.push("The latest quarterly data is incomplete or cannot be matched safely to the previous year.");
@@ -1117,9 +1124,9 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
       metricCard("Review horizon","Weeks to 6 months","Your stated horizon; reassess after earnings, filings, material news, or major price changes")
     );
   } else if(valuation.available) {
-    const gapLabel=gapCheck.checked?gapCheck.ratio.toFixed(2)+"×":"Not checked";
+    const gapLabel=!gapCheck.checked?"Not checked":gapCheck.blocked?"Outside review band":gapCheck.ratio.toFixed(2)+"×";
     const gapMeta=gapCheck.checked
-      ? "Quote divided by simplified DCF base case; a wide gap is a review flag, not proof either value is wrong."
+      ? "Exact quote / simplified DCF ratio: "+gapCheck.ratio.toFixed(2)+"×. "+(gapCheck.blocked?"This model is not suitable for a valuation conclusion until its inputs and assumptions are reviewed.":"This is only a broad sanity check; it does not validate the DCF.")
       : "A recent timestamped quote is required before this comparison can be made.";
     const withheldReason=gapCheck.blocked
       ? "Valuation withheld: market/model gap is outside the 0.40×–2.50× review band. Check assumptions and source inputs first."
