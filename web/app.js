@@ -204,7 +204,13 @@ function renderFundamentalSnapshot(observations) {
   }
   for (const item of cards) {
     const card=document.createElement("article"); card.className="metric-card";
-    const label=document.createElement("div"); label.className="metric-label"; label.textContent=item.label;
+    const label=document.createElement("div"); label.className="metric-label";
+    const labelText=document.createElement("span"); labelText.textContent=item.label;
+    const numericValue=Number.parseFloat(String(item.value).replace(/[^0-9.+-]/g,""));
+    const status=Number.isFinite(numericValue)?(numericValue>0?"good":numericValue<0?"bad":"caution"):"unknown";
+    const dot=document.createElement("span"); dot.className="meaning-dot "+status;
+    dot.title=status==="good"?"Positive indicator":status==="bad"?"Negative indicator":status==="caution"?"Needs attention":"Status unclear";
+    label.append(dot,labelText);
     const value=document.createElement("div"); value.className="metric-value"; value.textContent=item.value;
     const meta=document.createElement("div"); meta.className="metric-date"; meta.textContent=item.meta;
     card.append(label,value,meta); panel.append(card);
@@ -233,8 +239,9 @@ function renderQuarterlySnapshot(observations) {
     return {available:false,reason:"Quarterly revenue facts missing",currentRevenue:null,currentIncome:null,currentEps:null,revenueYoY:null,periodEnd:null,fiscalQuarterId:null};
   }
   const dateMeta="Quarter ended "+fmtDate(latestRevenue.end)+" · SEC "+latestRevenue.form+" filed "+fmtDate(latestRevenue.filed);
-  panel.append(metricCard("Latest quarterly revenue",fmtValue(latestRevenue.value,latestRevenue.unit),
-    revenueYoY!==null?"Year over year "+(revenueYoY>=0?"+":"")+(revenueYoY*100).toFixed(1)+"% · prior quarter end "+fmtDate(priorRevenue.end):"Same-quarter prior-year comparison unavailable"));
+  const revenueCard=metricCard("Latest quarterly revenue",fmtValue(latestRevenue.value,latestRevenue.unit),
+    revenueYoY!==null?"Year over year "+(revenueYoY>=0?"+":"")+(revenueYoY*100).toFixed(1)+"% · prior quarter end "+fmtDate(priorRevenue.end):"Same-quarter prior-year comparison unavailable");
+  panel.append(revenueCard);
   if(latestIncome) {
     const incomeMeta=priorIncome
       ?"Prior year: "+fmtValue(priorIncome.value,priorIncome.unit)+" · "+dateMeta
@@ -1112,7 +1119,14 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   }
   for(const item of dataChecks) {
     const row=document.createElement("div");row.className="decision-check";
-    const indicator=document.createElement("span");indicator.className="decision-indicator "+(item.ok?"pass":"hold");indicator.textContent=item.ok?"CHECKED":"REVIEW";
+    const detailText=String(item.detail||"").toLowerCase();
+    const missing=/missing|unavailable|not confirmed|not finished|incomplete|no timestamped|not available|withheld|not supplied/.test(detailText);
+    const status=item.ok?"good":missing?"caution":"bad";
+    const indicator=document.createElement("span");indicator.className="decision-indicator "+status;
+    indicator.textContent=item.ok?"CHECKED":missing?"REVIEW":"RISK";
+    const indicatorDot=document.createElement("i");indicatorDot.className="meaning-dot "+status;
+    indicator.append(indicatorDot);
+    indicator.title=item.ok?"Positive check":missing?"Needs attention":"Risk check failed";
     const text=document.createElement("div");const title=document.createElement("strong");title.textContent=item.label;const detail=document.createElement("p");detail.textContent=item.detail;detail.className="muted";
     text.append(title,detail);row.append(indicator,text);checks.append(row);
   }

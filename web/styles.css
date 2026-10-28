@@ -231,3 +231,52 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
   .disclosure-summary h2 { font-size: 19px; }
   .disclosure-summary .count { max-width: 40%; white-space: normal; }
 }
+
+
+/* Beginner-friendly evidence signals: color always accompanies a written label. */
+.meaning-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: #8a8d94;
+  box-shadow: 0 0 0 3px rgba(138,141,148,.12);
+}
+.meaning-dot.good { background: #62dc8b; box-shadow: 0 0 0 3px rgba(98,220,139,.13); }
+.meaning-dot.bad { background: #ff666d; box-shadow: 0 0 0 3px rgba(255,102,109,.13); }
+.meaning-dot.caution { background: #f4c15d; box-shadow: 0 0 0 3px rgba(244,193,93,.13); }
+.meaning-dot.unknown { background: #9297a3; box-shadow: 0 0 0 3px rgba(146,151,163,.13); }
+.metric-label { display: flex; align-items: center; gap: 2px; }
+.meaning-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 12px 14px;
+  margin: 0 0 12px;
+  border: 1px solid #303137;
+  border-radius: 12px;
+  background: #0b0b0d;
+}
+.meaning-legend span { display: inline-flex; align-items: center; color: #c4c5cb; font-size: 12px; }
+.meaning-legend .meaning-dot { margin-right: 7px; }
+.decision-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 74px;
+  height: fit-content;
+  padding: 7px 9px;
+  border: 1px solid #35363b;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .04em;
+}
+.decision-indicator .meaning-dot { width: 7px; height: 7px; flex-basis: 7px; margin: 0 3px 0 0; box-shadow: none; }
+.decision-indicator.good { color: #a6efbb; border-color: rgba(98,220,139,.35); }
+.decision-indicator.bad { color: #ff9a9e; border-color: rgba(255,102,109,.35); }
+.decision-indicator.caution { color: #f4d28c; border-color: rgba(244,193,93,.35); }
