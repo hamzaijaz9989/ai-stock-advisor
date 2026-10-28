@@ -1633,6 +1633,12 @@ function renderNews(payload) {
 }
 async function loadNews(ticker, companyName="") {
   $("news-status").textContent="Loading…";
+  const impactPanel=$("stock-news-impact");
+  const impactRoot=$("stock-news-impact-list");
+  const impactStatus=$("stock-news-impact-status");
+  if (impactPanel) impactPanel.classList.remove("hidden");
+  if (impactRoot) impactRoot.innerHTML="<p class=\"empty\">Loading company-specific news and reviewing possible impact…</p>";
+  if (impactStatus) impactStatus.textContent="Loading news…";
   try {
     const response=await fetch("/api/news?ticker="+encodeURIComponent(ticker)+"&company="+encodeURIComponent(companyName),{headers:{"Accept":"application/json"}});
     if(!response.ok) throw new Error("News feeds unavailable");
@@ -1642,6 +1648,9 @@ async function loadNews(ticker, companyName="") {
   } catch(error) {
     $("news-status").textContent="Unavailable";
     $("news-list").textContent="News could not be loaded right now. Try again later; no news-based conclusion has been made.";
+    if (impactPanel) impactPanel.classList.remove("hidden");
+    if (impactStatus) impactStatus.textContent="News unavailable";
+    if (impactRoot) impactRoot.textContent="Company-specific news could not be loaded right now. Try analyzing again later. No positive or negative conclusion has been inferred.";
     return null;
   }
 }
