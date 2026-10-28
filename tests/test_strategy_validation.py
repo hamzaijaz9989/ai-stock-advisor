@@ -1,7 +1,11 @@
 from datetime import date, timedelta
 
 from stock_advisor.backtest import DailyBar
-from stock_advisor.strategy_validation import evaluate_snapshot, generate_signals, build_validation_report
+from stock_advisor.strategy_validation import (
+    build_validation_report,
+    evaluate_snapshot,
+    generate_signals,
+)
 
 
 def snapshot(**overrides):
