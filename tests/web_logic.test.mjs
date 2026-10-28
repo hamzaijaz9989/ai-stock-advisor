@@ -60,6 +60,10 @@ function annualFixtures({ includeShares = true } = {}) {
     rows.push(obs("netIncome", y.netIncome * 1e9, y.start, y.end, "10-K", "USD", y.filed));
     if (includeShares) rows.push(obs("dilutedShares", y.shares * 1e6, y.start, y.end, "10-K", "shares", y.filed));
   }
+  if(includeShares) {
+    const today=new Date().toISOString().slice(0,10);
+    rows.push(obs("commonShares",90e6,null,today,"10-Q","shares",today));
+  }
   return rows;
 }
 
@@ -129,7 +133,7 @@ test("valuation gap check flags extreme divergence without claiming either value
 
 test("buildDcfEstimate refuses annual weighted-average shares without a recent shares-outstanding fact", () => {
   const app = loadAppFunctions();
-  const result = app.buildDcfEstimate(annualFixtures(), {});
+  const result = app.buildDcfEstimate(annualFixtures({includeShares:false}), {});
   assert.equal(result.available, false);
   assert.match(result.reason, /fact date and filing date are both within the last 180 days/i);
 });
@@ -240,7 +244,7 @@ test("earnings comparison uses SEC actuals and converts third-party revenue cons
   const app = loadAppFunctions();
   const payload = {
     ticker:"TEST", quarter:"Q3-2026", available:true, status:"reported",
-    estimates:{consensusEps:1.1,consensusRevenue:110000,numAnalysts:12},
+    estimates:{consensusEps:1.1,epsBasis:"GAAP",consensusRevenue:110000,numAnalysts:12},
     headline:"Test results summary",
     whatItMeans:"Test context",
     sourceUrl:"https://example.com/earnings"
