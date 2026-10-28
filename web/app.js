@@ -680,6 +680,60 @@ async function enrichTopCandidates(results) {
   }
 }
 
+async function loadCachedScreen() {
+ const button=$("run-screen"); button.disabled=true; button.textContent="Loading latest shortlist…";
+ const status=$("screen-status"); const root=$("screen-results");
+ try {
+   const response=await fetch("/data/top-stocks-cache.json?ts="+Date.now(),{cache:"no-store",headers:{"Accept":"application/json"}});
+   if(!response.ok) throw new Error("No refreshed shortlist is available yet.");
+   const data=await response.json();
+   if(!Array.isArray(data.stocks)||!data.stocks.length) throw new Error("The latest scan did not produce qualified candidates.");
+   renderCachedScreen(data);
+   const stamp=data.generatedAt?new Date(data.generatedAt):null;
+   status.textContent="Updated "+(stamp&&!Number.isNaN(stamp.getTime())?stamp.toLocaleString():"time unavailable")+" · cached results";
+ } catch(error) {
+   status.textContent="Latest shortlist unavailable";
+   root.innerHTML="";
+   const p=document.createElement("p"); p.className="empty"; p.textContent="The scheduled shortlist is not available yet. You can run a live scan instead."; root.append(p);
+ } finally {button.disabled=false; button.textContent="Show latest top 5";}
+}
+function renderCachedScreen(data) {
+ const root=$("screen-results"); root.innerHTML="";
+ const note=document.createElement("p"); note.className="table-note";
+ note.textContent="Precomputed shortlist from the latest scheduled 60-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals.";
+ root.append(note);
+ const stamp=document.createElement("p"); stamp.className="cache-timestamp";
+ const when=data.generatedAt?new Date(data.generatedAt):null;
+ stamp.textContent="Last full scan: "+(when&&!Number.isNaN(when.getTime())?when.toLocaleString():"timestamp unavailable")+" · Scheduled refresh every 3 hours";
+ root.append(stamp);
+ data.stocks.slice(0,5).forEach((item,index)=>{
+   const card=document.createElement("article"); card.className="screen-card cached-screen-card";
+   const head=document.createElement("div"); head.className="screen-card-header";
+   const identity=document.createElement("div");
+   const name=document.createElement("strong"); name.textContent=(index+1)+". "+item.ticker+" · "+item.name;
+   const period=document.createElement("p"); period.className="muted"; period.textContent="Financial period: "+(item.financialPeriod||"Not available")+" · History: "+(item.historyPeriod||"Not available");
+   identity.append(name,period);
+   const score=document.createElement("div"); score.className="screen-score"; score.textContent=Number.isFinite(item.score)?item.score.toFixed(1)+"/100":"Score unavailable";
+   head.append(identity,score); card.append(head);
+   if(Array.isArray(item.components)) {
+     const grid=document.createElement("div"); grid.className="screen-components";
+     item.components.forEach(part=>{
+       const cell=document.createElement("div"); cell.className="screen-component";
+       const label=document.createElement("span"); label.textContent=part.name;
+       const value=document.createElement("strong"); value.textContent=part.display;
+       cell.append(label,value); grid.append(cell);
+     }); card.append(grid);
+   }
+   const state=document.createElement("p"); state.className="cached-status";
+   state.textContent=item.entryStatus||"Research priority only. Current entry eligibility must be checked in full analysis.";
+   card.append(state);
+   const open=document.createElement("button"); open.type="button"; open.className="secondary-button"; open.textContent="Analyze "+item.ticker;
+   open.addEventListener("click",()=>{$("ticker").value=item.ticker;analyze(item.ticker);window.scrollTo({top:0,behavior:"smooth"});});
+   card.append(open); root.append(card);
+ });
+ const disclaimer=document.createElement("p"); disclaimer.className="table-note"; disclaimer.textContent="Cached rankings are refreshed on a schedule and may be up to 3 hours old. Always open full analysis to check current quote, earnings, news, valuation and risk. If the scheduled scan fails, the last successful cache should remain available and its age should be shown.";
+ root.append(disclaimer);
+}
 async function runScreen() {
   const button=$("run-screen"); const suggestButton=$("suggest-stocks-button"); button.disabled=true; suggestButton.disabled=true; button.textContent="Screening…"; suggestButton.querySelector("strong").textContent="Screening stocks…"; beginActivity("Finding research candidates",["Scan company fundamentals","Check price history and risk","Rank available candidates","Verify top results"]);
   $("screen-status").textContent="Fetching SEC filings and daily prices";
@@ -1661,7 +1715,9 @@ async function analyze(ticker) {
 }
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
-$("run-screen").addEventListener("click",runScreen);
+$("run-screen").addEventListener("click",loadCachedScreen);
+$("run-live-screen")?.addEventListener("click",runScreen);
+
 $("market-scan-link")?.addEventListener("click",()=>{const panel=$("ranking-disclosure");if(panel)panel.open=true;});
 $("suggest-stocks-button").addEventListener("click",()=>{
   $("ranking").scrollIntoView({behavior:"smooth",block:"start"});
