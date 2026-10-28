@@ -227,7 +227,7 @@ test("decision panel refuses BUY when no whole share fits the planned-risk budge
   });
   const title=elements.getElementById("decision-title").textContent;
   assert.ok(title.startsWith("WAIT — NO NEW ENTRY TRIGGER"));
-  assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("no clear new-entry setup"));
+  assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("No new entry trigger"));
   assert.ok(elements.getElementById("decision-next-step").textContent.includes("hold off on adding"));
   const renderedChecks=elements.getElementById("decision-checks").children.map(row=>row.children[1].children[0].textContent);
   for(const label of ["Growth screen","Profitability screen","Liquidity screen","Cash-flow screen","Event-risk screen"]) {
