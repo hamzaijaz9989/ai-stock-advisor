@@ -322,3 +322,28 @@ test("screen CSV preserves component evidence, timestamps, exclusions, and escap
   assert.match(csv,/Missing matched-period data/);
   assert.match(csv,/not a validated investment signal/i);
 });
+
+test("quote label without machine-readable timestamp cannot satisfy current-price gate", () => {
+  const app=loadAppFunctions();
+  const observations=[...annualFixtures(),...quarterlyFixtures()];
+  const valuation=app.buildDcfEstimate(observations,shareFacts());
+  const entry=valuation.base*0.775;
+  const historyRows=Array.from({length:16},(_,i)=>({
+    date:"2026-01-"+String(i+1).padStart(2,"0"),
+    close:entry,high:entry+2,low:entry-2
+  }));
+  const future=new Date(Date.now()+60*86400000).toISOString().slice(0,10);
+  app.renderDecision({
+    ticker:"TEST",observations,facts:shareFacts(),
+    quote:{price:entry,quoteTime:null,quoteLabel:"Oct 27, 2026 4:00 PM ET",source:"test"},
+    history:{data:historyRows},
+    news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
+    earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
+    quarter:{available:true,currentRevenue:120e9,currentIncome:20e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"}
+  });
+  assert.ok(app.document.getElementById("decision-title").textContent.startsWith("INSUFFICIENT EVIDENCE"));
+  assert.ok(app.document.getElementById("decision-checks").children.some(row=>
+    row.children.some(child=>child.children?.some(nested=>nested.textContent?.includes("missing a usable date/time")))
+  ));
+});
+
