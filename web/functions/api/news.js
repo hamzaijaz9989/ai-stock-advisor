@@ -16,8 +16,9 @@ function parseItems(xml, source, limit = 10) {
     const title = field("title").replace(/<[^>]*>/g, "").trim();
     const link = field("link").replace(/<[^>]*>/g, "").trim();
     const pubDate = field("pubDate");
+    const publisher = field("source").replace(/<[^>]*>/g, "").trim();
     if (!title || !/^https?:\/\//i.test(link)) continue;
-    items.push({ title, url: link, publishedAt: pubDate || null, source });
+    items.push({ title, url: link, publishedAt: pubDate || null, source: publisher || source });
     if (items.length >= limit) break;
   }
   return items;
@@ -51,7 +52,8 @@ export async function onRequestGet({ request }) {
   };
   const yahooUrl = "https://feeds.finance.yahoo.com/rss/2.0/headline?s=" + encodeURIComponent(ticker) + "&region=US&lang=en-US";
   const googleTerms = [ticker, cleanCompany].filter(Boolean).map(term => '"' + term.replace(/"/g, "") + '"').join(" OR ");
-  const googleUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent("(" + googleTerms + ") (stock OR shares OR earnings OR company)") + "&hl=en-US&gl=US&ceid=US:en";
+  // Broader company query returns more relevant reporting; publisher names are extracted from Google News RSS.
+  const googleUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent("(" + googleTerms + ")") + "&hl=en-US&gl=US&ceid=US:en";
   const results = await Promise.allSettled([
     fetch(yahooUrl, { headers: { "Accept": "application/rss+xml, application/xml, text/xml" } }),
     fetch(googleUrl, { headers: { "Accept": "application/rss+xml, application/xml, text/xml" } })
@@ -69,7 +71,7 @@ export async function onRequestGet({ request }) {
     items.push(...parsed);
     sources.push({ name: source, status: "ok", count: parsed.length });
   }
-  if (items.length < 3) {
+  if (items.length < 8) {
     try {
       const nasdaqUrl = "https://www.nasdaq.com/api/news/topic/articlebysymbol?q=" + encodeURIComponent(ticker + "|STOCKS") + "&offset=0&limit=20&fallback=true";
       const response = await fetch(nasdaqUrl, { headers: {
@@ -98,7 +100,7 @@ export async function onRequestGet({ request }) {
   }
   const unique = [...new Map(items.filter(matchesCompany).map(item => [item.url, item])).values()]
     .sort((a, b) => Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0))
-    .slice(0, 30);
+    .slice(0, 40);
   return Response.json({
     ticker, company: companyName || null, fetchedAt: new Date().toISOString(), items: unique, sources,
     note: "Only headlines mentioning the searched ticker, company, or recognized company/product names are shown. Headlines are discovery signals, not verified facts or buy recommendations. Confirm material claims against filings or official statements."
