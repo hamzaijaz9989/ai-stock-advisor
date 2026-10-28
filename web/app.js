@@ -921,36 +921,31 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     atr!==null && Number.isFinite(atr) && rewardRisk!==null && Number.isFinite(rewardRisk);
   const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
     rewardRisk>=2 && invalidation!==null && invalidation>0 && plannedShares>0;
-  let state="HOLD";
-  if(sellReview) state="SELL REVIEW";
-  else if(!coreEvidencePass) state="WAIT";
-  else if(buySetupPass) state="BUY — PROVISIONAL";
-  else state="HOLD";
+  // The live engine has not established out-of-sample predictive edge. It therefore never emits BUY.
+  // Non-holders receive research triage labels only; HOLD/SELL REVIEW are reserved for explicit position review.
+  const insufficientData=!quoteCurrent||!annualDataAvailable||!quarterlyDataAvailable||!earningsVerified||!recentHeadlines.length||atr===null;
+  let state=fundamentalAvoid?"AVOID":insufficientData?"INSUFFICIENT DATA":gapCheck.blocked||!valuationDecisionReady||daysToEarnings!==null&&daysToEarnings<=3||flaggedHeadlines.length?"WAIT":"WATCHLIST";
+  const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":gapCheck.blocked?"Quote/model ratio outside 0.40×–2.50×":daysToEarnings!==null&&daysToEarnings<=3?"Earnings event is within 3 calendar days":flaggedHeadlines.length?"Potential material-risk headline requires primary-source review":insufficientData?"One or more required data inputs are missing or stale":!valuationDecisionReady?"Valuation decision gate is not satisfied":"Evidence is available, but no validated BUY rule exists";
   $("decision-status").textContent=state+" · RESEARCH ONLY";
-  const bottomLine = state==="WAIT" && gapCheck.blocked
-    ? "WAIT — the market quote and simplified DCF disagree by "+gapCheck.ratio.toFixed(2)+"×. Entry and exit levels are withheld until this gap is reviewed."
-    : state==="BUY — PROVISIONAL"
-    ? "BUY SETUP (PROVISIONAL) — entry conditions pass, but this strategy is not validated. Treat as a watchlist candidate, not a proven recommendation."
-    : state==="SELL REVIEW"
-    ? "SELL REVIEW — check the original filing/news and your own position before deciding. This alert is not an instruction to sell."
-    : state==="HOLD"
-    ? "HOLD — no clear new-entry setup and no configured sell-review trigger. Keep monitoring; this is not a guarantee that holding is best."
-    : "WAIT — do not force a trade. Required evidence is missing, stale, conflicting, or the entry/event-risk checks do not pass.";
-  $("decision-bottom-line").textContent=bottomLine;
-  const nextStep = state==="BUY — PROVISIONAL"
-    ? "Next: verify the latest SEC filing, original news, quote timestamp, and your position size. The app has not proven this signal profitable."
-    : state==="SELL REVIEW"
-    ? "Next: open the source filing or headline, confirm whether it materially changes the investment thesis, then review your entry price and risk limit."
-    : state==="HOLD"
-    ? "Next: hold off on adding solely because of this result. Recheck after the next earnings report, material filing, or meaningful price change."
+  const bottomLine = state==="AVOID"
+    ? "AVOID — "+reasonRule+". Review the failed financial evidence and original sources before reconsidering."
+    : state==="INSUFFICIENT DATA"
+    ? "INSUFFICIENT DATA — required evidence is missing, stale, or not comparable. No trade-like conclusion is supported."
     : state==="WAIT" && gapCheck.blocked
-    ? "Next: review matched annual USD cash flows, recent SEC share count and filing date, corporate actions, DCF assumptions, and a broker-verified quote. A wide gap is not proof either value is wrong."
-    : "Next: fix the REVIEW items below first. If price, filings, earnings date, or news cannot be verified, keep this ticker on WAIT.";
+    ? "WAIT — quote/model ratio is "+gapCheck.ratio.toFixed(2)+"×, outside the allowed 0.40×–2.50× band. Valuation levels are withheld."
+    : state==="WAIT"
+    ? "WAIT — "+reasonRule+". Do not force a trade while this rule remains unresolved."
+    : "WATCHLIST — evidence is available for monitoring, but this system has not validated a BUY signal or profitable strategy.";
+  $("decision-bottom-line").textContent=bottomLine;
+  const nextStep = state==="AVOID"
+    ? "Next: inspect the specific failed financial screen, the cited SEC period and the original filing."
+    : state==="INSUFFICIENT DATA"
+    ? "Next: refresh the missing quote, filing, earnings, news or OHLC input. Do not substitute estimates for missing facts."
+    : state==="WAIT"
+    ? "Next: resolve the named rule above. Where valuation is withheld, verify the quote, shares, cash-flow periods and model assumptions."
+    : "Next: add this ticker to your research watchlist and reassess after new filings, earnings or material news. No BUY signal is enabled.";
   $("decision-next-step").textContent=nextStep;
-  $("decision-title").textContent=state==="SELL REVIEW"?"SELL REVIEW — CHECK THESIS AND RISK PROMPTLY":
-    state==="BUY — PROVISIONAL"?"BUY SETUP — PROVISIONAL, NOT BACKTEST-VALIDATED":
-    state==="HOLD"?"HOLD — NO NEW ENTRY TRIGGER":
-    "WAIT — REQUIRED EVIDENCE OR ENTRY CONDITIONS NOT MET";
+  $("decision-title").textContent=state+" — "+reasonRule.toUpperCase();
   const reasons=[];
   if(!quoteCurrent) reasons.push(dailySnapshot?"The available price is a daily-bar snapshot, not a verified current quote.":"A sufficiently recent timestamped quote is missing.");
   if(!valuation.available) reasons.push(valuation.reason);
