@@ -379,7 +379,7 @@ def build_validation_report(
         blockers.append("minimum_completed_portfolio_positions_not_met")
     blockers.append("independent_validation_review_required")
     return {
-        "report_version": 2,
+        "report_version": 3,
         "strategy_version": "northstar-provisional-gates-v1",
         "signals_generated": len(signals),
         "snapshots_evaluated": len(audit),
