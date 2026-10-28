@@ -1666,7 +1666,7 @@ async function analyze(ticker) {
     const recentDate=supportedIndex>=0?submissions.filings.recent.filingDate?.[supportedIndex]:null;
     const recentForm=supportedIndex>=0?recentForms[supportedIndex]:null;
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(recentDate?" · Most recent supported filing "+recentForm+" · "+fmtDate(recentDate):"")+(foreignFiler?" · Foreign filer; scores require matching IFRS/SEC periods":"");
-    $("company-panel").classList.remove("hidden");
+    // Company name and identity are already shown in the plain-English overview; avoid duplicating them in Full details.
     renderMetrics(observations); renderFundamentalSnapshot(observations);
     const quarter=renderQuarterlySnapshot(observations);
     renderFilings(submissions, company);
