@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#050505">
   <meta name="description" content="Northstar AI provides transparent US stock research with SEC-sourced fundamentals, market data, earnings risk and explicit data-quality limits.">
   <title>Northstar AI — Stock Research</title>
-  <link rel="stylesheet" href="./styles.css?v=stocknewsreview2">
+  <link rel="stylesheet" href="./styles.css?v=quickscroll3">
 </head>
 <body>
   <header class="topbar">
@@ -22,11 +22,32 @@
         <label for="ticker">TICKER SYMBOL</label>
         <div class="search-row"><input id="ticker" name="ticker" maxlength="12" value="AAPL" placeholder="e.g. AAPL" autocomplete="off" required></div>
         <button id="analyze-button" class="analyze-button" type="submit">Analyze stock <span aria-hidden="true">↗</span></button>
-        <div class="quick-tickers" aria-label="Popular tickers">
-          <button type="button" data-ticker="AAPL">AAPL</button>
+        <div class="quick-tickers-wrap">
+          <div class="quick-tickers-label">QUICK ACCESS · SWIPE TO EXPLORE</div>
+          <div class="quick-tickers" aria-label="Popular stocks; swipe horizontally to browse"><button type="button" data-ticker="AAPL">AAPL</button>
           <button type="button" data-ticker="MSFT">MSFT</button>
           <button type="button" data-ticker="NVDA">NVDA</button>
           <button type="button" data-ticker="AMZN">AMZN</button>
+          <button type="button" data-ticker="GOOGL">GOOGL</button>
+          <button type="button" data-ticker="META">META</button>
+          <button type="button" data-ticker="TSLA">TSLA</button>
+          <button type="button" data-ticker="NFLX">NFLX</button>
+          <button type="button" data-ticker="AVGO">AVGO</button>
+          <button type="button" data-ticker="ORCL">ORCL</button>
+          <button type="button" data-ticker="AMD">AMD</button>
+          <button type="button" data-ticker="INTC">INTC</button>
+          <button type="button" data-ticker="CRM">CRM</button>
+          <button type="button" data-ticker="PLTR">PLTR</button>
+          <button type="button" data-ticker="JPM">JPM</button>
+          <button type="button" data-ticker="V">V</button>
+          <button type="button" data-ticker="MA">MA</button>
+          <button type="button" data-ticker="COST">COST</button>
+          <button type="button" data-ticker="WMT">WMT</button>
+          <button type="button" data-ticker="DIS">DIS</button>
+          <button type="button" data-ticker="QCOM">QCOM</button>
+          <button type="button" data-ticker="MU">MU</button>
+          <button type="button" data-ticker="MRVL">MRVL</button>
+          <button type="button" data-ticker="NVTS">NVTS</button></div>
         </div>
         <div id="activity-progress" class="activity-progress hidden" role="status" aria-live="polite">
           <div class="activity-top"><span class="activity-spinner" aria-hidden="true"></span><div class="activity-copy"><strong id="activity-title">Analyzing stock</strong><span id="activity-stage">Preparing reliable data sources…</span></div><span id="activity-elapsed" class="activity-elapsed">0s</span></div>
@@ -170,6 +191,6 @@
     <div class="hidden" aria-hidden="true"><span id="news-status">Loads with analysis</span><div id="news-list"></div></div>
   <footer><span>Northstar AI <span class="footer-sep">/</span> Market intelligence</span><span>SEC EDGAR · Research only · No automated trading</span></footer>
   </main>
-  <script src="./app.js?v=stocknewsreview2" defer></script>
+  <script src="./app.js?v=quickscroll3" defer></script>
 </body>
 </html>
