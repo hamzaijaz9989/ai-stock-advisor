@@ -23,9 +23,9 @@ from stock_advisor.sec_ingest import DEFAULT_USER_AGENT, SecDataError
 
 SEC_ARCHIVES = "https://www.sec.gov/Archives/edgar/data"
 EASTERN = ZoneInfo("America/New_York")
-ACCESSION_RE = re.compile(r"<ACCESSION-NUMBER>\s*([0-9-]+)", re.IGNORECASE)
+ACCESSION_RE = re.compile(r"(?:<ACCESSION-NUMBER>\s*|ACCESSION NUMBER:\s*)([0-9-]+)", re.IGNORECASE)
 ACCEPTANCE_RE = re.compile(r"<ACCEPTANCE-DATETIME>\s*(\d{14})", re.IGNORECASE)
-FILED_RE = re.compile(r"<FILED AS OF DATE>\s*(\d{8})", re.IGNORECASE)
+FILED_RE = re.compile(r"(?:<FILED AS OF DATE>\s*|FILED AS OF DATE:\s*)(\d{8})", re.IGNORECASE)
 
 
 class TimestampVerificationError(RuntimeError):
