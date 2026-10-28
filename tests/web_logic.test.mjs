@@ -288,3 +288,12 @@ test("date-only quote labels do not imply a precise trade timestamp", () => {
   assert.ok(label.includes("time not supplied"));
   assert.ok(!label.includes("Quote timestamp:"));
 });
+
+
+test("buildDcfEstimate refuses mismatched annual revenue and free-cash-flow periods", () => {
+  const app=loadAppFunctions();
+  const rows=annualFixtures().filter(row=>!(row.key==="revenue"&&row.end==="2023-12-31"));
+  const result=app.buildDcfEstimate(rows,{});
+  assert.equal(result.available,false);
+  assert.match(result.reason,/periods do not match/i);
+});
