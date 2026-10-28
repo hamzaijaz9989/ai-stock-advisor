@@ -1,6 +1,6 @@
-from datetime import date
 import gzip
 import json
+from datetime import date
 
 import pytest
 
@@ -8,9 +8,9 @@ from stock_advisor.sec_ingest import (
     SEC_COMPANYFACTS_URL,
     SEC_SUBMISSIONS_URL,
     SEC_TICKERS_URL,
+    _fetch_json,
     collect_company,
     collect_dataset,
-    _fetch_json,
 )
 
 
