@@ -637,3 +637,26 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .stock-news-filters button.active{border-color:var(--accent);background:rgba(198,255,84,.1);color:var(--text)}
 .stock-news-impact-item.hidden{display:none!important}
 @media(max-width:620px){.stock-news-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.stock-news-signals{grid-template-columns:1fr}}
+
+/* News review controls: compact counts, balanced evidence cues, and accessible filters. */
+.stock-news-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}
+.stock-news-summary-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:14px;border:1px solid var(--line);border-radius:14px;background:rgba(8,8,8,.65)}
+.stock-news-summary-card span{font-size:11px;line-height:1.4;color:var(--muted)}
+.stock-news-summary-card strong{font-size:25px;line-height:1;font-variant-numeric:tabular-nums}
+.stock-news-summary-card.summary-positive strong{color:#b8ef7b}
+.stock-news-summary-card.summary-negative strong{color:#ff9b9b}
+.stock-news-summary-card.summary-mixed strong{color:#f0d17a}
+.stock-news-signals-wrap{margin:18px 0;padding:16px;border:1px solid var(--line);border-radius:18px;background:rgba(0,0,0,.2)}
+.stock-news-signals-wrap h3{font-size:15px;margin:0 0 12px}
+.stock-news-signals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stock-news-signal{min-width:0;padding:13px;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid var(--line)}
+.stock-news-signal strong{font-size:12px;line-height:1.5}
+.stock-news-signal p{font-size:12px;line-height:1.6;color:var(--muted);margin:8px 0 0;overflow-wrap:anywhere}
+.stock-news-signal.signal-positive{border-color:rgba(184,239,123,.24)}
+.stock-news-signal.signal-negative{border-color:rgba(255,110,110,.24)}
+.stock-news-signal-note{grid-column:1/-1;font-size:11px;line-height:1.5;color:var(--muted);margin:0}
+.stock-news-filters{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 4px}
+.stock-news-filters button{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer}
+.stock-news-filters button.active{border-color:var(--accent);background:rgba(198,255,84,.1);color:var(--text)}
+.stock-news-impact-item.hidden{display:none!important}
+@media(max-width:620px){.stock-news-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.stock-news-signals{grid-template-columns:1fr}}
