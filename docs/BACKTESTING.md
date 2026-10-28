@@ -45,3 +45,10 @@ The example contains **synthetic, non-market data** and is meant only to verify 
 - optional per-side slippage and commission basis points under `config`.
 
 The runner rejects signals and market bars after the declared data cutoff, requires provenance metadata, reports absent symbol histories, and **always sets `decision_eligible: false`**. Quality flags record supplied attestations; the runner does not independently verify them.
+
+
+## Experimental dashboard baseline added
+
+The dashboard now offers an optional five-year 50/200-day simple-moving-average crossover baseline for the ticker under analysis and compares its daily equity curve with SPY buy-and-hold. It enters on the next session open after a close-based crossover and assumes 5 basis points of costs per side. It reports total and annualized returns, maximum drawdown, volatility, completed/open-at-end trade counts, closed-trade win rate, and a profit factor.
+
+**This is not validation of the live advisor.** The baseline uses current provider history, does not reconstruct point-in-time SEC fundamentals/news or historical index membership, does not independently verify delisted stocks or corporate actions, and relies on unofficial Yahoo Finance chart access. A short or revised history can mislead. The test is explicitly labelled experimental and does not change the live BUY gate. It is useful as an initial diagnostic only; a defensible strategy validation still needs point-in-time inputs, robust survivorship/corporate-action handling, walk-forward folds, an untouched holdout, realistic spread/market-impact costs, and reproducible test artifacts.
