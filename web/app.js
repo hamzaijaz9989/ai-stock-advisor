@@ -534,10 +534,13 @@ async function enrichTopCandidates(results) {
       const atr=averageTrueRange(item.history);
       const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
       const quoteAge=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
-      const current=typeof quote?.price==="number"&&quote.price>0&&quoteAge>=-2&&quoteAge<=48&&
+      // A provider timestamp more than five minutes in the future is untrustworthy.
+      // Keep the provisional shortlist fail-closed rather than tolerating clock skew of hours.
+      const quoteTimestampPlausible=quoteAge>=-(5/60)&&quoteAge<=48;
+      const current=typeof quote?.price==="number"&&Number.isFinite(quote.price)&&quote.price>0&&quoteTimestampPlausible&&
         String(quote?.interval||"").toLowerCase()!=="1d"&&!String(quote?.delayedOrRealtime||"").toLowerCase().includes("daily interval");
       if(!current) {
-        gateNotes.push("no recent timestamped quote");
+        gateNotes.push(quoteAge<-(5/60)?"quote timestamp is unexpectedly in the future":"no recent timestamped intraday quote");
       }
       if(!valuation.available||!atr||!Number.isFinite(atr)||atr<=0) {
         gateNotes.push(!valuation.available?"valuation unavailable":"ATR risk data unavailable");
