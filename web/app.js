@@ -286,6 +286,38 @@ function renderHistory(history) {
   $("history-start-label").textContent=history.startDate+" · $"+history.data[0].close.toFixed(2)+" close";
   $("history-end-label").textContent=history.endDate+" · $"+history.latestClose.toFixed(2)+" close";
 }
+
+async function loadStrategyBacktest(ticker) {
+  const panel=$("strategy-backtest-panel"), grid=$("strategy-backtest-metrics"), details=$("strategy-backtest-details");
+  panel.classList.remove("hidden"); grid.innerHTML=""; details.textContent="Fetching up to five years of daily prices and comparing with SPY…";
+  $("strategy-backtest-status").textContent="Running";
+  try {
+    const response=await fetch("/api/strategy-backtest?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
+    const result=await response.json();
+    if(!response.ok) throw new Error(result.error||"Historical test unavailable");
+    const fmtPct=v=>typeof v==="number"&&Number.isFinite(v)?(v>=0?"+":"")+v.toFixed(2)+"%":"Unavailable";
+    const s=result.strategy||{}, b=result.spyBuyHold||{};
+    const metrics=[
+      metricCard("Strategy total return",fmtPct(s.totalReturnPercent),"50/200-day SMA, long-only, estimated costs included"),
+      metricCard("SPY buy-and-hold",fmtPct(b.totalReturnPercent),"Benchmark adjusted-close return for the same history window"),
+      metricCard("Strategy annualized",fmtPct(s.annualizedReturnPercent),"Annualized daily equity-curve return; historical, not forecast"),
+      metricCard("SPY annualized",fmtPct(b.annualizedReturnPercent),"Annualized benchmark return"),
+      metricCard("Strategy max drawdown",fmtPct(s.maxDrawdownPercent),"Peak-to-trough drawdown in daily strategy equity curve"),
+      metricCard("Strategy volatility",fmtPct(s.volatilityPercent),"Annualized from daily strategy returns"),
+      metricCard("Closed trades",String(result.completedTrades),"Open-at-end trades reported separately"),
+      metricCard("Win rate",fmtPct(result.winRatePercent),"Closed trades only; small samples can be misleading"),
+      metricCard("Profit factor",typeof result.profitFactor==="number"?result.profitFactor.toFixed(2):"Unavailable","Gross positive trade returns divided by absolute negative trade returns")
+    ];
+    for(const card of metrics) grid.append(card);
+    $("strategy-backtest-status").textContent=result.observations+" sessions · "+result.startDate+" to "+result.endDate;
+    $("strategy-backtest-warning").textContent=result.warning+" Data source: "+result.source+". Cost assumption: "+result.slippageAndCostBpsPerSide+" bps per side.";
+    details.textContent="Rules: "+result.rules+" Completed trades: "+result.completedTrades+"; open at end: "+result.openAtEnd+". Average completed trade: "+fmtPct(result.averageTradeReturnPercent)+". Average benchmark return during strategy trades: "+fmtPct(result.averageBenchmarkDuringTradesPercent)+". This is a diagnostic baseline, not the current advisor’s recommendation engine or an investable proof of edge.";
+  } catch(error) {
+    $("strategy-backtest-status").textContent="Unavailable";
+    details.textContent=(error.message||"Historical test failed")+". No sample prices or guessed performance have been substituted.";
+  }
+}
+
 async function loadHistory(ticker) {
   $("history-status").textContent="Loading…";
   $("history-meta").textContent="Requesting one year of daily price history…";
@@ -1066,7 +1098,7 @@ async function analyze(ticker) {
     $("sec-health").textContent="Connected; received SEC company facts";
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
     const [quote,history,news,earnings]=await Promise.all([
-      loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker)
+      loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker),loadStrategyBacktest(ticker)
     ]);
     const reportedQuarter=quarter?.fiscalQuarterId||null;
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
