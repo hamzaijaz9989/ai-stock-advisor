@@ -738,7 +738,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   grid.innerHTML=""; checks.innerHTML="";
   const valuation=buildDcfEstimate(observations,facts);
   const atr=averageTrueRange(history);
-  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):(quote?.quoteLabel?new Date(String(quote.quoteLabel).replace(/\s+ET$/,"")):null);
+  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
   const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
   const quoteInterval=String(quote?.interval||"").toLowerCase();
   const quoteReliabilityLabel=String(quote?.delayedOrRealtime||"").toLowerCase();
@@ -746,7 +746,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     quoteReliabilityLabel.includes("not real-time");
   const quoteCurrent=typeof quote?.price==="number"&&quote.price>0&&
     quoteAgeHours>=-2&&quoteAgeHours<=48&&!dailySnapshot;
-  const today=new Date().toISOString().slice(0,10);
+  const today=newYorkDateOnly();
   const nextEvent=(earnings?.events||[]).filter(event=>event.reportDate>=today).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]||null;
   const daysToEarnings=nextEvent?(Date.parse(nextEvent.reportDate+"T00:00:00Z")-Date.parse(today+"T00:00:00Z"))/86400000:null;
   const earningsVerified=Boolean(nextEvent&&earnings?.verified);
