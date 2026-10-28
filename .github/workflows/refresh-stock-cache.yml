@@ -1,6 +1,12 @@
 name: Refresh cached top-stock shortlist
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/refresh-stock-cache.yml"
+      - ".github/scripts/refresh-stock-cache.mjs"
+      - "web/app.js"
   schedule:
     - cron: "7 */3 * * *"
   workflow_dispatch:
