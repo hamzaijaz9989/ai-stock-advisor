@@ -170,7 +170,7 @@ function renderMetrics(observations) {
     const card=document.createElement("article"); card.className="metric-card";
     const label=document.createElement("div"); label.className="metric-label"; label.textContent=metric.label;
     const value=document.createElement("div"); value.className="metric-value"; value.textContent=row?fmtValue(row.value,row.unit):"—";
-    const date=document.createElement("div"); date.className="metric-date"; date.textContent=row?"Filed "+fmtDate(row.filed)+" · "+periodDuration(row):"No supported observation found";
+    const date=document.createElement("div"); date.className="metric-date"; const asOf=["assets","liabilities","equity","cash","currentDebt","longTermDebt","commonShares"].includes(metric.key); date.textContent=row?(asOf?"As of "+fmtDate(row.end)+" · filed "+fmtDate(row.filed):"Filed "+fmtDate(row.filed)+" · "+periodDuration(row)):"No supported observation found";
     card.append(label,value,date); $("metrics-grid").append(card);
   }
 }
@@ -608,7 +608,7 @@ async function enrichTopCandidates(results) {
       const quote=quoteResponse.ok?await quoteResponse.json():null;
       const news=newsResponse.ok?await newsResponse.json():null;
       const earnings=earningsResponse.ok?await earningsResponse.json():null;
-      const valuation=buildDcfEstimate(item.observations,item.facts);
+      const valuation=buildDcfEstimate(item.observations);
       const atr=averageTrueRange(item.history);
       const quoteGate=assessResearchQuoteEligibility(quote);
       const current=quoteGate.eligible;
@@ -724,29 +724,7 @@ function fmtUsd(value) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "Unavailable";
   return new Intl.NumberFormat("en-US", {style:"currency",currency:"USD",maximumFractionDigits:2}).format(value);
 }
-function latestSecValue(facts, candidates, unit, maxAgeDays=180) {
-  const rows=[];
-  const today=newYorkDateOnly();
-  for (const candidate of candidates) {
-    const fact=facts?.facts?.[candidate.taxonomy]?.[candidate.tag];
-    const values=fact?.units?.[unit];
-    if (!Array.isArray(values)) continue;
-    for (const row of values) {
-      if (typeof row.val!=="number" || !Number.isFinite(row.val) || !row.end || !row.filed) continue;
-      if (row.filed>today || !["10-K","10-Q","20-F","40-F","6-K"].includes(row.form)) continue;
-      const filedAgeDays=(Date.parse(today+"T00:00:00Z")-Date.parse(row.filed+"T00:00:00Z"))/86400000;
-      const factAgeDays=(Date.parse(today+"T00:00:00Z")-Date.parse(row.end+"T00:00:00Z"))/86400000;
-      if (filedAgeDays<0 || filedAgeDays>maxAgeDays || factAgeDays<0 || factAgeDays>maxAgeDays) continue;
-      rows.push({value:row.val,end:row.end,filed:row.filed,form:row.form,tag:candidate.tag,taxonomy:candidate.taxonomy,unit});
-    }
-  }
-  rows.sort((a,b)=>b.filed.localeCompare(a.filed)||b.end.localeCompare(a.end));
-  if (!rows.length) return null;
-  const latest=rows[0];
-  const sameFiling=rows.filter(row=>row.filed===latest.filed&&row.end===latest.end);
-  if (new Set(sameFiling.map(row=>String(row.value))).size>1) return null;
-  return latest;
-}
+
 function assessQuoteValuationGap(price, base) {
   if (!(typeof price==="number"&&Number.isFinite(price)&&price>0&&
         typeof base==="number"&&Number.isFinite(base)&&base>0)) {
@@ -761,7 +739,7 @@ function assessQuoteValuationGap(price, base) {
       : "The market/model ratio is within the app's broad 0.40×–2.50× review band. This sanity check does not validate the DCF."
   };
 }
-function buildDcfEstimate(observations, facts) {
+function buildDcfEstimate(observations) {
   const today=newYorkDateOnly();
   const filedByToday=rows=>rows.filter(row=>row.filed&&row.filed<=today);
   const cash=filedByToday(annualSeries(observations,"operatingCashFlow"));
@@ -833,7 +811,7 @@ function buildDcfEstimate(observations, facts) {
   const base=perShare(latestFcf.value,baseGrowth,0.10,0.025);
   const bull=perShare(latestFcf.value,bullGrowth,0.09,0.03);
   if (![bear,base,bull].every(value=>typeof value==="number"&&Number.isFinite(value))||!(bear<=base&&base<=bull)) {
-    return {available:false,reason:"The DCF scenarios did not produce a valid ordered range."};
+    return {available:false,reason:"Not enough reliable data: DCF bear/base/bull scenarios could not be calculated from the matched cash-flow, revenue and share-count inputs."};
   }
   return {
     available:true,bear,base,bull,latestFcf:latestFcf.value,fcfPeriod:latestFcf.end,
@@ -1174,7 +1152,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
   const grid=$("decision-metrics"),checks=$("decision-checks");
   grid.innerHTML=""; checks.innerHTML="";
-  const valuation=buildDcfEstimate(observations,facts);
+  const valuation=buildDcfEstimate(observations);
   const atr=averageTrueRange(history);
   const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
   const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
@@ -1265,6 +1243,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const historicalValidationPass = false; // Fail closed until a real validation report is reviewed and approved.
   const missingInputs=[];
   if(!quoteCurrent) missingInputs.push(dailySnapshot?"a verified current quote (the available price is a daily snapshot)":"a recent timestamped market quote");
+  if(!valuation.available) missingInputs.push(valuation.reason||"matched, fresh DCF inputs");
   if(!annualDataAvailable) missingInputs.push("comparable annual financial statements");
   if(!quarterlyDataAvailable) missingInputs.push("a comparable latest-quarter financial report");
   if(!earningsVerified) missingInputs.push("a verified upcoming earnings date");
