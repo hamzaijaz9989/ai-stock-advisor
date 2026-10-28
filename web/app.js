@@ -1117,9 +1117,6 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   } else {
     grid.append(metricCard("Illustrative DCF value","Not available",valuation.reason),metricCard("Entry / exit levels","WITHHELD","No price levels will be guessed without defensible valuation inputs"));
   }
-  const legend=document.createElement("div"); legend.className="meaning-legend";
-  legend.innerHTML='<span><i class="meaning-dot good"></i> Positive</span><span><i class="meaning-dot bad"></i> Negative / risk</span><span><i class="meaning-dot caution"></i> Needs attention</span><span><i class="meaning-dot unknown"></i> Not enough data</span>';
-  checks.append(legend);
   for(const item of dataChecks) {
     const row=document.createElement("div");row.className="decision-check";
     const detailText=String(item.detail||"").toLowerCase();
