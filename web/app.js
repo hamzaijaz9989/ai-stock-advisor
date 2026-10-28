@@ -735,7 +735,7 @@ function renderCachedScreen(data) {
  root.append(disclaimer);
 }
 async function runScreen() {
-  const button=$("run-screen"); const suggestButton=$("suggest-stocks-button"); button.disabled=true; suggestButton.disabled=true; button.textContent="Screening…"; suggestButton.querySelector("strong").textContent="Screening stocks…"; beginActivity("Finding research candidates",["Scan company fundamentals","Check price history and risk","Rank available candidates","Verify top results"]);
+  const button=$("run-screen"); const suggestButton=$("suggest-stocks-button"); button.disabled=true; suggestButton.disabled=true; button.textContent="Screening…"; (suggestButton.querySelector("strong")||suggestButton).textContent="Screening stocks…"; beginActivity("Finding research candidates",["Scan company fundamentals","Check price history and risk","Rank available candidates","Verify top results"]);
   $("screen-status").textContent="Fetching SEC filings and daily prices";
   const results=[],errors=[];
   // A 60-stock, cross-sector starter universe. This is not the full US market.
@@ -766,7 +766,7 @@ async function runScreen() {
     finishActivity("Screen interrupted. Partial results are shown.",true);
     renderScreenResults(results,errors);
   } finally {
-    button.disabled=false; suggestButton.disabled=false; button.textContent="Refresh 60-stock ranking"; suggestButton.querySelector("strong").textContent="Suggest me stocks";
+    button.disabled=false; suggestButton.disabled=false; button.textContent="Refresh 60-stock ranking"; (suggestButton.querySelector("strong")||suggestButton).textContent="Run live 60-stock scan";
   }
 }
 
