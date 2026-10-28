@@ -1648,10 +1648,14 @@ async function analyze(ticker) {
   $("sec-health").textContent="Request in progress";
   $("recommendation-panel").classList.add("hidden");
   $("earnings-panel").classList.add("hidden");
+  let analysisPhase="initialization";
   try {
+    analysisPhase="SEC ticker verification";
     setActivityStage(0,"Finding company and reading official SEC filings…");
     const company=await findCompany(ticker);
+    analysisPhase="SEC company facts";
     const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
+    analysisPhase="SEC submissions and financial rendering";
     const submissions=await getJson(SEC_DATA_URL+"/submissions/CIK"+company.cik+".json").catch(()=>null);
     const recentForms=submissions?.filings?.recent?.form||[];
     const supportedIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K","20-F","6-K","40-F"].includes(form));
@@ -1669,6 +1673,7 @@ async function analyze(ticker) {
     $("sec-health").textContent="Connected; received SEC company facts";
     setActivityStage(1,"Company facts loaded. Fetching quote and historical prices…");
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
+    analysisPhase="market data, history, news and earnings";
     const [quote,history,news,earnings,benchmarkHistory]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker),
       fetch("/api/history?ticker=SPY",{headers:{"Accept":"application/json"}}).then(async response=>{if(!response.ok)throw new Error("S&P 500 benchmark unavailable");return response.json();}).catch(()=>null),
@@ -1676,6 +1681,7 @@ async function analyze(ticker) {
     loadStrategyBacktest(ticker).catch(error=>{const status=$("strategy-backtest-status");const details=$("strategy-backtest-details");if(status)status.textContent="Unavailable";if(details)details.textContent=(error?.message||"Historical backtest unavailable")+". The main research report is unaffected.";});
     setActivityStage(2,"Price, news and earnings responses received. Reviewing event risk…");
     const reportedQuarter=quarter?.fiscalQuarterId||null;
+    analysisPhase="earnings verification and final decision";
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
     renderEarningsResult(earningsResult,quarter,reportedQuarter);
     setActivityStage(3,"Assessing financial health and valuation limits…");
@@ -1688,7 +1694,7 @@ async function analyze(ticker) {
     $("sec-health").textContent="Analysis interrupted";
     const errorName=error?.name||"Error";
     const errorMessage=error?.message||"Unknown analysis error";
-    const reason=errorName+": "+errorMessage;
+    const reason="Failed during "+analysisPhase+" — "+errorName+": "+errorMessage;
     setText("developer-error",reason);
     setMessage("Northstar stopped before completing the report. No sample data or guessed prices were substituted. Check Developer diagnostics for the exact failed step, then retry; if the problem persists, the source or analysis step needs attention.","error");
     finishActivity("Analysis stopped safely. Technical detail: "+errorMessage,true);
