@@ -72,3 +72,7 @@ See:
 
 ## Strongest current research setup
 The 60-stock screen now adds a conservative, provisional opportunity check across recent quote timestamps, valuation sanity, model watch zone, risk/reward, basic fundamentals, earnings and recent news. It can surface the strongest *current research setup* only if all implemented checks pass; otherwise it says WAIT. This remains research-only and does not enable a validated BUY or promise profit. The full strategy still needs point-in-time walk-forward and untouched holdout validation, and production use requires licensed market data.
+
+
+## SEC timestamp verification
+The SEC ingestion workflow now creates a separate bounded sample cross-checked against SEC filing-index header pages. It checks accession and filing-date consistency, converts EDGAR acceptance time to UTC, records it separately as `acceptance_at`, and keeps `available_at` null with `availability_timestamp_verified: false` because acceptance is not proof of public-web availability. Acceptance time is not proof of the exact moment a filing became publicly retrievable; complete point-in-time strategy validation remains blocked until all required inputs and availability semantics are verified.
