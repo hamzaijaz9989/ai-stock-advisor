@@ -23,3 +23,7 @@ Use a default planned risk budget of 1% of USD 500 ($5) per position and a hard 
 
 ## Validation gate
 Before a ranked signal is enabled, pre-register rules; use point-in-time fundamentals, news and event data; account for corporate actions and survivorship; include realistic fees, spread and slippage; and validate with walk-forward and untouched holdout tests. Report sample size, expectancy, total return, max drawdown, volatility, turnover, and benchmark comparison. Do not claim a 90% win rate or guaranteed profit.
+
+
+## Provisional strongest-opportunity shortlist
+The 60-stock research screen now enriches the highest-ranked candidates with current quote, valuation sanity, entry-zone, risk/reward, fundamentals, upcoming earnings and recent-news checks. Only candidates passing all implemented gates can be labelled **PROVISIONAL TOP WATCH**; the highest research score among those is described as the strongest current research setup. This is not a validated BUY or a forecast of profit. Unknown/stale data, unverified earnings, an earnings event within seven days, material-risk headline keywords, price outside the watch zone, valuation ratio outside 0.40×–2.50×, or reward/risk below 2:1 blocks entry-ready status. If no candidate passes, the screen says WAIT rather than force a trade. The news keyword check is only a warning, not a complete risk classifier.
