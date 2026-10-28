@@ -19,6 +19,17 @@ const METRICS = [
 ];
 const cache = new Map();
 function setMessage(text, type="") { const el=$("message"); el.textContent=text; el.className="message"+(type?" "+type:""); }
+let progressTimer=null, progressStartedAt=0;
+function startLoading(title, detail) {
+  const box=$("loading-progress"); if(!box)return;
+  box.classList.remove("hidden"); $("loading-title").textContent=title; $("loading-detail").textContent=detail;
+  progressStartedAt=Date.now(); $("loading-count").textContent="00s";
+  if(progressTimer)clearInterval(progressTimer);
+  progressTimer=setInterval(()=>{$("loading-count").textContent=String(Math.floor((Date.now()-progressStartedAt)/1000)).padStart(2,"0")+"s";},250);
+}
+function updateLoading(title, detail) { if($("loading-title"))$("loading-title").textContent=title; if($("loading-detail"))$("loading-detail").textContent=detail; }
+function stopLoading() { if(progressTimer)clearInterval(progressTimer); progressTimer=null; const box=$("loading-progress"); if(box)box.classList.add("hidden"); }
+
 function newYorkDateOnly(date=new Date()) {
   const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
   const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
@@ -1379,7 +1390,7 @@ async function loadEarnings(ticker) {
 async function analyze(ticker) {
   ticker=String(ticker||"").trim().toUpperCase().replace(/\s+/g,"");
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
-  const button=$("analyze-button"); button.disabled=true; button.textContent="Loading analysis…";
+  const button=$("analyze-button"); button.disabled=true; button.textContent="Analyzing…"; startLoading("Analyzing "+ticker,"Step 1 of 5 · Finding the company and official filings.");
   const results=$("stock-results"); results.classList.remove("hidden"); results.dataset.ticker=ticker;
   $("last-request").textContent=new Date().toLocaleString();
   setMessage("Checking SEC filings, prices, earnings risk and recent news for "+ticker+"…");
@@ -1388,7 +1399,9 @@ async function analyze(ticker) {
   $("earnings-panel").classList.add("hidden");
   try {
     const company=await findCompany(ticker);
+    updateLoading("Reading company financials","Step 2 of 5 · Loading reported revenue, earnings, assets and cash flow.");
     const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
+    updateLoading("Checking official filings","Step 3 of 5 · Confirming filing dates and reporting periods.");
     const submissions=await getJson(SEC_DATA_URL+"/submissions/CIK"+company.cik+".json").catch(()=>null);
     const recentForms=submissions?.filings?.recent?.form||[];
     const supportedIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K","20-F","6-K","40-F"].includes(form));
@@ -1400,6 +1413,7 @@ async function analyze(ticker) {
     const recentForm=supportedIndex>=0?recentForms[supportedIndex]:null;
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(recentDate?" · Most recent supported filing "+recentForm+" · "+fmtDate(recentDate):"");
     $("company-panel").classList.remove("hidden");
+    updateLoading("Building the stock assessment","Step 4 of 5 · Comparing financial health and available market data.");
     renderMetrics(observations); renderFundamentalSnapshot(observations);
     const quarter=renderQuarterlySnapshot(observations);
     renderFilings(submissions, company);
@@ -1412,6 +1426,7 @@ async function analyze(ticker) {
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
     renderEarningsResult(earningsResult,quarter,reportedQuarter);
     renderDecision({ticker,company,observations,facts,quote,history,news,earnings,quarter});
+    updateLoading("Finishing your report","Step 5 of 5 · Organizing risks, news and the plain-English verdict.");
     setMessage("Research checks complete for "+company.name+". Read the Bottom line for the decision and next step; model-based levels appear only when input and quote checks pass.","success");
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } catch(error) {
