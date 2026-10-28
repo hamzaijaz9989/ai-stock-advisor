@@ -62,6 +62,30 @@
     </div></details>
     <div id="stock-results" class="stock-results hidden" aria-label="Analysis results for the selected stock">
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
+    <section id="beginner-overview" class="beginner-overview hidden" aria-live="polite">
+      <div class="answer-card">
+        <div class="answer-topline"><span class="eyebrow">NORTHSTAR'S PLAIN-ENGLISH ANSWER</span><span id="beginner-confidence" class="confidence-badge confidence-low">Confidence: Low</span></div>
+        <h2 id="beginner-company-name">Company analysis</h2>
+        <p id="beginner-company-description" class="answer-description">Verified company description will appear here when available.</p>
+        <div class="answer-price-row"><strong id="beginner-price">Price unavailable</strong><span id="beginner-market-state" class="market-state">Market status unknown</span></div>
+        <p id="beginner-price-time" class="muted">Quote timestamp unavailable</p>
+        <div id="beginner-verdict" class="beginner-verdict verdict-unknown"><span id="beginner-verdict-dot" class="meaning-dot unknown"></span><div><strong id="beginner-verdict-title">Not enough reliable data</strong><p id="beginner-verdict-reason">Analyze a stock to see the reason.</p></div></div>
+      </div>
+      <div class="beginner-scorecards">
+        <article class="beginner-score"><p class="eyebrow">BUSINESS HEALTH</p><strong id="score-business">Unknown</strong><p id="score-business-detail">Financial checks not available.</p></article>
+        <article class="beginner-score"><p class="eyebrow">PRICE</p><strong id="score-price">Unknown</strong><p id="score-price-detail">Reliable valuation unavailable.</p></article>
+        <article class="beginner-score"><p class="eyebrow">RISK</p><strong id="score-risk">Unknown</strong><p id="score-risk-detail">Risk review not complete.</p></article>
+      </div>
+      <section class="beginner-subpanel"><div class="beginner-subhead"><h3>What to watch next</h3><span class="meaning-dot caution"></span></div><p id="beginner-earnings">Next earnings date: not verified.</p><p id="beginner-guidance" class="muted">Company guidance: not available from verified data.</p></section>
+      <section class="beginner-subpanel"><div class="beginner-subhead"><h3>In dollars</h3><span class="muted">Past year · not a forecast</span></div><p id="beginner-dollar-summary">Historical return unavailable.</p><p id="beginner-benchmark" class="muted">S&P 500 comparison unavailable.</p></section>
+      <section class="beginner-subpanel"><div class="beginner-subhead"><h3>Six key numbers</h3><span class="muted">Tap “What is this?” for a simple explanation</span></div><div id="beginner-key-numbers" class="beginner-key-numbers"></div></section>
+      <div class="beginner-lists">
+        <section class="beginner-subpanel"><div class="beginner-subhead"><h3>Top risks to know</h3></div><div id="beginner-risks" class="beginner-list"><p class="muted">Risks will appear after analysis.</p></div></section>
+        <section class="beginner-subpanel"><div class="beginner-subhead"><h3>Latest headlines</h3></div><div id="beginner-headlines" class="beginner-list"><p class="muted">Headlines will appear after analysis.</p></div></section>
+      </div>
+      <p class="beginner-disclaimer">Research only. Prices and financial facts may be delayed or incomplete. This is not a promise of profit or personalized financial advice. Northstar AI never places trades.</p>
+    </section>
+    <details id="full-details" class="full-details"><summary><span><strong>Full details</strong><small>SEC filings, valuation assumptions, historical charts and detailed checks</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="full-details-content">
     <section id="company-panel" class="company-panel hidden">
       <div><p class="eyebrow">COMPANY</p><h2 id="company-name">—</h2><p id="company-meta" class="muted">—</p></div>
       <div class="source-pill"><span class="source-dot"></span> SEC EDGAR</div>
@@ -135,7 +159,7 @@
     </section>
 
 
-    </div>
+    </div></details>
     <details id="ranking-disclosure" class="ranking-disclosure">
       <summary class="ranking-disclosure-summary"><span><span class="eyebrow">FUTURE FEATURE</span><strong>Stock suggestions</strong><small>Experimental shortlist · hidden while we improve company analysis</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary>
             <section id="ranking" class="ranking-section suggestion-results-section">
