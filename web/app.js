@@ -364,9 +364,17 @@ async function runScreen() {
   const button=$("run-screen"); button.disabled=true; button.textContent="Screening…";
   $("screen-status").textContent="Fetching SEC filings and daily prices";
   const results=[],errors=[];
-  for(const ticker of ["AAPL","MSFT","NVDA","AMZN"]) {
-    try { results.push(await scoreTicker(ticker)); }
-    catch(error) { errors.push(ticker+": "+(error.message||"Insufficient data")); }
+  // A small cross-sector research universe, not a full-market screen.
+  // Limit concurrent provider requests to reduce rate-limit risk.
+  const universe=["AAPL","MSFT","NVDA","AMZN","GOOGL","META","JPM","V","COST","LLY"];
+  for(let i=0;i<universe.length;i+=2) {
+    const batch=universe.slice(i,i+2);
+    const settled=await Promise.allSettled(batch.map(ticker=>scoreTicker(ticker)));
+    for(let j=0;j<settled.length;j++) {
+      const outcome=settled[j],ticker=batch[j];
+      if(outcome.status==="fulfilled") results.push(outcome.value);
+      else errors.push(ticker+": "+(outcome.reason?.message||"Insufficient data"));
+    }
   }
   renderScreenResults(results,errors);
   $("screen-status").textContent=results.length+" ranked · "+errors.length+" excluded";
