@@ -93,7 +93,7 @@
       <div class="section-heading"><div><p class="eyebrow">EARNINGS & EVENT RISK</p><h2>Next earnings check</h2></div><span id="earnings-status" class="count">Not checked</span></div>
       <div id="earnings-content"><p class="empty">Analyze a stock to check the public earnings calendar.</p></div>
     </section>
-    <details class="developer-panel"><summary><span><strong>Detailed earnings reconciliation</strong><small>Reported results and third-party estimates, when available</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
+    <details id="earnings-reconciliation-details" class="developer-panel"><summary><span><strong>Detailed earnings reconciliation</strong><small>Reported results and third-party estimates, when available</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
     <section id="earnings-results-panel" class="news-section hidden" aria-live="polite">
       <div class="section-heading"><div><p class="eyebrow">RESULTS VS EXPECTATIONS</p><h2>Latest reported quarter</h2></div><span id="earnings-results-status" class="count">Not checked</span></div>
       <div id="earnings-results-content"><p class="empty">Analyze a stock to compare SEC-reported results with available consensus estimates.</p></div>
@@ -111,7 +111,7 @@
         </div>
       </div>
       <div class="decision-bottom-line"><p class="eyebrow">WHY THIS DECISION?</p><p id="decision-bottom-line">Analyze a ticker to get a plain-language assessment.</p><p class="eyebrow">WHAT TO DO NEXT</p><p id="decision-next-step">Required checks will appear here.</p></div>
-      <details class="developer-panel"><summary><span><strong>Developer diagnostics</strong><small>Technical checks, raw risk rules and provisional valuation calculations</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
+      <details id="developer-diagnostics-details" class="developer-panel"><summary><span><strong>Developer diagnostics</strong><small>Technical checks, raw risk rules and provisional valuation calculations</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
       <p id="decision-explanation" class="table-note">Analyze a ticker to receive a data-quality and risk assessment.</p>
       <p class="table-note">Technical error detail (developer only): <span id="developer-error">No error reported.</span></p>
       <div class="holding-review">
@@ -131,7 +131,7 @@
       <div class="ranking-actions"><button id="save-research-snapshot" type="button" class="secondary-button">Save research snapshot</button><button id="export-research-csv" type="button" class="secondary-button">Export snapshots CSV</button><span id="research-log-status" class="count">0 saved snapshot(s)</span></div>
       <div id="research-log-list" class="news-list"><p class="empty">Saved snapshots stay in this browser on this device. They are not synced to a server.</p></div>
     </section>
-    <details class="developer-panel"><summary><span><strong>Technical validation details</strong><small>Price-history diagnostics and experimental strategy tests</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
+    <details id="technical-validation-details" class="developer-panel"><summary><span><strong>Technical validation details</strong><small>Price-history diagnostics and experimental strategy tests</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
     <section id="history-panel" class="news-section hidden"><div class="section-heading"><div><p class="eyebrow">PRICE HISTORY · 1 YEAR</p><h2>Historical performance and risk</h2></div><span id="history-status" class="count">Loads with analysis</span></div><div id="history-metrics" class="metrics-grid"></div><div id="history-chart-wrap" class="history-chart-wrap"><p class="empty">Analyze a ticker to load historical prices.</p></div><div class="history-labels"><span id="history-start-label">Start</span><span id="history-end-label">End</span></div><p id="history-meta" class="table-note">Daily price history is requested when you analyze a company.</p><p id="history-warning" class="table-note">Historical performance is not a forecast.</p></section>
     <section id="strategy-backtest-panel" class="news-section hidden" aria-live="polite">
       <div class="section-heading"><div><p class="eyebrow">HISTORICAL STRATEGY TEST · 5 YEARS</p><h2>Technical strategy reality check</h2></div><span id="strategy-backtest-status" class="count">Loads with analysis</span></div>
@@ -140,13 +140,13 @@
       <div id="strategy-backtest-details" class="table-note"></div><div id="strategy-walk-forward" class="table-note"></div>
     </section>
     </div></details>
-    <section class="news-section"><div class="section-heading"><div><p class="eyebrow">FUNDAMENTAL SNAPSHOT</p><h2>Annual financial trends</h2></div><span id="fundamental-status" class="count">Loads with analysis</span></div><p class="table-note">Calculated only from unambiguous annual 10-K observations. Free cash flow is an approximation: operating cash flow minus absolute capital expenditures. Not a recommendation.</p><div id="fundamental-snapshot" class="metrics-grid"><p class="empty">Analyze a company to calculate annual trends.</p></div></section>
-    <section class="news-section" aria-labelledby="quarterly-heading">
+    <section id="annual-trends-panel" class="news-section"><div class="section-heading"><div><p class="eyebrow">FUNDAMENTAL SNAPSHOT</p><h2>Annual financial trends</h2></div><span id="fundamental-status" class="count">Loads with analysis</span></div><p class="table-note">Calculated only from unambiguous annual 10-K observations. Free cash flow is an approximation: operating cash flow minus absolute capital expenditures. Not a recommendation.</p><div id="fundamental-snapshot" class="metrics-grid"><p class="empty">Analyze a company to calculate annual trends.</p></div></section>
+    <section id="quarterly-trends-panel" class="news-section" aria-labelledby="quarterly-heading">
       <div class="section-heading"><div><p class="eyebrow">LATEST REPORTED QUARTER</p><h2 id="quarterly-heading">Quarterly performance snapshot</h2></div><span id="quarterly-status" class="count">Loads with analysis</span></div>
       <p class="table-note">Uses quarterly-period facts disclosed in SEC filings, compares with the closest same-period prior-year figure where available, and shows the filing date. This is not an analyst-consensus beat/miss calculation.</p>
       <div id="quarterly-snapshot" class="metrics-grid"><p class="empty">Analyze a ticker to compare the latest reported quarter with the prior year.</p></div>
     </section>
-    <section class="news-section metrics-disclosure"><div class="section-heading"><div><p class="eyebrow">SEC REPORTED DATA</p><h2>All reported financial metrics</h2></div></div><p class="table-note">Raw reported figures with filing periods.</p><section id="metrics-grid" class="metrics-grid" aria-label="Latest reported financial metrics"></section></section>
+    <section id="all-metrics-panel" class="news-section metrics-disclosure"><div class="section-heading"><div><p class="eyebrow">SEC REPORTED DATA</p><h2>All reported financial metrics</h2></div></div><p class="table-note">Raw reported figures with filing periods.</p><section id="metrics-grid" class="metrics-grid" aria-label="Latest reported financial metrics"></section></section>
     <details class="news-section disclosure-section" id="filings-disclosure">
       <summary class="section-heading disclosure-summary"><div><p class="eyebrow">PRIMARY SOURCE</p><h2>Official SEC filings</h2></div><span id="filings-status" class="count">Loads with analysis</span></summary>
       <div class="disclosure-content">
