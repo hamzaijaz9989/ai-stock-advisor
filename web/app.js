@@ -316,10 +316,20 @@ async async function scoreTicker(ticker) {
   const historyResponse=await fetch("/api/history?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
   const history=await historyResponse.json();
   if(!historyResponse.ok) throw new Error(history.error||"Price history unavailable");
+  if(!Number.isFinite(history.totalReturnPercent)||!Number.isFinite(history.maxDrawdownPercent)||
+     !history.startDate||!history.endDate||!Array.isArray(history.data)||history.data.length<200) {
+    throw new Error("Historical price data is incomplete or lacks a full trading-year sample");
+  }
+  if(!Number.isFinite(latest.value)||latest.value<=0||
+     !Number.isFinite(prior.value)||prior.value<=0||
+     !Number.isFinite(matchedIncome.value)||!Number.isFinite(matchedCash.value)||!Number.isFinite(matchedCapex.value)) {
+    throw new Error("Financial inputs are non-finite or non-positive where positive revenue is required");
+  }
   const growth=(latest.value/prior.value-1)*100;
   const margin=matchedIncome.value/latest.value*100;
   const fcf=matchedCash.value-Math.abs(matchedCapex.value);
   const fcfMargin=fcf/latest.value*100;
+  if(![growth,margin,fcf,fcfMargin].every(Number.isFinite)) throw new Error("Financial ratios could not be calculated safely");
   const components=[
     {name:"Revenue growth",value:growth,display:growth.toFixed(1)+"%",score:scoreRange(growth,-10,30,25),max:25},
     {name:"Net profit margin",value:margin,display:margin.toFixed(1)+"%",score:scoreRange(margin,-5,20,15),max:15},
