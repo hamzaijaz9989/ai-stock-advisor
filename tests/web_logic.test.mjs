@@ -20,7 +20,7 @@ function makeElement(id = "") {
   };
 }
 
-function loadAppFunctions() {
+function loadAppFunctions(fetchImpl = null) {
   const elements = new Map();
   const document = {
     getElementById(id) {
@@ -30,7 +30,7 @@ function loadAppFunctions() {
     querySelectorAll() { return []; },
     createElement(tag) { return makeElement(tag); }
   };
-  const context = { document, fetch: async () => { throw new Error("Unexpected fetch in unit test"); } };
+  const context = { document, fetch: fetchImpl || (async () => { throw new Error("Unexpected fetch in unit test"); }) };
   runInNewContext(source, context, { filename: "web/app.js" });
   return context;
 }
@@ -66,6 +66,32 @@ function annualFixtures({ includeShares = true } = {}) {
   }
   return rows;
 }
+
+test("requested ticker acceptance set resolves cleanly and unknown tickers fail closed", async () => {
+  const tickers=["NVDA","MRAM","AAPL","JPM","TSM","BRK.B"];
+  const rows=tickers.map((ticker,index)=>({cik:String(1000000+index),name:ticker+" Test Company",ticker,exchange:"NASDAQ"}));
+  for(const ticker of tickers) {
+    const app=loadAppFunctions(async()=>({ok:true,json:async()=>({fields:["cik","name","ticker","exchange"],data:rows.map(row=>[row.cik,row.name,row.ticker,row.exchange])})}));
+    const company=await app.findCompany(ticker);
+    assert.equal(company.ticker,ticker);
+    assert.ok(company.cik);
+    assert.notEqual(app.companyDescription(ticker),"A verified plain-English business description is not available in the current data feed.");
+  }
+  const app=loadAppFunctions(async()=>({ok:true,json:async()=>({fields:["cik","name","ticker","exchange"],data:rows.map(row=>[row.cik,row.name,row.ticker,row.exchange])})}));
+  await assert.rejects(()=>app.findCompany("BADTICKER"),/No company was found/);
+});
+
+test("IFRS-only foreign issuer facts can be normalized without fabricating US-GAAP facts", () => {
+  const app=loadAppFunctions();
+  const payload={facts:{"ifrs-full":{Revenue:{units:{USD:[
+    {val:1250000000,start:"2024-01-01",end:"2024-12-31",filed:"2025-02-20",form:"20-F",accn:"test"}
+  ]}}}}};
+  const rows=app.getObservations(payload);
+  const revenue=rows.find(row=>row.key==="revenue"&&row.value!==null);
+  assert.equal(revenue.value,1250000000);
+  assert.equal(revenue.taxonomy,"ifrs-full");
+  assert.equal(revenue.form,"20-F");
+});
 
 test("annualSeries keeps unambiguous annual values and sorts chronologically", () => {
   const app = loadAppFunctions();
