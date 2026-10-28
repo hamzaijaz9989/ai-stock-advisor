@@ -869,6 +869,22 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   else if(buySetupPass) state="BUY — PROVISIONAL";
   else state="HOLD";
   $("decision-status").textContent=state+" · RESEARCH ONLY";
+  const bottomLine = state==="BUY — PROVISIONAL"
+    ? "BUY SETUP (PROVISIONAL) — entry conditions pass, but this strategy is not validated. Treat as a watchlist candidate, not a proven recommendation."
+    : state==="SELL REVIEW"
+    ? "SELL REVIEW — check the original filing/news and your own position before deciding. This alert is not an instruction to sell."
+    : state==="HOLD"
+    ? "HOLD — no clear new-entry setup and no configured sell-review trigger. Keep monitoring; this is not a guarantee that holding is best."
+    : "WAIT — do not force a trade. Required evidence is missing, stale, conflicting, or the entry/event-risk checks do not pass.";
+  $("decision-bottom-line").textContent=bottomLine;
+  const nextStep = state==="BUY — PROVISIONAL"
+    ? "Next: verify the latest SEC filing, original news, quote timestamp, and your position size. The app has not proven this signal profitable."
+    : state==="SELL REVIEW"
+    ? "Next: open the source filing or headline, confirm whether it materially changes the investment thesis, then review your entry price and risk limit."
+    : state==="HOLD"
+    ? "Next: hold off on adding solely because of this result. Recheck after the next earnings report, material filing, or meaningful price change."
+    : "Next: fix the REVIEW items below first. If price, filings, earnings date, or news cannot be verified, keep this ticker on WAIT.";
+  $("decision-next-step").textContent=nextStep;
   $("decision-title").textContent=state==="SELL REVIEW"?"SELL REVIEW — CHECK THESIS AND RISK PROMPTLY":
     state==="BUY — PROVISIONAL"?"BUY SETUP — PROVISIONAL, NOT BACKTEST-VALIDATED":
     state==="HOLD"?"HOLD — NO NEW ENTRY TRIGGER":
@@ -886,7 +902,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(flaggedHeadlines.length) reasons.push("Recent headlines contain potential risk keywords and need checking against original sources.");
   if(valuation.available&&!priceInEntryRange) reasons.push(quoteCurrent?(quote.price>entryHigh?"The quote is above the provisional entry zone; do not chase.":"The quote is below the provisional zone; a sharp drop needs review."):"Current price cannot be compared with the model range.");
   if(rewardRisk!==null&&rewardRisk<2) reasons.push("The provisional reward-to-risk ratio is below 2:1.");
-  if(state==="BUY — PROVISIONAL") reasons.push("PROVISIONAL BUY SETUP: all configured data, event, fundamentals, entry-zone, and minimum 2:1 reward/risk checks passed. The strategy has NOT passed a complete point-in-time walk-forward plus untouched holdout validation; this is an experimental research signal, not a validated edge or a guarantee.");
+  if(state==="BUY — PROVISIONAL") reasons.push("PROVISIONAL BUY SETUP: configured data, event, fundamentals, entry-zone, and minimum 2:1 reward/risk checks passed. Historical validation is incomplete, so this is not a proven strategy, a reliable probability estimate, or a guarantee.");
   else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because a fundamental quality check failed or a recent headline contains a potential material-risk keyword. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
   else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a provisional entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
   else reasons.push("WAIT means one or more required data-quality, event-risk, fundamental, valuation, or price-entry checks did not pass. Do not force a trade from incomplete evidence.");
