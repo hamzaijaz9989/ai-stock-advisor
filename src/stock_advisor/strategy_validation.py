@@ -14,6 +14,8 @@ from datetime import UTC, date, datetime
 from statistics import stdev
 from typing import Any
 
+from stock_advisor.portfolio import simulate_cash_only_portfolio
+
 from stock_advisor.backtest import (
     BacktestConfig,
     DailyBar,
@@ -264,6 +266,7 @@ def build_validation_report(
     completed = [item for item in outcomes if item.status == "closed" and item.net_return_pct is not None]
     completed_returns = [float(item.net_return_pct) for item in completed]
     summary = summarize_outcomes(outcomes)
+    portfolio = simulate_cash_only_portfolio(signals, bars_by_symbol, config=config)
     summary["max_drawdown_pct_sequential_trade_proxy"] = _max_drawdown(completed_returns)
     summary["return_stddev_pct"] = _sample_std(completed_returns)
     summary["missing_bars"] = missing_bars
@@ -286,10 +289,9 @@ def build_validation_report(
         blockers.append("net_profit_factor_not_above_1")
     if summary.get("average_excess_return_pct") is None or summary["average_excess_return_pct"] <= 0:
         blockers.append("average_excess_return_not_positive")
-    # The report engine does not independently attest to external data lineage or a true
-    # portfolio equity curve. These final blockers deliberately prevent self-approval.
-    blockers.extend(["portfolio_level_equity_curve_and_overlap_model_not_implemented",
-                     "independent_validation_review_required"])
+    if portfolio["completed_positions"] < minimum_trades:
+        blockers.append("minimum_completed_portfolio_positions_not_met")
+    blockers.append("independent_validation_review_required")
     return {
         "report_version": 2,
         "strategy_version": "northstar-provisional-gates-v1",
@@ -297,6 +299,7 @@ def build_validation_report(
         "snapshots_evaluated": len(audit),
         "audit": audit,
         "summary": summary,
+        "portfolio_simulation": portfolio,
         "walk_forward_folds": [
             {"train_start": f.train_start.isoformat(), "train_end": f.train_end.isoformat(),
              "test_start": f.test_start.isoformat(), "test_end": f.test_end.isoformat()}
