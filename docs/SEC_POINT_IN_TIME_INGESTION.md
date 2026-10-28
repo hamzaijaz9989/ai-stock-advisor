@@ -2,7 +2,7 @@
 
 ## What it does
 
-`scripts/fetch_sec_history.py` downloads issuer submissions and XBRL company facts from the official SEC EDGAR APIs. It preserves accession numbers, filing dates, fiscal periods, original fact values and the exact acceptance timestamp when present in the submissions response. A fact with no exact timestamp is marked `availability_timestamp_verified: false`; the script does not invent one from a fiscal period or filing date.
+`scripts/fetch_sec_history.py` downloads issuer submissions and XBRL company facts from the official SEC EDGAR APIs. It preserves accession numbers, filing dates, fiscal periods, original fact values, and raw `acceptanceDateTime` text. The raw timestamp is **not considered verified availability time**: timezone interpretation in SEC submissions JSON has been found inconsistent across issuers and dates. The bundle therefore sets `available_at: null` and `availability_timestamp_verified: false` until the timestamp is reconciled against filing-index or SGML-header evidence.
 
 ## Run
 
@@ -25,6 +25,6 @@ This workflow only downloads official SEC filings/facts. It does not manufacture
 
 ## Important limits
 
-This is the first real-data ingestion adapter, not a strategy backtest and not a complete signal dataset. It does not ingest daily prices, corporate-action-adjusted OHLCV, point-in-time index membership, historical timestamped news, or a complete earnings calendar. SEC companyfacts can include duplicate contexts and amended/restated reports; consumers must select a fact by accession, form, unit, fiscal period and its verified availability timestamp. Facts without a verified timestamp must be excluded from historical signal generation.
+This is the first real-data ingestion adapter, not a strategy backtest and not a complete signal dataset. It does not ingest daily prices, corporate-action-adjusted OHLCV, point-in-time index membership, historical timestamped news, or a complete earnings calendar. SEC companyfacts can include duplicate contexts and amended/restated reports; consumers must select a fact by accession, form, unit, fiscal period and its verified availability timestamp. All facts in this initial bundle are ineligible for point-in-time signal generation until raw acceptance timestamps are independently reconciled. Never treat `raw_acceptance_timestamp` as verified.
 
-The output always marks `decision_eligible: false`. It must not be fed directly into the strategy validator as if it were a complete dataset. BUY remains locked until independent validation passes on a complete, licensed, point-in-time dataset.
+The output always marks `decision_eligible: false`. It must not be fed directly into the strategy validator as if it were a complete dataset. BUY remains locked until timestamps are reconciled and independent validation passes on a complete, licensed, point-in-time dataset.
