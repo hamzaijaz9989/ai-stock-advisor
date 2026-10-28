@@ -805,6 +805,16 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     quoteReliabilityLabel.includes("not real-time");
   const quoteCurrent=typeof quote?.price==="number"&&quote.price>0&&
     quoteAgeHours>=-2&&quoteAgeHours<=48&&!dailySnapshot;
+  // Coarse sanity gate: suppress model-derived levels when quote and valuation
+  // diverge dramatically, which can signal units/share-count/model errors.
+  if (valuation.available && quoteCurrent) {
+    const quoteToValue = quote.price / valuation.base;
+    if (!Number.isFinite(quoteToValue) || quoteToValue > 2.5 || quoteToValue < 0.4) {
+      valuation.available = false;
+      valuation.sanityBlocked = true;
+      valuation.reason = "Valuation withheld: the model estimate differs from the current quote by more than 2.5× (or less than 0.4×). Check cash-flow units, SEC share count, corporate actions, and assumptions before using any price target.";
+    }
+  }
   const today=newYorkDateOnly();
   const nextEvent=(earnings?.events||[]).filter(event=>event.reportDate>=today).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]||null;
   const daysToEarnings=nextEvent?(Date.parse(nextEvent.reportDate+"T00:00:00Z")-Date.parse(today+"T00:00:00Z"))/86400000:null;
@@ -847,7 +857,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const plannedShares=entryMid!==null&&invalidation!==null&&invalidation>0&&entryMid>invalidation?Math.min(Math.floor(5/(entryMid-invalidation)),Math.floor(500/entryMid)):0;
   const dataChecks=[
     {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?(quote?.quoteTime?"Provider quote timestamp "+quoteDate.toLocaleString():quote?.quoteLabel?"Provider quote date "+quote.quoteLabel+"; exact trade time was not supplied":"Provider date/time "+quoteDate.toLocaleString()):(dailySnapshot?"Provider returned a daily-bar snapshot, not a current quote":"Quote unavailable, missing a usable date/time, or older than 48 hours")},
-    {label:"Valuation inputs",ok:valuation.available,detail:valuation.available?"Three unambiguous annual free-cash-flow periods and recent SEC share count found":valuation.reason},
+    {label:"Valuation inputs and sanity check",ok:valuation.available,detail:valuation.available?"Annual cash-flow periods, recent SEC share count, and basic quote-to-value sanity check passed":valuation.reason},
     {label:"Annual fundamentals",ok:annualFundamentalPass,detail:annualFundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; annual revenue has not dropped more than 10% year over year":"Annual quality filter failed or comparable data is missing"},
     {label:"Latest quarterly trend",ok:quarterlyPass,detail:quarterlyPass?"Quarterly revenue/net income are positive and revenue is no worse than -15% year over year":"Latest quarterly net income, same-quarter revenue comparison, or quality threshold did not pass"},
     {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next "+(earnings?.provider||"provider-listed")+" date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
@@ -858,7 +868,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   // Action labels are now active, but BUY is explicitly provisional/unvalidated.
   // This rule is conservative and is not evidence of a profitable strategy.
   const sellReview = fundamentalAvoid || flaggedHeadlines.length>0;
-  const coreEvidencePass = quoteCurrent && valuation.available && annualFundamentalPass &&
+  const coreEvidencePass = quoteCurrent && valuation.available && !valuation.sanityBlocked && annualFundamentalPass &&
     quarterlyPass && earningsVerified && recentHeadlines.length>0 && flaggedHeadlines.length===0 &&
     atr!==null && Number.isFinite(atr) && rewardRisk!==null && Number.isFinite(rewardRisk);
   const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
