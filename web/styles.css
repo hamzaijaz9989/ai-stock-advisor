@@ -551,3 +551,34 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .cached-screen-card .screen-component strong{font-size:14px;overflow-wrap:anywhere}
 .cached-status{font-size:12px;color:var(--muted);padding:11px 12px;border-left:2px solid var(--amber);background:#17140e;border-radius:0 9px 9px 0}
 @media(min-width:760px){.stock-suggestions-hero{grid-template-columns:1fr auto;align-items:center}.suggestions-actions{justify-content:flex-end}.cached-screen-card .screen-components{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
+
+/* Northstar refinement: tighter hierarchy, readable quote metadata, and fewer repeated panels */
+.quote-panel{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:12px}
+.quote-panel #quote-change{margin:0;font-size:12px;line-height:1.6}
+.quote-panel .quote-meta{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px 16px;flex-wrap:wrap;max-width:none;text-align:left;font-size:11px}
+.quote-panel .quote-meta span{overflow-wrap:anywhere}
+.quote-panel .quote-meta .secondary-button{margin-left:auto}
+.confidence-badge{max-width:100%;white-space:normal;line-height:1.45}
+.beginner-score p{overflow-wrap:anywhere}
+.beginner-list-item strong{display:flex;align-items:flex-start;gap:8px}
+.beginner-list-item strong .meaning-dot{flex:0 0 9px;margin-top:7px}
+.metrics-disclosure{padding:0;overflow:hidden}
+.metrics-disclosure>summary{padding:18px 20px;margin:0}
+.metrics-disclosure .disclosure-content{padding:0 20px 18px}
+.metrics-disclosure[open]>summary{border-bottom:1px solid var(--line)}
+.metrics-disclosure[open]>summary .disclosure-chevron{transform:rotate(45deg)}
+#recommendation-panel #decision-hero,
+#recommendation-panel .decision-bottom-line{display:none}
+#recommendation-panel>.section-heading{margin-bottom:12px}
+#recommendation-panel .developer-panel{margin-top:10px}
+#news-list[aria-hidden="true"],.hidden[aria-hidden="true"]{display:none!important}
+.stock-results{scroll-margin-top:82px}
+.full-details-content>.news-section{min-width:0}
+@media(max-width:760px){
+ .quote-panel{padding:16px}
+ .quote-panel .quote-meta{align-items:flex-start;gap:8px 12px}
+ .quote-panel .quote-meta .secondary-button{margin-left:0}
+ .metrics-disclosure .disclosure-content{padding:0 12px 12px}
+ .confidence-badge{font-size:10px}
+}
