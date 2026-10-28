@@ -311,6 +311,31 @@ async function loadStrategyBacktest(ticker) {
     for(const card of metrics) grid.append(card);
     $("strategy-backtest-status").textContent=result.observations+" sessions · "+result.startDate+" to "+result.endDate;
     $("strategy-backtest-warning").textContent=result.warning+" Data source: "+result.source+". Cost assumption: "+result.slippageAndCostBpsPerSide+" bps per side.";
+    const wf=result.walkForward||{};
+    const wfRoot=$("strategy-walk-forward");
+    if(Array.isArray(wf.folds)&&wf.folds.length) {
+      const heading=document.createElement("strong");
+      heading.textContent="Chronological walk-forward diagnostic";
+      const summary=document.createElement("p");
+      summary.textContent=wf.positiveFolds+" of "+wf.totalFolds+" non-overlapping six-month test windows were positive; median window return "+fmtPct(wf.medianFoldReturnPercent)+".";
+      const table=document.createElement("div");table.className="table-wrap";
+      const tableEl=document.createElement("table");
+      const thead=document.createElement("thead"),headRow=document.createElement("tr");
+      for(const label of ["Test window","Return","Max drawdown","Volatility","Entries / exits"]) {const th=document.createElement("th");th.textContent=label;headRow.append(th);}
+      thead.append(headRow);const tbody=document.createElement("tbody");
+      for(const fold of wf.folds) {
+        const tr=document.createElement("tr");
+        for(const value of [fold.testStart+" – "+fold.testEnd,fmtPct(fold.returnPercent),fmtPct(fold.maxDrawdownPercent),fmtPct(fold.volatilityPercent),fold.entries+" / "+fold.exits]) {
+          const td=document.createElement("td");td.textContent=value;tr.append(td);
+        }
+        tbody.append(tr);
+      }
+      tableEl.append(thead,tbody);table.append(tableEl);
+      const note=document.createElement("p");note.textContent=wf.methodology+" "+wf.warning;
+      wfRoot.replaceChildren(heading,summary,table,note);
+    } else {
+      wfRoot.textContent="Not enough history to create chronological test windows. "+(wf.warning||"No walk-forward result is available.");
+    }
     details.textContent="Rules: "+result.rules+" Completed trades: "+result.completedTrades+"; open at end: "+result.openAtEnd+". Average completed trade: "+fmtPct(result.averageTradeReturnPercent)+". Average benchmark return during strategy trades: "+fmtPct(result.averageBenchmarkDuringTradesPercent)+". This is a diagnostic baseline, not the current advisor’s recommendation engine or an investable proof of edge.";
   } catch(error) {
     $("strategy-backtest-status").textContent="Unavailable";
