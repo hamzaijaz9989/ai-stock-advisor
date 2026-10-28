@@ -1623,6 +1623,38 @@ function renderNews(payload) {
   const topHeadlineUrls=new Set([...items].sort((a,b)=>headlineRank(b)-headlineRank(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3).map(item=>item.url));
   const distinctItems = items.filter(item => !topHeadlineUrls.has(item.url));
   const sorted = [...distinctItems].sort((a,b)=>score(b)-score(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||"")));
+  const summaryRoot=$("stock-news-summary"), signalsRoot=$("stock-news-signals"), filtersRoot=$("stock-news-filters");
+  const counts={positive:0,negative:0,mixed:0,other:0};
+  for(const item of sorted) counts[getImpact(item).key]++;
+  if(summaryRoot){
+    summaryRoot.innerHTML="";
+    for(const spec of [
+      {key:"positive",label:"Potentially positive",cls:"summary-positive"},
+      {key:"negative",label:"Potentially negative",cls:"summary-negative"},
+      {key:"mixed",label:"Mixed signals",cls:"summary-mixed"},
+      {key:"other",label:"Other / unclear",cls:"summary-other"}
+    ]){
+      const card=document.createElement("div");card.className="stock-news-summary-card "+spec.cls;
+      const label=document.createElement("span");label.textContent=spec.label;
+      const count=document.createElement("strong");count.textContent=String(counts[spec.key]);
+      card.append(label,count);summaryRoot.append(card);
+    }
+  }
+  if(filtersRoot&&filtersRoot.dataset.bound!=="true"){
+    filtersRoot.dataset.bound="true";
+    filtersRoot.addEventListener("click",event=>{
+      const button=event.target.closest("[data-news-filter]");if(!button)return;
+      filtersRoot.querySelectorAll("[data-news-filter]").forEach(el=>{
+        const active=el===button;el.classList.toggle("active",active);el.setAttribute("aria-pressed",String(active));
+      });
+      const filter=button.dataset.newsFilter;
+      [...impactRoot.querySelectorAll(".stock-news-impact-item")].forEach(card=>card.classList.toggle("hidden",filter!=="all"&&card.dataset.impact!==filter));
+      const visible=[...impactRoot.querySelectorAll(".stock-news-impact-item")].filter(card=>!card.classList.contains("hidden")).length;
+      if(impactStatus)impactStatus.textContent=visible+" stories shown";
+      const note=impactRoot.querySelector(".news-filter-empty");if(note)note.remove();
+      if(!visible&&sorted.length){const empty=document.createElement("p");empty.className="empty news-filter-empty";empty.textContent="No additional stories match this filter.";impactRoot.append(empty);}
+    });
+  }
   for (const item of items) {
     const card=document.createElement("article"); card.className="news-item";
     const link=document.createElement("a"); link.href=item.url; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent=item.title;
@@ -1670,6 +1702,20 @@ function renderNews(payload) {
       }
     });
   }
+  if(signalsRoot){
+    signalsRoot.innerHTML="";
+    const positives=sorted.filter(item=>getImpact(item).key==="positive");
+    const negatives=sorted.filter(item=>getImpact(item).key==="negative");
+    const addSignal=(label,items,cls,emptyText)=>{
+      const panel=document.createElement("div");panel.className="stock-news-signal "+cls;
+      const heading=document.createElement("strong");heading.textContent=label;panel.append(heading);
+      const copy=document.createElement("p");copy.textContent=items.length?items.slice(0,2).map(item=>item.title).join(" · "):emptyText;
+      panel.append(copy);signalsRoot.append(panel);
+    };
+    addSignal("Positive-side evidence to investigate",positives,"signal-positive","No clearly positive headline cues found in the additional stories.");
+    addSignal("Risks to investigate",negatives,"signal-negative","No clearly negative headline cues found in the additional stories.");
+    const note=document.createElement("p");note.className="stock-news-signal-note";note.textContent="These are automated headline cues, not verified conclusions. Open the sources and compare them with filings and financial results.";signalsRoot.append(note);
+  }
   if (!sorted.length) {
     const empty=document.createElement("p"); empty.className="empty";
     empty.textContent="No additional company-specific stories beyond the top headlines were returned. The feed will not repeat headlines or invent news.";
@@ -1677,7 +1723,7 @@ function renderNews(payload) {
   }
   for (const item of sorted) {
     const card=document.createElement("article"); card.className="stock-news-impact-item";
-    const impact=getImpact(item); card.dataset.impact=impact.key;
+    const impact=getImpact(item); card.dataset.impact=impact.key; card.dataset.impact=impact.key;
     const badge=document.createElement("span"); badge.className="stock-news-impact-badge "+impact.cls; badge.textContent=impact.label;
     const link=document.createElement("a"); link.href=item.url; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent=item.title;
     const explanation=document.createElement("p"); explanation.className="stock-news-impact-explanation"; explanation.textContent=impact.explanation;
@@ -1701,6 +1747,7 @@ function renderNews(payload) {
     signalsRoot.append(note);
   }
   if (impactStatus) impactStatus.textContent=sorted.length+" additional stories";
+  if(filtersRoot){const allButton=filtersRoot.querySelector('[data-news-filter="all"]');if(allButton)filtersRoot.querySelectorAll("[data-news-filter]").forEach(el=>{const active=el===allButton;el.classList.toggle("active",active);el.setAttribute("aria-pressed",String(active));});}
   if(filtersRoot){
     const allButton=filtersRoot.querySelector('[data-news-filter="all"]');
     if(allButton){filtersRoot.querySelectorAll("[data-news-filter]").forEach(el=>{const active=el===allButton;el.classList.toggle("active",active);el.setAttribute("aria-pressed",String(active));});}
