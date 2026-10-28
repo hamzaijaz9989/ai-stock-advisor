@@ -517,3 +517,18 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .decision-indicator.caution::before { background: #f4c15d; box-shadow: 0 0 0 3px rgba(244,193,93,.13); }
 
 #decision-checks::before { content: "GREEN = positive check   ·   RED = risk / failed check   ·   AMBER = needs review"; display: block; margin: 0 0 12px; padding: 11px 13px; border: 1px solid #303137; border-radius: 12px; background: #0b0b0d; color: #c4c5cb; font-size: 12px; line-height: 1.6; }
+
+
+/* Explain evidence status with both color and plain-language labels. */
+.meaning-legend { display:flex; flex-wrap:wrap; gap:8px 14px; padding:12px 14px; margin:0 0 12px; border:1px solid #303137; border-radius:12px; background:#0b0b0d; }
+.meaning-legend span { display:inline-flex; align-items:center; color:#c4c5cb; font-size:12px; }
+.meaning-legend span::before, .decision-indicator::before, .trend-good .metric-label::before, .trend-bad .metric-label::before, .trend-caution .metric-label::before, .trend-unknown .metric-label::before { content:""; display:inline-block; width:8px; height:8px; flex:0 0 8px; border-radius:50%; margin-right:8px; vertical-align:middle; }
+.legend-good::before, .decision-indicator.good::before, .trend-good .metric-label::before { background:#62dc8b; box-shadow:0 0 0 3px rgba(98,220,139,.13); }
+.legend-bad::before, .decision-indicator.bad::before, .trend-bad .metric-label::before { background:#ff666d; box-shadow:0 0 0 3px rgba(255,102,109,.13); }
+.legend-caution::before, .decision-indicator.caution::before, .trend-caution .metric-label::before { background:#f4c15d; box-shadow:0 0 0 3px rgba(244,193,93,.13); }
+.legend-unknown::before, .decision-indicator.unknown::before, .trend-unknown .metric-label::before { background:#9297a3; box-shadow:0 0 0 3px rgba(146,151,163,.13); }
+.decision-indicator { display:inline-flex; align-items:center; min-width:76px; height:fit-content; padding:7px 9px; border:1px solid #35363b; border-radius:999px; font-size:10px; font-weight:750; letter-spacing:.04em; }
+.decision-indicator::before { width:7px; height:7px; flex-basis:7px; margin-right:6px; box-shadow:none; }
+.decision-indicator.good { color:#a6efbb; border-color:rgba(98,220,139,.35); }
+.decision-indicator.bad { color:#ff9a9e; border-color:rgba(255,102,109,.35); }
+.decision-indicator.caution { color:#f4d28c; border-color:rgba(244,193,93,.35); }
