@@ -1,4 +1,6 @@
 from datetime import date
+import gzip
+import json
 
 import pytest
 
@@ -8,6 +10,7 @@ from stock_advisor.sec_ingest import (
     SEC_TICKERS_URL,
     collect_company,
     collect_dataset,
+    _fetch_json,
 )
 
 
@@ -109,3 +112,19 @@ def test_dataset_deduplicates_tickers_and_sets_not_decision_eligible(sec_respons
     )
     assert len(dataset["companies"]) == 1
     assert dataset["decision_eligible"] is False
+
+
+
+def test_fetch_json_decompresses_gzip_response(monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return gzip.compress(json.dumps({"ok": True}).encode("utf-8"))
+
+    monkeypatch.setattr("stock_advisor.sec_ingest.urlopen", lambda *_args, **_kwargs: FakeResponse())
+    assert _fetch_json("https://example.test/data.json", user_agent="Northstar test") == {"ok": True}
