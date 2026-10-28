@@ -32,7 +32,7 @@
         </div>
       </form>
     </section>
-    <section class="beginner-guide" aria-labelledby="guide-heading">
+<details class="beginner-guide"><summary>New to stocks? How to use Northstar AI</summary><div class="guide-content">
       <div class="guide-heading">
         <p class="eyebrow">START HERE · NO STOCK-MARKET EXPERIENCE NEEDED</p>
         <h2 id="guide-heading">Your decision, explained simply.</h2>
@@ -52,7 +52,8 @@
         <div><strong>INSUFFICIENT DATA</strong><span>The app cannot safely assess it. Do not guess.</span></div>
       </div>
       <p class="guide-disclaimer">Important: Northstar AI is a research prototype, not a guaranteed-profit service or personalized financial adviser. It never places trades. No validated BUY signal is enabled until independent historical testing passes.</p>
-    </section>
+    </div></details>
+    <div id="stock-results" class="stock-results hidden" aria-label="Analysis results for the selected stock">
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="company-panel" class="company-panel hidden">
       <div><p class="eyebrow">COMPANY</p><h2 id="company-name">—</h2><p id="company-meta" class="muted">—</p></div>
@@ -97,11 +98,6 @@
       <div id="strategy-backtest-metrics" class="metrics-grid"></div>
       <div id="strategy-backtest-details" class="table-note"></div><div id="strategy-walk-forward" class="table-note"></div>
     </section>
-    <section id="ranking" class="ranking-section">
-      <div class="section-heading"><div><p class="eyebrow">RESEARCH SHORTLIST</p><h2>Top 10 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
-      <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
-      <p class="table-note">Run a comparison of 60 selected US stocks. The system displays up to 10 research candidates and, where the latest quote and valuation inputs pass checks, shows a model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are not guaranteed buy/exit instructions; the strategy has not passed walk-forward and untouched holdout validation.</p><div class="ranking-actions"><button id="run-screen" type="button" class="secondary-button">Run 60-stock research screen</button><span id="screen-status" class="count">Not run</span></div><div id="screen-results" class="screen-results"><p class="empty">Run a cross-sector screen of 60 selected US stocks. The starter universe is not the full market; results depend on provider availability and strict data-quality checks.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
-    </section>
     <section class="news-section"><div class="section-heading"><div><p class="eyebrow">FUNDAMENTAL SNAPSHOT</p><h2>Annual financial trends</h2></div><span id="fundamental-status" class="count">Loads with analysis</span></div><p class="table-note">Calculated only from unambiguous annual 10-K observations. Free cash flow is an approximation: operating cash flow minus absolute capital expenditures. Not a recommendation.</p><div id="fundamental-snapshot" class="metrics-grid"><p class="empty">Analyze a company to calculate annual trends.</p></div></section>
     <section class="news-section" aria-labelledby="quarterly-heading">
       <div class="section-heading"><div><p class="eyebrow">LATEST REPORTED QUARTER</p><h2 id="quarterly-heading">Quarterly performance snapshot</h2></div><span id="quarterly-status" class="count">Loads with analysis</span></div>
@@ -119,6 +115,13 @@
       <p class="table-note">Headlines help spot developments; verify important claims at the original source and in company filings.</p>
       <div id="news-list" class="news-list"><p class="empty">Analyze a ticker to load recent headlines.</p></div>
     </section>
+
+    <section id="ranking" class="ranking-section">
+      <div class="section-heading"><div><p class="eyebrow">RESEARCH SHORTLIST</p><h2>Top 10 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
+      <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
+      <p class="table-note">Run a comparison of 60 selected US stocks. The system displays up to 10 research candidates and, where the latest quote and valuation inputs pass checks, shows a model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are not guaranteed buy/exit instructions; the strategy has not passed walk-forward and untouched holdout validation.</p><div class="ranking-actions"><button id="run-screen" type="button" class="secondary-button">Run 60-stock research screen</button><span id="screen-status" class="count">Not run</span></div><div id="screen-results" class="screen-results"><p class="empty">Run a cross-sector screen of 60 selected US stocks. The starter universe is not the full market; results depend on provider availability and strict data-quality checks.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
+    </section>
+    </div>
     <details class="diagnostics">
       <summary>Data connection details</summary>
       <div class="diagnostic-content">
