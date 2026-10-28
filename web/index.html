@@ -32,6 +32,27 @@
         </div>
       </form>
     </section>
+    <section class="beginner-guide" aria-labelledby="guide-heading">
+      <div class="guide-heading">
+        <p class="eyebrow">START HERE · NO STOCK-MARKET EXPERIENCE NEEDED</p>
+        <h2 id="guide-heading">Your decision, explained simply.</h2>
+        <p>Enter a US stock ticker, then read the first decision card. Northstar checks company filings, price data, recent news, earnings risk and an illustrative valuation model. It may tell you to wait instead of forcing a trade.</p>
+      </div>
+      <div class="guide-steps">
+        <article><span class="guide-number">01</span><h3>Search a company</h3><p>Try AAPL (Apple), MSFT (Microsoft), NVDA (NVIDIA) or type another US ticker.</p></article>
+        <article><span class="guide-number">02</span><h3>Read the verdict</h3><p>Start with “Bottom line” and “What to do next.” Open the evidence and risks if you want the details.</p></article>
+        <article><span class="guide-number">03</span><h3>Check the data status</h3><p>If data is missing, stale or unverified, do not treat the result as a trading signal. Refresh later or choose another stock.</p></article>
+      </div>
+      <div class="guide-verdicts" aria-label="Decision label explanations">
+        <div><strong>BUY</strong><span>Only when the full strategy has passed validation. Currently disabled.</span></div>
+        <div><strong>BUY SETUP — UNVALIDATED</strong><span>Some current checks look promising, but the system has not proved the strategy works historically. Not a buy instruction.</span></div>
+        <div><strong>HOLD</strong><span>No new entry signal. If you own it, review whether your original reason for buying still holds.</span></div>
+        <div><strong>SELL REVIEW</strong><span>Check the warning and your own position; this is not an automatic sell order.</span></div>
+        <div><strong>WAIT / AVOID</strong><span>Wait for better evidence or avoid the setup under the current rules.</span></div>
+        <div><strong>INSUFFICIENT DATA</strong><span>The app cannot safely assess it. Do not guess.</span></div>
+      </div>
+      <p class="guide-disclaimer">Important: Northstar AI is a research prototype, not a guaranteed-profit service or personalized financial adviser. It never places trades. No validated BUY signal is enabled until independent historical testing passes.</p>
+    </section>
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="company-panel" class="company-panel hidden">
       <div><p class="eyebrow">COMPANY</p><h2 id="company-name">—</h2><p id="company-meta" class="muted">—</p></div>
