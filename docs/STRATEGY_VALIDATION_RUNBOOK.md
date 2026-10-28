@@ -21,7 +21,9 @@ The provisional snapshot rules mirror the current app's major gates: positive an
 
 ```bash
 python -m pip install -e ".[dev]"
-python scripts/run_strategy_validation.py --input path/to/point_in_time_dataset.json --output validation-report.json
+python scripts/run_strategy_validation.py --input examples/strategy_validation_input.example.json --output validation-report.synthetic.json
+# The fixture is fake and should fail release-quality gates by design.
+python scripts/run_strategy_validation.py --input path/to/real_point_in_time_dataset.json --output validation-report.json
 pytest
 ruff check .
 node --test tests/web_logic.test.mjs
