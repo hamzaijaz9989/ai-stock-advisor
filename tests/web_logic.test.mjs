@@ -411,3 +411,41 @@ test("company name cleanup title-cases uppercase SEC names and removes duplicate
   assert.equal(app.titleCaseCompanyName("Apple Inc."), "Apple Inc.");
 });
 
+test("history API falls back to Nasdaq after Yahoo HTTP 429 and returns an explicit quality scan", async () => {
+  const historySource=readFileSync(new URL("../web/functions/api/history.js",import.meta.url),"utf8")
+    .replace("export async function onRequestGet","async function onRequestGet")+"\nglobalThis.__historyHandler=onRequestGet;";
+  const calls=[];
+  const rows=Array.from({length:40},(_,i)=>{
+    const date=new Date(Date.UTC(2026,0,1+i));
+    return {date:(date.getUTCMonth()+1)+"/"+date.getUTCDate()+"/"+date.getUTCFullYear(),
+      close:String(100+i),open:String(99.5+i),high:String(101+i),low:String(99+i),volume:"1000000"};
+  });
+  const context={URL,Response,Date,Math,Number,String,Array,Object,JSON,AbortSignal,
+    fetch:async url=>{
+      calls.push(String(url));
+      if(String(url).includes("finance.yahoo.com")) return {ok:false,status:429,json:async()=>({})};
+      return {ok:true,status:200,json:async()=>({data:{symbol:"TEST",tradesTable:{rows}}})};
+    }};
+  runInNewContext(historySource,context,{filename:"web/functions/api/history.js"});
+  const response=await context.__historyHandler({request:new Request("https://example.test/api/history?ticker=TEST")});
+  const payload=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(payload.source,"Nasdaq historical API");
+  assert.equal(payload.observations,40);
+  assert.equal(payload.dataQuality.status,"NO_RULE_TRIGGERED");
+  assert.equal(calls.filter(url=>url.includes("finance.yahoo.com")).length,2);
+  assert.ok(calls.some(url=>url.includes("api.nasdaq.com")));
+});
+
+test("history API rejects malformed tickers before calling providers", async () => {
+  const historySource=readFileSync(new URL("../web/functions/api/history.js",import.meta.url),"utf8")
+    .replace("export async function onRequestGet","async function onRequestGet")+"\nglobalThis.__historyHandler=onRequestGet;";
+  let called=false;
+  const context={URL,Response,Date,Math,Number,String,Array,Object,JSON,AbortSignal,
+    fetch:async()=>{called=true;throw new Error("Provider must not be called");}};
+  runInNewContext(historySource,context,{filename:"web/functions/api/history.js"});
+  const response=await context.__historyHandler({request:new Request("https://example.test/api/history?ticker=!!!")});
+  assert.equal(response.status,400);
+  assert.equal(called,false);
+});
+
