@@ -226,9 +226,9 @@ test("decision panel refuses BUY when no whole share fits the planned-risk budge
     quarter:app.renderQuarterlySnapshot(observations)
   });
   const title=elements.getElementById("decision-title").textContent;
-  assert.ok(title.startsWith("HOLD — NO NEW ENTRY TRIGGER"));
-  assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("no clear new-entry setup"));
-  assert.ok(elements.getElementById("decision-next-step").textContent.includes("hold off on adding"));
+  assert.ok(title.startsWith("WAIT — NO NEW ENTRY TRIGGER"));
+  assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("No new entry trigger"));
+  assert.ok(elements.getElementById("decision-next-step").textContent.includes("do not buy yet"));
   const renderedChecks=elements.getElementById("decision-checks").children.map(row=>row.children[1].children[0].textContent);
   for(const label of ["Growth screen","Profitability screen","Liquidity screen","Cash-flow screen","Event-risk screen"]) {
     assert.ok(renderedChecks.includes(label), "missing separate financial screen: "+label);
@@ -290,7 +290,7 @@ test("decision panel says AVOID when quarterly financials are available but fail
     earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Test Corp"}]},
     quarter:{available:true,currentRevenue:120e9,currentIncome:-1e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"}
   });
-  assert.ok(app.document.getElementById("decision-title").textContent.startsWith("SELL REVIEW"));
+  assert.ok(app.document.getElementById("decision-title").textContent.startsWith("AVOID"));
 });
 
 

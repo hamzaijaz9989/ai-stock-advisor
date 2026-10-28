@@ -1015,8 +1015,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   else if (dailySnapshot) state="WAIT";
   else if (insufficientData) state="INSUFFICIENT DATA";
   else if (gapCheck.blocked || !valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
-  else if ((quarterlyDataAvailable && !quarterlyPass) || flaggedHeadlines.length) state="WAIT";
   else if (fundamentalAvoid) state="AVOID";
+  else if (flaggedHeadlines.length) state="WAIT";
   else if (buySetupPass && !historicalValidationPass) state="BUY SETUP — UNVALIDATED";
   else if (buySetupPass && historicalValidationPass) state="BUY";
   else state="WAIT";
@@ -1053,7 +1053,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     : state==="BUY SETUP — UNVALIDATED"
     ? "Next: review the reproducible point-in-time walk-forward and untouched-holdout report. Keep the validated BUY gate closed until it passes."
     : state==="WAIT"
-    ? "Next: resolve the named rule above. Where valuation is withheld, verify the quote, shares, cash-flow periods and model assumptions."
+    ? "Next: do not buy yet. Resolve the named warning above, then run the analysis again. If valuation is withheld, the app needs better price or financial data."
     : state==="SELL REVIEW"
     ? "Next: open the original news and SEC filing, confirm materiality, and review your own position and thesis before deciding."
     : state==="BUY"
