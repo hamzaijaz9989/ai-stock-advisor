@@ -1585,8 +1585,13 @@ function renderNews(payload) {
   const impactRoot = $("stock-news-impact-list");
   const impactPanel = $("stock-news-impact");
   const impactStatus = $("stock-news-impact-status");
+  const summaryRoot = $("stock-news-summary");
+  const signalsRoot = $("stock-news-signals");
+  const filtersRoot = $("stock-news-filters");
   if (impactPanel) impactPanel.classList.remove("hidden");
   if (impactRoot) impactRoot.innerHTML = "";
+  if (summaryRoot) summaryRoot.innerHTML = "";
+  if (signalsRoot) signalsRoot.innerHTML = "";
   if (!items.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
@@ -1594,25 +1599,26 @@ function renderNews(payload) {
     list.append(empty);
     if (impactRoot) impactRoot.append(empty.cloneNode(true));
     if (impactStatus) impactStatus.textContent = "No matching news";
+    if (summaryRoot) summaryRoot.textContent = "Sentiment counts are unavailable until matching articles load.";
+    if (signalsRoot) signalsRoot.textContent = "No evidence-based news signals to review.";
     return;
   }
-  const positive = /\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand|expands partnership)\b/i;
-  const negative = /\b(misses|cuts guidance|downgrade|lawsuit|investigation|probe|recall|fraud|breach|outage|layoff|decline|warning|fine|ban|resign|weak demand|disappoint|loss widens|regulatory action)\b/i;
-  const material = /\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|launch)\b/i;
+  const positive = /\\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand|expands partnership)\\b/i;
+  const negative = /\\b(misses|cuts guidance|downgrade|lawsuit|investigation|probe|recall|fraud|breach|outage|layoff|decline|warning|fine|ban|resign|weak demand|disappoint|loss widens|regulatory action)\\b/i;
+  const material = /\\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|launch)\\b/i;
   const getImpact = item => {
     const title = item.title || "";
     const down = negative.test(title), up = positive.test(title);
-    if (down && up) return {label:"Mixed signals", cls:"impact-mixed", explanation:"The headline contains both positive and negative cues. Read the report to establish the net effect."};
-    if (down) return {label:"Potentially negative", cls:"impact-negative", explanation:"This may add downside risk or uncertainty. Confirm the details, scale, and whether the market already expected it."};
-    if (up) return {label:"Potentially positive", cls:"impact-positive", explanation:"This may support sentiment or business expectations. Check whether the news is material and already priced in."};
-    if (material.test(title)) return {label:"Material development to review", cls:"impact-watch", explanation:"This could affect expectations, risk, or valuation; the headline alone does not establish the direction or size of the impact."};
-    return {label:"Informational / impact unclear", cls:"impact-neutral", explanation:"The headline alone does not establish a clear positive or negative effect on the stock."};
+    if (down && up) return {label:"Mixed signals", key:"mixed", cls:"impact-mixed", explanation:"The headline contains both positive and negative cues. Read the report to establish the net effect."};
+    if (down) return {label:"Potentially negative", key:"negative", cls:"impact-negative", explanation:"This may add downside risk or uncertainty. Confirm the details, scale, and whether the market already expected it."};
+    if (up) return {label:"Potentially positive", key:"positive", cls:"impact-positive", explanation:"This may support sentiment or business expectations. Check whether the news is material and already priced in."};
+    if (material.test(title)) return {label:"Material development to review", key:"other", cls:"impact-watch", explanation:"This could affect expectations, risk, or valuation; the headline alone does not establish the direction or size of the impact."};
+    return {label:"Informational / impact unclear", key:"other", cls:"impact-neutral", explanation:"The headline alone does not establish a clear positive or negative effect on the stock."};
   };
-  const score = item => { const impact=getImpact(item); return (["impact-negative","impact-positive","impact-mixed"].includes(impact.cls)?3:impact.cls==="impact-watch"?2:0)+(material.test(item.title||"")?1:0); };
-  // Keep the bottom impact feed distinct from the three overview headlines.
-  const importantHeadlineTerms=/\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\b/i;
-  const riskHeadlineTerms=/\b(misses|loss|lawsuit|investigation|probe|recall|downgrade|fraud|breach|outage|layoff|decline|warning|fine|ban|weak demand|disappoint)\b/i;
-  const positiveHeadlineTerms=/\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand)\b/i;
+  const score = item => { const impact=getImpact(item); return (["negative","positive","mixed"].includes(impact.key)?3:impact.key==="other"&&material.test(item.title||"")?2:0)+(material.test(item.title||"")?1:0); };
+  const importantHeadlineTerms=/\\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\\b/i;
+  const riskHeadlineTerms=/\\b(misses|loss|lawsuit|investigation|probe|recall|downgrade|fraud|breach|outage|layoff|decline|warning|fine|ban|weak demand|disappoint)\\b/i;
+  const positiveHeadlineTerms=/\\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand)\\b/i;
   const headlineRank=item=>(importantHeadlineTerms.test(item.title)?3:0)+(riskHeadlineTerms.test(item.title)||positiveHeadlineTerms.test(item.title)?2:0)+(item.publishedAt&&Number.isFinite(Date.parse(item.publishedAt))?1:0);
   const topHeadlineUrls=new Set([...items].sort((a,b)=>headlineRank(b)-headlineRank(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3).map(item=>item.url));
   const distinctItems = items.filter(item => !topHeadlineUrls.has(item.url));
@@ -1625,6 +1631,45 @@ function renderNews(payload) {
     meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Date unavailable");
     card.append(link,meta); list.append(card);
   }
+  const counts={positive:0,negative:0,mixed:0,other:0};
+  for (const item of sorted) counts[getImpact(item).key]++;
+  if (summaryRoot) {
+    for (const spec of [
+      {key:"positive",label:"Potentially positive",cls:"summary-positive"},
+      {key:"negative",label:"Potentially negative",cls:"summary-negative"},
+      {key:"mixed",label:"Mixed signals",cls:"summary-mixed"},
+      {key:"other",label:"Other / unclear",cls:"summary-other"}
+    ]) {
+      const card=document.createElement("div"); card.className="stock-news-summary-card "+spec.cls;
+      const label=document.createElement("span"); label.textContent=spec.label;
+      const count=document.createElement("strong"); count.textContent=String(counts[spec.key]);
+      card.append(label,count); summaryRoot.append(card);
+    }
+  }
+  if (filtersRoot && filtersRoot.dataset.bound !== "true") {
+    filtersRoot.dataset.bound="true";
+    filtersRoot.addEventListener("click",event=>{
+      const button=event.target.closest("[data-news-filter]");
+      if(!button)return;
+      filtersRoot.querySelectorAll("[data-news-filter]").forEach(el=>{
+        const active=el===button;
+        el.classList.toggle("active",active);
+        el.setAttribute("aria-pressed",String(active));
+      });
+      const filter=button.dataset.newsFilter;
+      [...impactRoot.querySelectorAll(".stock-news-impact-item")].forEach(card=>{
+        card.classList.toggle("hidden",filter!=="all"&&card.dataset.impact!==filter);
+      });
+      const visible=[...impactRoot.querySelectorAll(".stock-news-impact-item")].filter(card=>!card.classList.contains("hidden")).length;
+      if(impactStatus)impactStatus.textContent=visible+" stories shown";
+      const empty=impactRoot.querySelector(".news-filter-empty");
+      if(empty)empty.remove();
+      if(!visible&&sorted.length){
+        const note=document.createElement("p");note.className="empty news-filter-empty";note.textContent="No additional stories match this filter.";
+        impactRoot.append(note);
+      }
+    });
+  }
   if (!sorted.length) {
     const empty=document.createElement("p"); empty.className="empty";
     empty.textContent="No additional company-specific stories beyond the top headlines were returned. The feed will not repeat headlines or invent news.";
@@ -1632,7 +1677,7 @@ function renderNews(payload) {
   }
   for (const item of sorted) {
     const card=document.createElement("article"); card.className="stock-news-impact-item";
-    const impact=getImpact(item);
+    const impact=getImpact(item); card.dataset.impact=impact.key;
     const badge=document.createElement("span"); badge.className="stock-news-impact-badge "+impact.cls; badge.textContent=impact.label;
     const link=document.createElement("a"); link.href=item.url; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent=item.title;
     const explanation=document.createElement("p"); explanation.className="stock-news-impact-explanation"; explanation.textContent=impact.explanation;
@@ -1641,7 +1686,25 @@ function renderNews(payload) {
     meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Date unavailable");
     card.append(badge,link,explanation,meta); impactRoot.append(card);
   }
+  if (signalsRoot) {
+    const positiveItems=sorted.filter(item=>getImpact(item).key==="positive");
+    const negativeItems=sorted.filter(item=>getImpact(item).key==="negative");
+    const addSignal=(label,items,cls,emptyText)=>{
+      const panel=document.createElement("div");panel.className="stock-news-signal "+cls;
+      const heading=document.createElement("strong");heading.textContent=label;panel.append(heading);
+      const copy=document.createElement("p");copy.textContent=items.length?items.slice(0,2).map(item=>item.title).join(" · "):emptyText;
+      panel.append(copy);signalsRoot.append(panel);
+    };
+    addSignal("Evidence to investigate on the positive side",positiveItems,"signal-positive","No clearly positive headline cues found in the additional stories.");
+    addSignal("Risks or negative evidence to investigate",negativeItems,"signal-negative","No clearly negative headline cues found in the additional stories.");
+    const note=document.createElement("p");note.className="stock-news-signal-note";note.textContent="These are keyword-based triage cues, not verified conclusions. Open the sources and compare them with company filings and financial results.";
+    signalsRoot.append(note);
+  }
   if (impactStatus) impactStatus.textContent=sorted.length+" additional stories";
+  if(filtersRoot){
+    const allButton=filtersRoot.querySelector('[data-news-filter="all"]');
+    if(allButton){filtersRoot.querySelectorAll("[data-news-filter]").forEach(el=>{const active=el===allButton;el.classList.toggle("active",active);el.setAttribute("aria-pressed",String(active));});}
+  }
 }
 async function loadNews(ticker, companyName="") {
   $("news-status").textContent="Loading…";
