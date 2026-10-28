@@ -280,3 +280,8 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .decision-indicator.good { color: #a6efbb; border-color: rgba(98,220,139,.35); }
 .decision-indicator.bad { color: #ff9a9e; border-color: rgba(255,102,109,.35); }
 .decision-indicator.caution { color: #f4d28c; border-color: rgba(244,193,93,.35); }
+
+.decision-indicator::before { content: ""; display: inline-block; width: 7px; height: 7px; flex: 0 0 7px; margin-right: 4px; border-radius: 50%; background: #9297a3; }
+.decision-indicator.good::before { background: #62dc8b; }
+.decision-indicator.bad::before { background: #ff666d; }
+.decision-indicator.caution::before { background: #f4c15d; }
