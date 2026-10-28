@@ -459,4 +459,4 @@ test("snapshot CSV cell escaping quotes commas and structured rule results", () 
   assert.equal(app.csvCell({label:"Growth",passed:false}), '"{""label"":""Growth"",""passed"":false}"');
   assert.equal(app.csvCell(null), '""');
 });
-\n
+
