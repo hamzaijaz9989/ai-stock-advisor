@@ -32,7 +32,7 @@ def _json_safe(value: Any) -> Any:
 
 def run(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
-        raise ValueError("Input root must be a JSON object.")
+        raise TypeError("Input root must be a JSON object.")
     snapshots = payload.get("snapshots")
     raw_bars = payload.get("bars")
     if not isinstance(snapshots, list) or not snapshots:
@@ -41,14 +41,14 @@ def run(payload: Any) -> dict[str, Any]:
         raise ValueError("bars must be a non-empty object keyed by ticker.")
     metadata = payload.get("metadata")
     if not isinstance(metadata, dict):
-        raise ValueError("metadata object is required.")
+        raise TypeError("metadata object is required.")
     for field in ("data_source", "data_version", "as_of_date"):
         if not isinstance(metadata.get(field), str) or not metadata[field].strip():
             raise ValueError(f"metadata.{field} is required.")
     cutoff = date.fromisoformat(metadata["as_of_date"])
     for index, row in enumerate(snapshots):
         if not isinstance(row, dict):
-            raise ValueError(f"snapshots[{index}] must be an object.")
+            raise TypeError(f"snapshots[{index}] must be an object.")
         if date.fromisoformat(str(row.get("as_of_date", ""))) > cutoff:
             raise ValueError(f"snapshots[{index}] is after metadata.as_of_date.")
     bars: dict[str, list[DailyBar]] = {}
@@ -59,7 +59,7 @@ def run(payload: Any) -> dict[str, Any]:
         bars[ticker] = []
         for index, row in enumerate(values):
             if not isinstance(row, dict):
-                raise ValueError(f"bars.{ticker}[{index}] must be an object.")
+                raise TypeError(f"bars.{ticker}[{index}] must be an object.")
             bar_date = date.fromisoformat(str(row["date"]))
             if bar_date > cutoff:
                 raise ValueError(f"bars.{ticker}[{index}] is after the declared data cutoff.")
@@ -70,14 +70,14 @@ def run(payload: Any) -> dict[str, Any]:
             ))
     config_raw = payload.get("config", {})
     if not isinstance(config_raw, dict):
-        raise ValueError("config must be an object.")
+        raise TypeError("config must be an object.")
     config = BacktestConfig(
         slippage_bps_per_side=float(config_raw.get("slippage_bps_per_side", 5)),
         commission_bps_per_side=float(config_raw.get("commission_bps_per_side", 0)),
     )
     attestations = payload.get("quality_attestations", {})
     if not isinstance(attestations, dict):
-        raise ValueError("quality_attestations must be an object.")
+        raise TypeError("quality_attestations must be an object.")
     report = build_validation_report(
         snapshots, bars,
         data_provenance_verified=attestations.get("data_provenance_verified") is True,
