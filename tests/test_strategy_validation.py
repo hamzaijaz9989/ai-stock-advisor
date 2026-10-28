@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
-from stock_advisor.backtest import DailyBar
+from stock_advisor.backtest import DailyBar, TradeSignal
+from stock_advisor.portfolio import simulate_cash_only_portfolio
 from stock_advisor.strategy_validation import (
     build_validation_report,
     evaluate_snapshot,
@@ -26,7 +27,7 @@ def snapshot(**overrides):
         "earnings_date": "2025-03-01",
         "recent_news_count": 3,
         "risk_headline": False,
-        "atr14": 1.0,
+        "atr14": 2.0,
         "available_at": {
             "price": "2025-01-02T20:59:00Z",
             "fundamentals": "2024-11-01T12:00:00Z",
@@ -88,3 +89,26 @@ def test_report_never_self_approves_even_when_attestations_are_true():
     assert report["validation"]["strategy_validation_passed"] is False
     assert report["validation"]["decision_eligible"] is False
     assert "independent_validation_review_required" in report["validation"]["blockers"]
+
+def test_portfolio_simulator_tracks_cash_equity_and_skips_overlapping_signals():
+    bars = [
+        DailyBar(date(2025, 1, 3) + timedelta(days=i), 77.5, 79, 76, 78, 78)
+        for i in range(140)
+    ]
+    signals = [
+        TradeSignal("TEST", "2025-01-02", 75, 80, 73.5, 100, 126),
+        TradeSignal("TEST", "2025-01-03", 75, 80, 73.5, 100, 126),
+    ]
+    report = simulate_cash_only_portfolio(signals, {"TEST": bars})
+    assert report["completed_positions"] == 1
+    assert report["skipped_overlap"] == 1
+    assert report["ending_equity"] > report["initial_capital"]
+    assert report["equity_curve"][-1]["equity"] == report["ending_equity"]
+
+
+def test_stop_inside_full_entry_zone_blocks_signal():
+    row = snapshot(atr14=1.0)
+    result = evaluate_snapshot(row)
+    assert result["eligible"] is False
+    assert "stop_not_below_full_entry_zone" in result["failed_gates"]
+

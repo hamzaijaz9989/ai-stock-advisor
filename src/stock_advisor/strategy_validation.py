@@ -23,6 +23,7 @@ from stock_advisor.backtest import (
     summarize_outcomes,
     walk_forward_folds,
 )
+from stock_advisor.portfolio import simulate_cash_only_portfolio
 
 REQUIRED_SNAPSHOT_FIELDS = (
     "ticker", "as_of_date", "universe_member", "close", "dcf_base",
@@ -156,6 +157,8 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
     reward_risk = (target - entry_mid) / (entry_mid - stop) if entry_mid > stop else None
     if not entry_low <= price <= entry_high:
         failed.append("price_outside_entry_zone")
+    if stop >= entry_low:
+        failed.append("stop_not_below_full_entry_zone")
     if stop <= 0 or reward_risk is None or reward_risk < 2:
         failed.append("risk_or_reward_risk_gate_failed")
 
@@ -264,6 +267,7 @@ def build_validation_report(
     completed = [item for item in outcomes if item.status == "closed" and item.net_return_pct is not None]
     completed_returns = [float(item.net_return_pct) for item in completed]
     summary = summarize_outcomes(outcomes)
+    portfolio = simulate_cash_only_portfolio(signals, bars_by_symbol, config=config)
     summary["max_drawdown_pct_sequential_trade_proxy"] = _max_drawdown(completed_returns)
     summary["return_stddev_pct"] = _sample_std(completed_returns)
     summary["missing_bars"] = missing_bars
@@ -286,10 +290,9 @@ def build_validation_report(
         blockers.append("net_profit_factor_not_above_1")
     if summary.get("average_excess_return_pct") is None or summary["average_excess_return_pct"] <= 0:
         blockers.append("average_excess_return_not_positive")
-    # The report engine does not independently attest to external data lineage or a true
-    # portfolio equity curve. These final blockers deliberately prevent self-approval.
-    blockers.extend(["portfolio_level_equity_curve_and_overlap_model_not_implemented",
-                     "independent_validation_review_required"])
+    if portfolio["completed_positions"] < minimum_trades:
+        blockers.append("minimum_completed_portfolio_positions_not_met")
+    blockers.append("independent_validation_review_required")
     return {
         "report_version": 2,
         "strategy_version": "northstar-provisional-gates-v1",
@@ -297,6 +300,7 @@ def build_validation_report(
         "snapshots_evaluated": len(audit),
         "audit": audit,
         "summary": summary,
+        "portfolio_simulation": portfolio,
         "walk_forward_folds": [
             {"train_start": f.train_start.isoformat(), "train_end": f.train_end.isoformat(),
              "test_start": f.test_start.isoformat(), "test_end": f.test_end.isoformat()}

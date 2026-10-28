@@ -937,7 +937,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     quarterlyPass && earningsVerified && recentHeadlines.length>0 && flaggedHeadlines.length===0 &&
     atr!==null && Number.isFinite(atr) && rewardRisk!==null && Number.isFinite(rewardRisk);
   const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
-    rewardRisk>=2 && invalidation!==null && invalidation>0 && plannedShares>0;
+    rewardRisk>=2 && invalidation!==null && invalidation>0 && invalidation<entryLow && plannedShares>0;
   const historicalValidationPass = false; // Fail closed until a real validation report is reviewed and approved.
   const insufficientData=!quoteCurrent||!annualDataAvailable||!quarterlyDataAvailable||!earningsVerified||!recentHeadlines.length||atr===null;
   let state;
@@ -1006,6 +1006,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(flaggedHeadlines.length) reasons.push("Recent headlines contain potential risk keywords and need checking against original sources.");
   if(valuationDecisionReady&&!priceInEntryRange) reasons.push(quote.price>entryHigh?"The quote is above the illustrative entry watch zone; do not chase.":"The quote is below the illustrative zone; reassess whether this is a value trap or a data/event shock.");
   if(rewardRisk!==null&&rewardRisk<2) reasons.push("The provisional reward-to-risk ratio is below 2:1.");
+  if(invalidation!==null&&entryLow!==null&&invalidation>=entryLow) reasons.push("The ATR-based invalidation is not below the full entry watch zone, so the risk setup is rejected.");
   if(state==="BUY") reasons.push("BUY criteria passed and historical validation is approved. This is research only; no order is placed.");
   else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because recent headlines contain potential material-risk keywords. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
   else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a validated entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
