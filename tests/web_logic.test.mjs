@@ -39,6 +39,13 @@ function obs(key, value, start, end, form = "10-K", unit = "USD", filed = end) {
   return { key, value, start, end, form, unit, filed, tag: key, metric: key };
 }
 
+function shareFacts(value = 90e6) {
+  const today = new Date().toISOString().slice(0,10);
+  return {facts:{"us-gaap":{EntityCommonStockSharesOutstanding:{units:{shares:[
+    {val:value,end:today,filed:today,form:"10-Q"}
+  ]}}}}};
+}
+
 function annualFixtures({ includeShares = true } = {}) {
   const years = [
     {start:"2022-01-01",end:"2022-12-31",filed:"2023-02-15",revenue:500,cfo:110,capex:-10,netIncome:60,shares:100},
@@ -90,10 +97,10 @@ test("quarterlySeries selects three-month disclosures and matches the prior year
 
 test("buildDcfEstimate uses matched-period diluted shares and produces ordered scenarios", () => {
   const app = loadAppFunctions();
-  const result = app.buildDcfEstimate(annualFixtures(), {});
+  const result = app.buildDcfEstimate(annualFixtures(), shareFacts());
   assert.equal(result.available, true);
-  assert.equal(result.shares, 96e6);
-  assert.equal(result.sharesFiled, "2025-02-15");
+  assert.equal(result.shares, 90e6);
+  assert.equal(result.sharesFiled, new Date().toISOString().slice(0,10));
   assert.ok(result.bear > 0);
   assert.ok(result.bear < result.base);
   assert.ok(result.base < result.bull);
@@ -146,7 +153,7 @@ test("quarterly snapshot returns latest-quarter revenue growth and net income", 
 test("decision panel never issues BUY even when every preliminary check passes", () => {
   const app = loadAppFunctions();
   const observations = [...annualFixtures(), ...quarterlyFixtures()];
-  const valuation = app.buildDcfEstimate(observations, {});
+  const valuation = app.buildDcfEstimate(observations, shareFacts());
   assert.equal(valuation.available, true);
   const entry = valuation.base * 0.775;
   const historyRows = Array.from({length:16},(_,i)=>({
@@ -159,7 +166,7 @@ test("decision panel never issues BUY even when every preliminary check passes",
   app.renderDecision({
     ticker:"TEST",
     observations,
-    facts:{},
+    facts:shareFacts(),
     quote:{price:entry,quoteTime:new Date().toISOString(),source:"test"},
     history:{data:historyRows},
     news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
@@ -211,7 +218,7 @@ test("earnings comparison does not invent consensus when the public brief is una
 test("decision panel says AVOID when quarterly financials are available but fail quality checks", () => {
   const app=loadAppFunctions();
   const observations=[...annualFixtures(),...quarterlyFixtures()];
-  const valuation=app.buildDcfEstimate(observations,{});
+  const valuation=app.buildDcfEstimate(observations,shareFacts());
   const entry=valuation.base*0.775;
   const historyRows=Array.from({length:16},(_,i)=>({
     date:"2026-01-"+String(i+1).padStart(2,"0"),
