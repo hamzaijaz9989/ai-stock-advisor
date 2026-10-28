@@ -88,6 +88,6 @@ A high screen score alone is never a BUY signal. No target win rate is promised.
 
 ## Current implementation status (2026-10-28)
 
-Already present in the dashboard: SEC filing/fundamental retrieval, quote/history/news/earnings discovery endpoints, preliminary DCF scenario logic, a ten-stock research-priority screen, risk-plan calculations, and a backtesting primitives module.
+Already present in the dashboard: SEC filing/fundamental retrieval, quote/history/news/earnings discovery endpoints, preliminary DCF scenario logic, a 60-stock cross-sector research-priority screen, risk-plan calculations, and a backtesting primitives module.
 
-Not yet proven: end-to-end point-in-time strategy backtesting, live/holdout performance, licensed production-grade market data, issuer-confirmed earnings for every ticker, portfolio-level simulations, and an automated passing CI run. The existing screen is a research-priority ranking—not a validated investment signal.
+Not yet proven: end-to-end point-in-time strategy backtesting, live/holdout performance, licensed production-grade market data, issuer-confirmed earnings for every ticker, portfolio-level simulations, and an automated passing CI run. The existing 60-stock screen is a research-priority ranking—not a validated investment signal. Its universe is curated, not the full US market, and results depend on third-party provider coverage and rate limits.
