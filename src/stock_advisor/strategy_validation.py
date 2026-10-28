@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime
-from statistics import stdev
+from statistics import mean, stdev
 from typing import Any
 
 from stock_advisor.backtest import (
@@ -236,10 +236,43 @@ def _sample_std(values: list[float]) -> float | None:
     return stdev(values) if len(values) >= 2 else None
 
 
+def _benchmark_price_map(bars: Iterable[DailyBar]) -> dict[date, tuple[float, float | None]]:
+    """Normalize benchmark bars to date -> (close, adjusted close) without forward filling."""
+    result: dict[date, tuple[float, float | None]] = {}
+    for bar in bars:
+        try:
+            day = _day(bar.date, "benchmark_bar.date")
+        except ValueError:
+            continue
+        close = _finite(bar.close)
+        adjusted = _finite(bar.adjusted_close)
+        if close is None or close <= 0 or (adjusted is not None and adjusted <= 0):
+            continue
+        if day in result:
+            result.pop(day, None)
+            continue
+        result[day] = (close, adjusted)
+    return result
+
+
+def _benchmark_return_pct(
+    entry_date: date, exit_date: date, prices: Mapping[date, tuple[float, float | None]]
+) -> tuple[float | None, str | None]:
+    entry = prices.get(entry_date)
+    exit_ = prices.get(exit_date)
+    if entry is None or exit_ is None:
+        return None, None
+    if entry[1] is not None and exit_[1] is not None:
+        return (exit_[1] / entry[1] - 1) * 100, "adjusted_close"
+    return (exit_[0] / entry[0] - 1) * 100, "close_price_only"
+
+
 def build_validation_report(
     snapshots: Iterable[Mapping[str, Any]],
     bars_by_symbol: Mapping[str, Iterable[DailyBar]],
     *,
+    benchmark_bars_by_symbol: Mapping[str, Iterable[DailyBar]] | None = None,
+    benchmark_symbol: str = "SPY",
     data_provenance_verified: bool = False,
     point_in_time_coverage_verified: bool = False,
     survivorship_control_verified: bool = False,
@@ -267,6 +300,42 @@ def build_validation_report(
     completed = [item for item in outcomes if item.status == "closed" and item.net_return_pct is not None]
     completed_returns = [float(item.net_return_pct) for item in completed]
     summary = summarize_outcomes(outcomes)
+    # The legacy per-trade benchmark field is the same stock's buy-and-hold return,
+    # not a broad-market benchmark. Preserve it under an explicit name and compare
+    # strategy returns against SPY (or the explicitly selected benchmark) separately.
+    summary["average_underlying_buy_hold_return_pct"] = summary.pop("average_benchmark_return_pct", None)
+    normalized_benchmarks = {
+        str(symbol).strip().upper(): _benchmark_price_map(values)
+        for symbol, values in (benchmark_bars_by_symbol or {}).items()
+    }
+    benchmark_key = benchmark_symbol.strip().upper()
+    benchmark_prices = normalized_benchmarks.get(benchmark_key, {})
+    benchmark_returns: list[float] = []
+    excess_returns: list[float] = []
+    benchmark_basis: set[str] = set()
+    for outcome in completed:
+        if outcome.entry_date is None or outcome.exit_date is None:
+            continue
+        benchmark_return, basis = _benchmark_return_pct(
+            _day(outcome.entry_date, "entry_date"),
+            _day(outcome.exit_date, "exit_date"),
+            benchmark_prices,
+        )
+        if benchmark_return is None or basis is None:
+            continue
+        benchmark_returns.append(benchmark_return)
+        excess_returns.append(float(outcome.net_return_pct) - benchmark_return)
+        benchmark_basis.add(basis)
+    summary["benchmark_symbol"] = benchmark_key
+    summary["benchmark_matched_trades"] = len(benchmark_returns)
+    summary["benchmark_missing_trades"] = max(0, len(completed) - len(benchmark_returns))
+    summary["average_benchmark_return_pct"] = mean(benchmark_returns) if benchmark_returns else None
+    summary["average_excess_return_pct"] = mean(excess_returns) if excess_returns else None
+    summary["benchmark_return_basis"] = (
+        next(iter(benchmark_basis)) if len(benchmark_basis) == 1
+        else "mixed_adjusted_and_close" if benchmark_basis
+        else None
+    )
     portfolio = simulate_cash_only_portfolio(signals, bars_by_symbol, config=config)
     summary["max_drawdown_pct_sequential_trade_proxy"] = _max_drawdown(completed_returns)
     summary["return_stddev_pct"] = _sample_std(completed_returns)
@@ -288,8 +357,12 @@ def build_validation_report(
         blockers.append("minimum_walk_forward_fold_count_not_met")
     if summary.get("profit_factor") is None or not isinstance(summary.get("profit_factor"), (int, float)) or summary["profit_factor"] <= 1:
         blockers.append("net_profit_factor_not_above_1")
+    if not benchmark_prices:
+        blockers.append("broad_market_benchmark_data_missing")
+    elif summary["benchmark_matched_trades"] < len(completed):
+        blockers.append("broad_market_benchmark_incomplete_for_completed_trades")
     if summary.get("average_excess_return_pct") is None or summary["average_excess_return_pct"] <= 0:
-        blockers.append("average_excess_return_not_positive")
+        blockers.append("average_excess_return_vs_broad_benchmark_not_positive")
     if portfolio["completed_positions"] < minimum_trades:
         blockers.append("minimum_completed_portfolio_positions_not_met")
     blockers.append("independent_validation_review_required")
@@ -311,6 +384,6 @@ def build_validation_report(
             "strategy_validation_passed": False,
             "decision_eligible": False,
             "blockers": sorted(set(blockers)),
-            "explanation": "This report is a research diagnostic. It cannot enable validated BUY until portfolio-level overlap, equity curve, uncertainty analysis, source provenance and independent review are complete.",
+            "explanation": "This report is a research diagnostic. Broad-market excess return is calculated only when the selected benchmark has exact entry/exit dates; same-stock buy-and-hold is reported separately. This report cannot enable validated BUY until portfolio-level overlap, equity curve, uncertainty analysis, source provenance and independent review are complete.",
         },
     }
