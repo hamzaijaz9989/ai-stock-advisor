@@ -28,16 +28,26 @@ export async function onRequestGet({ request }) {
   const companyName = (url.searchParams.get("company") || "").trim().slice(0, 120);
   if (!TICKER_RE.test(ticker)) return Response.json({ error: "Enter a valid ticker." }, { status: 400 });
   const cleanCompany = companyName.replace(/,?\s+(Inc\.?|Incorporated|Corp\.?|Corporation|Ltd\.?|Limited|PLC|LLC|Class [A-Z])\s*$/i, "").trim();
+  const companyAliases = {
+    AAPL: /\b(apple|iphone|ipad|macbook|mac\b|ios|app store|apple watch|airpods|tim cook)\b/i,
+    MSFT: /\b(microsoft|windows|azure|office 365|satya nadella)\b/i,
+    NVDA: /\b(nvidia|geforce|cuda|jensen huang)\b/i,
+    GOOGL: /\b(alphabet|google|youtube|google cloud|sundar pichai)\b/i,
+    GOOG: /\b(alphabet|google|youtube|google cloud|sundar pichai)\b/i,
+    AMZN: /\b(amazon|aws|prime video|andy jassy)\b/i,
+    META: /\b(meta platforms|facebook|instagram|whatsapp|mark zuckerberg)\b/i,
+    TSLA: /\b(tesla|cybertruck|model 3|model y|elon musk)\b/i
+  };
   const matchesCompany = (item) => {
-    if (item.companyMatched === true) return true;
     const title = String(item.title || "").toLowerCase();
-    const context = String(item.description || "").toLowerCase();
-    const tickerTokens = title.toUpperCase().match(/[A-Z0-9.^=-]+/g) || [];
-    const symbolMatch = tickerTokens.includes(ticker);
+    const description = String(item.description || "").toLowerCase();
+    const combined = title + " " + description;
+    const tokens = title.toUpperCase().match(/[A-Z0-9.^=-]+/g) || [];
+    const symbolMatch = tokens.includes(ticker);
     const name = cleanCompany.toLowerCase();
-    const contextMatch = name.length >= 3 && context.includes(name);
-    const aliases = ticker === "AAPL" ? /\b(iphone|ipad|macbook|ios|app store|apple watch|airpods|tim cook)\b/i : null;
-    return symbolMatch || (name.length >= 3 && title.includes(name)) || contextMatch || Boolean(aliases && aliases.test(title));
+    const nameMatch = name.length >= 3 && combined.includes(name);
+    const aliasMatch = Boolean(companyAliases[ticker] && companyAliases[ticker].test(combined));
+    return symbolMatch || nameMatch || aliasMatch;
   };
   const yahooUrl = "https://feeds.finance.yahoo.com/rss/2.0/headline?s=" + encodeURIComponent(ticker) + "&region=US&lang=en-US";
   const googleTerms = [ticker, cleanCompany].filter(Boolean).map(term => '"' + term.replace(/"/g, "") + '"').join(" OR ");
@@ -55,7 +65,7 @@ export async function onRequestGet({ request }) {
       sources.push({ name: source, status: "unavailable" });
       continue;
     }
-    const parsed = parseItems(await result.value.text(), source, 15);
+    const parsed = parseItems(await result.value.text(), source, 15).filter(matchesCompany);
     items.push(...parsed);
     sources.push({ name: source, status: "ok", count: parsed.length });
   }
@@ -71,18 +81,14 @@ export async function onRequestGet({ request }) {
       if (!response.ok) throw new Error("Nasdaq news returned HTTP " + response.status);
       const payload = await response.json();
       const rows = payload?.data?.rows || [];
-      const relevant = rows.filter(row =>
-        String(row.primarysymbol || "").toLowerCase() === ticker.toLowerCase() ||
-        (Array.isArray(row.related_symbols) && row.related_symbols.some(symbol => String(symbol).toLowerCase().startsWith(ticker.toLowerCase() + "|")))
-      );
+      const relevant = rows.filter(row => String(row.primarysymbol || "").toLowerCase() === ticker.toLowerCase());
       for (const row of relevant) {
         if (!row.title || !row.url) continue;
         items.push({
           title: String(row.title),
           url: String(row.url).startsWith("http") ? row.url : "https://www.nasdaq.com" + row.url,
           publishedAt: row.created ? new Date(row.created).toISOString() : null,
-          source: row.publisher ? "Nasdaq · " + row.publisher : "Nasdaq",
-          companyMatched: true
+          source: row.publisher ? "Nasdaq · " + row.publisher : "Nasdaq"
         });
       }
       sources.push({ name: "Nasdaq company news", status: items.length ? "ok" : "no matching headlines", count: items.length });
@@ -90,11 +96,11 @@ export async function onRequestGet({ request }) {
       sources.push({ name: "Nasdaq company news", status: "unavailable" });
     }
   }
-  const unique = [...new Map(items.map(item => [item.url, item])).values()]
+  const unique = [...new Map(items.filter(matchesCompany).map(item => [item.url, item])).values()]
     .sort((a, b) => Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0))
     .slice(0, 15);
   return Response.json({
     ticker, company: companyName || null, fetchedAt: new Date().toISOString(), items: unique, sources,
-    note: "Headlines come from ticker-specific finance feeds and company-name searches. Headlines are discovery signals, not verified facts or buy recommendations. Confirm material claims against filings or official statements."
+    note: "Only headlines mentioning the searched ticker, company, or recognized company/product names are shown. Headlines are discovery signals, not verified facts or buy recommendations. Confirm material claims against filings or official statements."
   }, { headers: { "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" } });
 }
