@@ -133,3 +133,6 @@ footer{color:#8394ad;border-top-color:rgba(145,171,207,.14)}
 .holding-result.review{border-color:#88634a;background:rgba(136,99,74,.1)}
 .holding-result.hold{border-color:rgba(131,240,203,.25);background:rgba(131,240,203,.04)}
 @media(max-width:600px){.holding-fields{grid-template-columns:1fr}.holding-fields button{width:100%}}
+
+#strategy-backtest-panel .metric-card{min-height:112px}
+#strategy-backtest-warning{border-left:2px solid #d8a96b;padding-left:12px}
