@@ -55,7 +55,7 @@ export async function onRequestGet({ request }) {
       sources.push({ name: source, status: "unavailable" });
       continue;
     }
-    const parsed = parseItems(await result.value.text(), source, 15).filter(matchesCompany);
+    const parsed = parseItems(await result.value.text(), source, 15);
     items.push(...parsed);
     sources.push({ name: source, status: "ok", count: parsed.length });
   }
@@ -90,11 +90,11 @@ export async function onRequestGet({ request }) {
       sources.push({ name: "Nasdaq company news", status: "unavailable" });
     }
   }
-  const unique = [...new Map(items.filter(matchesCompany).map(item => [item.url, item])).values()]
+  const unique = [...new Map(items.map(item => [item.url, item])).values()]
     .sort((a, b) => Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0))
     .slice(0, 15);
   return Response.json({
     ticker, company: companyName || null, fetchedAt: new Date().toISOString(), items: unique, sources,
-    note: "Only headlines matched to the verified company/ticker are shown. Headlines are discovery signals, not verified facts or buy recommendations. Confirm material claims against filings or official statements."
+    note: "Headlines come from ticker-specific finance feeds and company-name searches. Headlines are discovery signals, not verified facts or buy recommendations. Confirm material claims against filings or official statements."
   }, { headers: { "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" } });
 }
