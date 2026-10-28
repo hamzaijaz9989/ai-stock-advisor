@@ -1651,8 +1651,9 @@ async function analyze(ticker) {
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } catch(error) {
     $("sec-health").textContent="Request failed";
-    const reason=error instanceof TypeError?"Could not reach the SEC data service. Check your connection and try again.":error.message||"The SEC data request failed.";
-    setMessage(reason+" No sample data has been substituted.","error");
+    const reason=error instanceof TypeError?"Could not reach the SEC data service.":error.message||"The SEC data request failed.";
+    setText("developer-error",reason);
+    setMessage("Northstar couldn't finish this analysis because a required data source did not respond or the ticker could not be verified. No sample data has been substituted. Try again later, or open Full details → Developer diagnostics for technical information.","error");
     finishActivity("Analysis stopped safely. Review the error above and try again.",true);
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } finally { button.disabled=false; button.innerHTML='Analyze stock <span aria-hidden="true">↗</span>'; }
