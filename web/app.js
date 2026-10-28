@@ -93,9 +93,29 @@ async function getJson(url) {
   if(cache.has(url)) return cache.get(url);
   const path=url.startsWith("https://www.sec.gov/")?url.slice("https://www.sec.gov/".length):url.startsWith("https://data.sec.gov/")?url.slice("https://data.sec.gov/".length):null;
   if(!path) throw new Error("Unsupported SEC data path.");
-  const response=await fetch(SEC_API+encodeURIComponent(path),{headers:{"Accept":"application/json"}});
-  if(!response.ok) throw new Error("SEC request returned HTTP "+response.status+".");
-  const data=await response.json(); cache.set(url,data); return data;
+  const endpoint=SEC_API+encodeURIComponent(path);
+  let lastError=null;
+  for(let attempt=0;attempt<2;attempt++) {
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),12000);
+    try {
+      const response=await fetch(endpoint,{headers:{"Accept":"application/json"},signal:controller.signal,cache:"no-store"});
+      if(!response.ok) {
+        const error=new Error("SEC request returned HTTP "+response.status+" for "+path+".");
+        if(response.status<500&&response.status!==429) throw error;
+        lastError=error;
+      } else {
+        const data=await response.json();
+        cache.set(url,data);
+        return data;
+      }
+    } catch(error) {
+      lastError=error?.name==="AbortError"?new Error("SEC request timed out for "+path+"."):error;
+      if(error?.message?.includes("HTTP ")&&!/HTTP (429|5\d\d)/.test(error.message)) throw error;
+    } finally { clearTimeout(timeout); }
+    if(attempt===0) await new Promise(resolve=>setTimeout(resolve,350));
+  }
+  throw lastError||new Error("SEC request failed for "+path+".");
 }
 function companyRows(payload) {
   if(Array.isArray(payload)) return payload;
@@ -1665,11 +1685,13 @@ async function analyze(ticker) {
     finishActivity("All available checks finished. Review the evidence and any warnings.");
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } catch(error) {
-    $("sec-health").textContent="Request failed";
-    const reason=error instanceof TypeError?"Could not reach the SEC data service.":error.message||"The SEC data request failed.";
+    $("sec-health").textContent="Analysis interrupted";
+    const errorName=error?.name||"Error";
+    const errorMessage=error?.message||"Unknown analysis error";
+    const reason=errorName+": "+errorMessage;
     setText("developer-error",reason);
-    setMessage("Northstar couldn't finish this analysis because a required data source did not respond or the ticker could not be verified. No sample data has been substituted. Try again later, or open Full details → Developer diagnostics for technical information.","error");
-    finishActivity("Analysis stopped safely. Review the error above and try again.",true);
+    setMessage("Northstar stopped before completing the report. No sample data or guessed prices were substituted. Check Developer diagnostics for the exact failed step, then retry; if the problem persists, the source or analysis step needs attention.","error");
+    finishActivity("Analysis stopped safely. Technical detail: "+errorMessage,true);
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } finally { button.disabled=false; button.innerHTML='Analyze stock <span aria-hidden="true">↗</span>'; }
 }
