@@ -855,14 +855,24 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
     {label:"Historical validation",ok:false,detail:"Walk-forward and untouched holdout backtests are not complete; this blocks BUY signals"}
   ];
-  let state="WAIT";
-  if(fundamentalAvoid) state="AVOID";
-  else if(!quoteCurrent||!valuation.available||!fundamentalPass||!earningsVerified||!recentHeadlines.length||flaggedHeadlines.length||!atr||!rewardRisk) state="INSUFFICIENT EVIDENCE";
-  else if(daysToEarnings<=7||!priceInEntryRange||rewardRisk<2) state="WAIT";
+  // Action labels are now active, but BUY is explicitly provisional/unvalidated.
+  // This rule is conservative and is not evidence of a profitable strategy.
+  const sellReview = fundamentalAvoid || flaggedHeadlines.length>0;
+  const coreEvidencePass = quoteCurrent && valuation.available && annualFundamentalPass &&
+    quarterlyPass && earningsVerified && recentHeadlines.length>0 && flaggedHeadlines.length===0 &&
+    atr!==null && Number.isFinite(atr) && rewardRisk!==null && Number.isFinite(rewardRisk);
+  const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
+    rewardRisk>=2 && invalidation!==null && invalidation>0 && plannedShares>0;
+  let state="HOLD";
+  if(sellReview) state="SELL REVIEW";
+  else if(!coreEvidencePass) state="WAIT";
+  else if(buySetupPass) state="BUY — PROVISIONAL";
+  else state="HOLD";
   $("decision-status").textContent=state+" · RESEARCH ONLY";
-  $("decision-title").textContent=state==="AVOID"?"AVOID — FINANCIAL QUALITY CHECK FAILED":
-    state==="INSUFFICIENT EVIDENCE"?"INSUFFICIENT EVIDENCE — DO NOT BUY FROM THIS REPORT":
-    "WAIT — NO BUY SIGNAL IS ENABLED";
+  $("decision-title").textContent=state==="SELL REVIEW"?"SELL REVIEW — CHECK THESIS AND RISK PROMPTLY":
+    state==="BUY — PROVISIONAL"?"BUY SETUP — PROVISIONAL, NOT BACKTEST-VALIDATED":
+    state==="HOLD"?"HOLD — NO NEW ENTRY TRIGGER":
+    "WAIT — REQUIRED EVIDENCE OR ENTRY CONDITIONS NOT MET";
   const reasons=[];
   if(!quoteCurrent) reasons.push(dailySnapshot?"The available price is a daily-bar snapshot, not a verified current quote.":"A sufficiently recent timestamped quote is missing.");
   if(!valuation.available) reasons.push(valuation.reason);
@@ -876,7 +886,10 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(flaggedHeadlines.length) reasons.push("Recent headlines contain potential risk keywords and need checking against original sources.");
   if(valuation.available&&!priceInEntryRange) reasons.push(quoteCurrent?(quote.price>entryHigh?"The quote is above the provisional entry zone; do not chase.":"The quote is below the provisional zone; a sharp drop needs review."):"Current price cannot be compared with the model range.");
   if(rewardRisk!==null&&rewardRisk<2) reasons.push("The provisional reward-to-risk ratio is below 2:1.");
-  reasons.push("The model has not passed walk-forward and out-of-sample validation; this version cannot issue a BUY.");
+  if(state==="BUY — PROVISIONAL") reasons.push("PROVISIONAL BUY SETUP: all configured data, event, fundamentals, entry-zone, and minimum 2:1 reward/risk checks passed. The strategy has NOT passed a complete point-in-time walk-forward plus untouched holdout validation; this is an experimental research signal, not a validated edge or a guarantee.");
+  else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because a fundamental quality check failed or a recent headline contains a potential material-risk keyword. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
+  else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a provisional entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
+  else reasons.push("WAIT means one or more required data-quality, event-risk, fundamental, valuation, or price-entry checks did not pass. Do not force a trade from incomplete evidence.");
   $("decision-explanation").textContent=reasons.join(" ");
   if(valuation.available) {
     grid.append(
@@ -918,7 +931,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     entryLow, entryHigh, valuationBase:valuation.available?valuation.base:null,
     invalidation, rewardRisk, explanation:reasons.join(" "),
     checks:dataChecks.map(check=>({label:check.label,passed:Boolean(check.ok),detail:check.detail})),
-    disclaimer:"Research snapshot only. No BUY signal enabled; not a trade instruction."
+    disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
 }
 function readResearchLog() {
