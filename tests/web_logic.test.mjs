@@ -226,7 +226,7 @@ test("decision panel says AVOID when quarterly financials are available but fail
   }));
   const future=new Date(Date.now()+60*86400000).toISOString().slice(0,10);
   app.renderDecision({
-    ticker:"TEST",observations,facts:{},
+    ticker:"TEST",observations,facts:shareFacts(),
     quote:{price:entry,quoteTime:new Date().toISOString(),source:"test"},
     history:{data:historyRows},
     news:{items:[{title:"Quarterly performance update",publishedAt:new Date().toISOString(),source:"test"}]},
@@ -257,7 +257,7 @@ test("earnings brief headline is only displayed when provider raw actuals are pr
 test("daily-bar snapshot never passes the current-quote decision gate", () => {
   const app=loadAppFunctions();
   const observations=[...annualFixtures(),...quarterlyFixtures()];
-  const valuation=app.buildDcfEstimate(observations,{});
+  const valuation=app.buildDcfEstimate(observations,shareFacts());
   const entry=valuation.base*0.775;
   const historyRows=Array.from({length:16},(_,i)=>({
     date:"2026-01-"+String(i+1).padStart(2,"0"),
