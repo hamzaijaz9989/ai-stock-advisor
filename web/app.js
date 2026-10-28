@@ -217,14 +217,6 @@ function renderFundamentalSnapshot(observations) {
   }
 }
 
-function addMeaningIndicator(card,status,label) {
-  const heading=card.querySelector(".metric-label")||card.querySelector("strong");
-  if(!heading)return;
-  const dot=document.createElement("span");dot.className="meaning-dot "+status;
-  dot.title=label;
-  heading.append(dot);
-}
-
 function renderQuarterlySnapshot(observations) {
   const panel=$("quarterly-snapshot");
   panel.innerHTML="";
@@ -249,7 +241,6 @@ function renderQuarterlySnapshot(observations) {
   const dateMeta="Quarter ended "+fmtDate(latestRevenue.end)+" · SEC "+latestRevenue.form+" filed "+fmtDate(latestRevenue.filed);
   const revenueCard=metricCard("Latest quarterly revenue",fmtValue(latestRevenue.value,latestRevenue.unit),
     revenueYoY!==null?"Year over year "+(revenueYoY>=0?"+":"")+(revenueYoY*100).toFixed(1)+"% · prior quarter end "+fmtDate(priorRevenue.end):"Same-quarter prior-year comparison unavailable");
-  addMeaningIndicator(revenueCard,revenueYoY===null?"unknown":revenueYoY>0?"good":revenueYoY<0?"bad":"caution","Year-over-year revenue trend");
   panel.append(revenueCard);
   if(latestIncome) {
     const incomeMeta=priorIncome
