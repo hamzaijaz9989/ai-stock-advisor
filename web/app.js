@@ -1,4 +1,6 @@
 const $ = (id) => document.getElementById(id);
+let latestResearchSnapshot = null;
+const RESEARCH_LOG_KEY = "ai-stock-advisor-research-log-v1";
 const SEC_MAP_URL = "https://www.sec.gov/files/company_tickers_exchange.json";
 const SEC_DATA_URL = "https://data.sec.gov";
 const SEC_API = "/api/sec?path=";
@@ -779,6 +781,67 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   caveats.push("Earnings dates/headlines are third-party data; confirm material items from official investor relations and SEC filings.");
   caveats.push("No stop level guarantees execution. Gaps, fees, slippage and data issues can cause larger losses.");
   $("decision-caveat").textContent=caveats.join(" ");
+  latestResearchSnapshot = {
+    ticker, decision:state, quote:typeof quote?.price==="number"?quote.price:null,
+    quoteSource:quote?.source||null, quoteTimestamp:quote?.quoteTime||quote?.quoteLabel||null,
+    entryLow, entryHigh, valuationBase:valuation.available?valuation.base:null,
+    invalidation, rewardRisk, explanation:reasons.join(" "),
+    checks:dataChecks.map(check=>({label:check.label,passed:Boolean(check.ok),detail:check.detail})),
+    disclaimer:"Research snapshot only. No BUY signal enabled; not a trade instruction."
+  };
+}
+function readResearchLog() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RESEARCH_LOG_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+function renderResearchLog() {
+  const root = $("research-log-list");
+  if (!root) return;
+  root.innerHTML = "";
+  const records = readResearchLog();
+  $("research-log-status").textContent = records.length + " saved snapshot(s)";
+  if (!records.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No research snapshots saved on this device yet.";
+    root.append(empty);
+    return;
+  }
+  for (const record of [...records].reverse()) {
+    const card = document.createElement("article");
+    card.className = "news-item";
+    const title = document.createElement("strong");
+    title.textContent = record.ticker + " · " + record.decision;
+    const detail = document.createElement("p");
+    detail.className = "muted";
+    detail.textContent = new Date(record.savedAt).toLocaleString() + " · Quote: " +
+      (typeof record.quote === "number" ? fmtUsd(record.quote) : "unavailable") +
+      " · Entry zone: " + (record.entryLow !== null && record.entryHigh !== null ?
+        fmtUsd(record.entryLow) + "–" + fmtUsd(record.entryHigh) : "unavailable");
+    const explanation = document.createElement("p");
+    explanation.textContent = record.explanation || "No explanation recorded.";
+    card.append(title, detail, explanation);
+    root.append(card);
+  }
+}
+function saveResearchSnapshot() {
+  if (!latestResearchSnapshot) {
+    setMessage("Analyze a company first, then save its research snapshot.", "error");
+    return;
+  }
+  try {
+    const records = readResearchLog();
+    records.push({...latestResearchSnapshot, savedAt:new Date().toISOString(), id:
+      (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() :
+        String(Date.now()) + "-" + Math.random().toString(36).slice(2))});
+    localStorage.setItem(RESEARCH_LOG_KEY, JSON.stringify(records.slice(-200)));
+    renderResearchLog();
+    setMessage("Research snapshot saved on this device. It is a record of the report, not a trade or a BUY signal.", "success");
+  } catch {
+    setMessage("Could not save locally. Check browser storage/privacy settings and try again.", "error");
+  }
 }
 function renderQuote(quote) {
   $("quote-panel").classList.remove("hidden");
@@ -946,4 +1009,6 @@ $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analy
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
 $("run-screen").addEventListener("click",runScreen);
 $("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
+$("save-research-snapshot").addEventListener("click",saveResearchSnapshot);
+renderResearchLog();
 $("ui-health").textContent="Loaded";
