@@ -25,16 +25,34 @@ function newYorkDateOnly(date=new Date()) {
   return values.year+"-"+values.month+"-"+values.day;
 }
 function fmtDate(s) { if(!s) return "Not reported"; const d=new Date(s+"T00:00:00Z"); return Number.isNaN(d.getTime())?s:d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric",timeZone:"UTC"}); }
+function fmtMoney(value, {compact=true, decimals=2}={}) {
+  if(typeof value!=="number" || !Number.isFinite(value)) return "Not reported";
+  const abs=Math.abs(value), sign=value<0?"-":"";
+  if(compact && abs>=1e12) return sign+"$"+(abs/1e12).toFixed(decimals)+"T";
+  if(compact && abs>=1e9) return sign+"$"+(abs/1e9).toFixed(decimals)+"B";
+  if(compact && abs>=1e6) return sign+"$"+(abs/1e6).toFixed(decimals)+"M";
+  if(compact && abs>=1e3) return sign+"$"+(abs/1e3).toFixed(decimals)+"K";
+  return sign+"$"+abs.toFixed(decimals);
+}
 function fmtValue(value, unit) {
   if(typeof value!=="number" || !Number.isFinite(value)) return "Not reported";
-  if(unit==="USD" || unit==="USD/shares") {
-    const abs=Math.abs(value);
-    if(abs>=1e12)return (value<0?"−":"")+"$"+(abs/1e12).toFixed(2)+"T";
-    if(abs>=1e9)return (value<0?"−":"")+"$"+(abs/1e9).toFixed(2)+"B";
-    if(abs>=1e6)return (value<0?"−":"")+"$"+(abs/1e6).toFixed(2)+"M";
-    return new Intl.NumberFormat(undefined,{style:"currency",currency:"USD",maximumFractionDigits:0}).format(value);
-  }
-  return new Intl.NumberFormat(undefined,{maximumFractionDigits:2}).format(value)+(unit?" "+unit:"");
+  if(unit==="USD/shares") return fmtMoney(value,{compact:false,decimals:2});
+  if(unit==="USD") return fmtMoney(value);
+  return new Intl.NumberFormat("en-US",{maximumFractionDigits:2}).format(value)+(unit?" "+unit:"");
+}
+function periodDuration(row) {
+  if(!row?.start || !row?.end) return "Duration unavailable";
+  const days=(Date.parse(row.end+"T00:00:00Z")-Date.parse(row.start+"T00:00:00Z"))/86400000+1;
+  const period=days>=329&&days<=399?"FY":days>=250&&days<=290?"9M":days>=160&&days<=200?"6M":days>=70&&days<=110?"3M":"Period";
+  return period+" · "+row.start+"–"+row.end+" · "+(row.form||"Form unavailable");
+}
+function titleCaseCompanyName(name) {
+  const clean=String(name||"Unknown company").replace(/\\.+$/,".").replace(/\\.\\.+/g,".").trim();
+  if(clean!==clean.toUpperCase()) return clean;
+  return clean.toLowerCase().replace(/\\b([a-z])/g,c=>c.toUpperCase())
+    .replace(/\\b(Inc|Llc|Llp|L P|Ltd|Plc|Corp|Co)\\b/g,m=>({"Inc":"Inc.","Llc":"LLC","Llp":"LLP","L P":"LP","Ltd":"Ltd.","Plc":"PLC","Corp":"Corp.","Co":"Co."}[m]||m))
+    .replace(/\\b(Usa|Nv|Ag|Sa|Se|N V)\\b/g,m=>({"Usa":"USA","Nv":"N.V.","Ag":"AG","Sa":"S.A.","Se":"SE","N V":"N.V."}[m]||m))
+    .replace(/\\.\\.+/g,".");
 }
 async function getJson(url) {
   if(cache.has(url)) return cache.get(url);
@@ -61,7 +79,7 @@ async function findCompany(ticker) {
   const unique=new Map();
   for(const row of matches) {
     const cik=String(row.cik??row.cik_str??"").replace(/\D/g,"");
-    if(cik) unique.set(cik,{cik:cik.padStart(10,"0"),name:String(row.name||row.title||"Unknown company"),ticker,exchange:row.exchange||"Exchange not listed"});
+    if(cik) unique.set(cik,{cik:cik.padStart(10,"0"),name:titleCaseCompanyName(row.name||row.title||"Unknown company"),ticker,exchange:row.exchange||"Exchange not listed"});
   }
   if(!unique.size) throw new Error("No company was found for "+ticker+" in the SEC ticker mapping. Check the symbol.");
   if(unique.size>1) throw new Error("This ticker maps to multiple SEC issuers. Use a less ambiguous symbol.");
@@ -100,7 +118,7 @@ function renderMetrics(observations) {
     const card=document.createElement("article"); card.className="metric-card";
     const label=document.createElement("div"); label.className="metric-label"; label.textContent=metric.label;
     const value=document.createElement("div"); value.className="metric-value"; value.textContent=row?fmtValue(row.value,row.unit):"—";
-    const date=document.createElement("div"); date.className="metric-date"; date.textContent=row?"Filed "+fmtDate(row.filed)+" · Period "+fmtDate(row.end):"No supported observation found";
+    const date=document.createElement("div"); date.className="metric-date"; date.textContent=row?"Filed "+fmtDate(row.filed)+" · "+periodDuration(row):"No supported observation found";
     card.append(label,value,date); $("metrics-grid").append(card);
   }
 }
@@ -248,7 +266,7 @@ function renderTable(observations) {
   if(!rows.length) { body.innerHTML='<tr><td colspan="4" class="empty">No supported financial observations were returned. Open Data connection details below for diagnostics.</td></tr>'; return; }
   for(const row of rows) {
     const tr=document.createElement("tr");
-    const cells=[row.metric+" · "+row.tag,fmtValue(row.value,row.unit),fmtDate(row.end),fmtDate(row.filed)];
+    const cells=[row.metric+" · "+row.tag,fmtValue(row.value,row.unit),periodDuration(row),fmtDate(row.filed)];
     for(const value of cells) { const td=document.createElement("td"); td.textContent=value; tr.append(td); }
     body.append(tr);
   }
@@ -1127,7 +1145,7 @@ function renderFilings(submissions, company) {
     link.href = entry.href;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = entry.form + " · " + entry.description;
+    const description=String(entry.description||"").trim();\n    link.textContent = description.toUpperCase().startsWith(entry.form) ? description : entry.form+" · "+description;
     const meta = document.createElement("p");
     meta.className = "muted";
     meta.textContent = "Filed " + fmtDate(entry.filed) + (entry.reportDate ? " · Reporting period " + fmtDate(entry.reportDate) : "") + " · SEC EDGAR";
@@ -1192,7 +1210,7 @@ async function loadEarnings(ticker) {
   }
 }
 async function analyze(ticker) {
-  ticker=ticker.trim().toUpperCase();
+  ticker=String(ticker||"").trim().toUpperCase().replace(/\\s+/g,"");
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
   const button=$("analyze-button"); button.disabled=true; button.textContent="Loading analysis…";
   $("last-request").textContent=new Date().toLocaleString();
