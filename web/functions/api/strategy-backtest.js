@@ -110,6 +110,56 @@ function evaluate(rows) {
     tradeLog:trades.slice(-30)
   };
 }
+
+function evaluateWalkForward(rows) {
+  // Fixed, pre-declared rules; folds are chronological and each test window is six months.
+  // SMA values may use earlier history, but each fold's reported return only uses its test window.
+  const warmup=SLOW+1, testSessions=126, folds=[];
+  for(let start=warmup; start+testSessions<rows.length; start+=testSessions) {
+    const end=Math.min(rows.length-1,start+testSessions-1);
+    let invested=false, equity=1, peak=1, maxDrawdown=0;
+    const dailyReturns=[];
+    let entries=0, exits=0;
+    for(let i=start;i<=end;i++) {
+      let dailyReturn=0;
+      if(i>0) {
+        const pf=sma(rows,i-1,FAST), ps=sma(rows,i-1,SLOW);
+        const f=sma(rows,i,FAST), sl=sma(rows,i,SLOW);
+        const up=[pf,ps,f,sl].every(Number.isFinite)&&pf<=ps&&f>sl;
+        const down=[pf,ps,f,sl].every(Number.isFinite)&&pf>=ps&&f<sl;
+        // Signal on session i-1 close, execute on session i open. Daily total return
+        // is approximated with adjusted closes; entry/exit cost is deducted explicitly.
+        if(!invested&&up) { invested=true; entries++; dailyReturn-=COST_PER_SIDE/10000; }
+        else if(invested&&down) { invested=false; exits++; dailyReturn-=COST_PER_SIDE/10000; }
+        if(invested) dailyReturn+=(rows[i].adjustedClose/rows[i-1].adjustedClose-1);
+      }
+      dailyReturns.push(dailyReturn);
+      equity*=1+dailyReturn;
+      peak=Math.max(peak,equity);
+      maxDrawdown=Math.min(maxDrawdown,equity/peak-1);
+    }
+    const avg=dailyReturns.reduce((a,b)=>a+b,0)/dailyReturns.length;
+    const variance=dailyReturns.reduce((sum,r)=>sum+(r-avg)**2,0)/(dailyReturns.length-1||1);
+    folds.push({
+      testStart:rows[start].date,testEnd:rows[end].date,observations:end-start+1,
+      returnPercent:(equity-1)*100,
+      annualizedReturnPercent:(Math.pow(equity,252/dailyReturns.length)-1)*100,
+      maxDrawdownPercent:maxDrawdown*100,
+      volatilityPercent:Math.sqrt(variance*252)*100,
+      entries,exits
+    });
+  }
+  const testReturns=folds.map(f=>f.returnPercent);
+  return {
+    methodology:"Expanding historical warm-up with non-overlapping six-month chronological test windows; fixed 50/200-day rules; no parameter fitting. Daily adjusted-close returns approximate fills; not tick-level execution.",
+    folds,
+    positiveFolds:folds.filter(f=>f.returnPercent>0).length,
+    totalFolds:folds.length,
+    medianFoldReturnPercent:folds.length?[...testReturns].sort((a,b)=>a-b)[Math.floor((testReturns.length-1)/2)]:null,
+    warning:"These folds are chronological diagnostics on current provider history, not a fully point-in-time backtest. Corporate actions, historical universe, survivorship and exact next-open portfolio equity are not independently reconstructed."
+  };
+}
+
 export async function onRequestGet({request}) {
   const url=new URL(request.url);
   const ticker=(url.searchParams.get("ticker")||"").trim().toUpperCase();
@@ -124,6 +174,7 @@ export async function onRequestGet({request}) {
     if(!rows) throw new Error("Five-year history unavailable: "+errors.join("; "));
     const spyRows= ticker==="SPY" ? rows : await fetchSeries("query1.finance.yahoo.com","SPY").catch(async()=>fetchSeries("query2.finance.yahoo.com","SPY"));
     const report=evaluate(rows);
+    const walkForward=evaluateWalkForward(rows);
     const commonStart=ticker==="SPY"?rows[0].date:(rows[0].date>spyRows[0].date?rows[0].date:spyRows[0].date);
     const commonEnd=ticker==="SPY"?rows[rows.length-1].date:(rows[rows.length-1].date<spyRows[spyRows.length-1].date?rows[rows.length-1].date:spyRows[spyRows.length-1].date);
     const alignedSpy=spyRows.filter(row=>row.date>=commonStart&&row.date<=commonEnd);
@@ -137,6 +188,7 @@ export async function onRequestGet({request}) {
       averageTradeReturnPercent:report.averageTradeReturnPercent,
       averageBenchmarkDuringTradesPercent:report.averageBenchmarkDuringTradesPercent,
       tradeLog:report.tradeLog,
+      walkForward,
       warning:"EXPERIMENTAL TECHNICAL STRATEGY ONLY — not the live recommendation engine. This uses current provider history, not point-in-time fundamentals, delisted-stock universe, or verified corporate-action history. It is not an out-of-sample validated signal and must not enable BUY. Provider history may be revised. SPY comparison is buy-and-hold total-return proxy using adjusted closes."
     },{headers:{"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"}});
   } catch(error) {
