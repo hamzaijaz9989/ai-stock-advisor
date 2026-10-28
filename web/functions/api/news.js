@@ -31,10 +31,13 @@ export async function onRequestGet({ request }) {
   const matchesCompany = (item) => {
     if (item.companyMatched === true) return true;
     const title = String(item.title || "").toLowerCase();
+    const context = String(item.description || "").toLowerCase();
     const tickerTokens = title.toUpperCase().match(/[A-Z0-9.^=-]+/g) || [];
     const symbolMatch = tickerTokens.includes(ticker);
     const name = cleanCompany.toLowerCase();
-    return symbolMatch || (name.length >= 3 && title.includes(name));
+    const contextMatch = name.length >= 3 && context.includes(name);
+    const aliases = ticker === "AAPL" ? /\b(iphone|ipad|macbook|ios|app store|apple watch|airpods|tim cook)\b/i : null;
+    return symbolMatch || (name.length >= 3 && title.includes(name)) || contextMatch || Boolean(aliases && aliases.test(title));
   };
   const yahooUrl = "https://feeds.finance.yahoo.com/rss/2.0/headline?s=" + encodeURIComponent(ticker) + "&region=US&lang=en-US";
   const googleTerms = [ticker, cleanCompany].filter(Boolean).map(term => '"' + term.replace(/"/g, "") + '"').join(" OR ");
@@ -56,7 +59,7 @@ export async function onRequestGet({ request }) {
     items.push(...parsed);
     sources.push({ name: source, status: "ok", count: parsed.length });
   }
-  if (items.length === 0) {
+  if (items.length < 3) {
     try {
       const nasdaqUrl = "https://www.nasdaq.com/api/news/topic/articlebysymbol?q=" + encodeURIComponent(ticker + "|STOCKS") + "&offset=0&limit=10&fallback=true";
       const response = await fetch(nasdaqUrl, { headers: {
