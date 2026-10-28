@@ -3,8 +3,8 @@ from datetime import date
 import pytest
 
 from stock_advisor.sec_ingest import (
-    SEC_TICKERS_URL,
     SEC_COMPANYFACTS_URL,
+    SEC_TICKERS_URL,
     SEC_SUBMISSIONS_URL,
     collect_company,
     collect_dataset,
