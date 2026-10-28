@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
 let latestResearchSnapshot = null;
+let latestDecisionContext = null;
 const RESEARCH_LOG_KEY = "ai-stock-advisor-research-log-v1";
 const SEC_MAP_URL = "https://www.sec.gov/files/company_tickers_exchange.json";
 const SEC_DATA_URL = "https://data.sec.gov";
@@ -733,6 +734,7 @@ function renderEarnings(payload) {
   root.append(note);
 }
 function renderDecision({ticker,observations,facts,quote,history,news,earnings,quarter}) {
+  latestDecisionContext = null;
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
   const grid=$("decision-metrics"),checks=$("decision-checks");
   grid.innerHTML=""; checks.innerHTML="";
@@ -845,6 +847,14 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   caveats.push("Earnings dates/headlines are third-party data; confirm material items from official investor relations and SEC filings.");
   caveats.push("No stop level guarantees execution. Gaps, fees, slippage and data issues can cause larger losses.");
   $("decision-caveat").textContent=caveats.join(" ");
+  latestDecisionContext = {
+    ticker, quotePrice:typeof quote?.price==="number"?quote.price:null,
+    quoteCurrent, atr, valuationAvailable:valuation.available,
+    valuationBase:valuation.available?valuation.base:null,
+    annualFundamentalPass, quarterlyPass, fundamentalAvoid,
+    eventVerified:earningsVerified, riskFlags:flaggedHeadlines.length,
+    hasRecentNews:recentHeadlines.length>0
+  };
   latestResearchSnapshot = {
     ticker, decision:state, quote:typeof quote?.price==="number"?quote.price:null,
     quoteSource:quote?.source||null, quoteTimestamp:quote?.quoteTime||quote?.quoteLabel||null,
@@ -1074,5 +1084,29 @@ document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListen
 $("run-screen").addEventListener("click",runScreen);
 $("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
 $("save-research-snapshot").addEventListener("click",saveResearchSnapshot);
+function reviewHolding() {
+  const output=$("holding-result"); output.className="holding-result"; output.innerHTML="";
+  const shares=Number($("holding-shares").value), cost=Number($("holding-cost").value), ctx=latestDecisionContext;
+  const show=(title,detail,cls="")=>{output.className="holding-result "+cls;const h=document.createElement("strong");h.textContent=title;const p=document.createElement("div");p.textContent=detail;output.append(h,p);};
+  if(!ctx){show("Analyze a stock first","Load the latest available research before reviewing an existing position.");return;}
+  if(!Number.isFinite(shares)||shares<=0||!Number.isFinite(cost)||cost<=0){show("Position details needed","Enter a positive number of shares and your average cost per share.");return;}
+  if(!ctx.quoteCurrent||typeof ctx.quotePrice!=="number"){show("INSUFFICIENT EVIDENCE","A reliable current timestamped quote is missing. Do not make a sell/hold decision from a stale or unverified price.");return;}
+  const marketValue=shares*ctx.quotePrice, basis=shares*cost, pnl=marketValue-basis, pct=(ctx.quotePrice/cost-1)*100;
+  const stats="Estimated market value "+fmtUsd(marketValue)+"; cost basis "+fmtUsd(basis)+"; unrealized "+(pnl>=0?"+":"−")+fmtUsd(Math.abs(pnl))+" ("+(pct>=0?"+":"")+pct.toFixed(2)+"%).";
+  const stop=ctx.atr!==null&&Number.isFinite(ctx.atr)?cost-2*ctx.atr:null;
+  if(ctx.fundamentalAvoid||ctx.riskFlags>0||(stop!==null&&stop>0&&ctx.quotePrice<=stop)){
+    const why=ctx.fundamentalAvoid?"The available annual/quarterly quality screen failed.":ctx.riskFlags>0?"Recent headlines contain potential material-risk keywords that need primary-source verification.":"The quote is at or below the illustrative cost-based 2×ATR risk reference ("+fmtUsd(stop)+").";
+    show("SELL REVIEW — INVESTIGATE PROMPTLY",why+" "+stats+" This is a review flag, not an automatic sell order. Confirm the filing/news, your tax situation and whether the original thesis is broken before acting.","review");return;
+  }
+  if(!ctx.annualFundamentalPass||!ctx.quarterlyPass||!ctx.eventVerified||!ctx.hasRecentNews){
+    show("HOLD / WAIT FOR BETTER EVIDENCE","No sell trigger was confirmed by the available checks, but important evidence is missing. "+stats+" Re-check after verified earnings/news; this is not a recommendation to add shares.");return;
+  }
+  if(ctx.valuationAvailable&&ctx.valuationBase&&ctx.quotePrice>=ctx.valuationBase){
+    show("HOLD / CONSIDER TRIMMING","The quote is at or above the simplified base-case valuation reference ("+fmtUsd(ctx.valuationBase)+"). Upside may be limited under this model. "+stats+" The valuation is approximate, so verify assumptions before trimming.","hold");return;
+  }
+  show("HOLD — NO RULE-BASED EXIT TRIGGER","The available checks did not identify the configured risk-review trigger. "+stats+" This is not a BUY signal and does not mean losses are unlikely; reassess after new filings, earnings, material news or a major price move.","hold");
+}
+$("review-holding").addEventListener("click",reviewHolding);
+
 renderResearchLog();
 $("ui-health").textContent="Loaded";
