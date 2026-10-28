@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 17.5 9 12l3.2 3.2L20 6.5M14.5 6.5H20v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="brand-name">NORTHSTAR <span>AI</span></span></a>
-    <div class="topbar-right"><a href="#ranking" class="nav-link">Market scan</a><span class="status"><i></i> RESEARCH MODE</span></div>
+    <div class="topbar-right"><a href="#ranking-disclosure" class="nav-link" id="market-scan-link">Market scan</a><span class="status"><i></i> RESEARCH MODE</span></div>
   </header>
   <main class="shell">
     <section class="hero">
@@ -98,10 +98,12 @@
       <div class="section-heading"><div><p class="eyebrow">EARNINGS & EVENT RISK</p><h2>Next earnings check</h2></div><span id="earnings-status" class="count">Not checked</span></div>
       <div id="earnings-content"><p class="empty">Analyze a stock to check the public earnings calendar.</p></div>
     </section>
+    <details class="developer-panel"><summary><span><strong>Detailed earnings reconciliation</strong><small>Reported results and third-party estimates, when available</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
     <section id="earnings-results-panel" class="news-section hidden" aria-live="polite">
       <div class="section-heading"><div><p class="eyebrow">RESULTS VS EXPECTATIONS</p><h2>Latest reported quarter</h2></div><span id="earnings-results-status" class="count">Not checked</span></div>
       <div id="earnings-results-content"><p class="empty">Analyze a stock to compare SEC-reported results with available consensus estimates.</p></div>
     </section>
+    </div></details>
     <section id="recommendation-panel" class="news-section hidden" aria-live="polite">
       <div class="section-heading"><div><p class="eyebrow">YOUR INVESTMENT DECISION</p><h2>Advisor assessment</h2></div><span id="decision-status" class="count">Waiting for evidence</span></div>
       <div id="decision-hero" class="decision-hero state-unknown" aria-live="polite">
@@ -114,6 +116,7 @@
         </div>
       </div>
       <div class="decision-bottom-line"><p class="eyebrow">WHY THIS DECISION?</p><p id="decision-bottom-line">Analyze a ticker to get a plain-language assessment.</p><p class="eyebrow">WHAT TO DO NEXT</p><p id="decision-next-step">Required checks will appear here.</p></div>
+      <details class="developer-panel"><summary><span><strong>Developer diagnostics</strong><small>Technical checks, raw risk rules and provisional valuation calculations</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
       <p id="decision-explanation" class="table-note">Analyze a ticker to receive a data-quality and risk assessment.</p>
       <div class="holding-review">
         <div><p class="eyebrow">IF YOU ALREADY OWN THIS STOCK</p><h3>Position review</h3><p class="table-note">Enter your position to get a rule-based HOLD / SELL REVIEW. This does not place an order.</p></div>
@@ -128,9 +131,11 @@
       <div class="meaning-legend" aria-label="Indicator legend"><span><i class="meaning-dot good"></i> Positive</span><span><i class="meaning-dot bad"></i> Negative / risk</span><span><i class="meaning-dot caution"></i> Needs attention</span><span><i class="meaning-dot unknown"></i> Not enough data</span></div>
       <div id="decision-checks" class="decision-checks"></div>
       <p id="decision-caveat" class="table-note">Any preliminary valuation is assumption-driven and is not a validated forecast or instruction to trade.</p>
+      </div></details>
       <div class="ranking-actions"><button id="save-research-snapshot" type="button" class="secondary-button">Save research snapshot</button><button id="export-research-csv" type="button" class="secondary-button">Export snapshots CSV</button><span id="research-log-status" class="count">0 saved snapshot(s)</span></div>
       <div id="research-log-list" class="news-list"><p class="empty">Saved snapshots stay in this browser on this device. They are not synced to a server.</p></div>
     </section>
+    <details class="developer-panel"><summary><span><strong>Technical validation details</strong><small>Price-history diagnostics and experimental strategy tests</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
     <section id="history-panel" class="news-section hidden"><div class="section-heading"><div><p class="eyebrow">PRICE HISTORY · 1 YEAR</p><h2>Historical performance and risk</h2></div><span id="history-status" class="count">Loads with analysis</span></div><div id="history-metrics" class="metrics-grid"></div><div id="history-chart-wrap" class="history-chart-wrap"><p class="empty">Analyze a ticker to load historical prices.</p></div><div class="history-labels"><span id="history-start-label">Start</span><span id="history-end-label">End</span></div><p id="history-meta" class="table-note">Daily price history is requested when you analyze a company.</p><p id="history-warning" class="table-note">Historical performance is not a forecast.</p></section>
     <section id="strategy-backtest-panel" class="news-section hidden" aria-live="polite">
       <div class="section-heading"><div><p class="eyebrow">HISTORICAL STRATEGY TEST · 5 YEARS</p><h2>Technical strategy reality check</h2></div><span id="strategy-backtest-status" class="count">Loads with analysis</span></div>
@@ -138,6 +143,7 @@
       <div id="strategy-backtest-metrics" class="metrics-grid"></div>
       <div id="strategy-backtest-details" class="table-note"></div><div id="strategy-walk-forward" class="table-note"></div>
     </section>
+    </div></details>
     <section class="news-section"><div class="section-heading"><div><p class="eyebrow">FUNDAMENTAL SNAPSHOT</p><h2>Annual financial trends</h2></div><span id="fundamental-status" class="count">Loads with analysis</span></div><p class="table-note">Calculated only from unambiguous annual 10-K observations. Free cash flow is an approximation: operating cash flow minus absolute capital expenditures. Not a recommendation.</p><div id="fundamental-snapshot" class="metrics-grid"><p class="empty">Analyze a company to calculate annual trends.</p></div></section>
     <section class="news-section" aria-labelledby="quarterly-heading">
       <div class="section-heading"><div><p class="eyebrow">LATEST REPORTED QUARTER</p><h2 id="quarterly-heading">Quarterly performance snapshot</h2></div><span id="quarterly-status" class="count">Loads with analysis</span></div>
