@@ -339,7 +339,7 @@ async function scoreTicker(ticker) {
     {name:"1-year price return",value:history.totalReturnPercent,display:(history.totalReturnPercent>=0?"+":"")+history.totalReturnPercent.toFixed(1)+"%",score:scoreRange(history.totalReturnPercent,-20,30,20),max:20},
     {name:"Maximum drawdown",value:history.maxDrawdownPercent,display:history.maxDrawdownPercent.toFixed(1)+"%",score:scoreRange(history.maxDrawdownPercent,-50,-10,20),max:20}
   ];
-  return {ticker,name:company.name,cik:company.cik,score:components.reduce((sum,item)=>sum+item.score,0),components,financialPeriod:latest.end,historyPeriod:history.startDate+" to "+history.endDate,source:history.source};
+  return {ticker,name:company.name,cik:company.cik,score:components.reduce((sum,item)=>sum+item.score,0),components,financialPeriod:latest.end,historyPeriod:history.startDate+" to "+history.endDate,source:history.source,observations,facts,history};
 }
 function csvCell(value) {
   const textValue=value===null||value===undefined?"":String(value);
@@ -377,16 +377,19 @@ function downloadScreenCsv(results,errors) {
 }
 function renderScreenResults(results,errors) {
   const root=$("screen-results"); root.innerHTML="";
-  const ranked=results.sort((a,b)=>b.score-a.score);
+  const ranked=[...results].sort((a,b)=>b.score-a.score);
   const exportButton=document.createElement("button");
   exportButton.type="button"; exportButton.className="secondary-button";
   exportButton.textContent="Download screen audit CSV";
   exportButton.addEventListener("click",()=>downloadScreenCsv(ranked,errors));
   root.append(exportButton);
+  const intro=document.createElement("p"); intro.className="table-note";
+  intro.textContent="The list below ranks up to 10 research candidates from the 60-stock starter universe. It is NOT a list of validated BUY signals. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
+  root.append(intro);
   if(!ranked.length) {
     const p=document.createElement("p"); p.className="empty"; p.textContent="No companies met the minimum data requirements. "+errors.join(" · "); root.append(p); return;
   }
-  for(let i=0;i<ranked.length;i++) {
+  for(let i=0;i<Math.min(10,ranked.length);i++) {
     const item=ranked[i],card=document.createElement("article"); card.className="screen-card";
     const header=document.createElement("div"); header.className="screen-card-header";
     const identity=document.createElement("div");
@@ -404,12 +407,67 @@ function renderScreenResults(results,errors) {
       cell.append(label,value,scoreLine); grid.append(cell);
     }
     card.append(grid);
-    const note=document.createElement("p"); note.className="table-note"; note.textContent="Research-priority score only. Does not include valuation, forward estimates, news/event risk, or validated predictive power."; card.append(note);
+    const plan=document.createElement("div"); plan.className="candidate-plan";
+    plan.dataset.ticker=item.ticker;
+    const planTitle=document.createElement("strong"); planTitle.textContent="Entry / exit assessment";
+    const planStatus=document.createElement("p"); planStatus.className="muted"; planStatus.textContent="Checking latest quote and valuation inputs…";
+    plan.append(planTitle,planStatus); card.append(plan);
+    const analyzeButton=document.createElement("button"); analyzeButton.type="button"; analyzeButton.className="secondary-button"; analyzeButton.textContent="Open full analysis";
+    analyzeButton.addEventListener("click",()=>{ $("ticker").value=item.ticker; analyze(item.ticker); window.scrollTo({top:0,behavior:"smooth"}); });
+    card.append(analyzeButton);
+    const note=document.createElement("p"); note.className="table-note"; note.textContent="Research priority only. This score excludes news/event risk and is not a validated predictive model. Do not treat these candidates as buy recommendations."; card.append(note);
     root.append(card);
+  }
+  if(ranked.length>10) {
+    const p=document.createElement("p"); p.className="table-note"; p.textContent=(ranked.length-10)+" additional qualified stocks are omitted from the Top 10 display but remain in the downloadable audit CSV."; root.append(p);
   }
   if(errors.length) {
     const p=document.createElement("p"); p.className="table-note"; p.textContent="Excluded candidates: "+errors.join(" · "); root.append(p);
   }
+}
+async function enrichTopCandidates(results) {
+  const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,10);
+  await Promise.all(candidates.map(async item=>{
+    const root=document.querySelectorAll(".candidate-plan");
+    const plan=[...root].find(node=>node.dataset.ticker===item.ticker);
+    if(!plan) return;
+    const status=plan.querySelector("p");
+    try {
+      const [quoteResponse]=await Promise.all([
+        fetch("/api/quote?ticker="+encodeURIComponent(item.ticker),{headers:{"Accept":"application/json"}})
+      ]);
+      const quote=await quoteResponse.json();
+      const valuation=buildDcfEstimate(item.observations,item.facts);
+      const atr=averageTrueRange(item.history);
+      const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):(quote?.quoteLabel?new Date(String(quote.quoteLabel).replace(/\\s+ET$/,"")):null);
+      const quoteAge=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
+      const current=typeof quote?.price==="number"&&quote.price>0&&quoteAge>=-2&&quoteAge<=48&&
+        String(quote?.interval||"").toLowerCase()!=="1d"&&!String(quote?.delayedOrRealtime||"").toLowerCase().includes("daily interval");
+      if(!current) {
+        status.textContent="No verified recent quote with a usable timestamp. Entry, target and risk levels withheld. Quote source: "+(quote?.source||"unknown")+".";
+        return;
+      }
+      if(!valuation.available||!atr||!Number.isFinite(atr)||atr<=0) {
+        status.textContent="Price: "+fmtUsd(quote.price)+". Model entry/exit levels withheld: "+(!valuation.available?valuation.reason:"historical ATR is unavailable")+".";
+        return;
+      }
+      const entryLow=valuation.base*0.75,entryHigh=valuation.base*0.80,entryMid=(entryLow+entryHigh)/2;
+      const invalidation=entryMid-2*atr;
+      const target=valuation.base;
+      const upside=(target/quote.price-1)*100;
+      const source=quote.source||"market data provider";
+      const lines=[
+        "Latest provider price: "+fmtUsd(quote.price)+" ("+source+(quote.quoteTime?"; timestamp "+new Date(quote.quoteTime).toLocaleString():quote.quoteLabel?"; date "+quote.quoteLabel+"; exact time unavailable":"; timestamp unavailable")+")",
+        "Model entry watch zone: "+fmtUsd(entryLow)+"–"+fmtUsd(entryHigh)+" (75–80% of base-case DCF; scenario only)",
+        "Model exit / fair-value reference: "+fmtUsd(target)+" (not a promised target or a forecast)",
+        "Risk reference: "+(invalidation>0?fmtUsd(invalidation):"unavailable")+" (entry midpoint minus 2×ATR; not a guaranteed stop)",
+        "Price-to-model reference: "+(Number.isFinite(upside)?(upside>=0?"+":"")+upside.toFixed(1)+"%":"unavailable")+"; research horizon: review over 1–6 months, not a prediction of when price will reach target."
+      ];
+      status.textContent=lines.join(" ");
+    } catch(error) {
+      status.textContent="Could not verify entry/exit inputs: "+(error?.message||"data provider error")+". No levels shown.";
+    }
+  }));
 }
 async function runScreen() {
   const button=$("run-screen"); button.disabled=true; button.textContent="Screening…";
@@ -432,6 +490,7 @@ async function runScreen() {
     }
     renderScreenResults(results,errors);
     $("screen-status").textContent=results.length+" ranked · "+errors.length+" excluded from "+universe.length;
+    await enrichTopCandidates(results);
   } catch(error) {
     $("screen-status").textContent="Screen interrupted · "+results.length+" ranked so far";
     setMessage("Screen stopped safely: "+(error?.message||"Unexpected error"),"error");
