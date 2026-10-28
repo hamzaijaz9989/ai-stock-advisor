@@ -37,6 +37,30 @@ def test_parse_sec_header_blocks_accession_mismatch():
     assert result["reason"] == "accession_mismatch"
 
 
+def test_parse_sec_header_allows_after_hours_acceptance_before_official_filing_date():
+    # EDGAR can accept a filing after the cutoff while assigning the next official filing date.
+    result = parse_sec_header(
+        header(accepted="20261027180000", filed="20261028"),
+        "0000320193-26-000001",
+        "2026-10-28",
+    )
+    assert result["verified"] is True
+    assert result["acceptance_at"] == "2026-10-27T22:00:00+00:00"
+    assert result["header_filed_date"] == "2026-10-28"
+
+
+def test_parse_sec_header_allows_acceptance_date_after_official_filing_date():
+    # Acceptance time and official filed date are distinct SEC fields. The
+    # official filed date must match metadata; acceptance date is preserved.
+    result = parse_sec_header(
+        header(accepted="20261028100000", filed="20261027"),
+        "0000320193-26-000001",
+        "2026-10-27",
+    )
+    assert result["verified"] is True
+    assert result["acceptance_at"] == "2026-10-28T14:00:00+00:00"
+
+
 def test_parse_sec_header_blocks_filing_date_conflict():
     result = parse_sec_header(header(accepted="20261026161530", filed="20261026"),
                               "0000320193-26-000001", "2026-10-27")
