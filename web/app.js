@@ -473,7 +473,7 @@ function metricCard(label,value,meta) {
   card.append(title,main,detail); return card;
 }
 function previousFiscalQuarter(value) {
-  const match=String(value||"").match(/^Q([1-4])-(20\\d{2})$/i);
+  const match=String(value||"").match(/^Q([1-4])-(20\d{2})$/i);
   if(!match) return null;
   const quarter=Number(match[1]), year=Number(match[2]);
   return quarter===1?"Q4-"+(year-1):"Q"+(quarter-1)+"-"+year;
