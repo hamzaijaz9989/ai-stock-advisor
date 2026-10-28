@@ -77,7 +77,12 @@ def test_collect_company_preserves_acceptance_time_and_excludes_future_filed_fac
     assert company["cik"] == "0000320193"
     assert len(company["filings"]) == 1
     assert company["facts"][0]["value"] == 1000
-    assert company["facts"][0]["available_at"] == "2025-02-01T16:30:00+00:00"
+    assert company["facts"][0]["raw_acceptance_timestamp"] == "2025-02-01T16:30:00+00:00"
+    assert company["facts"][0]["available_at"] is None
+    assert company["facts"][0]["availability_timestamp_verified"] is False
+    assert company["facts"][0]["timestamp_provenance"] == "sec_submissions_json_unverified"
+    assert company["quality"]["exact_acceptance_timestamp_coverage"] == 0
+    assert company["quality"]["facts_with_raw_acceptance_timestamp"] == 1
     assert company["quality"]["eligible_as_complete_strategy_dataset"] is False
     assert company["quality"]["prices_included"] is False
 
@@ -90,7 +95,8 @@ def test_missing_acceptance_timestamp_is_explicitly_unverified(sec_responses):
     )
     assert company["facts"][0]["available_at"] is None
     assert company["facts"][0]["availability_timestamp_verified"] is False
-    assert company["quality"]["facts_missing_exact_acceptance_timestamp"] == 1
+    assert company["quality"]["facts_missing_verified_acceptance_timestamp"] == 1
+    assert company["quality"]["facts_with_raw_acceptance_timestamp"] == 0
 
 
 def test_unknown_ticker_fails_closed(sec_responses):
