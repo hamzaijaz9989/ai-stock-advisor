@@ -75,7 +75,8 @@ function companyRows(payload) {
 }
 async function findCompany(ticker) {
   const payload=await getJson(SEC_MAP_URL);
-  const matches=companyRows(payload).filter(row=>String(row.ticker||row.symbol||"").trim().toUpperCase()===ticker);
+  const lookupTicker=(ticker==="BRK.B"||ticker==="BRK-B")?"BRK":ticker;
+  const matches=companyRows(payload).filter(row=>{const symbol=String(row.ticker||row.symbol||"").trim().toUpperCase();return symbol===ticker||((lookupTicker==="BRK")&&["BRK.B","BRK-B"].includes(symbol));});
   const unique=new Map();
   for(const row of matches) {
     const cik=String(row.cik??row.cik_str??"").replace(/\D/g,"");
@@ -1208,7 +1209,7 @@ async function loadEarnings(ticker) {
   }
 }
 async function analyze(ticker) {
-  ticker=String(ticker||"").trim().toUpperCase().replace(/\\s+/g,"");
+  ticker=String(ticker||"").trim().toUpperCase().replace(/\s+/g,"");
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
   const button=$("analyze-button"); button.disabled=true; button.textContent="Loading analysis…";
   $("last-request").textContent=new Date().toLocaleString();
