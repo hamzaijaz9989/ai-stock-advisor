@@ -59,13 +59,13 @@ async function fetchHistory(host, ticker) {
     annualizedVolatilityPercent:Number(volatility.toFixed(2)),
     maxDrawdownPercent:Number((maxDrawdown*100).toFixed(2)),
     latestClose:last.close, latestAdjustedClose:last.adjustedClose,
-    data:rows,
+    data:rows, dataQuality:scanOutliers(rows),
     warning:"Historical price series may be incomplete or revised by the provider. Adjusted closes are used for return and drawdown calculations; these are historical descriptions, not forecasts."
   };
 }
 export async function onRequestGet({request}) {
   const url=new URL(request.url);
-  const ticker=(url.searchParams.get("ticker")||"").trim().toUpperCase().replace(/\\s+/g,"");
+  const ticker=(url.searchParams.get("ticker")||"").trim().toUpperCase().replace(/\s+/g,"");
   if(!ALLOWED.test(ticker)) return Response.json({error:"Enter a valid ticker."},{status:400});
   const failures=[];
   for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]) {
