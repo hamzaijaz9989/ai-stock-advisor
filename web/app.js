@@ -412,7 +412,17 @@ function buildDcfEstimate(observations, facts) {
   if (flows.length<3) return {available:false,reason:"Fewer than three unambiguous annual free-cash-flow observations."};
   const last3=flows.slice(-3);
   if (last3.some(row=>!Number.isFinite(row.value)||row.value<=0)) return {available:false,reason:"Recent annual free cash flow is not positive in three comparable periods."};
+  const daysBetween=(left,right)=>(Date.parse(right+"T00:00:00Z")-Date.parse(left+"T00:00:00Z"))/86400000;
+  if (last3.some((row,index)=>index>0&&(daysBetween(last3[index-1].end,row.end)<300||daysBetween(last3[index-1].end,row.end)>430))) {
+    return {available:false,reason:"Recent free-cash-flow observations are not spaced like consecutive annual periods."};
+  }
   const latestFcf=last3[2];
+  const latestRevenueForFcf=revenue[revenue.length-1];
+  const previousRevenueForFcf=revenue[revenue.length-2];
+  if (!latestRevenueForFcf || !previousRevenueForFcf || latestRevenueForFcf.end!==latestFcf.end ||
+      previousRevenueForFcf.end!==last3[1].end) {
+    return {available:false,reason:"Annual revenue and free-cash-flow periods do not match exactly; valuation is withheld."};
+  }
   const annualDilutedShares=annualSeries(observations,"dilutedShares").find(row=>row.end===latestFcf.end);
   const currentInstantShares=latestSecValue(facts,[
     {taxonomy:"dei",tag:"EntityCommonStockSharesOutstanding"},
