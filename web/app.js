@@ -468,6 +468,11 @@ function renderScreenResults(results,errors) {
   const intro=document.createElement("p"); intro.className="table-note";
   intro.textContent="The list below ranks up to 10 research candidates from the 60-stock starter universe. It is NOT a list of validated BUY signals. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
   root.append(intro);
+  const bestPick=document.createElement("article");
+  bestPick.className="screen-card screen-best-pick";
+  bestPick.id="screen-best-pick";
+  bestPick.textContent="Strongest current setup: checking price, valuation, earnings, news and risk gates. This is a provisional research ranking, not a validated BUY or a promise of profit.";
+  root.append(bestPick);
   if(!ranked.length) {
     const p=document.createElement("p"); p.className="empty"; p.textContent="No companies met the minimum data requirements. "+errors.join(" · "); root.append(p); return;
   }
@@ -491,6 +496,8 @@ function renderScreenResults(results,errors) {
     card.append(grid);
     const plan=document.createElement("div"); plan.className="candidate-plan";
     plan.dataset.ticker=item.ticker;
+    plan.dataset.score=String(item.score);
+    plan.dataset.ready="false";
     const planTitle=document.createElement("strong"); planTitle.textContent="Entry / exit assessment";
     const planStatus=document.createElement("p"); planStatus.className="muted"; planStatus.textContent="Checking latest quote and valuation inputs…";
     plan.append(planTitle,planStatus); card.append(plan);
@@ -510,15 +517,19 @@ function renderScreenResults(results,errors) {
 async function enrichTopCandidates(results) {
   const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,10);
   await Promise.all(candidates.map(async item=>{
-    const root=document.querySelectorAll(".candidate-plan");
-    const plan=[...root].find(node=>node.dataset.ticker===item.ticker);
+    const plan=[...document.querySelectorAll(".candidate-plan")].find(node=>node.dataset.ticker===item.ticker);
     if(!plan) return;
     const status=plan.querySelector("p");
+    const gateNotes=[];
     try {
-      const [quoteResponse]=await Promise.all([
-        fetch("/api/quote?ticker="+encodeURIComponent(item.ticker),{headers:{"Accept":"application/json"}})
+      const [quoteResponse,newsResponse,earningsResponse]=await Promise.all([
+        fetch("/api/quote?ticker="+encodeURIComponent(item.ticker),{headers:{"Accept":"application/json"}}),
+        fetch("/api/news?ticker="+encodeURIComponent(item.ticker),{headers:{"Accept":"application/json"}}),
+        fetch("/api/earnings?ticker="+encodeURIComponent(item.ticker),{headers:{"Accept":"application/json"}})
       ]);
-      const quote=await quoteResponse.json();
+      const quote=quoteResponse.ok?await quoteResponse.json():null;
+      const news=newsResponse.ok?await newsResponse.json():null;
+      const earnings=earningsResponse.ok?await earningsResponse.json():null;
       const valuation=buildDcfEstimate(item.observations,item.facts);
       const atr=averageTrueRange(item.history);
       const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
@@ -526,36 +537,79 @@ async function enrichTopCandidates(results) {
       const current=typeof quote?.price==="number"&&quote.price>0&&quoteAge>=-2&&quoteAge<=48&&
         String(quote?.interval||"").toLowerCase()!=="1d"&&!String(quote?.delayedOrRealtime||"").toLowerCase().includes("daily interval");
       if(!current) {
-        status.textContent="No verified recent quote with a usable timestamp. Entry, target and risk levels withheld. Quote source: "+(quote?.source||"unknown")+".";
-        return;
+        gateNotes.push("no recent timestamped quote");
       }
       if(!valuation.available||!atr||!Number.isFinite(atr)||atr<=0) {
-        status.textContent="Price: "+fmtUsd(quote.price)+". Model entry/exit levels withheld: "+(!valuation.available?valuation.reason:"historical ATR is unavailable")+".";
-        return;
+        gateNotes.push(!valuation.available?"valuation unavailable":"ATR risk data unavailable");
       }
-      const gap=assessQuoteValuationGap(quote.price,valuation.base);
-      if(gap.blocked) {
-        status.textContent="Latest price: "+fmtUsd(quote.price)+". Illustrative DCF base case: "+fmtUsd(valuation.base)+". Market/model ratio: "+gap.ratio.toFixed(2)+"×. "+gap.reason+" No entry, exit, or risk levels are shown.";
-        return;
+      let entryLow=null,entryHigh=null,entryMid=null,invalidation=null,target=null,rewardRisk=null,gap=null,insideEntry=false;
+      if(current&&valuation.available&&atr>0) {
+        gap=assessQuoteValuationGap(quote.price,valuation.base);
+        if(gap.blocked) gateNotes.push("market/model ratio outside 0.40×–2.50× review band");
+        entryLow=valuation.base*0.75; entryHigh=valuation.base*0.80;
+        entryMid=(entryLow+entryHigh)/2; invalidation=entryMid-2*atr; target=valuation.base;
+        insideEntry=quote.price>=entryLow&&quote.price<=entryHigh;
+        rewardRisk=invalidation>0&&entryMid>invalidation?(target-entryMid)/(entryMid-invalidation):null;
+        if(!insideEntry) gateNotes.push("price outside model watch zone");
+        if(!(invalidation>0)) gateNotes.push("risk reference is non-positive");
+        if(!(typeof rewardRisk==="number"&&Number.isFinite(rewardRisk)&&rewardRisk>=2)) gateNotes.push("estimated reward/risk below 2:1 or unavailable");
       }
-      const entryLow=valuation.base*0.75,entryHigh=valuation.base*0.80,entryMid=(entryLow+entryHigh)/2;
-      const invalidation=entryMid-2*atr;
-      const target=valuation.base;
-      const upside=(target/quote.price-1)*100;
-      const source=quote.source||"market data provider";
-      const lines=[
-        "Latest provider price: "+fmtUsd(quote.price)+" ("+source+(quote.quoteTime?"; timestamp "+new Date(quote.quoteTime).toLocaleString():quote.quoteLabel?"; date "+quote.quoteLabel+"; exact time unavailable":"; timestamp unavailable")+")",
-        "Model entry watch zone: "+fmtUsd(entryLow)+"–"+fmtUsd(entryHigh)+" (75–80% of base-case DCF; scenario only)",
-        "Model exit / fair-value reference: "+fmtUsd(target)+" (not a promised target or a forecast)",
-        "Risk reference: "+(invalidation>0?fmtUsd(invalidation):"unavailable")+" (entry midpoint minus 2×ATR; not a guaranteed stop)",
-        "Price-to-model reference: "+(Number.isFinite(upside)?(upside>=0?"+":"")+upside.toFixed(1)+"%":"unavailable")+"; research horizon: review over 1–6 months, not a prediction of when price will reach target."
-      ];
+      const component=(name)=>item.components.find(part=>part.name===name)?.value;
+      const growth=component("Revenue growth"),margin=component("Net profit margin"),fcfMargin=component("Approx. FCF margin");
+      if(!(typeof growth==="number"&&growth>=-10)) gateNotes.push("revenue trend fails or is missing");
+      if(!(typeof margin==="number"&&margin>0)) gateNotes.push("net profit margin is not positive");
+      if(!(typeof fcfMargin==="number"&&fcfMargin>0)) gateNotes.push("approximate free-cash-flow margin is not positive");
+      const today=newYorkDateOnly();
+      const futureEvents=Array.isArray(earnings?.events)?earnings.events.filter(event=>event.reportDate>=today).sort((a,b)=>a.reportDate.localeCompare(b.reportDate)):[];
+      const nextEvent=futureEvents[0]||null;
+      const earningsVerified=Boolean(nextEvent&&earnings?.verified);
+      const daysToEarnings=nextEvent?(Date.parse(nextEvent.reportDate+"T00:00:00Z")-Date.parse(today+"T00:00:00Z"))/86400000:null;
+      if(!earningsVerified) gateNotes.push("upcoming earnings date not verified");
+      else if(daysToEarnings<=7) gateNotes.push("earnings event within 7 days");
+      const headlines=Array.isArray(news?.items)?news.items:[];
+      const recent=headlines.filter(headline=>headline.publishedAt&&Number.isFinite(Date.parse(headline.publishedAt))&&
+        (Date.now()-Date.parse(headline.publishedAt))/86400000<=7&&(Date.now()-Date.parse(headline.publishedAt))/86400000>=-0.1);
+      const riskWords=/fraud|investigation|probe|restatement|bankrupt|accounting irregular|recall|antitrust|guidance cut|cuts outlook|data breach|ceo resign|secondary offering|dilution|sec charge|criminal charges|regulatory action|lawsuit|misses estimates/i;
+      const riskHeadlines=recent.filter(headline=>riskWords.test(headline.title||""));
+      if(!recent.length) gateNotes.push("no timestamped news in the last 7 days");
+      if(riskHeadlines.length) gateNotes.push("potential material-risk headline needs review");
+      const ready=gateNotes.length===0;
+      plan.dataset.ready=ready?"true":"false";
+      plan.dataset.reason=gateNotes.join("; ");
+      const lines=[];
+      lines.push(ready?"PROVISIONAL TOP WATCH — all current checklist gates passed; not a validated BUY.":"NOT ENTRY-READY — "+gateNotes.join("; ")+".");
+      if(current) lines.push("Latest provider price: "+fmtUsd(quote.price)+" ("+(quote.source||"market data provider")+"; "+new Date(quote.quoteTime).toLocaleString()+").");
+      if(valuation.available&&current&&!gap?.blocked&&atr>0) {
+        lines.push("Model entry watch zone: "+fmtUsd(entryLow)+"–"+fmtUsd(entryHigh)+"; base-case reference: "+fmtUsd(target)+"; risk reference: "+(invalidation>0?fmtUsd(invalidation):"unavailable")+".");
+        lines.push("Estimated reward/risk from entry midpoint: "+(typeof rewardRisk==="number"&&Number.isFinite(rewardRisk)?rewardRisk.toFixed(2)+":1":"unavailable")+"; illustrative model gap: "+(Number.isFinite(gap?.ratio)?gap.ratio.toFixed(2)+"×":"unavailable")+".");
+      } else {
+        lines.push("Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks.");
+      }
+      if(earningsVerified) lines.push("Next provider-listed earnings: "+fmtDate(nextEvent.reportDate)+"; confirm with issuer investor relations.");
+      lines.push("Historical validation remains incomplete; no profit probability is claimed.");
       status.textContent=lines.join(" ");
     } catch(error) {
-      status.textContent="Could not verify entry/exit inputs: "+(error?.message||"data provider error")+". No levels shown.";
+      plan.dataset.ready="false";
+      plan.dataset.reason="required live data check failed";
+      status.textContent="NOT ENTRY-READY — could not verify all current inputs ("+(error?.message||"provider error")+"). Entry, target and risk levels withheld.";
     }
   }));
+  const bestPick=document.getElementById("screen-best-pick");
+  if(bestPick) {
+    const readyPlans=[...document.querySelectorAll(".candidate-plan[data-ready='true']")]
+      .sort((a,b)=>Number(b.dataset.score||0)-Number(a.dataset.score||0));
+    if(readyPlans.length) {
+      const best=readyPlans[0];
+      const candidate=candidates.find(item=>item.ticker===best.dataset.ticker);
+      bestPick.textContent="Strongest current research setup (provisional): "+best.dataset.ticker+" · research score "+Number(best.dataset.score||0).toFixed(1)+"/100. It passed the app's current quote, valuation sanity, risk/reward, fundamentals, earnings and news checklist. This is not a validated BUY, does not guarantee profit, and may change as data updates.";
+      bestPick.setAttribute("aria-live","polite");
+    } else {
+      bestPick.textContent="No current candidate passed every entry checklist gate. Best decision for now: WAIT and keep cash available rather than force a trade. This does not mean the screened stocks are bad businesses.";
+      bestPick.setAttribute("aria-live","polite");
+    }
+  }
 }
+
 async function runScreen() {
   const button=$("run-screen"); button.disabled=true; button.textContent="Screening…";
   $("screen-status").textContent="Fetching SEC filings and daily prices";
