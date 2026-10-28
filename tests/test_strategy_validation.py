@@ -27,7 +27,7 @@ def snapshot(**overrides):
         "earnings_date": "2025-03-01",
         "recent_news_count": 3,
         "risk_headline": False,
-        "atr14": 1.0,
+        "atr14": 2.0,
         "available_at": {
             "price": "2025-01-02T20:59:00Z",
             "fundamentals": "2024-11-01T12:00:00Z",
@@ -96,12 +96,19 @@ def test_portfolio_simulator_tracks_cash_equity_and_skips_overlapping_signals():
         for i in range(140)
     ]
     signals = [
-        TradeSignal("TEST", "2025-01-02", 75, 80, 75.5, 100, 126),
-        TradeSignal("TEST", "2025-01-03", 75, 80, 75.5, 100, 126),
+        TradeSignal("TEST", "2025-01-02", 75, 80, 73.5, 100, 126),
+        TradeSignal("TEST", "2025-01-03", 75, 80, 73.5, 100, 126),
     ]
     report = simulate_cash_only_portfolio(signals, {"TEST": bars})
     assert report["completed_positions"] == 1
     assert report["skipped_overlap"] == 1
     assert report["ending_equity"] > report["initial_capital"]
     assert report["equity_curve"][-1]["equity"] == report["ending_equity"]
+
+
+def test_stop_inside_full_entry_zone_blocks_signal():
+    row = snapshot(atr14=1.0)
+    result = evaluate_snapshot(row)
+    assert result["eligible"] is False
+    assert "stop_not_below_full_entry_zone" in result["failed_gates"]
 
