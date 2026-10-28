@@ -194,3 +194,40 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
   .stock-results .section-heading h2 { font-size: 19px; }
   .stock-results .company-panel, .stock-results .quote-panel { padding: 16px; }
 }
+
+
+/* Compact disclosure wrappers for supporting detail panels. */
+.disclosure-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  list-style: none;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+.disclosure-summary::-webkit-details-marker { display: none; }
+.disclosure-summary::after {
+  content: "+";
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #414247;
+  border-radius: 50%;
+  color: var(--accent);
+  font-size: 20px;
+  line-height: 1;
+}
+.disclosure-section[open] > .disclosure-summary::after { content: "−"; }
+.disclosure-summary h2 { margin: 0; }
+.disclosure-summary .eyebrow { margin-bottom: 7px; }
+.disclosure-summary .count { margin-left: auto; }
+.disclosure-content { padding-top: 14px; }
+@media (max-width: 520px) {
+  .disclosure-summary { gap: 10px; }
+  .disclosure-summary h2 { font-size: 19px; }
+  .disclosure-summary .count { max-width: 40%; white-space: normal; }
+}

@@ -105,11 +105,13 @@
       <div id="quarterly-snapshot" class="metrics-grid"><p class="empty">Analyze a ticker to compare the latest reported quarter with the prior year.</p></div>
     </section>
     <section id="metrics-grid" class="metrics-grid" aria-label="Latest reported financial metrics"></section>
-    <section class="news-section">
-      <div class="section-heading"><div><p class="eyebrow">PRIMARY SOURCE</p><h2>Official SEC filings</h2></div><span id="filings-status" class="count">Loads with analysis</span></div>
-      <p class="table-note">Company filings are primary-source disclosures. Open the original filing to verify material information before making an investment decision.</p>
-      <div id="filings-list" class="news-list"><p class="empty">Analyze a ticker to load recent SEC filings.</p></div>
-    </section>
+    <details class="news-section disclosure-section" id="filings-disclosure">
+      <summary class="section-heading disclosure-summary"><div><p class="eyebrow">PRIMARY SOURCE</p><h2>Official SEC filings</h2></div><span id="filings-status" class="count">Loads with analysis</span></summary>
+      <div class="disclosure-content">
+        <p class="table-note">Company filings are primary-source disclosures. Open the original filing to verify material information before making an investment decision.</p>
+        <div id="filings-list" class="news-list"><p class="empty">Analyze a ticker to load recent SEC filings.</p></div>
+      </div>
+    </details>
     <section class="news-section">
       <div class="section-heading"><div><p class="eyebrow">RECENT COVERAGE</p><h2>Company news</h2></div><span id="news-status" class="count">Loads with analysis</span></div>
       <p class="table-note">Headlines help spot developments; verify important claims at the original source and in company filings.</p>
