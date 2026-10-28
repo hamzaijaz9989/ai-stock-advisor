@@ -65,13 +65,13 @@ export async function onRequestGet({ request }) {
       sources.push({ name: source, status: "unavailable" });
       continue;
     }
-    const parsed = parseItems(await result.value.text(), source, 15).filter(matchesCompany);
+    const parsed = parseItems(await result.value.text(), source, 25).filter(matchesCompany);
     items.push(...parsed);
     sources.push({ name: source, status: "ok", count: parsed.length });
   }
   if (items.length < 3) {
     try {
-      const nasdaqUrl = "https://www.nasdaq.com/api/news/topic/articlebysymbol?q=" + encodeURIComponent(ticker + "|STOCKS") + "&offset=0&limit=10&fallback=true";
+      const nasdaqUrl = "https://www.nasdaq.com/api/news/topic/articlebysymbol?q=" + encodeURIComponent(ticker + "|STOCKS") + "&offset=0&limit=20&fallback=true";
       const response = await fetch(nasdaqUrl, { headers: {
         "Accept": "application/json, text/plain, */*",
         "User-Agent": "Mozilla/5.0 (compatible; AIStockAdvisor/1.0)",
@@ -98,7 +98,7 @@ export async function onRequestGet({ request }) {
   }
   const unique = [...new Map(items.filter(matchesCompany).map(item => [item.url, item])).values()]
     .sort((a, b) => Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0))
-    .slice(0, 15);
+    .slice(0, 30);
   return Response.json({
     ticker, company: companyName || null, fetchedAt: new Date().toISOString(), items: unique, sources,
     note: "Only headlines mentioning the searched ticker, company, or recognized company/product names are shown. Headlines are discovery signals, not verified facts or buy recommendations. Confirm material claims against filings or official statements."
