@@ -1,6 +1,9 @@
 name: Fetch SEC historical source bundle
 
 on:
+  push:
+    branches:
+      - fix/sec-acceptance-timestamp-provenance
   workflow_dispatch:
     inputs:
       symbols:
