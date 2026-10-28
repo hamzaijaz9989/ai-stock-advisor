@@ -1603,9 +1603,9 @@ function renderNews(payload) {
     if (signalsRoot) signalsRoot.textContent = "No evidence-based news signals to review.";
     return;
   }
-  const positive = /\\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand|expands partnership)\\b/i;
-  const negative = /\\b(misses|cuts guidance|downgrade|lawsuit|investigation|probe|recall|fraud|breach|outage|layoff|decline|warning|fine|ban|resign|weak demand|disappoint|loss widens|regulatory action)\\b/i;
-  const material = /\\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|launch)\\b/i;
+  const positive = /\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand|expands partnership)\b/i;
+  const negative = /\b(misses|cuts guidance|downgrade|lawsuit|investigation|probe|recall|fraud|breach|outage|layoff|decline|warning|fine|ban|resign|weak demand|disappoint|loss widens|regulatory action)\b/i;
+  const material = /\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|launch)\b/i;
   const getImpact = item => {
     const title = item.title || "";
     const down = negative.test(title), up = positive.test(title);
@@ -1616,9 +1616,9 @@ function renderNews(payload) {
     return {label:"Informational / impact unclear", key:"other", cls:"impact-neutral", explanation:"The headline alone does not establish a clear positive or negative effect on the stock."};
   };
   const score = item => { const impact=getImpact(item); return (["negative","positive","mixed"].includes(impact.key)?3:impact.key==="other"&&material.test(item.title||"")?2:0)+(material.test(item.title||"")?1:0); };
-  const importantHeadlineTerms=/\\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\\b/i;
-  const riskHeadlineTerms=/\\b(misses|loss|lawsuit|investigation|probe|recall|downgrade|fraud|breach|outage|layoff|decline|warning|fine|ban|weak demand|disappoint)\\b/i;
-  const positiveHeadlineTerms=/\\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand)\\b/i;
+  const importantHeadlineTerms=/\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\b/i;
+  const riskHeadlineTerms=/\b(misses|loss|lawsuit|investigation|probe|recall|downgrade|fraud|breach|outage|layoff|decline|warning|fine|ban|weak demand|disappoint)\b/i;
+  const positiveHeadlineTerms=/\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand)\b/i;
   const headlineRank=item=>(importantHeadlineTerms.test(item.title)?3:0)+(riskHeadlineTerms.test(item.title)||positiveHeadlineTerms.test(item.title)?2:0)+(item.publishedAt&&Number.isFinite(Date.parse(item.publishedAt))?1:0);
   const topHeadlineUrls=new Set([...items].sort((a,b)=>headlineRank(b)-headlineRank(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3).map(item=>item.url));
   const distinctItems = items.filter(item => !topHeadlineUrls.has(item.url));
