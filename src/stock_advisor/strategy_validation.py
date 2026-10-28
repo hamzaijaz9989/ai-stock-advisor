@@ -14,8 +14,6 @@ from datetime import UTC, date, datetime
 from statistics import stdev
 from typing import Any
 
-from stock_advisor.portfolio import simulate_cash_only_portfolio
-
 from stock_advisor.backtest import (
     BacktestConfig,
     DailyBar,
@@ -25,6 +23,7 @@ from stock_advisor.backtest import (
     summarize_outcomes,
     walk_forward_folds,
 )
+from stock_advisor.portfolio import simulate_cash_only_portfolio
 
 REQUIRED_SNAPSHOT_FIELDS = (
     "ticker", "as_of_date", "universe_member", "close", "dcf_base",
