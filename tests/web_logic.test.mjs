@@ -178,7 +178,7 @@ test("buildDcfEstimate refuses annual weighted-average shares without a recent s
   const app = loadAppFunctions();
   const result = app.buildDcfEstimate(annualFixtures({includeShares:false}), {});
   assert.equal(result.available, false);
-  assert.match(result.reason, /fact date and filing date are both within the last 180 days/i);
+  assert.match(result.reason, /shares outstanding is missing or older than 180 days/i);
 });
 
 test("averageTrueRange refuses incomplete OHLC observations", () => {
@@ -220,7 +220,8 @@ test("quarterly snapshot returns latest-quarter revenue growth and net income", 
 
 test("decision panel surfaces a qualifying setup as unvalidated and never calls it validated BUY", () => {
   const app = loadAppFunctions();
-  const observations = [...annualFixtures(), ...quarterlyFixtures()];
+  const today=new Date().toISOString().slice(0,10);
+  const observations = [...annualFixtures().filter(row=>row.key!=="commonShares"), ...quarterlyFixtures(), obs("commonShares",90e9,null,today,"10-Q","shares",today)];
   const testFacts = shareFacts(90e9);
   const valuation = app.buildDcfEstimate(observations, testFacts);
   assert.equal(valuation.available, true);
