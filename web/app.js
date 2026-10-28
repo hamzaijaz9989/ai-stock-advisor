@@ -1362,7 +1362,7 @@ async function analyze(ticker) {
     const recentForm=supportedIndex>=0?recentForms[supportedIndex]:null;
     $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(recentDate?" · Most recent supported filing "+recentForm+" · "+fmtDate(recentDate):"");
     $("company-panel").classList.remove("hidden");
-    renderMetrics(observations); renderFundamentalSnapshot(observations); renderTable(observations);
+    renderMetrics(observations); renderFundamentalSnapshot(observations);
     const quarter=renderQuarterlySnapshot(observations);
     renderFilings(submissions, company);
     $("sec-health").textContent="Connected; received SEC company facts";
