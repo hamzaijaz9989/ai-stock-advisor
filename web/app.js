@@ -645,7 +645,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const priceInEntryRange=quoteCurrent&&entryLow!==null&&quote.price>=entryLow&&quote.price<=entryHigh;
   const plannedShares=entryMid!==null&&invalidation!==null&&invalidation>0&&entryMid>invalidation?Math.min(Math.floor(5/(entryMid-invalidation)),Math.floor(500/entryMid)):0;
   const dataChecks=[
-    {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?"Quote timestamp "+quoteDate.toLocaleString():(dailySnapshot?"Provider returned a daily-bar snapshot, not a current quote":"Quote unavailable, missing a usable timestamp, or older than 48 hours")},
+    {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?(quote?.quoteTime?"Provider quote timestamp "+quoteDate.toLocaleString():quote?.quoteLabel?"Provider quote date "+quote.quoteLabel+"; exact trade time was not supplied":"Provider date/time "+quoteDate.toLocaleString()):(dailySnapshot?"Provider returned a daily-bar snapshot, not a current quote":"Quote unavailable, missing a usable date/time, or older than 48 hours")},
     {label:"Valuation inputs",ok:valuation.available,detail:valuation.available?"Three unambiguous annual free-cash-flow periods and recent SEC share count found":valuation.reason},
     {label:"Annual fundamentals",ok:annualFundamentalPass,detail:annualFundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; annual revenue has not dropped more than 10% year over year":"Annual quality filter failed or comparable data is missing"},
     {label:"Latest quarterly trend",ok:quarterlyPass,detail:quarterlyPass?"Quarterly revenue/net income are positive and revenue is no worse than -15% year over year":"Latest quarterly net income, same-quarter revenue comparison, or quality threshold did not pass"},
@@ -713,7 +713,7 @@ function renderQuote(quote) {
     const change = typeof quote.changePercent === "number" ? (quote.changePercent >= 0 ? "+" : "") + quote.changePercent.toFixed(2) + "% vs previous close" : "Change unavailable";
     $("quote-change").textContent = change + " · " + (quote.marketState || "market state unknown");
   }
-  $("quote-time").textContent = "Quote time: " + (quote.quoteTime ? new Date(quote.quoteTime).toLocaleString() : (quote.quoteLabel || "provider timestamp unavailable")) + " · Retrieved: " + new Date(quote.fetchedAt || Date.now()).toLocaleTimeString();
+  $("quote-time").textContent = (quote.quoteTime ? "Quote timestamp: " + new Date(quote.quoteTime).toLocaleString() : quote.quoteLabel ? "Provider quote date: " + quote.quoteLabel + " (time not supplied)" : "Provider timestamp unavailable") + " · Retrieved: " + new Date(quote.fetchedAt || Date.now()).toLocaleTimeString();
   $("quote-source").textContent = (quote.source || "Market data provider") + (quote.warning ? " · " + quote.warning : " · May be delayed");
 }
 async function loadQuote(ticker) {
