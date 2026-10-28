@@ -10,6 +10,16 @@ A research-first prototype for US equities configured for a $500 portfolio, a ho
 - Missing or inconsistent data means an explicit warning, not an invented value.
 - No automatic brokerage execution, leverage, options, or short selling.
 
+## SEC point-in-time source ingestion
+
+Fetch official SEC filing/fundamental records (not signals) for a set of symbols:
+
+```bash
+python scripts/fetch_sec_history.py --symbols AAPL MSFT NVDA --cutoff 2026-10-28 --output data/sec-source-bundle.json
+```
+
+See [SEC point-in-time ingestion](docs/SEC_POINT_IN_TIME_INGESTION.md). The bundle preserves accession IDs and exact acceptance timestamps where available; it never guesses timestamps. It is explicitly not decision-eligible and does not unlock BUY.
+
 ## Python core
 
 Requires Python 3.11+.
