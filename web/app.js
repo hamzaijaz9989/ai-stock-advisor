@@ -779,19 +779,19 @@ function buildDcfEstimate(observations, facts) {
   if (flows.length<3) return {available:false,reason:"Not enough reliable data: fewer than three annual free-cash-flow periods with matching operating-cash-flow and capex start/end dates and units."};
   const last3=flows.slice(-3);
   if (last3.some(row=>!Number.isFinite(row.value)||!isUsd(row)||!isUsd({unit:row.capexUnit}))) {
-    return {available:false,reason:"Valuation withheld: the latest three cash-flow periods contain non-USD, mixed-unit, or non-finite observations."};
+    return {available:false,reason:"Not enough reliable data: latest free-cash-flow inputs contain non-USD, mixed-unit, or non-finite observations."};
   }
-  if (last3.some(row=>row.value<=0)) return {available:false,reason:"Recent annual free cash flow is not positive in all three comparable periods."};
+  if (last3.some(row=>row.value<=0)) return {available:false,reason:"Not enough reliable data for this DCF: free cash flow is not positive in all three matched annual periods."};
   const daysBetween=(left,right)=>(Date.parse(right+"T00:00:00Z")-Date.parse(left+"T00:00:00Z"))/86400000;
   if (last3.some((row,index)=>index>0&&(daysBetween(last3[index-1].end,row.end)<300||daysBetween(last3[index-1].end,row.end)>400))) {
-    return {available:false,reason:"Recent free-cash-flow observations are not spaced like consecutive annual periods."};
+    return {available:false,reason:"Not enough reliable data: annual free-cash-flow periods are stale or are not spaced within the 400-day matching limit."};
   }
   const matchedRevenue=last3.map(row=>revenue.find(item=>item.end===row.end)||null);
   if (matchedRevenue.some(row=>!row)) {
     return {available:false,reason:"Valuation withheld: each of the latest three annual free-cash-flow periods must match an unambiguous annual revenue period."};
   }
   if (matchedRevenue.some(row=>!isUsd(row)||!Number.isFinite(row.value)||row.value<=0)) {
-    return {available:false,reason:"Valuation withheld: annual revenue inputs must be positive, finite USD values across all three matched periods."};
+    return {available:false,reason:"Not enough reliable data: matched annual revenue inputs are non-USD, non-finite, or non-positive."};
   }
   const latestFcf=last3[2];
   const latestRevenue=matchedRevenue[2], previousRevenue=matchedRevenue[1];
@@ -899,7 +899,7 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
   const epsBasisKnown=["GAAP","NON-GAAP"].includes(consensusEpsBasis);
   const revenueVariance=typeof actualRevenue==="number"&&typeof consensusRevenue==="number"&&consensusRevenue>0
     ?actualRevenue/consensusRevenue-1:null;
-  const epsVariance=typeof actualEps==="number"&&typeof consensusEps==="number"&&Math.abs(consensusEps)>0
+  const epsVariance=consensusEpsBasis==="GAAP"&&typeof actualEps==="number"&&typeof consensusEps==="number"&&Math.abs(consensusEps)>0
     ?actualEps/consensusEps-1:null;
   if(!reported) {
     const note=document.createElement("p");note.className="table-note";note.textContent="The third-party brief is not marked reported, so it is not used to characterize an earnings beat or miss.";
@@ -911,8 +911,8 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
   root.append(metricCard("Revenue vs consensus",
     revenueVariance===null?"Not comparable":(revenueVariance>=0?"+":"")+(revenueVariance*100).toFixed(2)+"%",
     revenueVariance===null?"Actual period or consensus estimate unavailable":"Calculated from SEC-reported revenue and third-party consensus"));
-  root.append(metricCard("Provider consensus EPS",typeof consensusEps==="number"?fmtUsd(consensusEps):"Unavailable",
-    "May use an adjusted EPS definition; not guaranteed comparable with SEC GAAP diluted EPS"));
+  root.append(metricCard("Provider consensus EPS ("+(epsBasisKnown?consensusEpsBasis:"basis unverified")+")",epsBasisKnown&&typeof consensusEps==="number"?fmtUsd(consensusEps):"Not shown",
+    epsBasisKnown?"Provider estimate explicitly identifies its "+consensusEpsBasis+" basis.":"Estimate withheld because its GAAP/non-GAAP basis is not verified."));
   root.append(metricCard("Diluted EPS vs consensus",
     epsVariance===null?"Not comparable":(epsVariance>=0?"+":"")+(epsVariance*100).toFixed(2)+"%",
     epsVariance===null?"Not compared: estimate basis is unverified or EPS values are unavailable":"SEC actual is labelled GAAP-tag diluted EPS; provider estimate basis is "+consensusEpsBasis));
@@ -959,7 +959,7 @@ function renderEarnings(payload) {
       const heading=document.createElement("strong"); heading.textContent=event.company+" · "+(event.fiscalQuarterEnding||event.fiscalQuarter||"Earnings");
       const detail=document.createElement("p"); detail.className="muted";
       const estimates=[
-        typeof event.consensusEps==="number"?"EPS est. "+fmtUsd(event.consensusEps):"",
+        typeof event.consensusEps==="number"&&["GAAP","NON-GAAP"].includes(String(event.epsBasis||"").toUpperCase())?"EPS estimate ("+String(event.epsBasis).toUpperCase()+") "+fmtUsd(event.consensusEps):"",
         typeof event.consensusRevenue==="number"?"Revenue est. "+fmtUsd(event.consensusRevenue*1e6):"",
         typeof event.impliedMovePct==="number"?"Implied move "+event.impliedMovePct.toFixed(1)+"%":""
       ].filter(Boolean).join(" · ");
@@ -1654,6 +1654,7 @@ async function analyze(ticker) {
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
 $("run-screen").addEventListener("click",runScreen);
+$("market-scan-link")?.addEventListener("click",()=>{const panel=$("ranking-disclosure");if(panel)panel.open=true;});
 $("suggest-stocks-button").addEventListener("click",()=>{
   $("ranking").scrollIntoView({behavior:"smooth",block:"start"});
   runScreen();
