@@ -277,7 +277,7 @@ function renderHistory(history) {
   panel.classList.remove("hidden");
   $("history-status").textContent=history.observations+" daily observations";
   $("history-meta").textContent=history.startDate+" to "+history.endDate+" · "+history.source+" · Retrieved "+new Date(history.fetchedAt).toLocaleString();
-  $("history-warning").textContent=history.warning;
+  $("history-warning").textContent=history.warning+" Data-quality scan: "+(history.dataQuality?.status||"NOT AVAILABLE")+". "+(history.dataQuality?.largestDailyMove?"Largest daily move "+history.dataQuality.largestDailyMove.percent+"% on "+history.dataQuality.largestDailyMove.date+". ":"")+(history.dataQuality?.suspectedBadTicks?.length?history.dataQuality.suspectedBadTicks.length+" suspected OHLC outlier(s) require source verification. ":"")+(history.dataQuality?.largeGaps?.length?history.dataQuality.largeGaps.length+" large opening gap(s) flagged. ":"")+"Thresholds: "+(history.dataQuality?.rules||"outlier scan unavailable");
   const cards=[
     {label:"1-year price return",value:(history.totalReturnPercent>=0?"+":"")+history.totalReturnPercent.toFixed(2)+"%",meta:"Close-price return · "+history.startDate+" to "+history.endDate},
     {label:"Annualized volatility",value:history.annualizedVolatilityPercent.toFixed(2)+"%",meta:"Standard deviation of daily close-price returns × √252"},
