@@ -1672,8 +1672,8 @@ async function analyze(ticker) {
     const [quote,history,news,earnings,benchmarkHistory]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker),
       fetch("/api/history?ticker=SPY",{headers:{"Accept":"application/json"}}).then(async response=>{if(!response.ok)throw new Error("S&P 500 benchmark unavailable");return response.json();}).catch(()=>null),
-      loadStrategyBacktest(ticker)
     ]);
+    void loadStrategyBacktest(ticker);
     setActivityStage(2,"Price, news and earnings responses received. Reviewing event risk…");
     const reportedQuarter=quarter?.fiscalQuarterId||null;
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
