@@ -339,9 +339,48 @@ async function scoreTicker(ticker) {
   ];
   return {ticker,name:company.name,cik:company.cik,score:components.reduce((sum,item)=>sum+item.score,0),components,financialPeriod:latest.end,historyPeriod:history.startDate+" to "+history.endDate,source:history.source};
 }
+function csvCell(value) {
+  const textValue=value===null||value===undefined?"":String(value);
+  return /[",\n\r]/.test(textValue) ? '"'+textValue.replace(/"/g,'""')+'"' : textValue;
+}
+function buildScreenCsv(results,errors,generatedAt=new Date().toISOString()) {
+  const headers=["generated_at_utc","ticker","company","rank","research_score","financial_period_end","history_period","price_source","metric","metric_value","metric_display","component_points","component_max_points","status","reason"];
+  const rows=[headers];
+  const ranked=[...results].sort((a,b)=>b.score-a.score);
+  ranked.forEach((item,index)=>{
+    for(const part of item.components||[]) rows.push([
+      generatedAt,item.ticker,item.name,index+1,item.score,item.financialPeriod,item.historyPeriod,item.source,
+      part.name,part.value,part.display,part.score,part.max,"qualified",
+      "Research-priority score only; not a validated investment signal"
+    ]);
+  });
+  for(const error of errors||[]) {
+    const split=String(error).match(/^([^:]+):\s*(.*)$/);
+    rows.push([generatedAt,split?.[1]||"", "", "", "", "", "", "", "", "", "", "", "", "excluded", split?.[2]||String(error)]);
+  }
+  return rows.map(row=>row.map(csvCell).join(",")).join("\r\n")+"\r\n";
+}
+function downloadScreenCsv(results,errors) {
+  const csv=buildScreenCsv(results,errors);
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement("a");
+  link.href=url;
+  link.download="stock-advisor-screen-"+new Date().toISOString().replace(/[:.]/g,"-")+".csv";
+  link.textContent="Download CSV audit";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 function renderScreenResults(results,errors) {
   const root=$("screen-results"); root.innerHTML="";
   const ranked=results.sort((a,b)=>b.score-a.score);
+  const exportButton=document.createElement("button");
+  exportButton.type="button"; exportButton.className="secondary-button";
+  exportButton.textContent="Download screen audit CSV";
+  exportButton.addEventListener("click",()=>downloadScreenCsv(ranked,errors));
+  root.append(exportButton);
   if(!ranked.length) {
     const p=document.createElement("p"); p.className="empty"; p.textContent="No companies met the minimum data requirements. "+errors.join(" · "); root.append(p); return;
   }
