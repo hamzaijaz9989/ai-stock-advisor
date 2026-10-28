@@ -37,5 +37,14 @@ Every final recommendation must state:
 - Explain what would change the decision.
 - If price, earnings date, valuation inputs or source data cannot be verified, do not manufacture an actionable price. Return WAIT or INSUFFICIENT EVIDENCE.
 
-## Historical validation implementation\nThe repository now includes `src/stock_advisor/backtest.py` for deterministic single-signal simulation and walk-forward date splitting. It is not connected to the live ranking logic and does not represent a completed portfolio-level or point-in-time backtest. See [docs/BACKTESTING.md](BACKTESTING.md) for the protocol. BUY remains disabled until the actual strategy and its input data pass the full validation gate.\n\n## Current implementation status
-The existing dashboard has SEC-reported facts, best-effort headlines and quotes, one-year price history, and an experimental four-stock research-priority score. It does not yet satisfy all BUY gates above. Do not expose that score as a buy recommendation or fabricate a valuation-derived entry/exit.
+## Historical validation implementation
+
+The repository includes `src/stock_advisor/backtest.py` for deterministic single-signal simulation and walk-forward date splitting. It is not connected to the live ranking logic and is not a completed portfolio-level or point-in-time backtest. See [docs/BACKTESTING.md](BACKTESTING.md) for the protocol. BUY remains disabled until the actual strategy and its input data pass the full validation gate.
+
+## Current implementation status
+
+The dashboard has SEC-reported facts, best-effort quotes and one-year history, headline discovery, third-party earnings-calendar checks, a preliminary DCF scenario, ATR-based risk references, a research-candidate ranking for a curated 60-stock US universe, CSV export, and a local research snapshot log. The research-priority ranking is not a predictive model and does not itself generate a BUY recommendation.
+
+The system is a research prototype, not a production-grade or validated investment service. Yahoo Finance chart and RSS endpoints currently used by the dashboard are unofficial access paths; the project has not obtained a commercial market-data license from Yahoo. Review provider terms before commercial distribution. A quote with no machine-readable provider timestamp, a stale quote, or a daily-bar snapshot must not pass the current-price gate. Third-party earnings dates and headlines must be verified against issuer or SEC sources before trading.
+
+The dashboard's DCF and entry/risk levels are hypothetical scenarios with simplified assumptions, not reliable short-term price forecasts. No end-to-end walk-forward/holdout validation has established a durable trading edge. Do not claim a win rate, guaranteed profit, or 100% prediction accuracy.
