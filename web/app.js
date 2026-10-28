@@ -18,6 +18,11 @@ const METRICS = [
 ];
 const cache = new Map();
 function setMessage(text, type="") { const el=$("message"); el.textContent=text; el.className="message"+(type?" "+type:""); }
+function newYorkDateOnly(date=new Date()) {
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+  const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+  return values.year+"-"+values.month+"-"+values.day;
+}
 function fmtDate(s) { if(!s) return "Not reported"; const d=new Date(s+"T00:00:00Z"); return Number.isNaN(d.getTime())?s:d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric",timeZone:"UTC"}); }
 function fmtValue(value, unit) {
   if(typeof value!=="number" || !Number.isFinite(value)) return "Not reported";
@@ -439,7 +444,7 @@ async function enrichTopCandidates(results) {
       const quote=await quoteResponse.json();
       const valuation=buildDcfEstimate(item.observations,item.facts);
       const atr=averageTrueRange(item.history);
-      const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):(quote?.quoteLabel?new Date(String(quote.quoteLabel).replace(/\\s+ET$/,"")):null);
+      const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
       const quoteAge=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
       const current=typeof quote?.price==="number"&&quote.price>0&&quoteAge>=-2&&quoteAge<=48&&
         String(quote?.interval||"").toLowerCase()!=="1d"&&!String(quote?.delayedOrRealtime||"").toLowerCase().includes("daily interval");
@@ -506,7 +511,7 @@ function fmtUsd(value) {
 }
 function latestSecValue(facts, candidates, unit, maxAgeDays=180) {
   const rows=[];
-  const today=new Date().toISOString().slice(0,10);
+  const today=newYorkDateOnly();
   for (const candidate of candidates) {
     const fact=facts?.facts?.[candidate.taxonomy]?.[candidate.tag];
     const values=fact?.units?.[unit];
