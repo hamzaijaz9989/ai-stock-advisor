@@ -1062,7 +1062,7 @@ function renderBeginnerOverview(data) {
   let verdict="Not enough reliable data",verdictClass="unknown",why="The available evidence does not support a dependable stock decision.";
   if(state==="AVOID"){verdict="Risky: avoid for now";verdictClass="bad";why="The company's reported financial checks failed. "+reasonRule+".";}
   else if(!valuationDecisionReady||!quoteValid||!annualDataAvailable||!quarterlyDataAvailable){verdict="Not enough reliable data";verdictClass="unknown";why="At least one key price, valuation or financial input is missing, stale or cannot be matched safely. "+reasonRule+".";}
-  else if(flaggedHeadlines.length){verdict="Risky: avoid for now";verdictClass="bad";why="Recent headlines contain potential risk terms that need checking at their original sources before considering this stock.";}
+  else if(flaggedHeadlines.length||(daysToEarnings!==null&&daysToEarnings<=7)){verdict="Risky: avoid for now";verdictClass="bad";why=flaggedHeadlines.length?"Recent headlines contain potential risk terms that need checking at their original sources before considering this stock.":"Earnings are expected within "+Math.max(0,Math.round(daysToEarnings))+" day(s), when price swings can be unusually large. Avoid rushing into a new position before reviewing the report.";}
   else if(gapCheck?.blocked){verdict="Not enough reliable data";verdictClass="unknown";why="The market price and simplified valuation are outside the system's allowed comparison range, so a fair-price conclusion is withheld.";}
   else if(quote.price/valuation.base<0.8){verdict="Looks attractive";verdictClass="good";why="The quote is below the illustrative model value, and the configured basic company checks passed. This is not a validated BUY signal or a guarantee.";}
   else if(quote.price/valuation.base<=1.2){verdict="Fairly priced";verdictClass="caution";why="The quote is within 20% of the illustrative model value. Model assumptions are uncertain; review the risks before acting.";}
@@ -1090,7 +1090,9 @@ function renderBeginnerOverview(data) {
   let priceLabel="Unknown",priceDetail="A current quote and a reliable matched valuation are both required.";
   if(valuationDecisionReady&&quoteValid&&!gapCheck?.blocked){const ratio=quote.price/valuation.base;priceLabel=ratio<0.8?"Cheap":ratio<=1.2?"Fair": "Expensive";priceDetail="Quote / illustrative model value: "+ratio.toFixed(2)+"×. This model is a rough scenario, not a target.";}
   setText("score-price",priceLabel);setText("score-price-detail",priceDetail);
-  const riskCount=(flaggedHeadlines?.length||0)+(missingInputs?.length||0)+(daysToEarnings!==null&&daysToEarnings<=7?1:0);
+  const other=latestFact(observations,"otherIncome"),pretax=latestFact(observations,"pretaxIncome");
+  const oneOffFlag=Boolean(other&&pretax&&other.end===pretax.end&&pretax.value!==0&&Math.abs(other.value/pretax.value)>0.05);
+  const riskCount=(flaggedHeadlines?.length||0)+(missingInputs?.length||0)+(daysToEarnings!==null&&daysToEarnings<=7?1:0)+(gapCheck?.blocked?1:0)+(oneOffFlag?1:0);
   const riskLevel=riskCount>=4?"High":riskCount>=2?"Medium":riskCount===0?"Low":"Medium";
   setText("score-risk",riskLevel);setText("score-risk-detail",riskCount+" detected warning(s). Missing data lowers confidence; no risk scan can identify every risk.");
   const next=(earnings?.events||[]).filter(e=>e.reportDate>=newYorkDateOnly()).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0];
@@ -1136,9 +1138,9 @@ function renderBeginnerOverview(data) {
   const risks=[];
   for(const item of flaggedHeadlines||[]) risks.push({text:"Potential risk headline: "+item.title,meta:(item.source||"Source unavailable")+(item.publishedAt?" · "+new Date(item.publishedAt).toLocaleString():"")});
   if(daysToEarnings!==null&&daysToEarnings<=7) risks.push({text:"Earnings are expected within "+Math.max(0,Math.round(daysToEarnings))+" day(s). Price swings may be larger than usual.",meta:"Event risk · "+(next?.reportDate||"date not verified")});
+  if(gapCheck?.blocked) risks.push({text:"The current quote and simplified valuation are outside the comparison band; a price conclusion is withheld.",meta:"Valuation reliability risk"});
+  if(oneOffFlag) risks.push({text:"Other non-operating income is more than 5% of pre-tax income; reported profit may include one-off or non-core items.",meta:"Same reported period ended "+fmtDate(other.end)});
   for(const item of missingInputs||[]) risks.push({text:"Not verified: "+item,meta:"Data-confidence risk"});
-  const other=latestFact(observations,"otherIncome"),pretax=latestFact(observations,"pretaxIncome");
-  if(other&&pretax&&other.end===pretax.end&&pretax.value!==0&&Math.abs(other.value/pretax.value)>0.05) risks.push({text:"Other non-operating income is more than 5% of pre-tax income; reported profit may include one-off or non-core items.",meta:"Same reported period ended "+fmtDate(other.end)});
   if(!risks.length) risks.push({text:"No high-priority automated warning was identified in the available inputs. This does not mean the stock is risk-free.",meta:"Limited automated screen"});
   for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.textContent=item.text;title.append(dot);const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
   const headlineRoot=$("beginner-headlines");headlineRoot.innerHTML="";
@@ -1651,8 +1653,9 @@ async function analyze(ticker) {
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } catch(error) {
     $("sec-health").textContent="Request failed";
-    const reason=error instanceof TypeError?"Could not reach the SEC data service. Check your connection and try again.":error.message||"The SEC data request failed.";
-    setMessage(reason+" No sample data has been substituted.","error");
+    const reason=error instanceof TypeError?"Could not reach the SEC data service.":error.message||"The SEC data request failed.";
+    setText("developer-error",reason);
+    setMessage("Northstar couldn't finish this analysis because a required data source did not respond or the ticker could not be verified. No sample data has been substituted. Try again later, or open Full details → Developer diagnostics for technical information.","error");
     finishActivity("Analysis stopped safely. Review the error above and try again.",true);
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
   } finally { button.disabled=false; button.innerHTML='Analyze stock <span aria-hidden="true">↗</span>'; }
