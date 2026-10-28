@@ -19,3 +19,105 @@
 #research-log-list{display:grid;gap:10px;margin-top:10px}#research-log-list .news-item{overflow-wrap:anywhere}
 
 .candidate-plan{margin-top:12px;border:1px solid var(--line);background:#0b1423;border-radius:10px;padding:12px;overflow-wrap:anywhere}.candidate-plan strong{display:block;margin-bottom:6px}.candidate-plan p{font-size:12px;line-height:1.6;margin:0;color:var(--muted)}
+
+
+/* Visual refresh: refined research-terminal aesthetic */
+:root{
+  --bg:#080d18;--panel:#0f192a;--panel2:#142238;--line:#253651;
+  --text:#f1f6ff;--muted:#9baec8;--accent:#83f0cb;--accent2:#b8ffe7;
+  --danger:#ffaaa8;--glow:rgba(131,240,203,.13)
+}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(ellipse at 8% 2%,rgba(48,104,111,.18),transparent 30rem),
+    radial-gradient(ellipse at 94% 18%,rgba(63,92,157,.17),transparent 34rem),
+    linear-gradient(180deg,#080d18 0%,#0a1120 52%,#080d18 100%);
+  letter-spacing:-.01em
+}
+body:before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.15;
+  background-image:linear-gradient(rgba(160,190,220,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(160,190,220,.05) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:linear-gradient(to bottom,black,transparent 75%)
+}
+.topbar{
+  position:sticky;top:0;z-index:20;height:68px;
+  background:rgba(8,13,24,.82);backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(151,178,215,.13)
+}
+.brand{font-size:14px;gap:12px}
+.brand-mark{
+  width:34px;height:34px;border-radius:11px;
+  background:linear-gradient(145deg,#a6ffe4,#54c9aa);
+  box-shadow:0 0 28px rgba(131,240,203,.22)
+}
+.status{background:rgba(255,255,255,.025);border-color:#2a3c54}
+.shell{max-width:1160px;padding-top:64px}
+.hero{max-width:820px}
+.hero .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid rgba(131,240,203,.22);border-radius:999px;background:rgba(131,240,203,.055)}
+.hero .eyebrow:before{content:"";width:6px;height:6px;background:var(--accent);border-radius:50%;box-shadow:0 0 12px var(--accent)}
+.hero h1{font-size:clamp(42px,6.3vw,76px);line-height:1.01;letter-spacing:-.065em}
+.hero h1 span{color:var(--accent);text-shadow:0 0 35px rgba(131,240,203,.24)}
+.intro{max-width:630px;font-size:15px;line-height:1.8;margin:20px auto 28px}
+.search-panel{
+  background:linear-gradient(145deg,rgba(19,32,52,.96),rgba(11,19,33,.96));
+  border-color:rgba(145,171,207,.2);border-radius:20px;padding:22px;
+  box-shadow:0 24px 90px rgba(0,0,0,.28),0 0 0 1px rgba(255,255,255,.015) inset
+}
+.search-row input{background:#080f1c;border-color:#2a3c57;border-radius:12px;padding:15px 16px;transition:border-color .2s,box-shadow .2s}
+.search-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(131,240,203,.09)}
+.search-row button{
+  background:linear-gradient(135deg,#a7ffe4,#72dfbd);border-radius:12px;
+  min-height:49px;padding:0 24px;box-shadow:0 8px 24px rgba(91,220,181,.12);
+  transition:transform .18s,filter .18s
+}
+.search-row button:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.quick-tickers button{border-radius:8px;background:rgba(255,255,255,.025);padding:6px 12px;transition:all .18s}
+.quick-tickers button:hover{background:rgba(131,240,203,.08)}
+.message{background:rgba(15,25,42,.75);border-color:rgba(145,171,207,.17);border-radius:12px}
+.news-section,.ranking-section{position:relative;margin:36px 0;padding:22px;border:1px solid rgba(145,171,207,.15);border-radius:18px;background:linear-gradient(145deg,rgba(15,25,42,.74),rgba(10,17,30,.6));box-shadow:0 16px 45px rgba(0,0,0,.08)}
+.news-section .news-section{padding:0;border:0;background:transparent;box-shadow:none}
+.section-heading{margin-bottom:18px}
+.section-heading h2,.company-panel h2{font-size:clamp(20px,2.4vw,27px);letter-spacing:-.045em}
+.section-heading .eyebrow,.company-panel .eyebrow{font-size:9px;letter-spacing:.17em}
+.count{border:1px solid rgba(145,171,207,.15);border-radius:999px;padding:5px 9px;background:rgba(255,255,255,.025);font-size:10px}
+.metrics-grid{gap:12px;margin:18px 0 22px}
+.metric-card{
+  min-height:120px;padding:17px;border-radius:14px;
+  border-color:rgba(145,171,207,.16);
+  background:linear-gradient(145deg,rgba(23,39,62,.86),rgba(13,23,39,.92));
+  box-shadow:0 8px 24px rgba(0,0,0,.08);transition:transform .2s,border-color .2s,background .2s
+}
+.metric-card:hover{transform:translateY(-2px);border-color:rgba(131,240,203,.32)}
+.metric-label{font-size:11px;letter-spacing:.02em}
+.metric-value{font-size:clamp(20px,2.3vw,27px);font-variant-numeric:tabular-nums;letter-spacing:-.055em}
+.metric-date{line-height:1.55}
+.table-note{font-size:12px;line-height:1.75;color:#9aacc4}
+.company-panel{padding:22px 0;border-bottom-color:rgba(145,171,207,.16)}
+.source-pill{background:rgba(131,240,203,.05);border-color:rgba(131,240,203,.19)}
+.quote-panel{border-radius:18px;border-color:rgba(131,240,203,.19);background:linear-gradient(130deg,rgba(19,37,54,.96),rgba(12,21,36,.96));box-shadow:0 14px 38px rgba(0,0,0,.14)}
+.quote-panel h2{letter-spacing:-.06em;font-variant-numeric:tabular-nums}
+.secondary-button{border-color:#344762;background:rgba(255,255,255,.025);border-radius:10px;padding:10px 14px;transition:all .18s}
+.secondary-button:hover{border-color:rgba(131,240,203,.55);background:rgba(131,240,203,.07)}
+.news-item,.screen-card,.decision-check,.candidate-plan{border-color:rgba(145,171,207,.16);background:linear-gradient(145deg,rgba(20,34,54,.82),rgba(12,21,36,.9));border-radius:13px}
+.news-item{transition:border-color .18s,transform .18s}
+.news-item:hover{border-color:rgba(131,240,203,.27);transform:translateY(-1px)}
+.news-item a{font-size:13px;line-height:1.6}
+.table-wrap,.history-chart-wrap{border-color:rgba(145,171,207,.17);background:rgba(10,17,30,.75);border-radius:14px}
+.diagnostics{border-color:rgba(145,171,207,.17);background:rgba(255,255,255,.015)}
+#decision-title{font-size:23px;letter-spacing:-.035em}
+#decision-caveat{border-left:2px solid rgba(131,240,203,.3);padding-left:12px}
+#research-log-status,#screen-status{font-variant-numeric:tabular-nums}
+footer{color:#8394ad;border-top-color:rgba(145,171,207,.14)}
+@media(max-width:720px){
+  .topbar{height:62px;padding:0 16px}
+  .shell{padding:42px 14px 24px}
+  .hero h1{font-size:clamp(40px,11vw,58px)}
+  .search-panel{padding:15px}
+  .news-section,.ranking-section{margin:24px 0;padding:16px;border-radius:15px}
+  .metrics-grid{gap:9px}
+  .metric-card{min-height:108px;padding:13px}
+  .metric-value{font-size:20px}
+  .table-note{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
