@@ -1173,8 +1173,13 @@ function renderBeginnerOverview(data) {
   if(!risks.length) risks.push({text:"No high-priority automated warning was identified in the available inputs. This does not mean the stock is risk-free.",meta:"Limited automated screen"});
   for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.textContent=item.text;title.prepend(dot);const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
   const headlineRoot=$("beginner-headlines");headlineRoot.innerHTML="";
-  const headlines=(news?.items||[]).filter(item=>item.title).sort((a,b)=>String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3);
-  if(!headlines.length){const empty=document.createElement("p");empty.className="muted";empty.textContent="No timestamped headlines were returned. The absence of headlines is not evidence that nothing happened.";headlineRoot.append(empty);}
+  const allHeadlines=(news?.items||[]).filter(item=>item.title);
+  const importantTerms=/\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\b/i;
+  const riskTerms=/\b(misses|loss|lawsuit|investigation|probe|recall|downgrade|fraud|breach|outage|layoff|decline|warning|fine|ban|weak demand|disappoint)\b/i;
+  const positiveTerms=/\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand)\b/i;
+  const rankNews=item=>(importantTerms.test(item.title)?3:0)+(riskTerms.test(item.title)||positiveTerms.test(item.title)?2:0)+(item.publishedAt&&Number.isFinite(Date.parse(item.publishedAt))?1:0);
+  const headlines=[...allHeadlines].sort((a,b)=>rankNews(b)-rankNews(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3);
+  if(!headlines.length){const empty=document.createElement("p");empty.className="muted";empty.textContent="No company-specific headlines were returned. The absence of headlines is not evidence that nothing happened.";headlineRoot.append(empty);}
   for(const item of headlines){const card=document.createElement("article");card.className="beginner-list-item";const link=document.createElement("a");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;const meta=document.createElement("p");const date=item.publishedAt?new Date(item.publishedAt):null;meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Time unavailable");card.append(link,meta);headlineRoot.append(card);}
 }
 
@@ -1575,30 +1580,56 @@ function renderFilings(submissions, company) {
 function renderNews(payload) {
   const list = $("news-list");
   list.innerHTML = "";
-  const items = payload?.items || [];
+  const items = (payload?.items || []).filter(item => item.title && item.url);
   $("news-status").textContent = items.length ? items.length + " headlines" : "No headlines";
+  const impactRoot = $("stock-news-impact-list");
+  const impactPanel = $("stock-news-impact");
+  const impactStatus = $("stock-news-impact-status");
+  if (impactPanel) impactPanel.classList.remove("hidden");
+  if (impactRoot) impactRoot.innerHTML = "";
   if (!items.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
-    empty.textContent = "No headlines returned. One or more news feeds may be unavailable.";
+    empty.textContent = "No company-specific headlines were found from the available feeds. This does not mean there is no news.";
     list.append(empty);
+    if (impactRoot) impactRoot.append(empty.cloneNode(true));
+    if (impactStatus) impactStatus.textContent = "No matching news";
     return;
   }
+  const positive = /\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand|expands partnership)\b/i;
+  const negative = /\b(misses|cuts guidance|downgrade|lawsuit|investigation|probe|recall|fraud|breach|outage|layoff|decline|warning|fine|ban|resign|weak demand|disappoint|loss widens|regulatory action)\b/i;
+  const material = /\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|launch)\b/i;
+  const getImpact = item => {
+    const title = item.title || "";
+    const down = negative.test(title), up = positive.test(title);
+    if (down && up) return {label:"Mixed signals", cls:"impact-mixed", explanation:"The headline contains both positive and negative cues. Read the report to establish the net effect."};
+    if (down) return {label:"Potentially negative", cls:"impact-negative", explanation:"This may add downside risk or uncertainty. Confirm the details, scale, and whether the market already expected it."};
+    if (up) return {label:"Potentially positive", cls:"impact-positive", explanation:"This may support sentiment or business expectations. Check whether the news is material and already priced in."};
+    if (material.test(title)) return {label:"Material development to review", cls:"impact-watch", explanation:"This could affect expectations, risk, or valuation; the headline alone does not establish the direction or size of the impact."};
+    return {label:"Informational / impact unclear", cls:"impact-neutral", explanation:"The headline alone does not establish a clear positive or negative effect on the stock."};
+  };
+  const score = item => { const impact=getImpact(item); return (["impact-negative","impact-positive","impact-mixed"].includes(impact.cls)?3:impact.cls==="impact-watch"?2:0)+(material.test(item.title||"")?1:0); };
+  const sorted = [...items].sort((a,b)=>score(b)-score(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||"")));
   for (const item of items) {
-    const card = document.createElement("article");
-    card.className = "news-item";
-    const link = document.createElement("a");
-    link.href = item.url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = item.title;
-    const meta = document.createElement("p");
-    meta.className = "muted";
-    const date = item.publishedAt ? new Date(item.publishedAt) : null;
-    meta.textContent = item.source + (date && !Number.isNaN(date.getTime()) ? " · " + date.toLocaleString() : " · Date unavailable");
-    card.append(link, meta);
-    list.append(card);
+    const card=document.createElement("article"); card.className="news-item";
+    const link=document.createElement("a"); link.href=item.url; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent=item.title;
+    const meta=document.createElement("p"); meta.className="muted";
+    const date=item.publishedAt?new Date(item.publishedAt):null;
+    meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Date unavailable");
+    card.append(link,meta); list.append(card);
   }
+  for (const item of sorted) {
+    const card=document.createElement("article"); card.className="stock-news-impact-item";
+    const impact=getImpact(item);
+    const badge=document.createElement("span"); badge.className="stock-news-impact-badge "+impact.cls; badge.textContent=impact.label;
+    const link=document.createElement("a"); link.href=item.url; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent=item.title;
+    const explanation=document.createElement("p"); explanation.className="stock-news-impact-explanation"; explanation.textContent=impact.explanation;
+    const meta=document.createElement("p"); meta.className="muted";
+    const date=item.publishedAt?new Date(item.publishedAt):null;
+    meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Date unavailable");
+    card.append(badge,link,explanation,meta); impactRoot.append(card);
+  }
+  if (impactStatus) impactStatus.textContent=items.length+" headlines reviewed";
 }
 async function loadNews(ticker, companyName="") {
   $("news-status").textContent="Loading…";
