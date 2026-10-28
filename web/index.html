@@ -31,6 +31,10 @@
           <button type="button" data-ticker="AMZN">AMZN</button>
         </div>
       </form>
+      <div class="stock-suggestions-cta">
+        <button id="suggest-stocks-button" type="button" class="suggest-stocks-button"><span class="suggest-icon" aria-hidden="true">✦</span><span><strong>Suggest me stocks</strong><small>Find up to 5 data-screened research candidates</small></span><span class="suggest-arrow" aria-hidden="true">↗</span></button>
+        <p>Ranks available companies by reported growth, profitability, cash flow and price history. Results are research candidates, not guaranteed winners or validated BUY signals.</p>
+      </div>
     </section>
 <details class="beginner-guide"><summary>New to stocks? How to use Northstar AI</summary><div class="guide-content">
       <div class="guide-heading">
@@ -119,12 +123,13 @@
       <div id="news-list" class="news-list"><p class="empty">Analyze a ticker to load recent headlines.</p></div>
     </section>
 
-    <section id="ranking" class="ranking-section">
-      <div class="section-heading"><div><p class="eyebrow">RESEARCH SHORTLIST</p><h2>Top 10 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
-      <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
-      <p class="table-note">Run a comparison of 60 selected US stocks. The system displays up to 10 research candidates and, where the latest quote and valuation inputs pass checks, shows a model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are not guaranteed buy/exit instructions; the strategy has not passed walk-forward and untouched holdout validation.</p><div class="ranking-actions"><button id="run-screen" type="button" class="secondary-button">Run 60-stock research screen</button><span id="screen-status" class="count">Not run</span></div><div id="screen-results" class="screen-results"><p class="empty">Run a cross-sector screen of 60 selected US stocks. The starter universe is not the full market; results depend on provider availability and strict data-quality checks.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
-    </section>
+
     </div>
+    <section id="ranking" class="ranking-section suggestion-results-section">
+      <div class="section-heading"><div><p class="eyebrow">DATA-DRIVEN STOCK SUGGESTIONS</p><h2>Top 5 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
+      <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
+      <p class="table-note">The system compares 60 selected US stocks and displays up to five qualified research candidates and, where the latest quote and valuation inputs pass checks, shows a model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are not guaranteed buy/exit instructions; the strategy has not passed walk-forward and untouched holdout validation.</p><div class="ranking-actions"><button id="run-screen" type="button" class="secondary-button">Find my top 5 stocks</button><span id="screen-status" class="count">Not run</span></div><div id="screen-results" class="screen-results"><p class="empty">Tap “Suggest me stocks” to screen a cross-sector starter universe of 60 US stocks. The starter universe is not the full market; results depend on provider availability and strict data-quality checks.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
+    </section>
     <details class="diagnostics">
       <summary>Data connection details</summary>
       <div class="diagnostic-content">
