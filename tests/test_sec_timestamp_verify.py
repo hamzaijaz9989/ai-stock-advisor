@@ -15,8 +15,8 @@ def header(accession="0000320193-26-000001", accepted="20261027161530", filed="2
 def test_parse_sec_header_converts_eastern_daylight_time_to_utc():
     result = parse_sec_header(header(), "0000320193-26-000001", "2026-10-27")
     assert result["verified"] is True
-    assert result["available_at"] == "2026-10-27T20:15:30+00:00"
-    assert result["timestamp_provenance"] == "sec_complete_submission_sgml_header"
+    assert result["acceptance_at"] == "2026-10-27T20:15:30+00:00"
+    assert result["timestamp_provenance"] == "sec_filing_index_header_acceptance_datetime"
 
 
 def test_parse_sec_header_blocks_accession_mismatch():
@@ -44,8 +44,12 @@ def test_verifier_propagates_verified_timestamp_but_never_unlocks_dataset():
     }]}
     result = verify_dataset(dataset, fetch_text=lambda _: header(), request_delay_seconds=0)
     company = result["companies"][0]
-    assert company["filings"][0]["availability_timestamp_verified"] is True
-    assert company["facts"][0]["available_at"] == "2026-10-27T20:15:30+00:00"
+    assert company["filings"][0]["acceptance_timestamp_verified"] is True
+    assert company["filings"][0]["acceptance_at"] == "2026-10-27T20:15:30+00:00"
+    assert company["filings"][0]["timestamp_verification"]["raw_timestamp_matches_header"] is False
+    assert company["facts"][0]["acceptance_at"] == "2026-10-27T20:15:30+00:00"
+    assert company["facts"][0]["availability_timestamp_verified"] is False
+    assert company["facts"][0]["available_at"] is None
     assert result["timestamp_verification"]["verified"] == 1
-    assert result["timestamp_verification"]["facts_timestamped"] == 1
+    assert result["timestamp_verification"]["facts_acceptance_verified"] == 1
     assert result["decision_eligible"] is False
