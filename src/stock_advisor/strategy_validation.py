@@ -158,6 +158,8 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
     reward_risk = (target - entry_mid) / (entry_mid - stop) if entry_mid > stop else None
     if not entry_low <= price <= entry_high:
         failed.append("price_outside_entry_zone")
+    if stop >= entry_low:
+        failed.append("stop_not_below_full_entry_zone")
     if stop <= 0 or reward_risk is None or reward_risk < 2:
         failed.append("risk_or_reward_risk_gate_failed")
 
