@@ -931,19 +931,31 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const eventRiskScreen={label:"Event-risk screen",ok:earningsVerified&&daysToEarnings>3&&flaggedHeadlines.length===0,
     detail:!earningsVerified?"WARN — next earnings date is not verified.":daysToEarnings<=3?"FAIL — earnings expected within "+Math.max(0,Math.round(daysToEarnings))+" days.":flaggedHeadlines.length?"WARN — "+flaggedHeadlines.length+" recent headline(s) match risk keywords.":"No keyword-triggered risk headline found in recent timestamped coverage; this is not proof that no material event exists."};
   dataChecks.push(growthScreen,profitabilityScreen,liquidityScreen,cashFlowScreen,eventRiskScreen);
-  // Action labels are now active, but BUY is explicitly provisional/unvalidated.
-  // This rule is conservative and is not evidence of a profitable strategy.
-  const sellReview = fundamentalAvoid || flaggedHeadlines.length>0;
+  // Explicit decision states are shown for every research run. BUY remains locked until
+  // point-in-time walk-forward and untouched holdout validation demonstrate a credible edge.
   const coreEvidencePass = quoteCurrent && valuationDecisionReady && annualFundamentalPass &&
     quarterlyPass && earningsVerified && recentHeadlines.length>0 && flaggedHeadlines.length===0 &&
     atr!==null && Number.isFinite(atr) && rewardRisk!==null && Number.isFinite(rewardRisk);
   const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
     rewardRisk>=2 && invalidation!==null && invalidation>0 && plannedShares>0;
-  // The live engine has not established out-of-sample predictive edge. It therefore never emits BUY.
-  // Non-holders receive research triage labels only; HOLD/SELL REVIEW are reserved for explicit position review.
+  const historicalValidationPass = false; // Fail closed until a real validation report is reviewed and approved.
   const insufficientData=!quoteCurrent||!annualDataAvailable||!quarterlyDataAvailable||!earningsVerified||!recentHeadlines.length||atr===null;
-  let state=fundamentalAvoid?"AVOID":insufficientData?"INSUFFICIENT DATA":gapCheck.blocked||!valuationDecisionReady||daysToEarnings!==null&&daysToEarnings<=3||flaggedHeadlines.length?"WAIT":"WATCHLIST";
-  const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":gapCheck.blocked?"Quote/model ratio outside 0.40×–2.50×":daysToEarnings!==null&&daysToEarnings<=3?"Earnings event is within 3 calendar days":flaggedHeadlines.length?"Potential material-risk headline requires primary-source review":insufficientData?"One or more required data inputs are missing or stale":!valuationDecisionReady?"Valuation decision gate is not satisfied":"Evidence is available, but no validated BUY rule exists";
+  let state;
+  if (fundamentalAvoid) state="AVOID";
+  else if (insufficientData) state="INSUFFICIENT DATA";
+  else if (gapCheck.blocked || !valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
+  else if (flaggedHeadlines.length) state="SELL REVIEW";
+  else if (buySetupPass && !historicalValidationPass) state="WAIT";
+  else if (buySetupPass && historicalValidationPass) state="BUY";
+  else state="HOLD";
+  const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":
+    insufficientData?"One or more required data inputs are missing, stale, or not comparable":
+    gapCheck.blocked?"Quote/model ratio outside 0.40×–2.50×":
+    daysToEarnings!==null&&daysToEarnings<=3?"Earnings event is within 3 calendar days":
+    !valuationDecisionReady?"Valuation decision gate is not satisfied":
+    flaggedHeadlines.length?"Potential material-risk headline requires primary-source review":
+    buySetupPass&&!historicalValidationPass?"Entry checks passed, but strategy validation is not complete":
+    state==="BUY"?"Validated entry criteria passed":"No configured sell trigger or validated buy setup";
   $("decision-status").textContent=state+" · RESEARCH ONLY";
   const bottomLine = state==="AVOID"
     ? "AVOID — "+reasonRule+". Review the failed financial evidence and original sources before reconsidering."
@@ -951,17 +963,29 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     ? "INSUFFICIENT DATA — required evidence is missing, stale, or not comparable. No trade-like conclusion is supported."
     : state==="WAIT" && gapCheck.blocked
     ? "WAIT — quote/model ratio is "+gapCheck.ratio.toFixed(2)+"×, outside the allowed 0.40×–2.50× band. Valuation levels are withheld."
+    : state==="WAIT" && buySetupPass && !historicalValidationPass
+    ? "WAIT — entry checks passed, but BUY is disabled until walk-forward and untouched holdout validation pass. This is not a validated signal."
     : state==="WAIT"
     ? "WAIT — "+reasonRule+". Do not force a trade while this rule remains unresolved."
-    : "WATCHLIST — evidence is available for monitoring, but this system has not validated a BUY signal or profitable strategy.";
+    : state==="SELL REVIEW"
+    ? "SELL REVIEW — recent headlines contain potential material-risk terms. Verify the primary sources and your position thesis; this is not an automatic sell order."
+    : state==="BUY"
+    ? "BUY — validated entry criteria passed. Research only; no order will be placed."
+    : "HOLD — available evidence does not justify a validated entry and no configured sell-review trigger is active.";
   $("decision-bottom-line").textContent=bottomLine;
   const nextStep = state==="AVOID"
     ? "Next: inspect the specific failed financial screen, the cited SEC period and the original filing."
     : state==="INSUFFICIENT DATA"
     ? "Next: refresh the missing quote, filing, earnings, news or OHLC input. Do not substitute estimates for missing facts."
+    : state==="WAIT" && buySetupPass && !historicalValidationPass
+    ? "Next: review a real point-in-time walk-forward and untouched holdout validation report. Until then, treat this as a watch candidate, not a BUY."
     : state==="WAIT"
     ? "Next: resolve the named rule above. Where valuation is withheld, verify the quote, shares, cash-flow periods and model assumptions."
-    : "Next: add this ticker to your research watchlist and reassess after new filings, earnings or material news. No BUY signal is enabled.";
+    : state==="SELL REVIEW"
+    ? "Next: open the original news and SEC filing, confirm materiality, and review your own position and thesis before deciding."
+    : state==="BUY"
+    ? "Next: independently review the evidence, sizing and downside risks. This research app does not place orders."
+    : "Next: continue holding only if it fits your thesis and risk plan; reassess after new filings, earnings, material news or major price changes.";
   $("decision-next-step").textContent=nextStep;
   $("decision-title").textContent=state+" — "+reasonRule.toUpperCase();
   const reasons=[];
@@ -979,9 +1003,10 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(flaggedHeadlines.length) reasons.push("Recent headlines contain potential risk keywords and need checking against original sources.");
   if(valuationDecisionReady&&!priceInEntryRange) reasons.push(quote.price>entryHigh?"The quote is above the illustrative entry watch zone; do not chase.":"The quote is below the illustrative zone; reassess whether this is a value trap or a data/event shock.");
   if(rewardRisk!==null&&rewardRisk<2) reasons.push("The provisional reward-to-risk ratio is below 2:1.");
-  if(state==="BUY — PROVISIONAL") reasons.push("PROVISIONAL BUY SETUP: configured data, event, fundamentals, entry-zone, and minimum 2:1 reward/risk checks passed. Historical validation is incomplete, so this is not a proven strategy, a reliable probability estimate, or a guarantee.");
-  else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because a fundamental quality check failed or a recent headline contains a potential material-risk keyword. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
-  else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a provisional entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
+  if(state==="BUY") reasons.push("BUY criteria passed and historical validation is approved. This is research only; no order is placed.");
+  else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because recent headlines contain potential material-risk keywords. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
+  else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a validated entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
+  else if(state==="WAIT" && buySetupPass) reasons.push("The configured quote, valuation, fundamental, event, price-zone, and reward/risk checks passed, but BUY remains blocked until point-in-time walk-forward and untouched holdout validation are completed and reviewed.");
   else reasons.push("WAIT means one or more required data-quality, event-risk, fundamental, valuation, or price-entry checks did not pass. Do not force a trade from incomplete evidence.");
   $("decision-explanation").textContent=reasons.join(" ");
   if(valuationDecisionReady) {
@@ -1286,7 +1311,8 @@ $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analy
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
 $("run-screen").addEventListener("click",runScreen);
 $("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
-$("save-research-snapshot").addEventListener("click",saveResearchSnapshot);\n$("export-research-csv").addEventListener("click",exportResearchCsv);
+$("save-research-snapshot").addEventListener("click",saveResearchSnapshot);
+$("export-research-csv").addEventListener("click",exportResearchCsv);
 function reviewHolding() {
   const output=$("holding-result"); output.className="holding-result"; output.innerHTML="";
   const shares=Number($("holding-shares").value), cost=Number($("holding-cost").value), ctx=latestDecisionContext;
