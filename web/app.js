@@ -374,21 +374,30 @@ async function runScreen() {
   const button=$("run-screen"); button.disabled=true; button.textContent="Screening…";
   $("screen-status").textContent="Fetching SEC filings and daily prices";
   const results=[],errors=[];
-  // A small cross-sector research universe, not a full-market screen.
-  // Limit concurrent provider requests to reduce rate-limit risk.
-  const universe=["AAPL","MSFT","NVDA","AMZN","GOOGL","META","JPM","V","COST","LLY"];
-  for(let i=0;i<universe.length;i+=2) {
-    const batch=universe.slice(i,i+2);
-    const settled=await Promise.allSettled(batch.map(ticker=>scoreTicker(ticker)));
-    for(let j=0;j<settled.length;j++) {
-      const outcome=settled[j],ticker=batch[j];
-      if(outcome.status==="fulfilled") results.push(outcome.value);
-      else errors.push(ticker+": "+(outcome.reason?.message||"Insufficient data"));
+  // A 60-stock, cross-sector starter universe. This is not the full US market.
+  // Process in small batches to reduce provider rate-limit pressure and report progress.
+  const universe=["AAPL","MSFT","NVDA","AMZN","GOOGL","META","AVGO","ORCL","CRM","AMD","QCOM","TXN","MU","AMAT","LRCX","KLAC","INTC","ANET","NOW","ADBE","JPM","BAC","WFC","GS","MS","V","MA","AXP","C","BLK","LLY","JNJ","ABBV","MRK","UNH","ISRG","ABT","TMO","AMGN","PFE","COST","WMT","HD","LOW","PG","KO","PEP","MCD","NKE","CL","XOM","CVX","COP","CAT","GE","HON","RTX","UBER","NFLX","TSLA"];
+  const batchSize=3;
+  try {
+    for(let i=0;i<universe.length;i+=batchSize) {
+      const batch=universe.slice(i,i+batchSize);
+      $("screen-status").textContent="Screening "+Math.min(i+batch.length,universe.length)+"/"+universe.length+" · "+results.length+" qualified";
+      const settled=await Promise.allSettled(batch.map(ticker=>scoreTicker(ticker)));
+      for(let j=0;j<settled.length;j++) {
+        const outcome=settled[j],ticker=batch[j];
+        if(outcome.status==="fulfilled") results.push(outcome.value);
+        else errors.push(ticker+": "+(outcome.reason?.message||"Insufficient data"));
+      }
     }
+    renderScreenResults(results,errors);
+    $("screen-status").textContent=results.length+" ranked · "+errors.length+" excluded from "+universe.length;
+  } catch(error) {
+    $("screen-status").textContent="Screen interrupted · "+results.length+" ranked so far";
+    setMessage("Screen stopped safely: "+(error?.message||"Unexpected error"),"error");
+    renderScreenResults(results,errors);
+  } finally {
+    button.disabled=false; button.textContent="Refresh 60-stock ranking";
   }
-  renderScreenResults(results,errors);
-  $("screen-status").textContent=results.length+" ranked · "+errors.length+" excluded";
-  button.disabled=false; button.textContent="Refresh ranking";
 }
 
 function fmtUsd(value) {
