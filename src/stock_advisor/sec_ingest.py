@@ -95,8 +95,12 @@ def _filings_from_submissions(
             "form": recent["form"][index],
             "primary_document": recent["primaryDocument"][index] or None,
             "primary_document_description": recent["primaryDocDescription"][index] or None,
-            "available_at": acceptance.get(accession),
-            "availability_timestamp_verified": accession in acceptance,
+            "raw_acceptance_timestamp": acceptance.get(accession),
+            "available_at": None,
+            "availability_timestamp_verified": False,
+            "timestamp_provenance": (
+                "sec_submissions_json_unverified" if accession in acceptance else "missing"
+            ),
         })
     return rows
 
@@ -130,7 +134,7 @@ def _facts_from_companyfacts(
                         continue
                     if not isinstance(accession, str):
                         accession = None
-                    accepted_at = acceptance.get(accession) if accession else None
+                    raw_accepted_at = acceptance.get(accession) if accession else None
                     facts.append({
                         "namespace": namespace,
                         "concept": concept,
@@ -144,8 +148,12 @@ def _facts_from_companyfacts(
                         "form": observation.get("form"),
                         "filed_date": filed,
                         "accession": accession,
-                        "available_at": accepted_at,
-                        "availability_timestamp_verified": accepted_at is not None,
+                        "raw_acceptance_timestamp": raw_accepted_at,
+                        "available_at": None,
+                        "availability_timestamp_verified": False,
+                        "timestamp_provenance": (
+                            "sec_submissions_json_unverified" if raw_accepted_at else "missing"
+                        ),
                     })
     facts.sort(key=lambda row: (
         row["filed_date"], row["namespace"], row["concept"], row["period_end"] or "",
@@ -179,7 +187,37 @@ def collect_company(
     if not isinstance(submissions, Mapping) or not isinstance(companyfacts, Mapping):
         raise SecDataError(f"SEC returned an unexpected response for {normalized}.")
     acceptance = _acceptance_by_accession(submissions)
-    filings = _filings_from_submissions(submissions, acceptance, cutoff)
+    submission_sets: list[Mapping[str, Any]] = [submissions]
+    historical_files = submissions.get("filings", {}).get("files", [])
+    fetched_archive_count = 0
+    for archive in historical_files:
+        if not isinstance(archive, Mapping) or not isinstance(archive.get("name"), str):
+            continue
+        filing_from = archive.get("filingFrom")
+        if isinstance(filing_from, str) and _parse_date(filing_from, "archive.filingFrom") > cutoff:
+            continue
+        archive_url = f"https://data.sec.gov/submissions/{archive['name']}"
+        archived = fetch_json(archive_url)
+        if not isinstance(archived, Mapping):
+            raise SecDataError(f"SEC returned an unexpected archive response for {normalized}.")
+        acceptance.update(_acceptance_by_accession({"filings": {"recent": archived}}))
+        submission_sets.append({"filings": {"recent": archived}})
+        fetched_archive_count += 1
+    filing_rows = [
+        row
+        for item in submission_sets
+        for row in _filings_from_submissions(item, acceptance, cutoff)
+    ]
+    filings_by_accession: dict[str, dict[str, Any]] = {}
+    for row in filing_rows:
+        accession = row.get("accession")
+        if isinstance(accession, str):
+            filings_by_accession[accession] = row
+    filings = sorted(
+        filings_by_accession.values(),
+        key=lambda row: (row["filed_date"], row["accession"]),
+        reverse=True,
+    )
     facts = _facts_from_companyfacts(companyfacts, acceptance, cutoff)
     return {
         "ticker": normalized,
@@ -193,10 +231,14 @@ def collect_company(
         "quality": {
             "official_source": True,
             "fact_values_preserved_as_reported": True,
+            "historical_submission_archives_fetched": fetched_archive_count,
             "exact_acceptance_timestamp_coverage": sum(
                 bool(row["availability_timestamp_verified"]) for row in facts
             ),
-            "facts_missing_exact_acceptance_timestamp": sum(
+            "facts_with_raw_acceptance_timestamp": sum(
+                bool(row.get("raw_acceptance_timestamp")) for row in facts
+            ),
+            "facts_missing_verified_acceptance_timestamp": sum(
                 not row["availability_timestamp_verified"] for row in facts
             ),
             "historical_index_membership_included": False,
@@ -207,9 +249,10 @@ def collect_company(
         "limitations": [
             "This is a source-ingestion bundle, not a complete strategy snapshot.",
             "SEC companyfacts may contain multiple contexts and later amendments; select facts by accession and availability timestamp before use.",
-            "Facts without exact acceptance timestamps must not be used in timestamp-sensitive historical signals.",
+            "SEC submissions JSON acceptanceDateTime values are retained as raw evidence but are not treated as verified: recent research has found inconsistent timezone interpretation across issuers and dates. Cross-check against the filing index or SGML header before assigning availability_at.",
+            "No fact in this bundle has a verified availability timestamp until independently reconciled against filing-level header/index evidence; do not use raw_acceptance_timestamp as an eligibility timestamp.",
             "The SEC feed does not provide daily prices, historical universe membership, timestamped news, or a complete earnings calendar.",
-            "Filing history is limited to the recent submissions array; older archive files are not ingested by this initial version.",
+            "Historical submissions archives are fetched when listed by the SEC; acceptance timestamps from submissions JSON still require independent verification against filing-index or SGML-header evidence.",
         ],
     }
 

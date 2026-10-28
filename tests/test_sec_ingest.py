@@ -77,7 +77,12 @@ def test_collect_company_preserves_acceptance_time_and_excludes_future_filed_fac
     assert company["cik"] == "0000320193"
     assert len(company["filings"]) == 1
     assert company["facts"][0]["value"] == 1000
-    assert company["facts"][0]["available_at"] == "2025-02-01T16:30:00+00:00"
+    assert company["facts"][0]["raw_acceptance_timestamp"] == "2025-02-01T16:30:00+00:00"
+    assert company["facts"][0]["available_at"] is None
+    assert company["facts"][0]["availability_timestamp_verified"] is False
+    assert company["facts"][0]["timestamp_provenance"] == "sec_submissions_json_unverified"
+    assert company["quality"]["exact_acceptance_timestamp_coverage"] == 0
+    assert company["quality"]["facts_with_raw_acceptance_timestamp"] == 1
     assert company["quality"]["eligible_as_complete_strategy_dataset"] is False
     assert company["quality"]["prices_included"] is False
 
@@ -90,7 +95,8 @@ def test_missing_acceptance_timestamp_is_explicitly_unverified(sec_responses):
     )
     assert company["facts"][0]["available_at"] is None
     assert company["facts"][0]["availability_timestamp_verified"] is False
-    assert company["quality"]["facts_missing_exact_acceptance_timestamp"] == 1
+    assert company["quality"]["facts_missing_verified_acceptance_timestamp"] == 1
+    assert company["quality"]["facts_with_raw_acceptance_timestamp"] == 0
 
 
 def test_unknown_ticker_fails_closed(sec_responses):
@@ -128,3 +134,32 @@ def test_fetch_json_decompresses_gzip_response(monkeypatch):
 
     monkeypatch.setattr("stock_advisor.sec_ingest.urlopen", lambda *_args, **_kwargs: FakeResponse())
     assert _fetch_json("https://example.test/data.json", user_agent="Northstar test") == {"ok": True}
+
+
+
+def test_collect_company_fetches_historical_submission_archive_and_keeps_time_unverified(sec_responses):
+    submissions_url = SEC_SUBMISSIONS_URL.format(cik="0000320193")
+    archive_name = "CIK0000320193-submissions-001.json"
+    sec_responses[submissions_url]["filings"]["files"] = [{
+        "name": archive_name, "filingCount": 1,
+        "filingFrom": "2005-01-01", "filingTo": "2005-12-31",
+    }]
+    archive_url = f"https://data.sec.gov/submissions/{archive_name}"
+    sec_responses[archive_url] = {
+        "accessionNumber": ["0000320193-05-000001"],
+        "filingDate": ["2005-02-01"],
+        "reportDate": ["2004-12-25"],
+        "form": ["10-K"],
+        "primaryDocument": ["annual.htm"],
+        "primaryDocDescription": ["Annual report"],
+        "acceptanceDateTime": ["2005-02-01T16:30:00.000Z"],
+    }
+    company = collect_company(
+        "AAPL", sec_responses[SEC_TICKERS_URL], lambda url: sec_responses[url],
+        cutoff=date(2025, 2, 28),
+    )
+    archived = next(row for row in company["filings"] if row["accession"] == "0000320193-05-000001")
+    assert archived["raw_acceptance_timestamp"] == "2005-02-01T16:30:00+00:00"
+    assert archived["available_at"] is None
+    assert archived["availability_timestamp_verified"] is False
+    assert company["quality"]["historical_submission_archives_fetched"] == 1
