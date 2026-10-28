@@ -304,3 +304,21 @@ test("buildDcfEstimate refuses mismatched annual revenue and free-cash-flow peri
   assert.equal(result.available,false);
   assert.match(result.reason,/periods do not match/i);
 });
+
+
+test("screen CSV preserves component evidence, timestamps, exclusions, and escapes cells", () => {
+  const app=loadAppFunctions();
+  const csv=app.buildScreenCsv([{
+    ticker:"AAPL",name:'Apple, Inc.',score:80,financialPeriod:"2025-09-27",
+    historyPeriod:"2025-10-28 to 2026-10-27",source:"Nasdaq historical API",
+    components:[{name:'Revenue "growth"',value:12.5,display:"12.5%",score:15,max:25}]
+  }],["BAD: Missing matched-period data"],"2026-10-28T12:00:00.000Z");
+  assert.match(csv,/generated_at_utc,ticker,company,rank,research_score/);
+  assert.match(csv,/"Apple, Inc\."/);
+  assert.match(csv,/"Revenue ""growth"""/);
+  assert.match(csv,/2026-10-28T12:00:00\.000Z/);
+  assert.match(csv,/qualified/);
+  assert.match(csv,/excluded/);
+  assert.match(csv,/Missing matched-period data/);
+  assert.match(csv,/not a validated investment signal/i);
+});
