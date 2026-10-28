@@ -1167,7 +1167,7 @@ function renderBeginnerOverview(data) {
   const riskRoot=$("beginner-risks");riskRoot.innerHTML="";
   const risks=[];
   for(const item of flaggedHeadlines||[]) risks.push({text:"Potential risk headline: "+item.title,meta:(item.source||"Source unavailable")+(item.publishedAt?" · "+new Date(item.publishedAt).toLocaleString():"")});
-  if(daysToEarnings!==null&&daysToEarnings<=7) risks.push({text:"Earnings are expected within "+Math.max(0,Math.round(daysToEarnings))+" day(s). Price swings may be larger than usual.",meta:"Event risk · "+(next?.reportDate||"date not verified")});
+  if(daysToEarnings!==null&&daysToEarnings<=7) risks.push({text:"Earnings are expected within "+Math.max(0,Math.round(daysToEarnings))+" day(s). Price swings may be larger than usual.",meta:"Event risk · "+((earnings?.events||[]).filter(event=>event.reportDate>=newYorkDateOnly()).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]?.reportDate||"date not verified")});
   if(gapCheck?.blocked) risks.push({text:"The current quote and simplified valuation are outside the comparison band; a price conclusion is withheld.",meta:"Valuation reliability risk"});
   if(oneOffFlag) risks.push({text:"Other non-operating income is more than 5% of pre-tax income; reported profit may include one-off or non-core items.",meta:"Same reported period ended "+fmtDate(other.end)});
   for(const item of missingInputs||[]) risks.push({text:"Not verified: "+item,meta:"Data-confidence risk"});
