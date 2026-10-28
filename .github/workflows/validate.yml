@@ -37,6 +37,10 @@ jobs:
           done
       - name: Run frontend analysis logic tests
         run: node --test tests/web_logic.test.mjs
+      - name: Test SEC point-in-time ingestion adapter
+        run: pytest tests/test_sec_ingest.py
+      - name: Smoke-test SEC ingestion CLI argument validation
+        run: python scripts/fetch_sec_history.py --help
       - name: Smoke-test point-in-time validation CLI with synthetic fixture
         run: |
           python scripts/run_strategy_validation.py --input examples/strategy_validation_input.example.json --output /tmp/northstar-validation-smoke.json
