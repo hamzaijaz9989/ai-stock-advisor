@@ -123,8 +123,8 @@ function evaluateWalkForward(rows) {
     for(let i=start;i<=end;i++) {
       let dailyReturn=0;
       if(i>0) {
-        const pf=sma(rows,i-1,FAST), ps=sma(rows,i-1,SLOW);
-        const f=sma(rows,i,FAST), sl=sma(rows,i,SLOW);
+        const pf=sma(rows,i-2,FAST), ps=sma(rows,i-2,SLOW);
+        const f=sma(rows,i-1,FAST), sl=sma(rows,i-1,SLOW);
         const up=[pf,ps,f,sl].every(Number.isFinite)&&pf<=ps&&f>sl;
         const down=[pf,ps,f,sl].every(Number.isFinite)&&pf>=ps&&f<sl;
         // Signal on session i-1 close, execute on session i open. Daily total return
