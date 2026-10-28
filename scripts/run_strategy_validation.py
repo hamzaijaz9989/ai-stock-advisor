@@ -37,7 +37,7 @@ def run(payload: Any) -> dict[str, Any]:
     raw_bars = payload.get("bars")
     raw_benchmark_bars = payload.get("benchmark_bars", {})
     if not isinstance(raw_benchmark_bars, dict):
-        raise ValueError("benchmark_bars must be an object keyed by benchmark ticker.")
+        raise TypeError("benchmark_bars must be an object keyed by benchmark ticker.")
     if not isinstance(snapshots, list) or not snapshots:
         raise ValueError("snapshots must be a non-empty array of point-in-time rows.")
     if not isinstance(raw_bars, dict) or not raw_bars:
