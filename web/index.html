@@ -22,8 +22,9 @@
         <label for="ticker">TICKER SYMBOL</label>
         <div class="search-row">
           <input id="ticker" name="ticker" maxlength="12" value="AAPL" placeholder="e.g. AAPL" autocomplete="off" required>
-          <button id="analyze-button" type="submit">Analyze stock <span aria-hidden="true">↗</span></button>
+          
         </div>
+        <button id="analyze-button" class="analyze-button" type="submit">Analyze stock <span aria-hidden="true">↗</span></button>
         <div class="quick-tickers" aria-label="Popular tickers">
           <button type="button" data-ticker="AAPL">AAPL</button>
           <button type="button" data-ticker="MSFT">MSFT</button>
@@ -33,7 +34,7 @@
       </form>
       <div class="stock-suggestions-cta">
         <button id="suggest-stocks-button" type="button" class="suggest-stocks-button"><span class="suggest-icon" aria-hidden="true">✦</span><span><strong>Suggest me stocks</strong><small>Find up to 5 data-screened research candidates</small></span><span class="suggest-arrow" aria-hidden="true">↗</span></button>
-        <p>Ranks available companies by reported growth, profitability, cash flow and price history. Results are research candidates, not guaranteed winners or validated BUY signals.</p>
+        
       </div>
     </section>
 <details class="beginner-guide"><summary>New to stocks? How to use Northstar AI</summary><div class="guide-content">
@@ -57,6 +58,7 @@
       </div>
       <p class="guide-disclaimer">Important: Northstar AI is a research prototype, not a guaranteed-profit service or personalized financial adviser. It never places trades. No validated BUY signal is enabled until independent historical testing passes.</p>
     </div></details>
+    <div id="loading-progress" class="loading-progress hidden" role="status" aria-live="polite"><span class="loading-spinner" aria-hidden="true"></span><div class="loading-copy"><strong id="loading-title">Preparing research…</strong><span id="loading-detail">Connecting to verified sources.</span></div><span id="loading-count" class="loading-count">00s</span><div class="loading-track"><span></span></div></div>
     <div id="stock-results" class="stock-results hidden" aria-label="Analysis results for the selected stock">
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="company-panel" class="company-panel hidden">
