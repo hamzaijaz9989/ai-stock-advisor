@@ -83,7 +83,7 @@ def test_missing_acceptance_timestamp_is_explicitly_unverified(sec_responses):
     submissions_url = SEC_SUBMISSIONS_URL.format(cik="0000320193")
     sec_responses[submissions_url]["filings"]["recent"]["acceptanceDateTime"] = []
     company = collect_company(
-        "AAPL", sec_responses, lambda url: sec_responses[url], cutoff=date(2025, 2, 28)
+        "AAPL", sec_responses[SEC_TICKERS_URL], lambda url: sec_responses[url], cutoff=date(2025, 2, 28)
     )
     assert company["facts"][0]["available_at"] is None
     assert company["facts"][0]["availability_timestamp_verified"] is False
