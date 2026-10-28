@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#050505">
   <meta name="description" content="A focused, data-aware US stock research dashboard with transparent BUY, SELL REVIEW, HOLD and WAIT decisions.">
   <title>AI Stock Advisor</title>
-  <link rel="stylesheet" href="./styles.css?v=earningsnextfix">
+  <link rel="stylesheet" href="./styles.css?v=dedupeoverview">
 </head>
 <body>
   <header class="topbar">
@@ -87,7 +87,7 @@
       <div class="source-pill"><span class="source-dot"></span> SEC EDGAR</div>
     </section>
     <section id="quote-panel" class="quote-panel hidden" aria-live="polite">
-      <div><p class="eyebrow">QUOTE DETAILS</p><p id="quote-price" class="quote-price">Loading price…</p><p id="quote-change" class="muted">Waiting for market data…</p></div>
+      <div><p class="eyebrow">QUOTE DETAILS</p><p id="quote-price" class="quote-price hidden">Loading price…</p><p id="quote-change" class="muted">Waiting for market data…</p></div>
       <div class="quote-meta"><span id="quote-time">Timestamp unavailable</span><span id="quote-source">Yahoo Finance · indicative data</span><button id="refresh-quote" type="button" class="secondary-button">Refresh price</button></div>
     </section>
     <section id="earnings-panel" class="news-section hidden" aria-live="polite">
@@ -184,6 +184,6 @@
     </details>
     <footer><span>Northstar AI <span class="footer-sep">/</span> Market intelligence</span><span>SEC EDGAR · Research only · No automated trading</span></footer>
   </main>
-  <script src="./app.js?v=earningsnextfix" defer></script>
+  <script src="./app.js?v=dedupeoverview" defer></script>
 </body>
 </html>
