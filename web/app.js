@@ -1158,9 +1158,6 @@ function renderBeginnerOverview(data) {
   const health=annualFundamentalPass&&quarterlyPass?"Strong":(annualDataAvailable&&quarterlyDataAvailable&&(annualFundamentalPass||quarterlyPass)?"OK":annualDataAvailable&&quarterlyDataAvailable?"Weak":"Unknown");
   setText("score-business",health);
   setText("score-business-detail",annualDataAvailable&&quarterlyDataAvailable?"Annual revenue growth "+(annualRevenueGrowth*100).toFixed(1)+"%; latest quarter "+(quarter.revenueYoY===null?"YoY comparison unavailable":(quarter.revenueYoY*100).toFixed(1)+" YoY")+".":"Not enough matched annual and quarterly facts to score business health.");
-  let priceLabel="Unknown",priceDetail="A current quote and a reliable matched valuation are both required.";
-  if(valuationDecisionReady&&quoteValid&&!gapCheck?.blocked){const ratio=quote.price/valuation.base;priceLabel=ratio<0.8?"Cheap":ratio<=1.2?"Fair": "Expensive";priceDetail="Quote / illustrative model value: "+ratio.toFixed(2)+"×. This model is a rough scenario, not a target.";}
-  setText("score-price",priceLabel);setText("score-price-detail",priceDetail);
   const other=latestFact(observations,"otherIncome"),pretax=latestFact(observations,"pretaxIncome");
   const oneOffFlag=Boolean(other&&pretax&&other.end===pretax.end&&pretax.value!==0&&Math.abs(other.value/pretax.value)>0.05);
   const riskCount=(flaggedHeadlines?.length||0)+(missingInputs?.length||0)+(daysToEarnings!==null&&daysToEarnings<=7?1:0)+(gapCheck?.blocked?1:0)+(oneOffFlag?1:0);
