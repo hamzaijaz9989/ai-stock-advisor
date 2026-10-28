@@ -138,7 +138,7 @@ def verify_dataset(
             raw_matches_header = None
             if isinstance(raw_timestamp, str):
                 try:
-                    raw_parsed = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+                    raw_parsed = datetime.fromisoformat(raw_timestamp)
                     if raw_parsed.tzinfo is not None and raw_parsed.utcoffset() is not None and outcome.get("verified"):
                         difference = abs((raw_parsed.astimezone(UTC) - datetime.fromisoformat(outcome["acceptance_at"])).total_seconds())
                         raw_matches_header = difference <= 1
