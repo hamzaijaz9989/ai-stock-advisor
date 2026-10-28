@@ -75,4 +75,4 @@ The 60-stock screen now adds a conservative, provisional opportunity check acros
 
 
 ## SEC timestamp verification
-The SEC ingestion workflow now creates a separate bounded sample cross-checked against complete-submission SGML headers. It checks accession and filing-date consistency, converts EDGAR acceptance time to UTC, and keeps the dataset ineligible for strategy decisions. Acceptance time is not proof of the exact moment a filing became publicly retrievable; complete point-in-time strategy validation remains blocked until all required inputs and availability semantics are verified.
+The SEC ingestion workflow now creates a separate bounded sample cross-checked against SEC filing-index header pages. It checks accession and filing-date consistency, converts EDGAR acceptance time to UTC, and keeps the dataset ineligible for strategy decisions. Acceptance time is not proof of the exact moment a filing became publicly retrievable; complete point-in-time strategy validation remains blocked until all required inputs and availability semantics are verified.
