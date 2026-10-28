@@ -237,19 +237,31 @@ def _sample_std(values: list[float]) -> float | None:
 
 
 def _benchmark_price_map(bars: Iterable[DailyBar]) -> dict[date, tuple[float, float | None]]:
-    """Normalize benchmark bars to date -> (close, adjusted close) without forward filling."""
+    """Normalize valid benchmark bars without forward-filling or accepting duplicate dates."""
     result: dict[date, tuple[float, float | None]] = {}
+    duplicate_dates: set[date] = set()
     for bar in bars:
         try:
             day = _day(bar.date, "benchmark_bar.date")
         except ValueError:
             continue
+        open_price = _finite(bar.open)
+        high = _finite(bar.high)
+        low = _finite(bar.low)
         close = _finite(bar.close)
         adjusted = _finite(bar.adjusted_close)
-        if close is None or close <= 0 or (adjusted is not None and adjusted <= 0):
+        if any(value is None or value <= 0 for value in (open_price, high, low, close)):
+            continue
+        assert open_price is not None and high is not None and low is not None and close is not None
+        if low > min(open_price, close) or high < max(open_price, close) or low > high:
+            continue
+        if adjusted is not None and adjusted <= 0:
+            adjusted = None
+        if day in duplicate_dates:
             continue
         if day in result:
             result.pop(day, None)
+            duplicate_dates.add(day)
             continue
         result[day] = (close, adjusted)
     return result
