@@ -942,6 +942,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const insufficientData=!quoteCurrent||!annualDataAvailable||!quarterlyDataAvailable||!earningsVerified||!recentHeadlines.length||atr===null;
   let state;
   if (annualDataAvailable && !annualFundamentalPass) state="AVOID";
+  else if (dailySnapshot) state="WAIT";
   else if (insufficientData) state="INSUFFICIENT DATA";
   else if (gapCheck.blocked || !valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
   else if ((quarterlyDataAvailable && !quarterlyPass) || flaggedHeadlines.length) state="SELL REVIEW";
@@ -950,6 +951,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   else if (buySetupPass && historicalValidationPass) state="BUY";
   else state="HOLD";
   const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":
+    dailySnapshot?"Provider supplied a daily-bar snapshot, not a verified current quote":
     insufficientData?"One or more required data inputs are missing, stale, or not comparable":
     gapCheck.blocked?"Quote/model ratio outside 0.40×–2.50×":
     daysToEarnings!==null&&daysToEarnings<=3?"Earnings event is within 3 calendar days":
