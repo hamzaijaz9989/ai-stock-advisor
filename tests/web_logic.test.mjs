@@ -99,6 +99,49 @@ test("quarterlySeries selects three-month disclosures and matches the prior year
   assert.ok(Math.abs((current.value / prior.value - 1) - 0.2) < 1e-9);
 });
 
+test("DCF ignores stale 2012 and 2020 facts when newer matched periods exist", () => {
+  const app=loadAppFunctions();
+  const rows=annualFixtures();
+  rows.push(obs("revenue",90e9,"2012-01-01","2012-12-31","10-K","USD","2013-02-15"));
+  rows.push(obs("operatingCashFlow",30e9,"2012-01-01","2012-12-31","10-K","USD","2013-02-15"));
+  rows.push(obs("capex",-3e9,"2012-01-01","2012-12-31","10-K","USD","2013-02-15"));
+  rows.push(obs("revenue",400e9,"2020-01-01","2020-12-31","10-K","USD","2021-02-15"));
+  rows.push(obs("operatingCashFlow",80e9,"2020-01-01","2020-12-31","10-K","USD","2021-02-15"));
+  rows.push(obs("capex",-8e9,"2020-01-01","2020-12-31","10-K","USD","2021-02-15"));
+  const result=app.buildDcfEstimate(rows,{});
+  assert.equal(result.available,true);
+  assert.equal(result.fcfPeriod,"2024-12-31");
+});
+
+test("TTM revenue and profit use annual plus current YTD minus prior-year YTD", () => {
+  const app=loadAppFunctions();
+  const rows=[
+    obs("revenue",600,"2024-01-01","2024-12-31","10-K","USD","2025-02-15"),
+    obs("revenue",450,"2024-01-01","2024-09-30","10-Q","USD","2024-11-01"),
+    obs("revenue",500,"2025-01-01","2025-09-30","10-Q","USD","2025-11-01"),
+    obs("netIncome",70,"2024-01-01","2024-12-31","10-K","USD","2025-02-15"),
+    obs("netIncome",50,"2024-01-01","2024-09-30","10-Q","USD","2024-11-01"),
+    obs("netIncome",60,"2025-01-01","2025-09-30","10-Q","USD","2025-11-01")
+  ];
+  assert.equal(app.ttmValue(rows,"revenue").value,650);
+  assert.equal(app.ttmValue(rows,"netIncome").value,80);
+});
+
+test("TTM free cash flow requires operating cash flow and capex with matching periods", () => {
+  const app=loadAppFunctions();
+  const rows=[
+    obs("operatingCashFlow",100,"2024-01-01","2024-12-31","10-K","USD","2025-02-15"),
+    obs("capex",-10,"2024-01-01","2024-12-31","10-K","USD","2025-02-15"),
+    obs("operatingCashFlow",80,"2024-01-01","2024-09-30","10-Q","USD","2024-11-01"),
+    obs("capex",-7,"2024-01-01","2024-09-30","10-Q","USD","2024-11-01"),
+    obs("operatingCashFlow",90,"2025-01-01","2025-09-30","10-Q","USD","2025-11-01"),
+    obs("capex",-8,"2025-01-01","2025-09-30","10-Q","USD","2025-11-01")
+  ];
+  assert.equal(app.ttmFreeCashFlow(rows).value,99);
+  rows.find(row=>row.key==="capex"&&row.end==="2025-09-30").start="2025-02-01";
+  assert.equal(app.ttmFreeCashFlow(rows),null);
+});
+
 test("buildDcfEstimate uses recent shares outstanding and produces ordered scenarios", () => {
   const app = loadAppFunctions();
   const result = app.buildDcfEstimate(annualFixtures(), shareFacts());
