@@ -19,6 +19,18 @@ def test_parse_sec_header_converts_eastern_daylight_time_to_utc():
     assert result["timestamp_provenance"] == "sec_filing_index_header_acceptance_datetime"
 
 
+def test_parse_sec_filing_index_header_field_labels():
+    text = (
+        "<SEC-HEADER>example-index-headers.html\n"
+        "<ACCEPTANCE-DATETIME>20261027161530\n"
+        "ACCESSION NUMBER:\\t0000320193-26-000001\n"
+        "FILED AS OF DATE:\\t20261027\n"
+    )
+    result = parse_sec_header(text, "0000320193-26-000001", "2026-10-27")
+    assert result["verified"] is True
+    assert result["acceptance_at"] == "2026-10-27T20:15:30+00:00"
+
+
 def test_parse_sec_header_blocks_accession_mismatch():
     result = parse_sec_header(header(), "0000320193-26-000099", "2026-10-27")
     assert result["verified"] is False
