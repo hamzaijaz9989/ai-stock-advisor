@@ -298,7 +298,7 @@ async function loadHistory(ticker) {
 
 function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
 function scoreRange(value,min,max,points){return clamp((value-min)/(max-min)*points,0,points);}
-async function scoreTicker(ticker) {
+async async function scoreTicker(ticker) {
   const company=await findCompany(ticker);
   const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
   const observations=getObservations(facts);
