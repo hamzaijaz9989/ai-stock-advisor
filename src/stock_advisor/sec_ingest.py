@@ -7,6 +7,7 @@ intraday point-in-time eligibility until independently reconciled.
 """
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import time
@@ -42,7 +43,12 @@ def _fetch_json(url: str, *, user_agent: str, timeout: float = 30.0) -> Any:
     })
     try:
         with urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode("utf-8"))
+            body = response.read()
+            # Some SEC endpoints return gzip-compressed bytes. urllib does not
+            # transparently decompress this response body.
+            if body.startswith(bytes((0x1F, 0x8B))):
+                body = gzip.decompress(body)
+            return json.loads(body.decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise SecDataError(f"SEC request failed for {url}: {exc}") from exc
 
