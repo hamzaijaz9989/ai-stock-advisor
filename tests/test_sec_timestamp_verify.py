@@ -23,8 +23,8 @@ def test_parse_sec_filing_index_header_field_labels():
     text = (
         "<SEC-HEADER>example-index-headers.html\n"
         "<ACCEPTANCE-DATETIME>20261027161530\n"
-        "ACCESSION NUMBER:\\t0000320193-26-000001\n"
-        "FILED AS OF DATE:\\t20261027\n"
+        "ACCESSION NUMBER: 0000320193-26-000001\n"
+        "FILED AS OF DATE: 20261027\n"
     )
     result = parse_sec_header(text, "0000320193-26-000001", "2026-10-27")
     assert result["verified"] is True
