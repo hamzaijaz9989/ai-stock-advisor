@@ -568,8 +568,6 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .metrics-disclosure .disclosure-content{padding:0 20px 18px}
 .metrics-disclosure[open]>summary{border-bottom:1px solid var(--line)}
 .metrics-disclosure[open]>summary .disclosure-chevron{transform:rotate(45deg)}
-#recommendation-panel #decision-hero,
-#recommendation-panel .decision-bottom-line{display:none}
 #recommendation-panel>.section-heading{margin-bottom:12px}
 #recommendation-panel .developer-panel{margin-top:10px}
 #news-list[aria-hidden="true"],.hidden[aria-hidden="true"]{display:none!important}
