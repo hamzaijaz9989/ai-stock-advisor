@@ -1582,128 +1582,67 @@ function renderNews(payload) {
   const impactRoot = $("stock-news-impact-list");
   const impactPanel = $("stock-news-impact");
   const impactStatus = $("stock-news-impact-status");
-  const summaryRoot = $("stock-news-summary");
-  const signalsRoot = $("stock-news-signals");
-  const filtersRoot = $("stock-news-filters");
   if (!list) return;
   list.innerHTML = "";
   if (impactRoot) impactRoot.innerHTML = "";
-  if (summaryRoot) summaryRoot.innerHTML = "";
-  if (signalsRoot) signalsRoot.innerHTML = "";
   if (impactPanel) impactPanel.classList.remove("hidden");
-  const items = (payload && Array.isArray(payload.items) ? payload.items : []).filter(item => item && item.title && item.url);
-  $("news-status").textContent = items.length ? items.length + " headlines" : "No headlines";
+  const items = (payload && Array.isArray(payload.items) ? payload.items : [])
+    .filter(item => item && item.title && item.url && /^https?:\/\//i.test(item.url))
+    .filter((item, index, all) => all.findIndex(other => other.url === item.url) === index)
+    .sort((a, b) => {
+      const da = Date.parse(a.publishedAt || "") || 0;
+      const db = Date.parse(b.publishedAt || "") || 0;
+      return db - da;
+    });
+  const formatMeta = item => {
+    const date = item.publishedAt ? new Date(item.publishedAt) : null;
+    const validDate = date && !Number.isNaN(date.getTime());
+    return (item.source || "Source unavailable") + (validDate ? " · " + date.toLocaleString() : " · Date unavailable");
+  };
+  $("news-status").textContent = items.length ? Math.min(items.length, 8) + " stories" : "No news";
+  const makeCard = (item, className) => {
+    const card = document.createElement("article");
+    card.className = className;
+    const link = document.createElement("a");
+    link.href = item.url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = item.title;
+    const meta = document.createElement("p"); meta.className = "muted"; meta.textContent = formatMeta(item);
+    card.append(link, meta);
+    return card;
+  };
+  for (const item of items.slice(0, 3)) list.append(makeCard(item, "news-item"));
   if (!items.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
     empty.textContent = "No company-specific news was returned by the available feeds. This does not mean there is no news.";
     list.append(empty);
     if (impactRoot) impactRoot.append(empty.cloneNode(true));
-    if (impactStatus) impactStatus.textContent = "No matching news";
-    if (summaryRoot) summaryRoot.textContent = "News cue counts are unavailable.";
-    if (signalsRoot) signalsRoot.textContent = "No news signals can be reviewed until articles load.";
+    if (impactStatus) impactStatus.textContent = "News unavailable";
     return;
   }
-  const positive = /\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand|expands partnership)\b/i;
-  const negative = /\b(misses|cuts guidance|downgrade|lawsuit|investigation|probe|recall|fraud|breach|outage|layoff|decline|warning|fine|ban|resign|weak demand|disappoint|loss widens|regulatory action)\b/i;
-  const material = /\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|launch)\b/i;
-  const getImpact = item => {
-    const title = String(item.title || "");
-    const down = negative.test(title), up = positive.test(title);
-    if (down && up) return {label:"Mixed signals", key:"mixed", cls:"impact-mixed", explanation:"The headline contains both positive and negative cues. Read the report to establish the net effect."};
-    if (down) return {label:"Potentially negative", key:"negative", cls:"impact-negative", explanation:"This may add downside risk or uncertainty. Confirm the details and whether the market already expected it."};
-    if (up) return {label:"Potentially positive", key:"positive", cls:"impact-positive", explanation:"This may support business expectations. Check materiality and whether the news is already priced in."};
-    if (material.test(title)) return {label:"Material development to review", key:"other", cls:"impact-watch", explanation:"This could affect expectations or risk, but the headline alone does not establish the direction or size of the impact."};
-    return {label:"Informational / impact unclear", key:"other", cls:"impact-neutral", explanation:"The headline alone does not establish a clear positive or negative effect on the stock."};
-  };
-  const importantTerms = /\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\b/i;
-  const rankHeadline = item => (importantTerms.test(item.title) ? 2 : 0) + (item.publishedAt && Number.isFinite(Date.parse(item.publishedAt)) ? 1 : 0);
-  const topUrls = new Set([...items].sort((a,b) => rankHeadline(b)-rankHeadline(a) || String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3).map(item => item.url));
-  const sorted = items.filter(item => !topUrls.has(item.url)).sort((a,b) => {
-    const impactRank = item => { const key=getImpact(item).key; return key==="negative"||key==="positive"||key==="mixed" ? 3 : material.test(item.title||"") ? 2 : 1; };
-    return impactRank(b)-impactRank(a) || String(b.publishedAt||"").localeCompare(String(a.publishedAt||""));
-  });
+  // Prefer source diversity first, then fill remaining slots with the newest available articles.
+  const selected = [];
+  const seenSources = new Set();
   for (const item of items) {
-    const card = document.createElement("article"); card.className = "news-item";
-    const link = document.createElement("a"); link.href = item.url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = item.title;
-    const meta = document.createElement("p"); meta.className = "muted";
-    const date = item.publishedAt ? new Date(item.publishedAt) : null;
-    meta.textContent = (item.source || "Source unavailable") + (date && !Number.isNaN(date.getTime()) ? " · " + date.toLocaleString() : " · Date unavailable");
-    card.append(link, meta); list.append(card);
-  }
-  const counts = {positive:0, negative:0, mixed:0, other:0};
-  for (const item of sorted) counts[getImpact(item).key]++;
-  if (summaryRoot) {
-    for (const spec of [
-      {key:"positive",label:"Potentially positive",cls:"summary-positive"},
-      {key:"negative",label:"Potentially negative",cls:"summary-negative"},
-      {key:"mixed",label:"Mixed signals",cls:"summary-mixed"},
-      {key:"other",label:"Other / unclear",cls:"summary-other"}
-    ]) {
-      const card = document.createElement("div"); card.className = "stock-news-summary-card " + spec.cls;
-      const label = document.createElement("span"); label.textContent = spec.label;
-      const count = document.createElement("strong"); count.textContent = String(counts[spec.key]);
-      card.append(label, count); summaryRoot.append(card);
+    const source = String(item.source || "").trim().toLowerCase();
+    if (source && !seenSources.has(source)) {
+      selected.push(item); seenSources.add(source);
+      if (selected.length === 8) break;
     }
   }
-  if (filtersRoot && filtersRoot.dataset.bound !== "true") {
-    filtersRoot.dataset.bound = "true";
-    filtersRoot.addEventListener("click", event => {
-      const button = event.target.closest("[data-news-filter]");
-      if (!button || !impactRoot) return;
-      filtersRoot.querySelectorAll("[data-news-filter]").forEach(el => {
-        const active = el === button;
-        el.classList.toggle("active", active);
-        el.setAttribute("aria-pressed", String(active));
-      });
-      const filter = button.dataset.newsFilter;
-      impactRoot.querySelectorAll(".stock-news-impact-item").forEach(card => card.classList.toggle("hidden", filter !== "all" && card.dataset.impact !== filter));
-      const visible = [...impactRoot.querySelectorAll(".stock-news-impact-item")].filter(card => !card.classList.contains("hidden")).length;
-      if (impactStatus) impactStatus.textContent = visible + " stories shown";
-      const note = impactRoot.querySelector(".news-filter-empty");
-      if (note) note.remove();
-      if (!visible && sorted.length) {
-        const empty = document.createElement("p"); empty.className = "empty news-filter-empty"; empty.textContent = "No additional stories match this filter."; impactRoot.append(empty);
-      }
-    });
+  for (const item of items) {
+    if (selected.length >= 8) break;
+    if (!selected.some(existing => existing.url === item.url)) selected.push(item);
   }
-  if (!sorted.length && impactRoot) {
-    const empty = document.createElement("p"); empty.className = "empty";
-    empty.textContent = "No additional company-specific stories beyond the top headlines were returned. The feed will not repeat headlines or invent news.";
-    impactRoot.append(empty);
+  if (impactRoot) {
+    if (selected.length < 5) {
+      const note = document.createElement("p");
+      note.className = "news-availability-note";
+      note.textContent = "Only " + selected.length + " distinct stories were returned by the available feeds. Northstar won't invent articles to reach five.";
+      impactRoot.append(note);
+    }
+    for (const item of selected) impactRoot.append(makeCard(item, "stock-news-impact-item"));
   }
-  for (const item of sorted) {
-    if (!impactRoot) break;
-    const impact = getImpact(item);
-    const card = document.createElement("article"); card.className = "stock-news-impact-item"; card.dataset.impact = impact.key;
-    const badge = document.createElement("span"); badge.className = "stock-news-impact-badge " + impact.cls; badge.textContent = impact.label;
-    const link = document.createElement("a"); link.href = item.url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = item.title;
-    const explanation = document.createElement("p"); explanation.className = "stock-news-impact-explanation"; explanation.textContent = impact.explanation;
-    const meta = document.createElement("p"); meta.className = "muted";
-    const date = item.publishedAt ? new Date(item.publishedAt) : null;
-    meta.textContent = (item.source || "Source unavailable") + (date && !Number.isNaN(date.getTime()) ? " · " + date.toLocaleString() : " · Date unavailable");
-    card.append(badge, link, explanation, meta); impactRoot.append(card);
-  }
-  if (signalsRoot) {
-    const positives = sorted.filter(item => getImpact(item).key === "positive");
-    const negatives = sorted.filter(item => getImpact(item).key === "negative");
-    const addSignal = (label, rows, cls, fallback) => {
-      const panel = document.createElement("div"); panel.className = "stock-news-signal " + cls;
-      const heading = document.createElement("strong"); heading.textContent = label;
-      const copy = document.createElement("p"); copy.textContent = rows.length ? rows.slice(0,2).map(item => item.title).join(" · ") : fallback;
-      panel.append(heading, copy); signalsRoot.append(panel);
-    };
-    addSignal("Positive-side evidence to investigate", positives, "signal-positive", "No clearly positive headline cues found in the additional stories.");
-    addSignal("Risks to investigate", negatives, "signal-negative", "No clearly negative headline cues found in the additional stories.");
-    const note = document.createElement("p"); note.className = "stock-news-signal-note"; note.textContent = "Automated headline cues are not verified conclusions. Open the sources and compare them with company filings and financial results."; signalsRoot.append(note);
-  }
-  if (impactStatus) impactStatus.textContent = sorted.length + " additional stories";
-  if (filtersRoot) {
-    const allButton = filtersRoot.querySelector('[data-news-filter="all"]');
-    if (allButton) filtersRoot.querySelectorAll("[data-news-filter]").forEach(el => {
-      const active = el === allButton; el.classList.toggle("active", active); el.setAttribute("aria-pressed", String(active));
-    });
-  }
+  if (impactStatus) impactStatus.textContent = selected.length + " stories · " + new Set(selected.map(item => String(item.source || "").trim()).filter(Boolean)).size + " sources";
 }
 async function loadNews(ticker, companyName="") {
   $("news-status").textContent="Loading…";
