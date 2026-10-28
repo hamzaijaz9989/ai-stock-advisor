@@ -14,6 +14,15 @@ python scripts/fetch_sec_history.py --symbols AAPL MSFT NVDA --cutoff 2026-10-28
 
 The SEC's public APIs do not require an API key. Respect the SEC's fair-access guidance and keep request volume low. Do not commit downloaded source bundles or secrets to Git.
 
+## Run it from GitHub Actions
+
+1. Open the repository's **Actions** tab.
+2. Select **Fetch SEC historical source bundle**.
+3. Choose **Run workflow**, enter 1–10 ticker symbols and optionally a cutoff date, then run it.
+4. When the workflow succeeds, download the `northstar-sec-source-<run-id>` artifact from that run. The artifact expires after 7 days and is not committed to the repository.
+
+This workflow only downloads official SEC filings/facts. It does not manufacture prices, news, earnings dates, index membership, or a BUY signal. The resulting artifact is not yet a complete backtest dataset.
+
 ## Important limits
 
 This is the first real-data ingestion adapter, not a strategy backtest and not a complete signal dataset. It does not ingest daily prices, corporate-action-adjusted OHLCV, point-in-time index membership, historical timestamped news, or a complete earnings calendar. SEC companyfacts can include duplicate contexts and amended/restated reports; consumers must select a fact by accession, form, unit, fiscal period and its verified availability timestamp. Facts without a verified timestamp must be excluded from historical signal generation.
