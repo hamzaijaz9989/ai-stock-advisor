@@ -1135,7 +1135,9 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     const missing=/missing|unavailable|not confirmed|not finished|incomplete|no timestamped|not available|withheld|not supplied/.test(detailText);
     const status=item.ok?"good":missing?"caution":"bad";
     const indicator=document.createElement("span");indicator.className="decision-indicator "+status;
-    indicator.innerHTML='<i class="meaning-dot '+status+'"></i><span>'+(item.ok?"CHECKED":missing?"REVIEW":"RISK")+'</span>';
+    indicator.textContent=item.ok?"CHECKED":missing?"REVIEW":"RISK";
+    const indicatorDot=document.createElement("i");indicatorDot.className="meaning-dot "+status;
+    indicator.append(indicatorDot);
     indicator.title=item.ok?"Positive check":missing?"Needs attention":"Risk check failed";
     const text=document.createElement("div");const title=document.createElement("strong");title.textContent=item.label;const detail=document.createElement("p");detail.textContent=item.detail;detail.className="muted";
     text.append(title,detail);row.append(indicator,text);checks.append(row);
