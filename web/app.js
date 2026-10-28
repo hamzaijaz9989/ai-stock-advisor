@@ -769,6 +769,7 @@ function buildDcfEstimate(observations, facts) {
     const cap=capex.find(item=>item.end===row.end&&item.start===row.start&&item.unit===row.unit);
     if (cap) {
       flows.push({
+        start:row.start,
         end:row.end,
         value:row.value-Math.abs(cap.value),
         unit:row.unit,
@@ -777,7 +778,7 @@ function buildDcfEstimate(observations, facts) {
     }
   }
   flows.sort((a,b)=>a.end.localeCompare(b.end));
-  if (flows.length<3) return {available:false,reason:"Not enough reliable data: fewer than three annual free-cash-flow periods with matching operating-cash-flow and capex start/end dates and units."};
+  if (flows.length<3) return {available:false,reason:"Not enough reliable data: fewer than three annual free-cash-flow periods with matching operating-cash-flow and capex start/end dates and units (non-USD, mixed-unit, or unmatched periods are excluded)."};
   const last3=flows.slice(-3);
   if (last3.some(row=>!Number.isFinite(row.value)||!isUsd(row)||!isUsd({unit:row.capexUnit}))) {
     return {available:false,reason:"Not enough reliable data: latest free-cash-flow inputs contain non-USD, mixed-unit, or non-finite observations."};
@@ -789,7 +790,7 @@ function buildDcfEstimate(observations, facts) {
   }
   const matchedRevenue=last3.map(row=>revenue.find(item=>item.end===row.end&&item.start===row.start&&item.unit===row.unit)||null);
   if (matchedRevenue.some(row=>!row)) {
-    return {available:false,reason:"Valuation withheld: each of the latest three annual free-cash-flow periods must match an unambiguous annual revenue period."};
+    return {available:false,reason:"Not enough reliable data: each of the latest three annual free-cash-flow periods must match an unambiguous annual revenue period with the same start/end dates and unit."};
   }
   if (matchedRevenue.some(row=>!isUsd(row)||!Number.isFinite(row.value)||row.value<=0)) {
     return {available:false,reason:"Not enough reliable data: matched annual revenue inputs are non-USD, non-finite, or non-positive."};
@@ -1157,7 +1158,7 @@ function renderBeginnerOverview(data) {
   const other=latestFact(observations,"otherIncome"),pretax=latestFact(observations,"pretaxIncome");
   if(other&&pretax&&other.end===pretax.end&&pretax.value!==0&&Math.abs(other.value/pretax.value)>0.05) risks.push({text:"Other non-operating income is more than 5% of pre-tax income; reported profit may include one-off or non-core items.",meta:"Same reported period ended "+fmtDate(other.end)});
   if(!risks.length) risks.push({text:"No high-priority automated warning was identified in the available inputs. This does not mean the stock is risk-free.",meta:"Limited automated screen"});
-  for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.append(dot,document.createTextNode(item.text));const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
+  for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.textContent=item.text;title.append(dot);const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
   const headlineRoot=$("beginner-headlines");headlineRoot.innerHTML="";
   const headlines=(news?.items||[]).filter(item=>item.title).sort((a,b)=>String(b.publishedAt||"").localeCompare(String(a.publishedAt||""))).slice(0,3);
   if(!headlines.length){const empty=document.createElement("p");empty.className="muted";empty.textContent="No timestamped headlines were returned. The absence of headlines is not evidence that nothing happened.";headlineRoot.append(empty);}
