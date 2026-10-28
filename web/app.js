@@ -1025,12 +1025,11 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(atr===null||!Number.isFinite(atr)) missingInputs.push("complete daily high/low price history for risk measurement");
   const insufficientData=missingInputs.length>0;
   let state;
-  if (annualDataAvailable && !annualFundamentalPass) state="AVOID";
+  if (fundamentalAvoid) state="AVOID";
   else if (dailySnapshot) state="WAIT";
   else if (gapCheck.blocked) state="WAIT";
   else if (insufficientData) state="INSUFFICIENT DATA";
   else if (!valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
-  else if (fundamentalAvoid) state="AVOID";
   else if (flaggedHeadlines.length) state="WAIT";
   else if (buySetupPass && !historicalValidationPass) state="BUY SETUP — UNVALIDATED";
   else if (buySetupPass && historicalValidationPass) state="BUY";
