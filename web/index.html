@@ -3,25 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1120">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="A focused, data-aware US stock research dashboard with transparent BUY, SELL REVIEW, HOLD and WAIT decisions.">
   <title>AI Stock Advisor</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="./"><span class="brand-mark">A</span><span>AI Stock Advisor</span></a>
-    <span class="status"><i></i> Research only</span>
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 17.5 9 12l3.2 3.2L20 6.5M14.5 6.5H20v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="brand-name">NORTHSTAR <span>AI</span></span></a>
+    <div class="topbar-right"><a href="#ranking" class="nav-link">Market scan</a><span class="status"><i></i> RESEARCH MODE</span></div>
   </header>
   <main class="shell">
     <section class="hero">
-      <p class="eyebrow">US STOCKS · WEEKS TO 6 MONTHS</p>
-      <h1>Understand a company<span>.</span></h1>
-      <p class="intro">A research-first decision assistant for your $500 portfolio. It checks company filings, price data, news and event risk; it activates provisional BUY, SELL REVIEW, HOLD and WAIT labels while clearly marking unvalidated signals.</p>
+      <div class="hero-kicker"><span class="live-dot"></span> EQUITY INTELLIGENCE <span class="kicker-divider"></span> US MARKETS</div>
+      <h1>Clarity before<br><span class="hero-accent">conviction.</span></h1>
+      <p class="intro">Research a ticker. See the signal, the evidence, and the risks — without the noise.</p>
       <form id="analyze-form" class="search-panel">
-        <label for="ticker">Stock ticker</label>
+        <label for="ticker">TICKER SYMBOL</label>
         <div class="search-row">
           <input id="ticker" name="ticker" maxlength="12" value="AAPL" placeholder="e.g. AAPL" autocomplete="off" required>
-          <button id="analyze-button" type="submit">Analyze</button>
+          <button id="analyze-button" type="submit">Analyze stock <span aria-hidden="true">↗</span></button>
         </div>
         <div class="quick-tickers" aria-label="Popular tickers">
           <button type="button" data-ticker="AAPL">AAPL</button>
@@ -30,27 +31,6 @@
           <button type="button" data-ticker="AMZN">AMZN</button>
         </div>
       </form>
-    </section>
-    <section class="news-section investor-profile" aria-labelledby="profile-heading">
-      <div class="section-heading"><div><p class="eyebrow">YOUR INVESTOR PROFILE</p><h2 id="profile-heading">Recommendations tailored to you</h2></div><span class="count">Configured</span></div>
-      <div class="metrics-grid">
-        <article class="metric-card"><div class="metric-label">Market</div><div class="metric-value">US stocks</div><div class="metric-date">NYSE / Nasdaq</div></article>
-        <article class="metric-card"><div class="metric-label">Holding period</div><div class="metric-value">Weeks–6 months</div><div class="metric-date">Short-to-medium term</div></article>
-        <article class="metric-card"><div class="metric-label">Starting capital</div><div class="metric-value">$500</div><div class="metric-date">Research-only; no auto-trading</div></article>
-        <article class="metric-card"><div class="metric-label">Risk tolerance</div><div class="metric-value">Moderate</div><div class="metric-date">Risk limits and diversification required</div></article>
-      </div>
-      <p class="table-note">Every future recommendation must assess company fundamentals, valuation, earnings dates and results, material news, current price and liquidity, downside risk, and portfolio concentration. It must show an entry range, target, invalidation/exit level, expected holding period, rationale, source timestamps, and what could go wrong.</p>
-      <p class="table-note"><strong>Decision rules:</strong> BUY only when evidence and risk/reward support it; WAIT when price or an imminent event makes the setup unattractive; AVOID when valuation, business risk, or data quality fails the checks. Missing or stale data means no actionable recommendation.</p>
-    </section>
-    <section class="news-section" aria-labelledby="decision-policy-heading">
-      <div class="section-heading"><div><p class="eyebrow">RECOMMENDATION STANDARD</p><h2 id="decision-policy-heading">How decisions will be made</h2></div><span class="count">Your profile</span></div>
-      <div class="metrics-grid">
-        <article class="metric-card"><div class="metric-label">BUY</div><div class="metric-value">Evidence + value</div><div class="metric-date">Only if valuation, event checks and reward/risk all pass</div></article>
-        <article class="metric-card"><div class="metric-label">WAIT</div><div class="metric-value">No rush</div><div class="metric-date">Price too high, event too close, or setup incomplete</div></article>
-        <article class="metric-card"><div class="metric-label">AVOID</div><div class="metric-value">Risk too high</div><div class="metric-date">Weak thesis, unattractive valuation, or unreliable data</div></article>
-      </div>
-      <p class="table-note"><strong>Risk guardrail for $500:</strong> target planned loss of about $5 per position (1% of capital), with $10 (2%) as a hard ceiling before fees and gaps. Position size must be calculated from entry-to-invalidation distance. If a sensible position cannot fit that risk limit, the advice is WAIT/AVOID—not to widen the risk limit. No leverage or options.</p>
-      <p class="table-note"><strong>Important limitation:</strong> preliminary scenario valuations, earnings checks, and price-risk levels are available when inputs pass quality checks. These levels are not validated trading instructions. The experimental ranking is not a BUY signal; walk-forward and out-of-sample validation remain incomplete.</p>
     </section>
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="company-panel" class="company-panel hidden">
@@ -96,7 +76,7 @@
       <div id="strategy-backtest-metrics" class="metrics-grid"></div>
       <div id="strategy-backtest-details" class="table-note"></div><div id="strategy-walk-forward" class="table-note"></div>
     </section>
-    <section class="ranking-section">
+    <section id="ranking" class="ranking-section">
       <div class="section-heading"><div><p class="eyebrow">RESEARCH SHORTLIST</p><h2>Top 10 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
       <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
       <p class="table-note">Run a comparison of 60 selected US stocks. The system displays up to 10 research candidates and, where the latest quote and valuation inputs pass checks, shows a model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are not guaranteed buy/exit instructions; the strategy has not passed walk-forward and untouched holdout validation.</p><div class="ranking-actions"><button id="run-screen" type="button" class="secondary-button">Run 60-stock research screen</button><span id="screen-status" class="count">Not run</span></div><div id="screen-results" class="screen-results"><p class="empty">Run a cross-sector screen of 60 selected US stocks. The starter universe is not the full market; results depend on provider availability and strict data-quality checks.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
@@ -136,7 +116,7 @@
         <p><a href="https://www.sec.gov/edgar/sec-api-documentation" target="_blank" rel="noreferrer">SEC API documentation ↗</a></p>
       </div>
     </details>
-    <footer><span>AI Stock Advisor · Early prototype</span><span>SEC EDGAR data · No automated trades</span></footer>
+    <footer><span>Northstar AI <span class="footer-sep">/</span> Market intelligence</span><span>SEC EDGAR · Research only · No automated trading</span></footer>
   </main>
   <script src="./app.js" defer></script>
 </body>
