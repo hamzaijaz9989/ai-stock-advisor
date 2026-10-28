@@ -45,6 +45,7 @@ jobs:
           from pathlib import Path
           report = json.loads(Path("/tmp/northstar-validation-smoke.json").read_text())
           assert report["signals_generated"] == 1
+          assert report["portfolio_simulation"]["completed_positions"] == 1
           assert report["validation"]["strategy_validation_passed"] is False
           assert report["validation"]["decision_eligible"] is False
           PY
