@@ -106,7 +106,27 @@ test("buildDcfEstimate uses recent shares outstanding and produces ordered scena
   assert.ok(result.base < result.bull);
 });
 
-test("buildDcfEstimate refuses annual weighted-average shares without a recent shares-outstanding fact", () => {
+test("buildDcfEstimate rejects non-USD or mixed-unit annual valuation inputs", () => {
+  const app=loadAppFunctions();
+  const rows=annualFixtures();
+  rows.find(row=>row.key==="operatingCashFlow"&&row.end==="2024-12-31").unit="EUR";
+  const result=app.buildDcfEstimate(rows,shareFacts());
+  assert.equal(result.available,false);
+  assert.match(result.reason,/non-USD, mixed-unit/i);
+});
+
+test("valuation gap check flags extreme divergence without claiming either value is wrong", () => {
+  const app=loadAppFunctions();
+  const gap=app.assessQuoteValuationGap(530.30,145.56);
+  assert.equal(gap.checked,true);
+  assert.equal(gap.blocked,true);
+  assert.ok(gap.ratio>3.6);
+  assert.match(gap.reason,/does not prove either price is wrong/i);
+  const ordinary=app.assessQuoteValuationGap(100,100);
+  assert.equal(ordinary.blocked,false);
+});
+
+
   const app = loadAppFunctions();
   const result = app.buildDcfEstimate(annualFixtures(), {});
   assert.equal(result.available, false);
@@ -150,7 +170,7 @@ test("quarterly snapshot returns latest-quarter revenue growth and net income", 
   assert.equal(quarter.periodEnd, "2026-06-30");
 });
 
-test("decision panel clearly labels a passing setup as provisional BUY, not validated", () => {
+test("decision panel refuses BUY when no whole share fits the planned-risk budget", () => {
   const app = loadAppFunctions();
   const observations = [...annualFixtures(), ...quarterlyFixtures()];
   const valuation = app.buildDcfEstimate(observations, shareFacts());
@@ -174,9 +194,9 @@ test("decision panel clearly labels a passing setup as provisional BUY, not vali
     quarter:app.renderQuarterlySnapshot(observations)
   });
   const title=elements.getElementById("decision-title").textContent;
-  assert.ok(title.startsWith("BUY SETUP — PROVISIONAL"));
-  assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("not validated"));
-  assert.ok(elements.getElementById("decision-next-step").textContent.includes("not proven"));
+  assert.ok(title.startsWith("HOLD — NO NEW ENTRY TRIGGER"));
+  assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("no clear new-entry setup"));
+  assert.ok(elements.getElementById("decision-next-step").textContent.includes("hold off on adding"));
 });
 
 
@@ -340,9 +360,11 @@ test("decision panel withholds valuation targets when quote and model value are 
   });
   assert.ok(app.document.getElementById("decision-title").textContent.startsWith("WAIT"));
   assert.ok(app.document.getElementById("decision-explanation").textContent.includes("Valuation withheld"));
+  assert.ok(app.document.getElementById("decision-metrics").children.some(card=>card.children[0].textContent==="Illustrative DCF base case"));
+  assert.ok(app.document.getElementById("decision-metrics").children.some(card=>card.children[0].textContent==="Entry / exit levels" && card.children[1].textContent==="WITHHELD"));
   const labels=app.document.getElementById("decision-metrics").children.map(card=>card.children[0].textContent);
-  assert.ok(!labels.includes("Provisional entry zone"));
-  assert.ok(!labels.includes("Potential exit / fair-value reference"));
+  assert.ok(!labels.includes("Illustrative entry watch zone"));
+  assert.ok(!labels.includes("Risk reference"));
 });
 
 test("quote label without machine-readable timestamp cannot satisfy current-price gate", () => {

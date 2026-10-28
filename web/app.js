@@ -514,6 +514,11 @@ async function enrichTopCandidates(results) {
         status.textContent="Price: "+fmtUsd(quote.price)+". Model entry/exit levels withheld: "+(!valuation.available?valuation.reason:"historical ATR is unavailable")+".";
         return;
       }
+      const gap=assessQuoteValuationGap(quote.price,valuation.base);
+      if(gap.blocked) {
+        status.textContent="Latest price: "+fmtUsd(quote.price)+". Illustrative DCF base case: "+fmtUsd(valuation.base)+". Market/model ratio: "+gap.ratio.toFixed(2)+"×. "+gap.reason+" No entry, exit, or risk levels are shown.";
+        return;
+      }
       const entryLow=valuation.base*0.75,entryHigh=valuation.base*0.80,entryMid=(entryLow+entryHigh)/2;
       const invalidation=entryMid-2*atr;
       const target=valuation.base;
@@ -577,8 +582,9 @@ function latestSecValue(facts, candidates, unit, maxAgeDays=180) {
     for (const row of values) {
       if (typeof row.val!=="number" || !Number.isFinite(row.val) || !row.end || !row.filed) continue;
       if (row.filed>today || !["10-K","10-Q","20-F","40-F","6-K"].includes(row.form)) continue;
-      const ageDays=(Date.parse(today+"T00:00:00Z")-Date.parse(row.filed+"T00:00:00Z"))/86400000;
-      if (ageDays<0 || ageDays>maxAgeDays) continue;
+      const filedAgeDays=(Date.parse(today+"T00:00:00Z")-Date.parse(row.filed+"T00:00:00Z"))/86400000;
+      const factAgeDays=(Date.parse(today+"T00:00:00Z")-Date.parse(row.end+"T00:00:00Z"))/86400000;
+      if (filedAgeDays<0 || filedAgeDays>maxAgeDays || factAgeDays<0 || factAgeDays>maxAgeDays) continue;
       rows.push({value:row.val,end:row.end,filed:row.filed,form:row.form,tag:candidate.tag,taxonomy:candidate.taxonomy,unit});
     }
   }
@@ -589,43 +595,67 @@ function latestSecValue(facts, candidates, unit, maxAgeDays=180) {
   if (new Set(sameFiling.map(row=>String(row.value))).size>1) return null;
   return latest;
 }
+function assessQuoteValuationGap(price, base) {
+  if (!(typeof price==="number"&&Number.isFinite(price)&&price>0&&
+        typeof base==="number"&&Number.isFinite(base)&&base>0)) {
+    return {checked:false,blocked:false,ratio:null,reason:"A valid current quote and positive model estimate are required for a market/model gap check."};
+  }
+  const ratio=price/base;
+  const blocked=ratio>2.5||ratio<0.4;
+  return {
+    checked:true,blocked,ratio,
+    reason:blocked
+      ? "Valuation withheld: the current quote is "+ratio.toFixed(2)+"× the simplified base-case DCF estimate. This may reflect real market expectations, weak model assumptions, or a data/corporate-action issue; it does not prove either price is wrong."
+      : "The market/model ratio is within the app's broad 0.40×–2.50× review band. This sanity check does not validate the DCF."
+  };
+}
 function buildDcfEstimate(observations, facts) {
-  const cash=annualSeries(observations,"operatingCashFlow");
-  const capex=annualSeries(observations,"capex");
-  const revenue=annualSeries(observations,"revenue");
+  const today=newYorkDateOnly();
+  const filedByToday=rows=>rows.filter(row=>row.filed&&row.filed<=today);
+  const cash=filedByToday(annualSeries(observations,"operatingCashFlow"));
+  const capex=filedByToday(annualSeries(observations,"capex"));
+  const revenue=filedByToday(annualSeries(observations,"revenue"));
+  const isUsd=row=>String(row?.unit||"").trim().toUpperCase()==="USD";
   const flows=[];
   for (const row of cash) {
     const cap=capex.find(item=>item.end===row.end);
-    if (cap) flows.push({end:row.end,value:row.value-Math.abs(cap.value)});
+    if (cap) {
+      flows.push({
+        end:row.end,
+        value:row.value-Math.abs(cap.value),
+        unit:row.unit,
+        capexUnit:cap.unit
+      });
+    }
   }
   flows.sort((a,b)=>a.end.localeCompare(b.end));
   if (flows.length<3) return {available:false,reason:"Fewer than three unambiguous annual free-cash-flow observations."};
   const last3=flows.slice(-3);
-  if (last3.some(row=>!Number.isFinite(row.value)||row.value<=0)) return {available:false,reason:"Recent annual free cash flow is not positive in three comparable periods."};
+  if (last3.some(row=>!Number.isFinite(row.value)||!isUsd(row)||!isUsd({unit:row.capexUnit}))) {
+    return {available:false,reason:"Valuation withheld: the latest three cash-flow periods contain non-USD, mixed-unit, or non-finite observations."};
+  }
+  if (last3.some(row=>row.value<=0)) return {available:false,reason:"Recent annual free cash flow is not positive in all three comparable periods."};
   const daysBetween=(left,right)=>(Date.parse(right+"T00:00:00Z")-Date.parse(left+"T00:00:00Z"))/86400000;
   if (last3.some((row,index)=>index>0&&(daysBetween(last3[index-1].end,row.end)<300||daysBetween(last3[index-1].end,row.end)>430))) {
     return {available:false,reason:"Recent free-cash-flow observations are not spaced like consecutive annual periods."};
   }
-  const latestFcf=last3[2];
-  const latestRevenueForFcf=revenue[revenue.length-1];
-  const previousRevenueForFcf=revenue[revenue.length-2];
-  if (!latestRevenueForFcf || !previousRevenueForFcf || latestRevenueForFcf.end!==latestFcf.end ||
-      previousRevenueForFcf.end!==last3[1].end) {
-    return {available:false,reason:"Annual revenue and free-cash-flow periods do not match exactly; valuation is withheld."};
+  const matchedRevenue=last3.map(row=>revenue.find(item=>item.end===row.end)||null);
+  if (matchedRevenue.some(row=>!row)) {
+    return {available:false,reason:"Valuation withheld: each of the latest three annual free-cash-flow periods must match an unambiguous annual revenue period."};
   }
+  if (matchedRevenue.some(row=>!isUsd(row)||!Number.isFinite(row.value)||row.value<=0)) {
+    return {available:false,reason:"Valuation withheld: annual revenue inputs must be positive, finite USD values across all three matched periods."};
+  }
+  const latestFcf=last3[2];
+  const latestRevenue=matchedRevenue[2], previousRevenue=matchedRevenue[1];
   const currentInstantShares=latestSecValue(facts,[
     {taxonomy:"dei",tag:"EntityCommonStockSharesOutstanding"},
     {taxonomy:"us-gaap",tag:"EntityCommonStockSharesOutstanding"}
   ],"shares",180);
-  // Per-share valuation needs a recent point-in-time shares-outstanding count.
-  // Annual diluted weighted-average shares are a period average and can materially
-  // misstate per-share value after buybacks, issuance, or stock-based compensation.
   const shares=currentInstantShares&&currentInstantShares.value>0
-    ? {value:currentInstantShares.value,end:currentInstantShares.end,filed:currentInstantShares.filed,source:"Recent SEC-reported shares outstanding"}
+    ? {value:currentInstantShares.value,end:currentInstantShares.end,filed:currentInstantShares.filed,source:"Recent SEC-reported instant shares outstanding"}
     : null;
-  if (!shares || shares.value<=0) return {available:false,reason:"No unambiguous SEC shares-outstanding fact filed within the last 180 days; per-share valuation is withheld."};
-  const latestRevenue=revenue[revenue.length-1], previousRevenue=revenue[revenue.length-2];
-  if (!latestRevenue || !previousRevenue || previousRevenue.value<=0) return {available:false,reason:"Comparable annual revenue growth is unavailable."};
+  if (!shares || shares.value<=0) return {available:false,reason:"No unambiguous SEC shares-outstanding fact whose fact date and filing date are both within the last 180 days; per-share valuation is withheld."};
   const fcfGrowth1=last3[2].value/last3[1].value-1;
   const fcfGrowth2=last3[1].value/last3[0].value-1;
   const revenueGrowth=latestRevenue.value/previousRevenue.value-1;
@@ -634,7 +664,10 @@ function buildDcfEstimate(observations, facts) {
   function perShare(fcf,growth,discount,terminal) {
     if (!(fcf>0&&shares.value>0&&discount>terminal&&terminal>=0)) return null;
     let cashFlow=fcf,pv=0;
-    for(let year=1;year<=5;year++) { cashFlow*=1+growth; pv+=cashFlow/Math.pow(1+discount,year); }
+    for(let year=1;year<=5;year++) {
+      cashFlow*=1+growth;
+      pv+=cashFlow/Math.pow(1+discount,year);
+    }
     const terminalValue=cashFlow*(1+terminal)/(discount-terminal);
     const value=(pv+terminalValue/Math.pow(1+discount,5))/shares.value;
     return Number.isFinite(value)&&value>0?value:null;
@@ -649,8 +682,9 @@ function buildDcfEstimate(observations, facts) {
   }
   return {
     available:true,bear,base,bull,latestFcf:latestFcf.value,fcfPeriod:latestFcf.end,
-    shares:shares.value,sharesFiled:shares.filed,sharesSource:shares.source,baseGrowth,fcfGrowth1,fcfGrowth2,revenueGrowth,
-    assumptions:"Five-year simplified equity-cash-flow proxy; bear/base/bull growth "+(bearGrowth*100).toFixed(1)+"/"+(baseGrowth*100).toFixed(1)+"/"+(bullGrowth*100).toFixed(1)+"%; discount rates 12/10/9%; terminal growth 1.5/2.5/3.0%."
+    shares:shares.value,sharesFiled:shares.filed,sharesFactDate:shares.end,sharesSource:shares.source,
+    baseGrowth,fcfGrowth1,fcfGrowth2,revenueGrowth,
+    assumptions:"Illustrative five-year equity-cash-flow proxy (operating cash flow minus capex); bear/base/bull growth "+(bearGrowth*100).toFixed(1)+"/"+(baseGrowth*100).toFixed(1)+"/"+(bullGrowth*100).toFixed(1)+"%; discount rates 12%/10%/9%; terminal growth 1.5%/2.5%/3.0%. These generic assumptions are not company-specific or validated."
   };
 }
 function averageTrueRange(history,period=14) {
@@ -805,16 +839,12 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     quoteReliabilityLabel.includes("not real-time");
   const quoteCurrent=typeof quote?.price==="number"&&quote.price>0&&
     quoteAgeHours>=-2&&quoteAgeHours<=48&&!dailySnapshot;
-  // Coarse sanity gate: suppress model-derived levels when quote and valuation
-  // diverge dramatically, which can signal units/share-count/model errors.
-  if (valuation.available && quoteCurrent) {
-    const quoteToValue = quote.price / valuation.base;
-    if (!Number.isFinite(quoteToValue) || quoteToValue > 2.5 || quoteToValue < 0.4) {
-      valuation.available = false;
-      valuation.sanityBlocked = true;
-      valuation.reason = "Valuation withheld: the model estimate differs from the current quote by more than 2.5× (or less than 0.4×). Check cash-flow units, SEC share count, corporate actions, and assumptions before using any price target.";
-    }
-  }
+  // A large market/model gap can be real, not necessarily a data error.
+  // Keep raw DCF outputs for auditability, but do not derive trade levels from them.
+  const gapCheck = valuation.available && quoteCurrent
+    ? assessQuoteValuationGap(quote.price,valuation.base)
+    : {checked:false,blocked:false,ratio:null,reason:null};
+  const valuationDecisionReady = Boolean(valuation.available && quoteCurrent && gapCheck.checked && !gapCheck.blocked);
   const today=newYorkDateOnly();
   const nextEvent=(earnings?.events||[]).filter(event=>event.reportDate>=today).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]||null;
   const daysToEarnings=nextEvent?(Date.parse(nextEvent.reportDate+"T00:00:00Z")-Date.parse(today+"T00:00:00Z"))/86400000:null;
@@ -848,16 +878,16 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const fundamentalPass=annualFundamentalPass&&quarterlyPass;
   const fundamentalAvoid=(annualDataAvailable&&!annualFundamentalPass)||
     (quarterlyDataAvailable&&!quarterlyPass);
-  const entryLow=valuation.available?valuation.base*0.75:null;
-  const entryHigh=valuation.available?valuation.base*0.80:null;
+  const entryLow=valuationDecisionReady?valuation.base*0.75:null;
+  const entryHigh=valuationDecisionReady?valuation.base*0.80:null;
   const entryMid=entryLow!==null?(entryLow+entryHigh)/2:null;
   const invalidation=entryMid!==null&&atr!==null?entryMid-2*atr:null;
   const rewardRisk=entryMid!==null&&invalidation!==null&&entryMid>invalidation&&valuation.base>entryMid?(valuation.base-entryMid)/(entryMid-invalidation):null;
   const priceInEntryRange=quoteCurrent&&entryLow!==null&&quote.price>=entryLow&&quote.price<=entryHigh;
-  const plannedShares=entryMid!==null&&invalidation!==null&&invalidation>0&&entryMid>invalidation?Math.min(Math.floor(5/(entryMid-invalidation)),Math.floor(500/entryMid)):0;
+  const plannedShares=valuationDecisionReady&&entryMid!==null&&invalidation!==null&&invalidation>0&&entryMid>invalidation?Math.min(Math.floor(5/(entryMid-invalidation)),Math.floor(500/entryMid)):0;
   const dataChecks=[
     {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?(quote?.quoteTime?"Provider quote timestamp "+quoteDate.toLocaleString():quote?.quoteLabel?"Provider quote date "+quote.quoteLabel+"; exact trade time was not supplied":"Provider date/time "+quoteDate.toLocaleString()):(dailySnapshot?"Provider returned a daily-bar snapshot, not a current quote":"Quote unavailable, missing a usable date/time, or older than 48 hours")},
-    {label:"Valuation inputs and sanity check",ok:valuation.available,detail:valuation.available?"Annual cash-flow periods, recent SEC share count, and basic quote-to-value sanity check passed":valuation.reason},
+    {label:"Valuation inputs / market-gap review",ok:valuationDecisionReady,detail:!valuation.available?valuation.reason:!quoteCurrent?"Raw DCF inputs exist, but no reliable recent timestamped quote is available; entry/exit levels are withheld.":gapCheck.blocked?gapCheck.reason:"Matched annual USD inputs and recent SEC share count passed basic checks; this remains an illustrative, unvalidated DCF."},
     {label:"Annual fundamentals",ok:annualFundamentalPass,detail:annualFundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; annual revenue has not dropped more than 10% year over year":"Annual quality filter failed or comparable data is missing"},
     {label:"Latest quarterly trend",ok:quarterlyPass,detail:quarterlyPass?"Quarterly revenue/net income are positive and revenue is no worse than -15% year over year":"Latest quarterly net income, same-quarter revenue comparison, or quality threshold did not pass"},
     {label:"Earnings/event risk",ok:earningsVerified,detail:earningsVerified?(daysToEarnings<=7?"Earnings in "+Math.max(0,Math.round(daysToEarnings))+" day(s) — avoid new entry before this event":"Next "+(earnings?.provider||"provider-listed")+" date "+fmtDate(nextEvent.reportDate)):"Next earnings date not confirmed by this provider"},
@@ -868,7 +898,7 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   // Action labels are now active, but BUY is explicitly provisional/unvalidated.
   // This rule is conservative and is not evidence of a profitable strategy.
   const sellReview = fundamentalAvoid || flaggedHeadlines.length>0;
-  const coreEvidencePass = quoteCurrent && valuation.available && !valuation.sanityBlocked && annualFundamentalPass &&
+  const coreEvidencePass = quoteCurrent && valuationDecisionReady && annualFundamentalPass &&
     quarterlyPass && earningsVerified && recentHeadlines.length>0 && flaggedHeadlines.length===0 &&
     atr!==null && Number.isFinite(atr) && rewardRisk!==null && Number.isFinite(rewardRisk);
   const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
@@ -902,6 +932,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   const reasons=[];
   if(!quoteCurrent) reasons.push(dailySnapshot?"The available price is a daily-bar snapshot, not a verified current quote.":"A sufficiently recent timestamped quote is missing.");
   if(!valuation.available) reasons.push(valuation.reason);
+  else if(!quoteCurrent) reasons.push("The raw DCF calculation is available for inspection, but no reliable current timestamped quote is available. Entry and exit levels are withheld.");
+  else if(gapCheck.blocked) reasons.push("Valuation withheld: the quote is "+gapCheck.ratio.toFixed(2)+"× the simplified base-case DCF estimate. This can reflect real market expectations or model limitations; it is not proof of a unit error. No entry/exit levels are derived from this gap.");
   if(!annualDataAvailable) reasons.push("Comparable annual financial data is incomplete or ambiguous.");
   else if(!annualFundamentalPass) reasons.push("The annual quality screen failed: revenue, net income, free cash flow, or annual revenue trend is below the configured minimum.");
   if(!quarterlyDataAvailable) reasons.push("The latest quarterly data is incomplete or cannot be matched safely to the previous year.");
@@ -910,25 +942,39 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   if(daysToEarnings!==null&&daysToEarnings<=7) reasons.push("An earnings report is due within 7 days, so event risk is high.");
   if(!recentHeadlines.length) reasons.push("Recent timestamped news coverage is missing.");
   if(flaggedHeadlines.length) reasons.push("Recent headlines contain potential risk keywords and need checking against original sources.");
-  if(valuation.available&&!priceInEntryRange) reasons.push(quoteCurrent?(quote.price>entryHigh?"The quote is above the provisional entry zone; do not chase.":"The quote is below the provisional zone; a sharp drop needs review."):"Current price cannot be compared with the model range.");
+  if(valuationDecisionReady&&!priceInEntryRange) reasons.push(quote.price>entryHigh?"The quote is above the illustrative entry watch zone; do not chase.":"The quote is below the illustrative zone; reassess whether this is a value trap or a data/event shock.");
   if(rewardRisk!==null&&rewardRisk<2) reasons.push("The provisional reward-to-risk ratio is below 2:1.");
   if(state==="BUY — PROVISIONAL") reasons.push("PROVISIONAL BUY SETUP: configured data, event, fundamentals, entry-zone, and minimum 2:1 reward/risk checks passed. Historical validation is incomplete, so this is not a proven strategy, a reliable probability estimate, or a guarantee.");
   else if(state==="SELL REVIEW") reasons.push("SELL REVIEW is active because a fundamental quality check failed or a recent headline contains a potential material-risk keyword. Verify the original filing/news and your position-specific facts; this is not an automatic sell order.");
   else if(state==="HOLD") reasons.push("HOLD means the available evidence did not justify a provisional entry and did not trigger the configured sell-review rule. Reassess after material filings, earnings, news, or price changes.");
   else reasons.push("WAIT means one or more required data-quality, event-risk, fundamental, valuation, or price-entry checks did not pass. Do not force a trade from incomplete evidence.");
   $("decision-explanation").textContent=reasons.join(" ");
-  if(valuation.available) {
+  if(valuationDecisionReady) {
     grid.append(
-      metricCard("Provisional entry zone",fmtUsd(entryLow)+" – "+fmtUsd(entryHigh),"75–80% of base-case DCF value; watch levels only, not actionable"),
-      metricCard("Potential exit / fair-value reference",fmtUsd(valuation.base),"Base-case valuation reference; may take longer than six months and is not a forecast"),
-      metricCard("Bear / bull value",fmtUsd(valuation.bear)+" / "+fmtUsd(valuation.bull),"Scenario sensitivity, not a prediction"),
-      metricCard("Risk trigger",invalidation!==null&&invalidation>0?fmtUsd(invalidation):"Unavailable",atr!==null?"Entry midpoint minus 2 × 14-day ATR":"Complete daily high/low data is needed"),
-      metricCard("Upside / downside",rewardRisk!==null?rewardRisk.toFixed(2)+":1":"Unavailable","Uses base-case DCF value and ATR risk trigger"),
+      metricCard("Illustrative entry watch zone",fmtUsd(entryLow)+" – "+fmtUsd(entryHigh),"75–80% of a simplified DCF scenario; not an instruction or validated level"),
+      metricCard("DCF base-case scenario",fmtUsd(valuation.base),"Illustrative model output only; not a forecast or promised exit price"),
+      metricCard("Bear / bull scenarios",fmtUsd(valuation.bear)+" / "+fmtUsd(valuation.bull),"Assumption sensitivity only; not probability-weighted targets"),
+      metricCard("Risk reference",invalidation!==null&&invalidation>0?fmtUsd(invalidation):"Unavailable",atr!==null?"Entry midpoint minus 2 × 14-day ATR; not a guaranteed stop":"Complete daily high/low data is needed"),
+      metricCard("Model upside / ATR risk",rewardRisk!==null?rewardRisk.toFixed(2)+":1":"Unavailable","Scenario-based ratio; does not estimate probability of success"),
       metricCard("Whole-share size",plannedShares?plannedShares+" share(s)":"0 shares fit the risk rule",plannedShares?fmtUsd(plannedShares*entryMid)+" planned allocation · approx. "+fmtUsd(plannedShares*(entryMid-invalidation))+" planned risk · "+fmtUsd(Math.max(0,500-plannedShares*entryMid))+" cash left":"No whole-share size fits the $5 planned-risk budget"),
-      metricCard("Holding period","Weeks to 6 months","Your stated horizon; review the thesis after earnings and whenever fundamentals, valuation, or risk conditions change")
+      metricCard("Review horizon","Weeks to 6 months","Your stated horizon; reassess after earnings, filings, material news, or major price changes")
+    );
+  } else if(valuation.available) {
+    const gapLabel=gapCheck.checked?gapCheck.ratio.toFixed(2)+"×":"Not checked";
+    const gapMeta=gapCheck.checked
+      ? "Quote divided by simplified DCF base case; a wide gap is a review flag, not proof either value is wrong."
+      : "A recent timestamped quote is required before this comparison can be made.";
+    const withheldReason=gapCheck.blocked
+      ? "Valuation withheld: market/model gap is outside the 0.40×–2.50× review band. Check assumptions and source inputs first."
+      : "Entry, exit, ATR risk, and position-size levels require a reliable current quote and a passing market/model review.";
+    grid.append(
+      metricCard("Illustrative DCF base case",fmtUsd(valuation.base),"Raw simplified model output only — not a price target"),
+      metricCard("Market / model ratio",gapLabel,gapMeta),
+      metricCard("Entry / exit levels","WITHHELD",withheldReason),
+      metricCard("Position size","Not calculated","Do not size a trade using a model value that has not passed the review gate")
     );
   } else {
-    grid.append(metricCard("Entry price","Not available",valuation.reason),metricCard("Exit / target","Not available","A price level will not be guessed without defensible valuation inputs"));
+    grid.append(metricCard("Illustrative DCF value","Not available",valuation.reason),metricCard("Entry / exit levels","WITHHELD","No price levels will be guessed without defensible valuation inputs"));
   }
   for(const item of dataChecks) {
     const row=document.createElement("div");row.className="decision-check";
@@ -937,16 +983,17 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     text.append(title,detail);row.append(indicator,text);checks.append(row);
   }
   const caveats=[];
-  caveats.push("The DCF uses matched-period annual diluted weighted-average shares when reported; otherwise it requires recent instant shares outstanding. Share count source: "+(valuation.sharesSource||"not available")+"; filing date: "+(valuation.sharesFiled||"not available")+".");
-  caveats.push("The DCF is a simplified cash-flow-per-share proxy using five-year constant-growth scenarios and fixed 12%/10%/9% discount rates with 1.5%/2.5%/3% terminal growth.");
-  caveats.push("It omits forecast consensus, debt/cash normalization, share-based compensation and business-specific adjustments; no target is guaranteed.");
+  caveats.push("The model uses USD operating cash flow minus USD capital expenditures, divided by recent SEC-reported instant shares outstanding; it does not use weighted-average shares for this per-share calculation. Share-count source: "+(valuation.sharesSource||"not available")+"; fact date: "+(valuation.sharesFactDate||"not available")+"; filing date: "+(valuation.sharesFiled||"not available")+".");
+  caveats.push("DCF input audit: latest matched annual FCF "+(valuation.available?fmtUsd(valuation.latestFcf):"unavailable")+" for period ending "+(valuation.fcfPeriod||"unavailable")+"; share count "+(valuation.available?Math.round(valuation.shares).toLocaleString():"unavailable")+".");
+  caveats.push("The DCF is an illustrative five-year equity-cash-flow proxy; base growth is inferred from clipped historical FCF and revenue growth, with fixed scenario discount rates 12%/10%/9% and terminal growth 1.5%/2.5%/3%. These are not company-specific cost-of-equity estimates.");
+  caveats.push("The model does not normalize unusual working-capital/capex years or forecast consensus, and it omits detailed stock-based compensation, dilution forecasts and business-specific adjustments; no target is guaranteed.");
   caveats.push("Earnings dates/headlines are third-party data; confirm material items from official investor relations and SEC filings.");
   caveats.push("No stop level guarantees execution. Gaps, fees, slippage and data issues can cause larger losses.");
   $("decision-caveat").textContent=caveats.join(" ");
   latestDecisionContext = {
     ticker, quotePrice:typeof quote?.price==="number"?quote.price:null,
-    quoteCurrent, atr, valuationAvailable:valuation.available,
-    valuationBase:valuation.available?valuation.base:null,
+    quoteCurrent, atr, valuationAvailable:valuationDecisionReady, valuationGapBlocked:Boolean(gapCheck.blocked), valuationGapRatio:gapCheck.ratio,
+    valuationBase:valuationDecisionReady?valuation.base:null,
     annualFundamentalPass, quarterlyPass, fundamentalAvoid,
     eventVerified:earningsVerified, riskFlags:flaggedHeadlines.length,
     hasRecentNews:recentHeadlines.length>0
@@ -954,7 +1001,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   latestResearchSnapshot = {
     ticker, decision:state, quote:typeof quote?.price==="number"?quote.price:null,
     quoteSource:quote?.source||null, quoteTimestamp:quote?.quoteTime||quote?.quoteLabel||null,
-    entryLow, entryHigh, valuationBase:valuation.available?valuation.base:null,
+    entryLow, entryHigh, valuationBase:valuationDecisionReady?valuation.base:null, illustrativeModelBase:valuation.available?valuation.base:null,
+    valuationReady:valuationDecisionReady, valuationGapBlocked:Boolean(gapCheck.blocked), valuationGapRatio:gapCheck.ratio,
     invalidation, rewardRisk, explanation:reasons.join(" "),
     checks:dataChecks.map(check=>({label:check.label,passed:Boolean(check.ok),detail:check.detail})),
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
@@ -1168,7 +1216,7 @@ async function analyze(ticker) {
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
     renderEarningsResult(earningsResult,quarter,reportedQuarter);
     renderDecision({ticker,company,observations,facts,quote,history,news,earnings,quarter});
-    setMessage("Research checks completed for "+company.name+". The advisor will not issue a BUY while its model remains unvalidated.","success");
+    setMessage("Research checks complete for "+company.name+". Read the Bottom line for the decision and next step; model-based levels appear only when input and quote checks pass.","success");
   } catch(error) {
     $("sec-health").textContent="Request failed";
     const reason=error instanceof TypeError?"Could not reach the SEC data service. Check your connection and try again.":error.message||"The SEC data request failed.";
@@ -1194,8 +1242,8 @@ function reviewHolding() {
     const why=ctx.fundamentalAvoid?"The available annual/quarterly quality screen failed.":ctx.riskFlags>0?"Recent headlines contain potential material-risk keywords that need primary-source verification.":"The quote is at or below the illustrative cost-based 2×ATR risk reference ("+fmtUsd(stop)+").";
     show("SELL REVIEW — INVESTIGATE PROMPTLY",why+" "+stats+" This is a review flag, not an automatic sell order. Confirm the filing/news, your tax situation and whether the original thesis is broken before acting.","review");return;
   }
-  if(!ctx.annualFundamentalPass||!ctx.quarterlyPass||!ctx.eventVerified||!ctx.hasRecentNews){
-    show("HOLD / WAIT FOR BETTER EVIDENCE","No sell trigger was confirmed by the available checks, but important evidence is missing. "+stats+" Re-check after verified earnings/news; this is not a recommendation to add shares.");return;
+  if(!ctx.annualFundamentalPass||!ctx.quarterlyPass||!ctx.eventVerified||!ctx.hasRecentNews||!ctx.valuationAvailable){
+    show("HOLD / WAIT FOR BETTER EVIDENCE","No sell trigger was confirmed, but important evidence is incomplete or the valuation is not decision-ready. "+(ctx.valuationGapBlocked?"The quote/model gap needs review before using valuation levels. ":"")+stats+" Re-check verified filings, quote and news; do not add shares solely because this review says HOLD.");return;
   }
   if(ctx.valuationAvailable&&ctx.valuationBase&&ctx.quotePrice>=ctx.valuationBase){
     show("HOLD / CONSIDER TRIMMING","The quote is at or above the simplified base-case valuation reference ("+fmtUsd(ctx.valuationBase)+"). Upside may be limited under this model. "+stats+" The valuation is approximate, so verify assumptions before trimming.","hold");return;

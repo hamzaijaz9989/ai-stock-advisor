@@ -64,3 +64,12 @@ These are rule-based research labels, not proven profitable instructions. The BU
 ## Quote-to-valuation sanity gate
 
 Before valuation-derived entry zones or fair-value references are displayed, the UI compares the timestamped quote with the simplified base-case per-share estimate. If the ratio is above 2.5× or below 0.4×, valuation outputs are withheld and the user is asked to verify cash-flow units, share count, corporate actions, and assumptions. This coarse guard is not proof that values inside the band are accurate; all DCF values remain simplified and unvalidated.
+
+
+## DCF input audit and market/model gap policy
+
+The DCF proxy is calculated from matched-period annual USD operating cash flow minus USD capital expenditures, divided by a recent SEC-reported instant shares-outstanding fact. The shares fact date and filing date must both be no more than 180 days old. Weighted-average shares are not substituted for a current share count. Each of the latest three annual FCF periods must have matching annual revenue and positive, finite USD FCF; unit mismatches, missing periods, stale share facts, and non-positive FCF block the DCF.
+
+The scenario method remains intentionally simplified: a five-year growth path is inferred from clipped historical FCF and revenue growth, then discounted using fixed 12%/10%/9% rates and terminal growth assumptions of 1.5%/2.5%/3%. These are generic assumptions, not company-specific cost-of-equity estimates or a calibrated forecast. The results are illustrative scenarios, not validated fair values.
+
+Before showing entry/exit/risk levels, the app checks the ratio of the latest timestamped quote to the model base case. Ratios above 2.5x or below 0.4x cause those levels to be withheld and surface the raw model value plus the market/model ratio for audit. A wide gap can be a real market premium/discount or a limitation of this simplified model; it does not by itself prove a data error or establish that market pricing is wrong. The research shortlist uses the same rule. This policy is a conservative review control, not a valuation theorem or proof that estimates inside the band are correct.
