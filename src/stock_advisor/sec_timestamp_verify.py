@@ -33,7 +33,7 @@ class TimestampVerificationError(RuntimeError):
 
 
 def parse_sec_header(text: str, expected_accession: str, expected_filed_date: str) -> dict[str, Any]:
-    """Parse and validate the SEC complete-submission header for one accession."""
+    """Parse and validate an SEC filing-index header for one accession."""
     accession_match = ACCESSION_RE.search(text[:200_000])
     accepted_match = ACCEPTANCE_RE.search(text[:200_000])
     filed_match = FILED_RE.search(text[:200_000])
@@ -58,10 +58,11 @@ def parse_sec_header(text: str, expected_accession: str, expected_filed_date: st
     accepted_utc = accepted_local.astimezone(UTC).isoformat()
     return {
         "verified": True,
-        "available_at": accepted_utc,
+        "acceptance_at": accepted_utc,
+        "acceptance_timestamp_verified": True,
         "acceptance_datetime_eastern": accepted_local.isoformat(),
         "header_filed_date": filed.isoformat(),
-        "timestamp_provenance": "sec_complete_submission_sgml_header",
+        "timestamp_provenance": "sec_filing_index_header_acceptance_datetime",
     }
 
 
@@ -109,7 +110,7 @@ def verify_dataset(
         user_agent or os.environ.get("SEC_USER_AGENT", DEFAULT_USER_AGENT)
     )))
     result = json.loads(json.dumps(dataset))
-    totals = {"attempted": 0, "verified": 0, "blocked": 0, "facts_timestamped": 0}
+    totals = {"attempted": 0, "verified": 0, "blocked": 0, "facts_acceptance_verified": 0}
     for company in result["companies"]:
         if not isinstance(company, dict):
             continue
@@ -133,8 +134,23 @@ def verify_dataset(
                 outcome = parse_sec_header(header, accession, str(filing["filed_date"]))
             except (SecDataError, ValueError) as exc:
                 outcome = {"verified": False, "reason": "source_fetch_or_input_error", "detail": str(exc)}
-            filing["availability_timestamp_verified"] = bool(outcome.get("verified"))
-            filing["available_at"] = outcome.get("available_at") if outcome.get("verified") else None
+            raw_timestamp = filing.get("raw_acceptance_timestamp")
+            raw_matches_header = None
+            if isinstance(raw_timestamp, str):
+                try:
+                    raw_parsed = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+                    if raw_parsed.tzinfo is not None and raw_parsed.utcoffset() is not None and outcome.get("verified"):
+                        difference = abs((raw_parsed.astimezone(UTC) - datetime.fromisoformat(outcome["acceptance_at"])).total_seconds())
+                        raw_matches_header = difference <= 1
+                        outcome["raw_timestamp_difference_seconds"] = difference
+                except ValueError:
+                    raw_matches_header = None
+            outcome["raw_timestamp_matches_header"] = raw_matches_header
+            filing["acceptance_timestamp_verified"] = bool(outcome.get("verified"))
+            filing["acceptance_at"] = outcome.get("acceptance_at") if outcome.get("verified") else None
+            # Acceptance time is not the exact time SEC.gov made content public.
+            filing["availability_timestamp_verified"] = False
+            filing["available_at"] = None
             filing["timestamp_verification"] = outcome
             filing["timestamp_provenance"] = outcome.get("timestamp_provenance", "unverified")
             if outcome.get("verified"):
@@ -148,19 +164,23 @@ def verify_dataset(
             accession = filing.get("accession")
             if accession in verified_by_accession:
                 outcome = verified_by_accession[accession]
-                filing["availability_timestamp_verified"] = True
-                filing["available_at"] = outcome["available_at"]
+                filing["acceptance_timestamp_verified"] = True
+                filing["acceptance_at"] = outcome["acceptance_at"]
+                filing["availability_timestamp_verified"] = False
+                filing["available_at"] = None
                 filing["timestamp_provenance"] = outcome["timestamp_provenance"]
         for fact in company.get("facts", []) if isinstance(company.get("facts"), list) else []:
             if not isinstance(fact, dict):
                 continue
             outcome = verified_by_accession.get(fact.get("accession"))
             if outcome:
-                fact["availability_timestamp_verified"] = True
-                fact["available_at"] = outcome["available_at"]
+                fact["acceptance_timestamp_verified"] = True
+                fact["acceptance_at"] = outcome["acceptance_at"]
+                # Do not substitute EDGAR acceptance time for public-web availability.
+                fact["availability_timestamp_verified"] = False
+                fact["available_at"] = None
                 fact["timestamp_provenance"] = outcome["timestamp_provenance"]
-                fact["raw_acceptance_timestamp"] = fact.get("raw_acceptance_timestamp")
-                totals["facts_timestamped"] += 1
+                totals["facts_acceptance_verified"] += 1
     result["timestamp_verification"] = {
         **totals,
         "scope": "bounded_latest_filings_per_company",
