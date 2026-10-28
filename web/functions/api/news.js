@@ -25,9 +25,20 @@ function parseItems(xml, source, limit = 10) {
 export async function onRequestGet({ request }) {
   const url = new URL(request.url);
   const ticker = (url.searchParams.get("ticker") || "").trim().toUpperCase();
+  const companyName = (url.searchParams.get("company") || "").trim().slice(0, 120);
   if (!TICKER_RE.test(ticker)) return Response.json({ error: "Enter a valid ticker." }, { status: 400 });
+  const cleanCompany = companyName.replace(/,?\s+(Inc\.?|Incorporated|Corp\.?|Corporation|Ltd\.?|Limited|PLC|LLC|Class [A-Z])\s*$/i, "").trim();
+  const matchesCompany = (item) => {
+    if (item.companyMatched === true) return true;
+    const title = String(item.title || "").toLowerCase();
+    const tickerTokens = title.toUpperCase().match(/[A-Z0-9.^=-]+/g) || [];
+    const symbolMatch = tickerTokens.includes(ticker);
+    const name = cleanCompany.toLowerCase();
+    return symbolMatch || (name.length >= 3 && title.includes(name));
+  };
   const yahooUrl = "https://feeds.finance.yahoo.com/rss/2.0/headline?s=" + encodeURIComponent(ticker) + "&region=US&lang=en-US";
-  const googleUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent(ticker + " stock OR company") + "&hl=en-US&gl=US&ceid=US:en";
+  const googleTerms = [ticker, cleanCompany].filter(Boolean).map(term => '"' + term.replace(/"/g, "") + '"').join(" OR ");
+  const googleUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent("(" + googleTerms + ") (stock OR shares OR earnings OR company)") + "&hl=en-US&gl=US&ceid=US:en";
   const results = await Promise.allSettled([
     fetch(yahooUrl, { headers: { "Accept": "application/rss+xml, application/xml, text/xml" } }),
     fetch(googleUrl, { headers: { "Accept": "application/rss+xml, application/xml, text/xml" } })
@@ -41,7 +52,7 @@ export async function onRequestGet({ request }) {
       sources.push({ name: source, status: "unavailable" });
       continue;
     }
-    const parsed = parseItems(await result.value.text(), source, 10);
+    const parsed = parseItems(await result.value.text(), source, 15).filter(matchesCompany);
     items.push(...parsed);
     sources.push({ name: source, status: "ok", count: parsed.length });
   }
@@ -67,7 +78,8 @@ export async function onRequestGet({ request }) {
           title: String(row.title),
           url: String(row.url).startsWith("http") ? row.url : "https://www.nasdaq.com" + row.url,
           publishedAt: row.created ? new Date(row.created).toISOString() : null,
-          source: row.publisher ? "Nasdaq · " + row.publisher : "Nasdaq"
+          source: row.publisher ? "Nasdaq · " + row.publisher : "Nasdaq",
+          companyMatched: true
         });
       }
       sources.push({ name: "Nasdaq company news", status: items.length ? "ok" : "no matching headlines", count: items.length });
@@ -75,11 +87,11 @@ export async function onRequestGet({ request }) {
       sources.push({ name: "Nasdaq company news", status: "unavailable" });
     }
   }
-  const unique = [...new Map(items.map(item => [item.url, item])).values()]
+  const unique = [...new Map(items.filter(matchesCompany).map(item => [item.url, item])).values()]
     .sort((a, b) => Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0))
     .slice(0, 15);
   return Response.json({
-    ticker, fetchedAt: new Date().toISOString(), items: unique, sources,
-    note: "Headlines are discovery signals, not verified facts or buy recommendations. Confirm material claims against filings or official statements."
+    ticker, company: companyName || null, fetchedAt: new Date().toISOString(), items: unique, sources,
+    note: "Only headlines matched to the verified company/ticker are shown. Headlines are discovery signals, not verified facts or buy recommendations. Confirm material claims against filings or official statements."
   }, { headers: { "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" } });
 }
