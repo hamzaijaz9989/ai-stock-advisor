@@ -1607,10 +1607,10 @@ function renderNews(payload) {
     list.append(card);
   }
 }
-async function loadNews(ticker) {
+async function loadNews(ticker, companyName="") {
   $("news-status").textContent="Loading…";
   try {
-    const response=await fetch("/api/news?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"}});
+    const response=await fetch("/api/news?ticker="+encodeURIComponent(ticker)+"&company="+encodeURIComponent(companyName),{headers:{"Accept":"application/json"}});
     if(!response.ok) throw new Error("News feeds unavailable");
     const payload=await response.json();
     renderNews(payload);
@@ -1674,7 +1674,7 @@ async function analyze(ticker) {
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
     analysisPhase="market data, history, news and earnings";
     const [quote,history,news,earnings,benchmarkHistory]=await Promise.all([
-      loadQuote(ticker),loadHistory(ticker),loadNews(ticker),loadEarnings(ticker),
+      loadQuote(ticker),loadHistory(ticker),loadNews(ticker,company.name),loadEarnings(ticker),
       fetch("/api/history?ticker=SPY",{headers:{"Accept":"application/json"}}).then(async response=>{if(!response.ok)throw new Error("S&P 500 benchmark unavailable");return response.json();}).catch(()=>null),
     ]);
     loadStrategyBacktest(ticker).catch(error=>{const status=$("strategy-backtest-status");const details=$("strategy-backtest-details");if(status)status.textContent="Unavailable";if(details)details.textContent=(error?.message||"Historical backtest unavailable")+". The main research report is unaffected.";});
