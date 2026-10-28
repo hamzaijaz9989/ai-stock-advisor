@@ -515,3 +515,5 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .decision-indicator.good::before { background: #62dc8b; box-shadow: 0 0 0 3px rgba(98,220,139,.13); }
 .decision-indicator.bad::before { background: #ff666d; box-shadow: 0 0 0 3px rgba(255,102,109,.13); }
 .decision-indicator.caution::before { background: #f4c15d; box-shadow: 0 0 0 3px rgba(244,193,93,.13); }
+
+#decision-checks::before { content: "GREEN = positive check   ·   RED = risk / failed check   ·   AMBER = needs review"; display: block; margin: 0 0 12px; padding: 11px 13px; border: 1px solid #303137; border-radius: 12px; background: #0b0b0d; color: #c4c5cb; font-size: 12px; line-height: 1.6; }
