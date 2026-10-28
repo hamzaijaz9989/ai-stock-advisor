@@ -35,7 +35,7 @@ Do not use synthetic examples as evidence of strategy performance. A report shou
 
 1. A licensed, complete, reproducible historical data bundle has not yet been wired in. PtData is a candidate for point-in-time corporate facts and historical index constituents; verify its terms and coverage. It does not alone supply every historical price, timestamped news and earnings input required here.
 2. The input builder must produce snapshots from source records; manual or today's revised values are not acceptable for historical dates.
-3. The current summary is a sequential-trade diagnostic, not a fully allocated overlapping portfolio equity curve. Do not interpret its drawdown as portfolio drawdown.
+3. The validator now includes a cash-only, single-position-at-a-time portfolio equity curve with fixed-dollar risk sizing, cash/notional limits, overlap skips and drawdown. This is deliberately conservative and does not simulate overlapping positions or margin.
 4. Fold construction currently uses unique snapshot dates as a calendar. Production validation should use the market's actual session calendar and maintain an untouched final holdout.
 5. Review uncertainty, confidence intervals, benchmark comparisons, parameter sensitivity and missing/delisted-stock coverage independently.
 6. The validated BUY gate remains disabled until these gaps are addressed and an independent reviewer approves a versioned report.
