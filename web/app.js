@@ -765,7 +765,9 @@ function renderEarningsResult(payload,quarter,expectedQuarter) {
   const actualRevenue=quarter.currentRevenue;
   const consensusRevenue=typeof estimates.consensusRevenue==="number"?estimates.consensusRevenue*1e6:null;
   const actualEps=quarter.currentEps;
-  const consensusEps=typeof estimates.consensusEps==="number"?estimates.consensusEps:null;\n  const consensusEpsBasis=String(estimates.epsBasis||"").toUpperCase();\n  const epsBasisKnown=["GAAP","NON-GAAP"].includes(consensusEpsBasis);
+  const consensusEps=typeof estimates.consensusEps==="number"?estimates.consensusEps:null;
+  const consensusEpsBasis=String(estimates.epsBasis||"").toUpperCase();
+  const epsBasisKnown=["GAAP","NON-GAAP"].includes(consensusEpsBasis);
   const revenueVariance=typeof actualRevenue==="number"&&typeof consensusRevenue==="number"&&consensusRevenue>0
     ?actualRevenue/consensusRevenue-1:null;
   const epsVariance=typeof actualEps==="number"&&typeof consensusEps==="number"&&Math.abs(consensusEps)>0
@@ -1140,7 +1142,8 @@ function renderFilings(submissions, company) {
     link.href = entry.href;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    const description=String(entry.description||"").trim();\n    link.textContent = description.toUpperCase().startsWith(entry.form) ? description : entry.form+" · "+description;
+    const description=String(entry.description||"").trim();
+    link.textContent = description.toUpperCase().startsWith(entry.form) ? description : entry.form+" · "+description;
     const meta = document.createElement("p");
     meta.className = "muted";
     meta.textContent = "Filed " + fmtDate(entry.filed) + (entry.reportDate ? " · Reporting period " + fmtDate(entry.reportDate) : "") + " · SEC EDGAR";
