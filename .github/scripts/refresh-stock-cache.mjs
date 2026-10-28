@@ -11,8 +11,9 @@ try {
   await page.locator("#ranking-disclosure > summary").click();
   await page.locator("#run-live-screen").click();
   await page.waitForFunction(() => {
-    const button = document.querySelector("#run-live-screen");
-    return button && !button.disabled && button.textContent.includes("Run live");
+    const status = document.querySelector("#screen-status")?.textContent || "";
+    const cards = document.querySelectorAll("#screen-results .screen-card").length;
+    return /\\d+ ranked|Screen interrupted/i.test(status) && (cards > 0 || /interrupted/i.test(status));
   }, null, { timeout: 12 * 60 * 1000 });
   const result = await page.evaluate(() => {
     const cards = [...document.querySelectorAll("#screen-results .screen-card")].slice(0,5).map(card => {
