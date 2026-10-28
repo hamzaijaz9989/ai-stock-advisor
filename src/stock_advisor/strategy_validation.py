@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Mapping
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from statistics import mean, stdev
 from typing import Any
 
@@ -50,6 +50,18 @@ def _day(value: Any, field: str) -> date:
     raise ValueError(f"{field} must be an ISO date.")
 
 
+def _timestamp(value: Any, field: str) -> datetime:
+    if not isinstance(value, str) or "T" not in value:
+        raise ValueError(f"{field} must be a full ISO timestamp with timezone.")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"{field} must be a valid ISO timestamp.") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError(f"{field} must include an explicit timezone offset.")
+    return parsed.astimezone(timezone.utc)
+
+
 def _finite(value: Any) -> float | None:
     if isinstance(value, bool) or value is None:
         return None
@@ -66,6 +78,9 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
     ticker = str(snapshot.get("ticker", "")).strip().upper()
     try:
         as_of = _day(snapshot.get("as_of_date"), "as_of_date")
+        as_of_timestamp = _timestamp(snapshot.get("as_of_timestamp"), "as_of_timestamp")
+        if as_of_timestamp.date() != as_of:
+            raise ValueError("as_of_timestamp date must match as_of_date.")
     except ValueError as exc:
         return {"eligible": False, "ticker": ticker, "as_of_date": str(snapshot.get("as_of_date", "")),
                 "failed_gates": [str(exc)]}
@@ -81,8 +96,8 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
     else:
         for key in REQUIRED_AVAILABILITY_FIELDS:
             try:
-                available_day = _day(availability.get(key), f"available_at.{key}")
-                if available_day > as_of:
+                available_at = _timestamp(availability.get(key), f"available_at.{key}")
+                if available_at > as_of_timestamp:
                     failed.append(f"lookahead_{key}")
             except ValueError:
                 failed.append(f"availability_{key}_missing_or_invalid")
@@ -237,8 +252,9 @@ def build_validation_report(
     signals, audit = generate_signals(rows)
     outcomes: list[TradeOutcome] = []
     missing_bars = 0
+    normalized_bars = {str(symbol).strip().upper(): list(bars) for symbol, bars in bars_by_symbol.items()}
     for signal in signals:
-        bars = bars_by_symbol.get(signal.symbol)
+        bars = normalized_bars.get(signal.symbol)
         if bars is None:
             missing_bars += 1
             continue
