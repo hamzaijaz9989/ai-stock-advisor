@@ -173,26 +173,8 @@ def collect_company(
     if not isinstance(submissions, Mapping) or not isinstance(companyfacts, Mapping):
         raise SecDataError(f"SEC returned an unexpected response for {normalized}.")
     acceptance = _acceptance_by_accession(submissions)
-    recent = submissions.get("filings", {}).get("recent", {})
-    historical_files = submissions.get("filings", {}).get("files", [])
-    # Older filing-history files provide filing dates/accessions but not necessarily
-    # acceptance timestamps. Do not pretend those dates are exact availability times.
-    for archive in historical_files:
-        if not isinstance(archive, Mapping) or not isinstance(archive.get("name"), str):
-            continue
-        archive_url = f"https://data.sec.gov/submissions/{archive['name']}"
-        try:
-            archived = fetch_json(archive_url)
-        except SecDataError:
-            continue
-        if not isinstance(archived, Mapping):
-            continue
-        for row in _filings_from_submissions({"filings": {"recent": archived}}, acceptance, cutoff):
-            if row["accession"] not in {item.get("accession") for item in _filings_from_submissions(submissions, acceptance, cutoff)}:
-                # Archive metadata is useful for filing chronology only; exact acceptance
-                # timestamps are attached only if separately known.
-                row["available_at"] = acceptance.get(row["accession"])
-                row["availability_timestamp_verified"] = row["available_at"] is not None
+    filings = _filings_from_submissions(submissions, acceptance, cutoff)
+    facts = _facts_from_companyfacts(companyfacts, acceptance, cutoff)
     return {
         "ticker": normalized,
         "cik": cik,
@@ -205,8 +187,12 @@ def collect_company(
         "quality": {
             "official_source": True,
             "fact_values_preserved_as_reported": True,
-            "exact_acceptance_timestamp_coverage": sum(bool(row["availability_timestamp_verified"]) for row in facts),
-            "facts_missing_exact_acceptance_timestamp": sum(not row["availability_timestamp_verified"] for row in facts),
+            "exact_acceptance_timestamp_coverage": sum(
+                bool(row["availability_timestamp_verified"]) for row in facts
+            ),
+            "facts_missing_exact_acceptance_timestamp": sum(
+                not row["availability_timestamp_verified"] for row in facts
+            ),
             "historical_index_membership_included": False,
             "prices_included": False,
             "news_and_earnings_calendar_included": False,
