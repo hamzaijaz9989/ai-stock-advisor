@@ -592,3 +592,15 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 
 /* Quote metadata is intentionally removed from the visible interface. */
 .quote-panel .quote-meta{display:none!important}
+
+/* Company-specific stock news impact review near the bottom of the analysis. */
+.stock-news-impact-list{display:grid;gap:12px}
+.stock-news-impact-item{border:1px solid var(--line);border-radius:16px;padding:16px;background:rgba(255,255,255,.018);display:grid;gap:10px}
+.stock-news-impact-item>a{font-weight:650;line-height:1.45;color:var(--text);text-decoration:none}
+.stock-news-impact-item>a:hover{text-decoration:underline}
+.stock-news-impact-explanation{margin:0;color:var(--muted);line-height:1.55}
+.stock-news-impact-badge{display:inline-flex;justify-self:start;border:1px solid var(--line);border-radius:999px;padding:5px 9px;font-size:11px;font-weight:750;letter-spacing:.02em}
+.impact-positive{color:#b8ef7b;border-color:rgba(184,239,123,.35)}
+.impact-negative{color:#ff9b9b;border-color:rgba(255,110,110,.35)}
+.impact-mixed,.impact-watch{color:#f0d17a;border-color:rgba(240,209,122,.35)}
+.impact-neutral{color:var(--muted)}
