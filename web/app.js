@@ -1125,9 +1125,10 @@ function renderBeginnerOverview(data) {
   setText("beginner-company-description",companyDescription(ticker));
   const quoteValid=typeof quote?.price==="number"&&quote.price>0;
   setText("beginner-price",quoteValid?fmtUsd(quote.price):"Price unavailable");
-  const marketState=String(quote?.marketState||"").toUpperCase();
-  const market=$("beginner-market-state");market.className="market-state "+(marketState==="REGULAR"?"market-open":["CLOSED","POST","POSTPOST","PRE","PREPRE"].includes(marketState)?"market-closed":"");
-  market.textContent=marketState==="REGULAR"?"Market open":["CLOSED","POST","POSTPOST","PRE","PREPRE"].includes(marketState)?"Market closed / outside regular hours":"Market status unknown";
+  const marketState=String(quote?.marketState||"").toUpperCase().replace(/[ _]/g,"-");
+  const marketClosed=["CLOSED","POST","POSTPOST","PRE","PREPRE","AFTER-HOURS","AFTERMARKET","PRE-MARKET","PREMARKET"].includes(marketState);
+  const market=$( "beginner-market-state" );market.className="market-state "+(marketState==="REGULAR"?"market-open":marketClosed?"market-closed":"");
+  market.textContent=marketState==="REGULAR"?"Market open":marketClosed?"Market closed / outside regular hours":"Market status unknown";
   let verdict="Not enough reliable data",verdictClass="unknown",why="The available evidence does not support a dependable stock decision.";
   if(state==="AVOID"){verdict="Risky: avoid for now";verdictClass="bad";why="The company's reported financial checks failed. "+reasonRule+".";}
   else if(!valuationDecisionReady||!quoteValid||!annualDataAvailable||!quarterlyDataAvailable){verdict="Not enough reliable data";verdictClass="unknown";why="At least one key price, valuation or financial input is missing, stale or cannot be matched safely. "+reasonRule+".";}
@@ -1144,7 +1145,8 @@ function renderBeginnerOverview(data) {
   const quoteFresh=quoteValid&&quoteAgeHours>=-2&&quoteAgeHours<=48&&!["1d","daily"].includes(String(quote?.interval||"").toLowerCase());
   const confidenceInputs=[quoteFresh,annualDataAvailable,quarterlyDataAvailable,Boolean(earnings?.verified),Boolean(history?.data?.length)];
   const coreCount=confidenceInputs.filter(Boolean).length;
-  const confidence=coreCount>=5?"high":coreCount>=3?"medium":"low";
+  const decisionConfidenceBlocked=!valuationDecisionReady||Boolean(gapCheck?.blocked)||!quoteFresh||!annualDataAvailable||!quarterlyDataAvailable;
+  const confidence=decisionConfidenceBlocked?"low":coreCount>=5?"high":coreCount>=3?"medium":"low";
   const confidenceReasons=[];
   if(!quoteFresh)confidenceReasons.push("quote is stale or has no exact timestamp");
   if(!annualDataAvailable)confidenceReasons.push("annual facts are not fully matched");
@@ -1152,7 +1154,7 @@ function renderBeginnerOverview(data) {
   if(!earnings?.verified)confidenceReasons.push("earnings date is not verified");
   if(!history?.data?.length)confidenceReasons.push("price history is unavailable");
   const confidenceBadge=$("beginner-confidence");confidenceBadge.className="confidence-badge confidence-"+confidence;
-  confidenceBadge.textContent="Data confidence: "+confidence[0].toUpperCase()+confidence.slice(1)+" ("+coreCount+"/5 inputs"+(confidenceReasons.length?"; "+confidenceReasons.slice(0,2).join(", "):"")+")";
+  confidenceBadge.textContent=(decisionConfidenceBlocked?"Decision confidence: Limited":"Decision confidence: "+confidence[0].toUpperCase()+confidence.slice(1))+" · "+coreCount+"/5 data checks"+(confidenceReasons.length?" · "+confidenceReasons.slice(0,2).join(", "):"");
   const health=annualFundamentalPass&&quarterlyPass?"Strong":(annualDataAvailable&&quarterlyDataAvailable&&(annualFundamentalPass||quarterlyPass)?"OK":annualDataAvailable&&quarterlyDataAvailable?"Weak":"Unknown");
   setText("score-business",health);
   setText("score-business-detail",annualDataAvailable&&quarterlyDataAvailable?"Annual revenue growth "+(annualRevenueGrowth*100).toFixed(1)+"%; latest quarter "+(quarter.revenueYoY===null?"YoY comparison unavailable":(quarter.revenueYoY*100).toFixed(1)+" YoY")+".":"Not enough matched annual and quarterly facts to score business health.");
