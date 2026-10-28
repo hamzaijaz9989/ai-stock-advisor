@@ -916,6 +916,21 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
     {label:"Historical validation",ok:false,detail:"Complete walk-forward and untouched holdout validation is not finished; any BUY shown remains provisional and unvalidated."}
   ];
+  const latestAssets=latestRevenue?annualSeries(observations,"assets").find(item=>item.end===latestRevenue.end):null;
+  const latestLiabilities=latestRevenue?annualSeries(observations,"liabilities").find(item=>item.end===latestRevenue.end):null;
+  const liquidityAvailable=Boolean(latestAssets&&latestLiabilities&&Number.isFinite(latestAssets.value)&&Number.isFinite(latestLiabilities.value));
+  const liquidityRatio=liquidityAvailable&&latestLiabilities.value>0?latestAssets.value/latestLiabilities.value:null;
+  const growthScreen={label:"Growth screen",ok:annualDataAvailable&&annualRevenueGrowth>=0&&quarterlyDataAvailable&&quarter.revenueYoY>=0,
+    detail:!annualDataAvailable||!quarterlyDataAvailable?"WARN — comparable annual or quarterly revenue is missing.": "Annual revenue growth "+(annualRevenueGrowth*100).toFixed(1)+"% (period ending "+latestRevenue.end+"); latest-quarter revenue YoY "+(quarter.revenueYoY*100).toFixed(1)+"% (period ending "+quarter.periodEnd+"). Rule: both must be >= 0%."};
+  const profitabilityScreen={label:"Profitability screen",ok:annualDataAvailable&&latestIncome.value>0&&latestFcf.value>0&&quarterlyDataAvailable&&quarter.currentIncome>0,
+    detail:!annualDataAvailable||!quarterlyDataAvailable?"WARN — comparable net income or FCF is missing.":"Annual net income "+fmtMoney(latestIncome.value)+" and approximate annual FCF "+fmtMoney(latestFcf.value)+" (period ending "+latestRevenue.end+"); latest-quarter net income "+fmtMoney(quarter.currentIncome)+". Rule: all reported values must be positive."};
+  const liquidityScreen={label:"Liquidity screen",ok:liquidityAvailable&&latestAssets.value>=latestLiabilities.value,
+    detail:!liquidityAvailable?"WARN — matched annual assets/liabilities are unavailable.":"Assets "+fmtMoney(latestAssets.value)+"; liabilities "+fmtMoney(latestLiabilities.value)+" (period ending "+latestRevenue.end+"); assets/liabilities "+(liquidityRatio===null?"not calculable":liquidityRatio.toFixed(2)+"x")+". Rule: assets must be >= liabilities. This is a broad balance-sheet check, not a current ratio."};
+  const cashFlowScreen={label:"Cash-flow screen",ok:annualDataAvailable&&latestFcf.value>0,
+    detail:!annualDataAvailable?"WARN — matched annual operating cash flow and capex are unavailable.":"Approximate FCF = operating cash flow minus absolute capex = "+fmtMoney(latestFcf.value)+" (period ending "+latestFcf.end+"). Rule: positive latest annual FCF; no TTM substitution is claimed."};
+  const eventRiskScreen={label:"Event-risk screen",ok:earningsVerified&&daysToEarnings>3&&flaggedHeadlines.length===0,
+    detail:!earningsVerified?"WARN — next earnings date is not verified.":daysToEarnings<=3?"FAIL — earnings expected within "+Math.max(0,Math.round(daysToEarnings))+" days.":flaggedHeadlines.length?"WARN — "+flaggedHeadlines.length+" recent headline(s) match risk keywords.":"No keyword-triggered risk headline found in recent timestamped coverage; this is not proof that no material event exists."};
+  dataChecks.push(growthScreen,profitabilityScreen,liquidityScreen,cashFlowScreen,eventRiskScreen);
   // Action labels are now active, but BUY is explicitly provisional/unvalidated.
   // This rule is conservative and is not evidence of a profitable strategy.
   const sellReview = fundamentalAvoid || flaggedHeadlines.length>0;
