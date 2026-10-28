@@ -95,8 +95,12 @@ def _filings_from_submissions(
             "form": recent["form"][index],
             "primary_document": recent["primaryDocument"][index] or None,
             "primary_document_description": recent["primaryDocDescription"][index] or None,
-            "available_at": acceptance.get(accession),
-            "availability_timestamp_verified": accession in acceptance,
+            "raw_acceptance_timestamp": acceptance.get(accession),
+            "available_at": None,
+            "availability_timestamp_verified": False,
+            "timestamp_provenance": (
+                "sec_submissions_json_unverified" if accession in acceptance else "missing"
+            ),
         })
     return rows
 
@@ -130,7 +134,7 @@ def _facts_from_companyfacts(
                         continue
                     if not isinstance(accession, str):
                         accession = None
-                    accepted_at = acceptance.get(accession) if accession else None
+                    raw_accepted_at = acceptance.get(accession) if accession else None
                     facts.append({
                         "namespace": namespace,
                         "concept": concept,
@@ -144,8 +148,12 @@ def _facts_from_companyfacts(
                         "form": observation.get("form"),
                         "filed_date": filed,
                         "accession": accession,
-                        "available_at": accepted_at,
-                        "availability_timestamp_verified": accepted_at is not None,
+                        "raw_acceptance_timestamp": raw_accepted_at,
+                        "available_at": None,
+                        "availability_timestamp_verified": False,
+                        "timestamp_provenance": (
+                            "sec_submissions_json_unverified" if raw_accepted_at else "missing"
+                        ),
                     })
     facts.sort(key=lambda row: (
         row["filed_date"], row["namespace"], row["concept"], row["period_end"] or "",
@@ -196,7 +204,10 @@ def collect_company(
             "exact_acceptance_timestamp_coverage": sum(
                 bool(row["availability_timestamp_verified"]) for row in facts
             ),
-            "facts_missing_exact_acceptance_timestamp": sum(
+            "facts_with_raw_acceptance_timestamp": sum(
+                bool(row.get("raw_acceptance_timestamp")) for row in facts
+            ),
+            "facts_missing_verified_acceptance_timestamp": sum(
                 not row["availability_timestamp_verified"] for row in facts
             ),
             "historical_index_membership_included": False,
@@ -207,7 +218,8 @@ def collect_company(
         "limitations": [
             "This is a source-ingestion bundle, not a complete strategy snapshot.",
             "SEC companyfacts may contain multiple contexts and later amendments; select facts by accession and availability timestamp before use.",
-            "Facts without exact acceptance timestamps must not be used in timestamp-sensitive historical signals.",
+            "SEC submissions JSON acceptanceDateTime values are retained as raw evidence but are not treated as verified: recent research has found inconsistent timezone interpretation across issuers and dates. Cross-check against the filing index or SGML header before assigning availability_at.",
+            "No fact in this bundle has a verified availability timestamp until independently reconciled against filing-level header/index evidence; do not use raw_acceptance_timestamp as an eligibility timestamp.",
             "The SEC feed does not provide daily prices, historical universe membership, timestamped news, or a complete earnings calendar.",
             "Filing history is limited to the recent submissions array; older archive files are not ingested by this initial version.",
         ],
