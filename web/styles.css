@@ -121,3 +121,15 @@ footer{color:#8394ad;border-top-color:rgba(145,171,207,.14)}
   .table-note{font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
+
+.holding-review{border:1px solid rgba(131,240,203,.2);background:linear-gradient(140deg,rgba(131,240,203,.055),rgba(12,21,36,.7));border-radius:15px;padding:17px;margin:18px 0 24px}
+.holding-review h3{font-size:17px;margin:0;letter-spacing:-.03em}
+.holding-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;margin-top:12px}
+.holding-fields label{font-size:11px;color:var(--muted);align-self:end}
+.holding-fields input{width:100%;min-width:0;background:#080f1c;border:1px solid #2a3c57;border-radius:9px;padding:11px;color:var(--text);font:inherit}
+.holding-fields button{grid-column:1/-1;justify-self:start;margin-top:5px}
+.holding-result{margin-top:13px;border:1px solid rgba(145,171,207,.15);border-radius:10px;padding:12px;color:var(--muted);font-size:12px;line-height:1.65}
+.holding-result strong{display:block;font-size:14px;color:var(--text);margin-bottom:3px}
+.holding-result.review{border-color:#88634a;background:rgba(136,99,74,.1)}
+.holding-result.hold{border-color:rgba(131,240,203,.25);background:rgba(131,240,203,.04)}
+@media(max-width:600px){.holding-fields{grid-template-columns:1fr}.holding-fields button{width:100%}}
