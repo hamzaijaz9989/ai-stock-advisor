@@ -1015,8 +1015,8 @@ function renderDecision({ticker,observations,facts,quote,history,news,earnings,q
   else if (dailySnapshot) state="WAIT";
   else if (insufficientData) state="INSUFFICIENT DATA";
   else if (gapCheck.blocked || !valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
-  else if ((quarterlyDataAvailable && !quarterlyPass) || flaggedHeadlines.length) state="WAIT";
   else if (fundamentalAvoid) state="AVOID";
+  else if (flaggedHeadlines.length) state="WAIT";
   else if (buySetupPass && !historicalValidationPass) state="BUY SETUP — UNVALIDATED";
   else if (buySetupPass && historicalValidationPass) state="BUY";
   else state="WAIT";
