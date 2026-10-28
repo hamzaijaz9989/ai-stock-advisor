@@ -1126,18 +1126,27 @@ function renderBeginnerOverview(data) {
   const revenue=ttmValue(observations,"revenue"),income=ttmValue(observations,"netIncome"),fcf=ttmFreeCashFlow(observations);
   const previousRevenue=annualSeries(observations,"revenue").slice(-2);
   const growth=previousRevenue.length===2&&previousRevenue[0].value>0?(previousRevenue[1].value/previousRevenue[0].value-1)*100:null;
+  const incomeSeries=annualSeries(observations,"netIncome").slice(-2);
+  const profitGrowth=incomeSeries.length===2&&Math.abs(incomeSeries[0].value)>0?(incomeSeries[1].value/incomeSeries[0].value-1)*100:null;
+  const fcfSeries=(()=>{const cashRows=annualSeries(observations,"operatingCashFlow"),capRows=annualSeries(observations,"capex");return cashRows.map(row=>{const cap=capRows.find(item=>item.start===row.start&&item.end===row.end&&item.unit===row.unit);return cap?{end:row.end,value:row.value-Math.abs(cap.value)}:null;}).filter(Boolean).slice(-2);})();
+  const fcfGrowth=fcfSeries.length===2&&Math.abs(fcfSeries[0].value)>0?(fcfSeries[1].value/fcfSeries[0].value-1)*100:null;
   const cash=latestFact(observations,"cash",true),currentDebt=latestFact(observations,"currentDebt",true),longDebt=latestFact(observations,"longTermDebt",true);
-  let debtValue=null,debtDate=null;
+  let debtValue=null,debtDate=null,debtTrend="Trend unavailable";
   if(cash&&currentDebt&&longDebt&&cash.end===currentDebt.end&&cash.end===longDebt.end){debtValue=currentDebt.value+longDebt.value-cash.value;debtDate=cash.end;}
   else if(cash&&longDebt&&cash.end===longDebt.end){debtValue=longDebt.value-cash.value;debtDate=cash.end;}
+  if(debtDate){
+    const priorCash=observations.filter(row=>row.key==="cash"&&!row.start&&row.end<debtDate&&row.value!==null).sort((a,b)=>b.end.localeCompare(a.end))[0];
+    const priorLong=priorCash&&observations.filter(row=>row.key==="longTermDebt"&&!row.start&&row.end===priorCash.end&&row.unit===priorCash.unit).sort((a,b)=>b.filed.localeCompare(a.filed))[0];
+    if(priorCash&&priorLong){const delta=(longDebt?.value||0)-priorLong.value-(cash.value-priorCash.value);debtTrend=delta>0?"↑ Net debt increased":delta<0?"↓ Net debt decreased":"→ Net debt unchanged";}
+  }
   const shares=annualSeries(observations,"dilutedShares").slice(-2);
-  let shareTrend="Unavailable";
-  if(shares.length===2&&shares[0].value>0) shareTrend=((shares[1].value/shares[0].value-1)*100>=0?"+":"")+((shares[1].value/shares[0].value-1)*100).toFixed(1)+"%";
+  let shareTrend="Trend unavailable";
+  if(shares.length===2&&shares[0].value>0) shareTrend=((shares[1].value/shares[0].value-1)*100>=0?"↑ ":"↓ ")+Math.abs((shares[1].value/shares[0].value-1)*100).toFixed(1)+"%";
   const formatTtm=(row)=>row&&Number.isFinite(row.value)?fmtMoney(row.value)+" · "+row.method:"Not enough reliable data";
   addBeginnerNumber(tiles,{label:"Sales · TTM",value:formatTtm(revenue),trend:growth===null?"Trend unavailable":(growth>=0?"↑ ":"↓ ")+growth.toFixed(1)+"% annual revenue growth",explain:"Sales are the money customers paid the company before subtracting expenses.",meta:revenue?"Period through "+fmtDate(revenue.end):"Input periods could not be matched."});
-  addBeginnerNumber(tiles,{label:"Profit · TTM",value:formatTtm(income),trend:income?(income.value>=0?"Positive reported profit":"Reported loss"):"Trend unavailable",explain:"Profit is what remains after the company records its expenses and other accounting items.",meta:income?"Period through "+fmtDate(income.end):"Input periods could not be matched."});
-  addBeginnerNumber(tiles,{label:"Cash generated · TTM",value:fcf&&Number.isFinite(fcf.value)?fmtMoney(fcf.value):"Not enough reliable data",trend:fcf?"Matched cash-flow periods":"Cash flow and capex periods do not match",explain:"Free cash flow estimates cash left after operating cash flow minus capital spending.",meta:fcf?"Through "+fmtDate(fcf.end)+" · "+fcf.method:"Operating cash flow and capex must have matching start and end dates."});
-  addBeginnerNumber(tiles,{label:"Cash vs debt",value:debtValue===null?"Not enough reliable data":(debtValue>0?fmtMoney(debtValue)+" net debt":fmtMoney(Math.abs(debtValue))+" net cash"),trend:debtDate?"Balance sheet as of "+fmtDate(debtDate):"Matching balance-sheet date unavailable",explain:"Net debt compares reported debt with cash; a positive net debt means debt exceeds cash.",meta:"Only same-date reported cash and debt are compared."});
+  addBeginnerNumber(tiles,{label:"Profit · TTM",value:formatTtm(income),trend:profitGrowth===null?"Trend unavailable":(profitGrowth>=0?"↑ ":"↓ ")+Math.abs(profitGrowth).toFixed(1)+"% annual profit trend",explain:"Profit is what remains after the company records its expenses and other accounting items.",meta:income?"Period through "+fmtDate(income.end):"Input periods could not be matched."});
+  addBeginnerNumber(tiles,{label:"Cash generated · TTM",value:fcf&&Number.isFinite(fcf.value)?fmtMoney(fcf.value):"Not enough reliable data",trend:fcfGrowth===null?(fcf?"Four matched periods":"Cash flow and capex periods do not match"):(fcfGrowth>=0?"↑ ":"↓ ")+Math.abs(fcfGrowth).toFixed(1)+"% annual FCF trend,explain:"Free cash flow estimates cash left after operating cash flow minus capital spending.",meta:fcf?"Through "+fmtDate(fcf.end)+" · "+fcf.method:"Operating cash flow and capex must have matching start and end dates."});
+  addBeginnerNumber(tiles,{label:"Cash vs debt",value:debtValue===null?"Not enough reliable data":(debtValue>0?fmtMoney(debtValue)+" net debt":fmtMoney(Math.abs(debtValue))+" net cash"),trend:debtDate?debtTrend:"Matching balance-sheet date unavailable",explain:"Net debt compares reported debt with cash; a positive net debt means debt exceeds cash.",meta:"Only same-date reported cash and debt are compared."});
   addBeginnerNumber(tiles,{label:"Growth vs last year",value:growth===null?"Not enough reliable data":(growth>=0?"+":"")+growth.toFixed(1)+"%",trend:"Annual revenue comparison",explain:"This compares the latest annual reported sales with the previous annual period.",meta:previousRevenue.length===2?fmtDate(previousRevenue[0].end)+" → "+fmtDate(previousRevenue[1].end):"Comparable annual periods unavailable."});
   addBeginnerNumber(tiles,{label:"Diluted share trend",value:shareTrend,trend:shares.length===2?"Weighted-average shares; not shares outstanding":"Two comparable annual observations unavailable",explain:"More diluted shares can reduce each existing share's portion of company earnings; this measure is weighted-average diluted shares, not the exact current share count.",meta:shares.length===2?"As of periods ended "+fmtDate(shares[0].end)+" and "+fmtDate(shares[1].end):"Comparable periods unavailable."});
   const riskRoot=$("beginner-risks");riskRoot.innerHTML="";
