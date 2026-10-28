@@ -69,7 +69,7 @@ def sec_responses():
 
 def test_collect_company_preserves_acceptance_time_and_excludes_future_filed_facts(sec_responses):
     company = collect_company(
-        "AAPL", sec_responses, lambda url: sec_responses[url], cutoff=date(2025, 2, 28)
+        "AAPL", sec_responses[SEC_TICKERS_URL], lambda url: sec_responses[url], cutoff=date(2025, 2, 28)
     )
     assert company["cik"] == "0000320193"
     assert len(company["filings"]) == 1
@@ -92,7 +92,7 @@ def test_missing_acceptance_timestamp_is_explicitly_unverified(sec_responses):
 
 def test_unknown_ticker_fails_closed(sec_responses):
     with pytest.raises(ValueError, match="not found"):
-        collect_company("NOTATICKER", sec_responses, lambda url: sec_responses[url], cutoff=date(2025, 2, 28))
+        collect_company("NOTATICKER", sec_responses[SEC_TICKERS_URL], lambda url: sec_responses[url], cutoff=date(2025, 2, 28))
 
 
 def test_dataset_requires_symbols():
