@@ -1609,7 +1609,11 @@ function renderNews(payload) {
     return {label:"Informational / impact unclear", cls:"impact-neutral", explanation:"The headline alone does not establish a clear positive or negative effect on the stock."};
   };
   const score = item => { const impact=getImpact(item); return (["impact-negative","impact-positive","impact-mixed"].includes(impact.cls)?3:impact.cls==="impact-watch"?2:0)+(material.test(item.title||"")?1:0); };
-  const sorted = [...items].sort((a,b)=>score(b)-score(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||"")));
+  // Keep the bottom impact feed distinct from the three overview headlines.
+  const overviewRoot = $("beginner-headlines");
+  const overviewUrls = new Set(overviewRoot ? [...overviewRoot.querySelectorAll("a")].map(a => a.href) : []);
+  const distinctItems = items.filter(item => !overviewUrls.has(item.url));
+  const sorted = [...distinctItems].sort((a,b)=>score(b)-score(a)||String(b.publishedAt||"").localeCompare(String(a.publishedAt||"")));
   for (const item of items) {
     const card=document.createElement("article"); card.className="news-item";
     const link=document.createElement("a"); link.href=item.url; link.target="_blank"; link.rel="noopener noreferrer"; link.textContent=item.title;
@@ -1617,6 +1621,11 @@ function renderNews(payload) {
     const date=item.publishedAt?new Date(item.publishedAt):null;
     meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Date unavailable");
     card.append(link,meta); list.append(card);
+  }
+  if (!sorted.length) {
+    const empty=document.createElement("p"); empty.className="empty";
+    empty.textContent="No additional company-specific stories beyond the top headlines were returned. The feed will not repeat headlines or invent news.";
+    impactRoot.append(empty);
   }
   for (const item of sorted) {
     const card=document.createElement("article"); card.className="stock-news-impact-item";
@@ -1629,7 +1638,7 @@ function renderNews(payload) {
     meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Date unavailable");
     card.append(badge,link,explanation,meta); impactRoot.append(card);
   }
-  if (impactStatus) impactStatus.textContent=items.length+" headlines reviewed";
+  if (impactStatus) impactStatus.textContent=sorted.length+" additional stories";
 }
 async function loadNews(ticker, companyName="") {
   $("news-status").textContent="Loading…";
