@@ -76,16 +76,21 @@ function evaluate(rows) {
     returns.push(ret);
     benchmark.push(last.adjustedClose/rows[entryIndex].adjustedClose-1);
   }
+  // Daily equity curve: a close signal is executed at the next session open.
+  // Apply assumed transaction costs on entry/exit dates, in addition to the trade log.
   const strategyDaily=[];
   let position=false;
   for (let i=1;i<rows.length;i++) {
-    if (i>SLOW) {
-      const pf=sma(rows,i-1,FAST),ps=sma(rows,i-1,SLOW),f=sma(rows,i,FAST),s=sma(rows,i,SLOW);
-      if (pf<=ps&&f> s) position=true;
-      else if (pf>=ps&&f<s) position=false;
+    let tradeCost=0;
+    if (i-1>=SLOW) {
+      const pf=sma(rows,i-2,FAST),ps=sma(rows,i-2,SLOW),f=sma(rows,i-1,FAST),s=sma(rows,i-1,SLOW);
+      const crossUp=[pf,ps,f,s].every(Number.isFinite)&&pf<=ps&&f>s;
+      const crossDown=[pf,ps,f,s].every(Number.isFinite)&&pf>=ps&&f<s;
+      if (!position&&crossUp) { position=true; tradeCost=cost; }
+      else if (position&&crossDown) { position=false; tradeCost=cost; }
     }
     const raw=rows[i].adjustedClose/rows[i-1].adjustedClose-1;
-    strategyDaily.push(position?raw:0);
+    strategyDaily.push((position?raw:0)-tradeCost);
   }
   const strategy=statsFromReturns(strategyDaily);
   const benchmarkAll=statsFromReturns(rows.slice(1).map((r,i)=>r.adjustedClose/rows[i].adjustedClose-1));
@@ -119,9 +124,12 @@ export async function onRequestGet({request}) {
     if(!rows) throw new Error("Five-year history unavailable: "+errors.join("; "));
     const spyRows= ticker==="SPY" ? rows : await fetchSeries("query1.finance.yahoo.com","SPY").catch(async()=>fetchSeries("query2.finance.yahoo.com","SPY"));
     const report=evaluate(rows);
-    const benchmark= ticker==="SPY" ? report.benchmarkBuyHold : statsFromReturns(spyRows.slice(1).map((r,i)=>r.adjustedClose/spyRows[i].adjustedClose-1));
+    const commonStart=ticker==="SPY"?rows[0].date:(rows[0].date>spyRows[0].date?rows[0].date:spyRows[0].date);
+    const commonEnd=ticker==="SPY"?rows[rows.length-1].date:(rows[rows.length-1].date<spyRows[spyRows.length-1].date?rows[rows.length-1].date:spyRows[spyRows.length-1].date);
+    const alignedSpy=spyRows.filter(row=>row.date>=commonStart&&row.date<=commonEnd);
+    const benchmark=alignedSpy.length>1?statsFromReturns(alignedSpy.slice(1).map((r,i)=>r.adjustedClose/alignedSpy[i].adjustedClose-1)):null;
     return Response.json({
-      ticker,source,benchmarkTicker:"SPY",startDate:rows[0].date,endDate:rows[rows.length-1].date,
+      ticker,source,benchmarkTicker:"SPY",startDate:rows[0].date,endDate:rows[rows.length-1].date,benchmarkStartDate:alignedSpy[0]?.date||null,benchmarkEndDate:alignedSpy[alignedSpy.length-1]?.date||null,
       observations:rows.length,fastSma:FAST,slowSma:SLOW,slippageAndCostBpsPerSide:COST_PER_SIDE,
       strategy:report.strategy,spyBuyHold:benchmark,
       trades:report.trades,completedTrades:report.completedTrades,openAtEnd:report.openAtEnd,
