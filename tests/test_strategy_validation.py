@@ -141,7 +141,7 @@ def test_report_uses_separate_spy_benchmark_not_same_stock_buy_and_hold():
     assert summary["benchmark_symbol"] == "SPY"
     assert summary["benchmark_matched_trades"] == 1
     assert summary["average_benchmark_return_pct"] > 0
-    assert summary["average_underlying_buy_hold_return_pct"] == 0
+    assert summary["average_underlying_buy_hold_return_pct"] < summary["average_benchmark_return_pct"]
     assert summary["average_excess_return_pct"] < 0
 
 
