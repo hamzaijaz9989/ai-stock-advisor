@@ -52,7 +52,7 @@ The dashboard's DCF and entry/risk levels are hypothetical scenarios with simpli
 
 ## Active decision labels (provisional)
 
-The dashboard now activates four decision states:
+The dashboard exposes six research decision states, including the separate provisional setup and the non-actionable review/wait states:
 - **BUY SETUP — UNVALIDATED:** only when timestamped price, valuation inputs, annual and quarterly quality screens, verified upcoming earnings date, timestamped recent news without risk-keyword flags, ATR risk reference, entry-zone conditions, minimum 2:1 reward/risk, and nonzero whole-share sizing all pass. This is a provisional research setup, not a validated BUY and not a guarantee.
 - **SELL REVIEW:** when the annual/quarterly quality screen fails or recent headlines contain potential material-risk keywords. It prompts source verification and is not an automatic order.
 - **HOLD:** the evidence does not support a provisional entry and no sell-review rule has fired.
