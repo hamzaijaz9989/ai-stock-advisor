@@ -1,4 +1,4 @@
-name: Fetch SEC historical source bundle
+name: Fetch SEC historical source bundle # retry after gzip response handling fix
 
 on:
   push:
