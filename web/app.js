@@ -6,21 +6,21 @@ const SEC_MAP_URL = "https://www.sec.gov/files/company_tickers_exchange.json";
 const SEC_DATA_URL = "https://data.sec.gov";
 const SEC_API = "/api/sec?path=";
 const METRICS = [
-  {label:"Revenue", tags:["Revenues","RevenueFromContractWithCustomerExcludingAssessedTax","SalesRevenueNet"], key:"revenue"},
+  {label:"Revenue", tags:["Revenues","RevenueFromContractWithCustomerExcludingAssessedTax","SalesRevenueNet","Revenue","RevenueFromContractsWithCustomers"], key:"revenue"},
   {label:"Net income", tags:["NetIncomeLoss","ProfitLoss"], key:"netIncome"},
-  {label:"Operating income", tags:["OperatingIncomeLoss"], key:"operatingIncome"},
+  {label:"Operating income", tags:["OperatingIncomeLoss","ProfitLossFromOperatingActivities"], key:"operatingIncome"},
   {label:"Total assets", tags:["Assets"], key:"assets"},
   {label:"Total liabilities", tags:["Liabilities"], key:"liabilities"},
-  {label:"Stockholders' equity", tags:["StockholdersEquity","StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"], key:"equity"},
-  {label:"Operating cash flow", tags:["NetCashProvidedByUsedInOperatingActivities"], key:"operatingCashFlow"},
-  {label:"Capital expenditures", tags:["PaymentsToAcquirePropertyPlantAndEquipment"], key:"capex"},
+  {label:"Stockholders' equity", tags:["StockholdersEquity","StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest","Equity"], key:"equity"},
+  {label:"Operating cash flow", tags:["NetCashProvidedByUsedInOperatingActivities","CashFlowsFromUsedInOperatingActivities"], key:"operatingCashFlow"},
+  {label:"Capital expenditures", tags:["PaymentsToAcquirePropertyPlantAndEquipment","PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"], key:"capex"},
   {label:"Weighted-average diluted shares", tags:["WeightedAverageNumberOfDilutedSharesOutstanding"], key:"dilutedShares"},
-  {label:"Diluted earnings per share (GAAP)", tags:["EarningsPerShareDiluted"], key:"dilutedEps"},
-  {label:"Cash and cash equivalents", tags:["CashAndCashEquivalentsAtCarryingValue","CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"], key:"cash"},
-  {label:"Current debt", tags:["LongTermDebtCurrent","ShortTermBorrowings","ShortTermDebtCurrent"], key:"currentDebt"},
-  {label:"Long-term debt", tags:["LongTermDebtNoncurrent","LongTermDebt","LongTermDebtAndFinanceLeaseObligationsNoncurrent"], key:"longTermDebt"},
-  {label:"Other non-operating income", tags:["NonoperatingIncomeExpense","OtherNonoperatingIncomeExpense"], key:"otherIncome"},
-  {label:"Income before taxes", tags:["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"], key:"pretaxIncome"},
+  {label:"Diluted earnings per share (GAAP)", tags:["EarningsPerShareDiluted","DilutedEarningsPerShare"], key:"dilutedEps"},
+  {label:"Cash and cash equivalents", tags:["CashAndCashEquivalentsAtCarryingValue","CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents","CashAndCashEquivalents"], key:"cash"},
+  {label:"Current debt", tags:["LongTermDebtCurrent","ShortTermBorrowings","ShortTermDebtCurrent","CurrentBorrowings"], key:"currentDebt"},
+  {label:"Long-term debt", tags:["LongTermDebtNoncurrent","LongTermDebt","LongTermDebtAndFinanceLeaseObligationsNoncurrent","NoncurrentBorrowings"], key:"longTermDebt"},
+  {label:"Other non-operating income", tags:["NonoperatingIncomeExpense","OtherNonoperatingIncomeExpense","OtherIncome"], key:"otherIncome"},
+  {label:"Income before taxes", tags:["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest","ProfitLossBeforeTax"], key:"pretaxIncome"},
   {label:"Shares outstanding", tags:["EntityCommonStockSharesOutstanding"], key:"commonShares", taxonomy:"dei"}
 ];
 const cache = new Map();
@@ -122,19 +122,23 @@ async function findCompany(ticker) {
   return [...unique.values()][0];
 }
 function getObservations(payload) {
-  const gaap=payload?.facts?.["us-gaap"];
-  if(!gaap||typeof gaap!=="object") throw new Error("SEC company facts response has no US-GAAP facts.");
+  const gaap=payload?.facts?.["us-gaap"]||{};
+  const ifrs=payload?.facts?.["ifrs-full"]||{};
+  if(!Object.keys(gaap).length&&!Object.keys(ifrs).length) throw new Error("SEC company facts response has no supported US-GAAP or IFRS facts.");
   const observations=[];
   for(const metric of METRICS) {
     let found=false;
     for(let tagRank=0;tagRank<metric.tags.length;tagRank++) {
-      const tag=metric.tags[tagRank], fact=(metric.taxonomy==="dei"?payload?.facts?.dei:gaap)?.[tag];
+      const tag=metric.tags[tagRank];
+      const taxonomies=metric.taxonomy?[metric.taxonomy]:["us-gaap","ifrs-full"];
+      const selectedFact=taxonomies.map(taxonomy=>({taxonomy,fact:(payload?.facts?.[taxonomy]||{})[tag]})).find(item=>item.fact?.units);
+      const fact=selectedFact?.fact;
       if(!fact?.units) continue;
       for(const [unit,values] of Object.entries(fact.units)) {
         if(!Array.isArray(values)) continue;
         for(const obs of values) {
           if(obs.val==null || !obs.end || !obs.filed || obs.filed>newYorkDateOnly() || obs.end>newYorkDateOnly()) continue;
-          observations.push({metric:metric.label,key:metric.key,tag,taxonomy:metric.taxonomy||"us-gaap",tagRank,unit,value:obs.val,start:obs.start||null,end:obs.end,filed:obs.filed,form:obs.form||"—",accession:obs.accn||"—",fy:obs.fy,fp:obs.fp,frame:obs.frame||""});
+          observations.push({metric:metric.label,key:metric.key,tag,taxonomy:selectedFact?.taxonomy||metric.taxonomy||"us-gaap",tagRank,unit,value:obs.val,start:obs.start||null,end:obs.end,filed:obs.filed,form:obs.form||"—",accession:obs.accn||"—",fy:obs.fy,fp:obs.fp,frame:obs.frame||""});
         }
       }
       found=true;
@@ -173,7 +177,7 @@ function renderMetrics(observations) {
 
 function annualSeries(observations, key) {
   const candidates = observations.filter(row => row.key === key && typeof row.value === "number" &&
-    row.form === "10-K" && row.start && row.end &&
+    ["10-K","20-F","40-F"].includes(row.form) && row.start && row.end &&
     (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 >= 329 &&
     (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 <= 399);
   const byEnd = new Map();
@@ -191,7 +195,7 @@ function annualSeries(observations, key) {
 }
 function quarterlySeries(observations, key) {
   const candidates = observations.filter(row => row.key === key &&
-    typeof row.value === "number" && ["10-Q","10-K"].includes(row.form) &&
+    typeof row.value === "number" && ["10-Q","10-K","6-K","40-F"].includes(row.form) &&
     row.start && row.end &&
     (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 >= 70 &&
     (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 <= 110);
@@ -983,7 +987,7 @@ function latestFact(observations,key,instant=false) {
     .sort((a,b)=>String(b.end).localeCompare(String(a.end))||String(b.filed).localeCompare(String(a.filed)))[0]||null;
 }
 function ytdRows(observations,key) {
-  return observations.filter(row=>row.key===key&&typeof row.value==="number"&&row.start&&row.end&&row.form==="10-Q"&&
+  return observations.filter(row=>row.key===key&&typeof row.value==="number"&&row.start&&row.end&&["10-Q","6-K"].includes(row.form)&&
     ["USD","SHARES","USD/SHARES"].includes(String(row.unit).toUpperCase())&&
     periodDurationDays(row)>=150&&periodDurationDays(row)<=300)
     .sort((a,b)=>a.end.localeCompare(b.end));
@@ -1638,12 +1642,12 @@ async function analyze(ticker) {
     const recentForms=submissions?.filings?.recent?.form||[];
     const supportedIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K","20-F","6-K","40-F"].includes(form));
     const usDomesticIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K"].includes(form));
-    if(usDomesticIndex<0&&recentForms.some(form=>["20-F","6-K"].includes(form))) throw new Error("UNSUPPORTED FOREIGN FILER: this version supports domestic SEC 10-K/10-Q/8-K workflows only. TSM and other foreign-filer reporting formats are not scored.");
+    const foreignFiler=usDomesticIndex<0&&recentForms.some(form=>["20-F","6-K","40-F"].includes(form));
     const observations=getObservations(facts);
     $("company-name").textContent=titleCaseCompanyName(company.name);
     const recentDate=supportedIndex>=0?submissions.filings.recent.filingDate?.[supportedIndex]:null;
     const recentForm=supportedIndex>=0?recentForms[supportedIndex]:null;
-    $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(recentDate?" · Most recent supported filing "+recentForm+" · "+fmtDate(recentDate):"");
+    $("company-meta").textContent=ticker+" · CIK "+company.cik+" · "+company.exchange+(recentDate?" · Most recent supported filing "+recentForm+" · "+fmtDate(recentDate):"")+(foreignFiler?" · Foreign filer; scores require matching IFRS/SEC periods":"");
     $("company-panel").classList.remove("hidden");
     renderMetrics(observations); renderFundamentalSnapshot(observations);
     const quarter=renderQuarterlySnapshot(observations);
