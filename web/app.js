@@ -1432,7 +1432,28 @@ function renderBeginnerOverview(data) {
   if(daysToEarnings!==null&&daysToEarnings<=7) risks.push({text:"Earnings are expected within "+Math.max(0,Math.round(daysToEarnings))+" day(s). Price swings may be larger than usual.",meta:"Event risk · "+((earnings?.events||[]).filter(event=>event.reportDate>=newYorkDateOnly()).sort((a,b)=>a.reportDate.localeCompare(b.reportDate))[0]?.reportDate||"date not verified")});
   if(gapCheck?.blocked) risks.push({text:"The current quote and simplified valuation are outside the comparison band; a price conclusion is withheld.",meta:"Valuation reliability risk"});
   if(oneOffFlag) risks.push({text:"Other non-operating income is more than 5% of pre-tax income; reported profit may include one-off or non-core items.",meta:"Same reported period ended "+fmtDate(other.end)});
-  for(const item of missingInputs||[]) risks.push({text:"Not verified: "+item,meta:"Data-confidence risk"});
+  for(const item of missingInputs||[]) {
+    const raw=String(item||"");
+    let title="Additional data required";
+    let detail=raw;
+    if(/free cash flow|dcf|discounted cash flow/i.test(raw)) {
+      title="DCF valuation unavailable";
+      detail="Free-cash-flow history does not meet the model's validation criteria. No DCF estimate is presented.";
+    } else if(/earnings|reporting date|calendar/i.test(raw)) {
+      title="Earnings date unconfirmed";
+      detail="The next reporting date could not be confirmed from the available calendar sources.";
+    } else if(/share.?count|shares outstanding/i.test(raw)) {
+      title="Share count needs confirmation";
+      detail="A sufficiently current, source-backed share count was not available for valuation.";
+    } else if(/benchmark|history|historical price/i.test(raw)) {
+      title="Market benchmark data incomplete";
+      detail="There is not enough validated benchmark history for a reliable market-relative comparison.";
+    } else if(/revenue|income|cash flow|financial/i.test(raw)) {
+      title="Financial data incomplete";
+      detail="Required financial inputs are missing or do not meet the report's validation criteria.";
+    }
+    risks.push({text:title,meta:detail});
+  }
   if(!risks.length) risks.push({text:"No high-priority automated warning was identified in the available inputs. This does not mean the stock is risk-free.",meta:"Limited automated screen"});
   for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.textContent=item.text;title.append(dot);const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
   const headlineRoot=$("beginner-headlines");headlineRoot.innerHTML="";
