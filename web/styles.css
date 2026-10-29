@@ -749,3 +749,8 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .signal-self-test-card.state-wait { border-color: #e8bd55; }
 .signal-self-test-card.state-sell { border-color: #ef5364; }
 @media (max-width: 520px) { .signal-self-test-grid { grid-template-columns: 1fr; } }
+
+/* Orange risk-lean state: distinct from a validated red SELL/AVOID state. */
+.price-gauge-status[data-tone="orange"]{color:#f2a23a;border-color:rgba(242,162,58,.5);background:rgba(242,162,58,.10)}
+.price-gauge-needle[data-tone="orange"]{background:#f2a23a}
+.price-gauge-needle[data-tone="orange"]:before{border-bottom-color:#f2a23a}
