@@ -1765,17 +1765,7 @@ function renderNews(payload) {
     card.append(link, meta);
     return card;
   };
-  for (const item of items.slice(0, 3)) list.append(makeCard(item, "news-item"));
-  if (!items.length) {
-    const empty = document.createElement("p");
-    empty.className = "empty";
-    empty.textContent = "No company-specific news was returned by the available feeds. This does not mean there is no news.";
-    list.append(empty);
-    if (impactRoot) impactRoot.append(empty.cloneNode(true));
-    if (impactStatus) impactStatus.textContent = "News unavailable";
-    return;
-  }
-  // Prefer source diversity first, then fill remaining slots with the newest available articles.
+  // Pick a publisher-diverse set before rendering either news panel; don't let one outlet dominate the visible headlines.
   const selected = [];
   const seenSources = new Set();
   for (const item of items) {
@@ -1789,6 +1779,16 @@ function renderNews(payload) {
     if (selected.length >= 8) break;
     if (!selected.some(existing => existing.url === item.url)) selected.push(item);
   }
+  for (const item of selected.slice(0, 3)) list.append(makeCard(item, "news-item"));
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "No company-specific news was returned by the available feeds. This does not mean there is no news.";
+    list.append(empty);
+    if (impactRoot) impactRoot.append(empty.cloneNode(true));
+    if (impactStatus) impactStatus.textContent = "News unavailable";
+    return;
+  }
   if (impactRoot) {
     if (selected.length < 5) {
       const note = document.createElement("p");
@@ -1799,6 +1799,17 @@ function renderNews(payload) {
     for (const item of selected) impactRoot.append(makeCard(item, "stock-news-impact-item"));
   }
   if (impactStatus) impactStatus.textContent = selected.length + " stories · " + new Set(selected.map(item => String(item.source || "").trim()).filter(Boolean)).size + " sources";
+  const feedStatuses = Array.isArray(payload?.sources) ? payload.sources : [];
+  if (impactRoot && feedStatuses.length) {
+    const feedNote = document.createElement("p");
+    feedNote.className = "news-availability-note";
+    const okFeeds = feedStatuses.filter(source => source.status === "ok").map(source => source.name);
+    const unavailableFeeds = feedStatuses.filter(source => source.status === "unavailable").map(source => source.name);
+    feedNote.textContent = "News feed check — returning results: " + (okFeeds.join(", ") || "none") +
+      (unavailableFeeds.length ? ". Unavailable: " + unavailableFeeds.join(", ") : "") +
+      ". Publisher labels reflect the article publisher when the feed provides it; discovery services are not the publisher.";
+    impactRoot.prepend(feedNote);
+  }
 }
 async function loadNews(ticker, companyName="") {
   $("news-status").textContent="Loading…";
