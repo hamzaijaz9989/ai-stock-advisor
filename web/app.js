@@ -1878,7 +1878,7 @@ $("suggest-stocks-button").addEventListener("click",()=>{
   $("ranking").scrollIntoView({behavior:"smooth",block:"start"});
   runScreen();
 });
-$("refresh-quote").addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
+$("refresh-quote")?.addEventListener("click",()=>loadQuote($("ticker").value.trim().toUpperCase()));
 $("save-research-snapshot").addEventListener("click",saveResearchSnapshot);
 $("export-research-csv").addEventListener("click",exportResearchCsv);
 function reviewHolding() {
