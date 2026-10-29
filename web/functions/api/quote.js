@@ -100,5 +100,51 @@ export async function onRequestGet({ request }) {
     const quoteTime = parseEasternQuoteLabel(quoteLabel);
     return Response.json({ticker, companyName:data.companyName || ticker, currency:primary.currency || "USD", exchange:data.exchange || "Unknown", price, previousClose:null, change:parseMoney(primary.netChange) ?? parseMoney(secondary.netChange), changePercent:parseMoney(primary.percentageChange) ?? parseMoney(secondary.percentageChange), quoteTime, quoteLabel, fetchedAt:new Date().toISOString(), marketState:data.marketStatus || "unknown", delayedOrRealtime:primary.isRealTime ? "Provider-labelled real-time; verify independently" : "Latest available quote; may be delayed", source:"Nasdaq quote API", interval:primary.isRealTime ? "provider-labelled real-time" : "latest available", warning:quoteTime ? "Quote timestamp interpreted from Nasdaq's Eastern Time label; verify price with your broker." : "Provider timestamp could not be normalized. Verify the price with your broker before acting."}, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
   } catch (error) { failures.push(String(error?.message || error)); }
-  return Response.json({ticker, error:"Current quote unavailable from all configured providers. Do not rely on a cached or guessed price.", fetchedAt:new Date().toISOString(), source:"Yahoo Finance / Nasdaq", providerErrors:failures}, {status:503, headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+  // Optional licensed providers: configure FINNHUB_API_KEY and/or FMP_API_KEY
+  // as Cloudflare Pages secrets. Never claim real-time unless the provider contract
+  // and response explicitly support it; timestamps are required for decision gating.
+  if (typeof env !== "undefined" && env.FINNHUB_API_KEY) {
+    try {
+      const response = await fetch("https://finnhub.io/api/v1/quote?symbol=" + encodeURIComponent(ticker) + "&token=" + encodeURIComponent(env.FINNHUB_API_KEY), {
+        headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(7000)
+      });
+      if (!response.ok) throw new Error("Finnhub returned HTTP " + response.status);
+      const raw = await response.json();
+      if (!(typeof raw?.c === "number" && raw.c > 0 && Number.isFinite(raw.t) && raw.t > 0)) throw new Error("Finnhub returned no timestamped current quote");
+      const quoteTime = new Date(raw.t * 1000).toISOString();
+      return Response.json({
+        ticker, companyName:ticker, currency:"USD", exchange:"Unknown",
+        price:raw.c, previousClose:typeof raw.pc === "number" ? raw.pc : null,
+        change:typeof raw.d === "number" ? raw.d : null,
+        changePercent:typeof raw.dp === "number" ? raw.dp : null,
+        quoteTime, fetchedAt:new Date().toISOString(), marketState:"unknown",
+        delayedOrRealtime:"Finnhub provider quote; entitlement-dependent, verify independently",
+        source:"Finnhub", interval:"provider quote",
+        warning:"Finnhub quote timestamp supplied by provider. Feed delay and display rights depend on your account plan; verify with your broker."
+      }, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
+    } catch (error) { failures.push("Finnhub: " + String(error?.message || error)); }
+  }
+  if (typeof env !== "undefined" && env.FMP_API_KEY) {
+    try {
+      const response = await fetch("https://financialmodelingprep.com/stable/quote?symbol=" + encodeURIComponent(ticker) + "&apikey=" + encodeURIComponent(env.FMP_API_KEY), {
+        headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(7000)
+      });
+      if (!response.ok) throw new Error("Financial Modeling Prep returned HTTP " + response.status);
+      const raw = await response.json();
+      const item = Array.isArray(raw) ? raw[0] : null;
+      if (!(typeof item?.price === "number" && item.price > 0 && Number.isFinite(item.timestamp) && item.timestamp > 0)) throw new Error("FMP returned no timestamped quote");
+      const quoteTime = new Date(item.timestamp * 1000).toISOString();
+      return Response.json({
+        ticker, companyName:item.name || ticker, currency:"USD", exchange:item.exchange || "Unknown",
+        price:item.price, previousClose:typeof item.previousClose === "number" ? item.previousClose : null,
+        change:typeof item.change === "number" ? item.change : null,
+        changePercent:typeof item.changePercentage === "number" ? item.changePercentage : null,
+        quoteTime, fetchedAt:new Date().toISOString(), marketState:"unknown",
+        delayedOrRealtime:"FMP provider quote; plan-dependent, verify independently",
+        source:"Financial Modeling Prep", interval:"provider quote",
+        warning:"FMP quote timestamp supplied by provider. Market-data freshness and display rights depend on your account plan; verify with your broker."
+      }, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
+    } catch (error) { failures.push("Financial Modeling Prep: " + String(error?.message || error)); }
+  }
+  return Response.json({ticker, error:"Current quote unavailable from all configured providers. Do not rely on a cached or guessed price.", fetchedAt:new Date().toISOString(), source:"Yahoo Finance / Nasdaq / optional Finnhub / optional Financial Modeling Prep", providerErrors:failures}, {status:503, headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }
