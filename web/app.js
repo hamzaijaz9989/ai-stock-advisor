@@ -1186,7 +1186,7 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
   if(!annualSeries(observations,"netIncome").length) missingFields.push("latest reported annual net income");
   if(!annualSeries(observations,"operatingCashFlow").length) missingFields.push("latest reported annual operating cash flow");
   if(!news||!Array.isArray(news.items)||news.items.length===0) missingFields.push("recent company-specific news from reputable publishers");
-  if(!earnings||!earnings.verified) missingFields.push("upcoming earnings date from a reliable source");
+  if(!earnings||!earnings.available) missingFields.push("upcoming earnings date or consensus expectations from a reliable source");
   if(!missingFields.length) return null;
   const nativeContext={
     availableAnnualMetrics:["revenue","netIncome","operatingCashFlow","capex","dilutedShares"].map(key=>({field:key,available:annualSeries(observations,key).length>0})),
