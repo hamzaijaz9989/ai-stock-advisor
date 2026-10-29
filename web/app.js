@@ -1177,7 +1177,7 @@ function companyDescription(ticker) {
   };
   return known[ticker]||"A concise business description is not available in Northstar's verified local descriptions. Check the company's official investor-relations profile.";
 }
-async function loadAiResearchFallback({ticker,company,observations,quote,news,earnings}) {
+async function loadAiResearchFallback({ticker,company,observations,quote,news,earnings,history,quarter,benchmarkHistory}) {
   const descriptionMissing=companyDescription(ticker).includes("not available");
   const missingFields=[];
   const coreGaps=[];
@@ -1195,12 +1195,23 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
   if(!annualSeries(observations,"revenue").length) { missingFields.push("latest reported annual revenue"); coreGaps.push("revenue"); }
   if(!annualSeries(observations,"netIncome").length) { missingFields.push("latest reported annual net income"); coreGaps.push("netIncome"); }
   if(!annualSeries(observations,"operatingCashFlow").length) { missingFields.push("latest reported annual operating cash flow"); coreGaps.push("operatingCashFlow"); }
-  // Low-priority context gaps are collected only when a core gap already justifies spending an AI research request.
-  if(descriptionMissing) missingFields.push("plain-English company business description and products/services");
-  if(!news||!Array.isArray(news.items)||news.items.length===0) missingFields.push("recent company-specific news from reputable publishers");
-  if(!earnings||!earnings.available) missingFields.push("upcoming earnings date or consensus expectations from a reliable source");
-  // Do not spend limited Gemini credits just to fill optional descriptions, news, or earnings-estimate gaps.
-  // Native data providers must be exhausted first; AI is called only after this analysis has exposed a core data gap.
+  if(!quarter||typeof quarter.currentRevenue!=="number"||typeof quarter.currentIncome!=="number") {
+    missingFields.push("latest reported quarterly revenue and net income, with fiscal period and filing date");
+    coreGaps.push("quarterly financial report");
+  }
+  if(!history||!Array.isArray(history.data)||history.data.length<60) {
+    missingFields.push("sufficient daily price history for trend and risk checks");
+    coreGaps.push("price history");
+  }
+  if(!benchmarkHistory||!Array.isArray(benchmarkHistory.data)||benchmarkHistory.data.length<30) {
+    missingFields.push("benchmark market history for market-relative context");
+    coreGaps.push("benchmark history");
+  }
+  // Any detected gap can justify fallback, but only after the native providers above have been queried.
+  if(descriptionMissing) { missingFields.push("plain-English company business description and products/services"); coreGaps.push("company description"); }
+  if(!news||!Array.isArray(news.items)||news.items.length===0) { missingFields.push("recent company-specific news from reputable publishers"); coreGaps.push("news"); }
+  if(!earnings||!earnings.available) { missingFields.push("upcoming earnings date or consensus expectations from a reliable source"); coreGaps.push("earnings"); }
+  // Preserve credits: only call AI when at least one concrete native-data gap has been detected.
   if(!coreGaps.length) return null;
   const nativeContext={
     availableAnnualMetrics:["revenue","netIncome","operatingCashFlow","capex","dilutedShares"].map(key=>({field:key,available:annualSeries(observations,key).length>0})),
@@ -1970,7 +1981,7 @@ async function analyze(ticker) {
     const earningsResult=await loadEarningsResult(ticker,reportedQuarter);
     renderEarningsResult(earningsResult,quarter,reportedQuarter);
     setActivityStage(3,"Checking any remaining research gaps against additional sources…");
-    await loadAiResearchFallback({ticker,company,observations,quote,news,earnings:earningsResult});
+    await loadAiResearchFallback({ticker,company,observations,quote,news,earnings:earningsResult,history,quarter,benchmarkHistory});
     setActivityStage(3,"Assessing financial health and valuation limits…");
     renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter});
     setActivityStage(4,"Preparing the decision explanation and next steps…");
