@@ -726,3 +726,10 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .price-gauge-labels .sell{color:#ff777e}.price-gauge-labels .wait{color:#f2cc72}.price-gauge-labels .buy{color:#65dd92}
 .price-gauge-message{font-size:13px;line-height:1.5;color:var(--muted,#b7b7c0);text-align:center;margin:13px 0 0;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)}
 @media(max-width:520px){.price-gauge{padding:15px 12px 13px;margin:14px 0 18px}.price-gauge-arc{height:clamp(100px,32vw,135px);max-width:310px}.price-gauge-labels{font-size:11px}}
+
+
+/* Temporarily hide the experimental stock shortlist and its navigation entry. */
+#ranking-disclosure,
+#market-scan-link {
+  display: none !important;
+}
