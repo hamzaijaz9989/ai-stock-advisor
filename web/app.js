@@ -1161,6 +1161,7 @@ function addBeginnerNumber(root,{label,value,trend,explain,meta=""}) {
 function renderBeginnerOverview(data) {
   const root=$("beginner-overview");root.classList.remove("hidden");
   const {ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome,annualFcf,missingInputs,flaggedHeadlines,daysToEarnings}=data;
+  const fundamentalPass=annualFundamentalPass&&quarterlyPass;
   setText("beginner-company-name",titleCaseCompanyName(company?.name||ticker)+" ("+ticker+")");
   setText("beginner-company-description",companyDescription(ticker));
   const quoteValid=typeof quote?.price==="number"&&quote.price>0;
