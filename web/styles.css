@@ -438,6 +438,9 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .answer-topline,.answer-price-row,.beginner-subhead { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .answer-card h2 { margin:12px 0 6px; font-size:clamp(23px,5vw,32px); letter-spacing:-.035em; }
 .answer-description { margin:0 0 18px; color:#c3c4cb; line-height:1.55; }
+.company-purpose { margin:14px 0 20px; padding:12px 14px 13px; border-left:3px solid #c8f34a; border-radius:0 10px 10px 0; background:rgba(200,243,74,.045); }
+.company-purpose-label { margin:0 0 6px; color:#c8f34a; font-size:11px; font-weight:800; letter-spacing:.11em; line-height:1.4; }
+.company-purpose .answer-description { margin:0; color:#e0e1e6; font-size:clamp(15px,3.8vw,18px); line-height:1.55; }
 .answer-price-row { justify-content:flex-start; flex-wrap:wrap; margin-top:8px; }
 .answer-price-row strong { font-size:clamp(26px,5vw,36px); letter-spacing:-.035em; }
 .market-state,.confidence-badge { display:inline-flex; align-items:center; gap:7px; padding:6px 10px; border:1px solid #38393f; border-radius:999px; color:#c4c5cb; font-size:11px; font-weight:700; }
