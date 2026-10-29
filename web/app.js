@@ -1197,6 +1197,21 @@ function renderBeginnerOverview(data) {
       why="The illustrative model value is above the quote, but Northstar's decision checks do not clear this stock for an entry. Review the missing data and risk warnings first.";
     }
   }
+  // One canonical decision drives the overview, meter and advisor card.
+  if(state==="AVOID"){verdict="AVOID — company-quality warning";verdictClass="bad";why="One or more configured company-quality checks failed. Review the failed metrics and original filings before reconsidering.";}
+  else if(state==="SELL REVIEW"){verdict="SELL REVIEW — verify risk";verdictClass="bad";why="Potential risk headlines require checking the original sources. This is a review flag, not an automatic sell instruction.";}
+  else if(state==="INSUFFICIENT DATA"){verdict="WAIT — insufficient verified data";verdictClass="unknown";why="Northstar cannot make a dependable decision until the required missing data is verified.";}
+  else if(state==="BUY SETUP — UNVALIDATED"){verdict="WAIT — buy setup not validated";verdictClass="caution";why="Some configured checks passed, but historical strategy validation is incomplete. This is not an approved BUY.";}
+  else if(state==="BUY"){verdict="BUY — validation checks passed";verdictClass="good";why="The configured checks and historical validation passed. Review risk and source data independently; this remains research, not a guarantee.";}
+  else if(state==="HOLD"){verdict="WAIT — no new buy signal";verdictClass="caution";why="The current evidence does not support a new entry. Reassess when the relevant price, valuation or risk conditions change.";}
+  else if(state==="WAIT"){
+    verdict="WAIT — no validated entry";verdictClass="caution";
+    if(gapCheck?.blocked){verdict="WAIT — valuation outside review band";why="The quote/model ratio is "+gapCheck.ratio.toFixed(2)+"×, outside the 0.40×–2.50× review band. This flags model reliability; it does not prove the stock is overpriced.";}
+    else if(!quoteCurrent){why=dailySnapshot?"The available price is a daily snapshot, not a verified current quote.":"A recent timestamped quote is not verified.";}
+    else if(!valuationDecisionReady){why="Valuation is not verified, so Northstar withholds fair value and entry levels.";}
+    else if(flaggedHeadlines.length){why="Potential risk headlines need source review before considering a new entry.";}
+    else if(daysToEarnings!==null&&daysToEarnings<=7){why="Earnings are expected within "+Math.max(0,Math.round(daysToEarnings))+" day(s); review the report and market reaction before entering.";}
+  }
   setText("beginner-verdict-title",verdict);setText("beginner-verdict-reason",why);
   const verdictBox=$("beginner-verdict");verdictBox.className="beginner-verdict verdict-"+verdictClass;
   const dot=$("beginner-verdict-dot");dot.className="meaning-dot "+verdictClass;
@@ -1243,35 +1258,6 @@ function renderBeginnerOverview(data) {
   for(const item of headlines){const card=document.createElement("article");card.className="beginner-list-item";const link=document.createElement("a");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;const meta=document.createElement("p");const date=item.publishedAt?new Date(item.publishedAt):null;meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Time unavailable");card.append(link,meta);headlineRoot.append(card);}
 }
 
-async function requestAiReasoning({ticker,decision,evidence}) {
-  const existing=$("northstar-ai-reasoning");
-  if(existing)existing.remove();
-  const card=document.createElement("section");
-  card.id="northstar-ai-reasoning";
-  card.className="beginner-verdict";
-  card.style.marginTop="14px";
-  const title=document.createElement("h3");title.textContent="NORTHSTAR AI REASONING";
-  const status=document.createElement("p");status.textContent="Checking the verified evidence…";
-  card.append(title,status);
-  const verdict=$("beginner-verdict");
-  if(verdict?.parentElement)verdict.insertAdjacentElement("afterend",card);
-  try {
-    const response=await fetch("/api/reasoning",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({ticker,decision,evidence})});
-    const result=await response.json();
-    if(!response.ok||!result.available)throw new Error(result.error||"AI reasoning unavailable");
-    title.textContent=result.headline;
-    status.remove();
-    const list=document.createElement("ul");
-    for(const reason of result.reasons){const li=document.createElement("li");li.textContent=reason;list.append(li);}
-    const risk=document.createElement("p");risk.textContent="Key risk: "+result.risk;
-    const quality=document.createElement("p");quality.textContent="Data quality: "+result.dataQuality;
-    const note=document.createElement("p");note.className="muted";note.textContent="AI-assisted explanation only. The rules-based verdict above is unchanged.";
-    card.append(list,risk,quality,note);
-  } catch(error) {
-    title.textContent="AI reasoning unavailable";
-    status.textContent="The Cloudflare Workers AI binding may not be configured yet. Northstar’s rules-based verdict remains active; no data or verdict was fabricated.";
-  }
-}
 function renderPriceGauge(decision) {
   const priceRow=$("beginner-price")?.parentElement;
   if(!priceRow)return;
@@ -1625,22 +1611,6 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   renderDecisionMeter(state);
   renderPriceGauge(state);
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
-  requestAiReasoning({ticker,decision:state,evidence:{
-    quote:currentPrice,
-    quoteFresh:quoteCurrent,
-    valuationAvailable:valuationDecisionReady,
-    valuationRatio:valuation.available&&currentPrice&&valuation.base>0?currentPrice/valuation.base:null,
-    annualRevenueGrowthPct:annualDataAvailable?annualRevenueGrowth*100:null,
-    quarterlyRevenueGrowthPct:quarterlyDataAvailable?quarter.revenueYoY*100:null,
-    annualNetIncomePositive:Boolean(annualDataAvailable&&latestIncome.value>0),
-    annualFreeCashFlowPositive:Boolean(annualDataAvailable&&latestFcf.value>0),
-    quarterlyNetIncomePositive:Boolean(quarterlyDataAvailable&&quarter.currentIncome>0),
-    earningsVerified,
-    daysToEarnings,
-    recentHeadlineCount:recentHeadlines.length,
-    flaggedHeadlineCount:flaggedHeadlines.length,
-    historyAvailable:Boolean(history?.data?.length),
-    missingChecks:missingInputs
   }});
 }
 function readResearchLog() {
