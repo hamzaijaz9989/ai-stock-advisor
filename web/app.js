@@ -1165,6 +1165,12 @@ function renderBeginnerOverview(data) {
   setText("beginner-company-name",titleCaseCompanyName(company?.name||ticker)+" ("+ticker+")");
   setText("beginner-company-description",companyDescription(ticker));
   const quoteValid=typeof quote?.price==="number"&&quote.price>0;
+  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
+  const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
+  const quoteInterval=String(quote?.interval||"").toLowerCase();
+  const quoteReliabilityLabel=String(quote?.delayedOrRealtime||"").toLowerCase();
+  const dailySnapshot=quoteInterval==="1d"||quoteReliabilityLabel.includes("daily interval")||quoteReliabilityLabel.includes("not real-time");
+  const quoteCurrent=quoteValid&&quoteAgeHours>=-2&&quoteAgeHours<=48&&!dailySnapshot;
   setText("beginner-price",quoteValid?fmtUsd(quote.price):"Price unavailable");
   const marketState=String(quote?.marketState||"").toUpperCase().replace(/[ _]/g,"-");
   const marketClosed=["CLOSED","POST","POSTPOST","PRE","PREPRE","AFTER-HOURS","AFTERMARKET","PRE-MARKET","PREMARKET"].includes(marketState);
@@ -1215,8 +1221,6 @@ function renderBeginnerOverview(data) {
   setText("beginner-verdict-title",verdict);setText("beginner-verdict-reason",why);
   const verdictBox=$("beginner-verdict");verdictBox.className="beginner-verdict verdict-"+verdictClass;
   const dot=$("beginner-verdict-dot");dot.className="meaning-dot "+verdictClass;
-  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
-  const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
   const quoteFresh=quoteValid&&quoteAgeHours>=-2&&quoteAgeHours<=48&&!["1d","daily"].includes(String(quote?.interval||"").toLowerCase());
   const confidenceInputs=[quoteFresh,annualDataAvailable,quarterlyDataAvailable,Boolean(earnings?.verified),Boolean(history?.data?.length)];
   const coreCount=confidenceInputs.filter(Boolean).length;
