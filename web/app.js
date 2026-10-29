@@ -1468,7 +1468,7 @@ function renderBeginnerOverview(data) {
   for(const item of headlines){const card=document.createElement("article");card.className="beginner-list-item";const link=document.createElement("a");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;const meta=document.createElement("p");const date=item.publishedAt?new Date(item.publishedAt):null;meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Time unavailable");card.append(link,meta);headlineRoot.append(card);}
 }
 
-function renderPriceGauge(decision, positiveLean=false) {
+function renderPriceGauge(decision, positiveLean=false, negativeLean=false) {
   const priceRow=$("beginner-price")?.parentElement;
   if(!priceRow)return;
   let gauge=$("beginner-price-gauge");
@@ -1503,7 +1503,12 @@ function renderPriceGauge(decision, positiveLean=false) {
   const signal={...(signals[decision]||signals["WAIT"])};
   // A positive tilt communicates only that the available business evidence leans constructive.
   // It never changes the official decision or bypasses valuation/data/validation gates.
-  if(decision==="WAIT" && positiveLean) {
+  if(decision==="WAIT" && negativeLean) {
+    signal.angle=-22;
+    signal.label="WAIT · RISK LEAN";
+    signal.tone="orange";
+    signal.message="Risk evidence is elevated or unresolved. The needle leans toward SELL for caution, but WAIT remains the official decision.";
+  } else if(decision==="WAIT" && positiveLean) {
     signal.angle=22;
     signal.label="WAIT · LEAN BUY";
     signal.tone="caution";
@@ -1792,8 +1797,9 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
-  const positiveBusinessLean = !fundamentalAvoid && annualFundamentalPass && quarterlyPass && flaggedHeadlines.length===0;
-  renderPriceGauge(state, positiveBusinessLean);
+  const negativeEvidenceLean = fundamentalAvoid || flaggedHeadlines.length>0 || (annualDataAvailable && latestIncome.value<=0) || (quarterlyDataAvailable && quarter.currentIncome<=0);
+  const positiveBusinessLean = !negativeEvidenceLean && !fundamentalAvoid && annualFundamentalPass && quarterlyPass && flaggedHeadlines.length===0;
+  renderPriceGauge(state, positiveBusinessLean, negativeEvidenceLean);
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
 }
 function readResearchLog() {
