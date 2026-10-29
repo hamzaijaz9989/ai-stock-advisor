@@ -1252,6 +1252,41 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
     return payload;
   } catch { return null; }
 }
+function renderNorthstarQualityAudit({ticker,quote,history,benchmarkHistory,observations,news,earnings,quarter}) {
+  const panel=$("northstar-quality-panel"),root=$("northstar-quality-findings");
+  if(!panel||!root) return;
+  root.innerHTML="";
+  const issues=[];
+  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
+  const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
+  const quoteInterval=String(quote?.interval||"").toLowerCase();
+  const quoteLabel=String(quote?.delayedOrRealtime||"").toLowerCase();
+  const quoteIsDaily=quoteInterval==="1d"||quoteLabel.includes("daily interval")||quoteLabel.includes("not real-time");
+  if(!(typeof quote?.price==="number"&&quote.price>0)) issues.push("Current quote is unavailable or invalid.");
+  else if(quoteAgeHours>48||quoteAgeHours < -2||quoteIsDaily) issues.push("Quote may be stale, daily-only, or not suitable as a current intraday price.");
+  if(!annualSeries(observations,"revenue").length) issues.push("Annual revenue is missing from native SEC-derived observations.");
+  if(!annualSeries(observations,"netIncome").length) issues.push("Annual net income is missing from native SEC-derived observations.");
+  if(!annualSeries(observations,"operatingCashFlow").length) issues.push("Annual operating cash flow is missing from native SEC-derived observations.");
+  if(!quarter||typeof quarter.currentRevenue!=="number"||typeof quarter.currentIncome!=="number") issues.push("Comparable quarterly revenue and net income are not both available.");
+  if(!Array.isArray(history?.data)||history.data.length<60) issues.push("Price-history coverage is limited; technical/risk checks may be withheld.");
+  if(!Array.isArray(benchmarkHistory?.data)||benchmarkHistory.data.length<30) issues.push("Benchmark history is limited; market-relative context may be incomplete.");
+  if(!Array.isArray(news?.items)||news.items.length===0) issues.push("No recent company-specific headlines were returned by native news feeds.");
+  if(!earnings||!earnings.available) issues.push("Native earnings calendar or consensus data is unavailable or not verified.");
+  const status=issues.length===0?"Core checks passed":" "+issues.length+" issue"+(issues.length===1?"":"s")+" detected";
+  setText("northstar-quality-status",issues.length===0?"Core checks passed":issues.length+" issue"+(issues.length===1?"":"s"));
+  setText("northstar-quality-summary",issues.length===0
+    ?"Core completeness checks passed for "+ticker+". This is not a guarantee that every source is exhaustive or every figure is error-free."
+    :"Northstar found "+issues.length+" data-quality limitation"+(issues.length===1?"":"s")+" for "+ticker+". Missing information is shown rather than silently guessed. AI fallback may be considered only after native checks.");
+  for(const issue of issues){const p=document.createElement("p");p.className="muted";p.textContent="• "+issue;root.append(p);}
+  if(!issues.length){const p=document.createElement("p");p.textContent="No core data gaps detected by these automated checks. Continue to review source dates and filing periods.";root.append(p);}
+  panel.classList.remove("hidden");
+  try {
+    const key="northstar-quality-audit-v1";
+    const prior=JSON.parse(localStorage.getItem(key)||"[]");
+    const record={ticker,checkedAt:new Date().toISOString(),issueCount:issues.length,issues:issues.slice(0,12)};
+    localStorage.setItem(key,JSON.stringify([record,...(Array.isArray(prior)?prior:[])].slice(0,50)));
+  } catch {}
+}
 function setText(id,value) { const el=$(id); if(el)el.textContent=value; }
 function addBeginnerNumber(root,{label,value,trend,explain,meta=""}) {
   const tile=document.createElement("article");tile.className="beginner-number-tile";
@@ -1984,6 +2019,7 @@ async function analyze(ticker) {
     await loadAiResearchFallback({ticker,company,observations,quote,news,earnings:earningsResult,history,quarter,benchmarkHistory});
     setActivityStage(3,"Assessing financial health and valuation limits…");
     renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter});
+    renderNorthstarQualityAudit({ticker,quote,history,benchmarkHistory,observations,news,earnings,quarter});
     setActivityStage(4,"Preparing the decision explanation and next steps…");
     setMessage("Research checks complete for "+company.name+". Read the Bottom line for the decision and next step; model-based levels appear only when input and quote checks pass.","success");
     finishActivity("All available checks finished. Review the evidence and any warnings.");
