@@ -6,19 +6,18 @@ import test from "node:test";
 const source = readFileSync(new URL("../web/app.js", import.meta.url), "utf8");
 
 function makeElement(id = "") {
-  const element = {
-    id, textContent: "", innerHTML: "", className: "", disabled: false, dataset: {}, children: [],
+  return {
+    id,
+    textContent: "",
+    innerHTML: "",
+    className: "",
+    disabled: false,
+    dataset: {},
+    children: [],
+    classList: { add() {}, remove() {} },
     append(...children) { this.children.push(...children); },
-    addEventListener() {},
-    setAttribute(name, value) { this[name] = value; }
+    addEventListener() {}
   };
-  element.classList = {
-    add(name) { const parts = new Set(element.className.split(/\s+/).filter(Boolean)); parts.add(name); element.className = [...parts].join(" "); },
-    remove(name) { const parts = new Set(element.className.split(/\s+/).filter(Boolean)); parts.delete(name); element.className = [...parts].join(" "); },
-    contains(name) { return element.className.split(/\s+/).includes(name); },
-    toggle(name) { if (this.contains(name)) { this.remove(name); return false; } this.add(name); return true; }
-  };
-  return element;
 }
 
 function loadAppFunctions(fetchImpl = null) {
@@ -538,6 +537,10 @@ test("signal indicator self-test previews BUY, WAIT, and SELL without changing t
   const panel = app.document.getElementById("signal-self-test-panel");
   const button = app.document.getElementById("signal-self-test-button");
   panel.className = "hidden";
+  panel.classList = {
+    contains(name) { return panel.className.split(/\\s+/).includes(name); },
+    toggle(name) { if (this.contains(name)) { panel.className = panel.className.split(/\\s+/).filter(part => part !== name).join(" "); return false; } panel.className = [panel.className, name].filter(Boolean).join(" "); return true; }
+  };
   assert.equal(typeof app.renderSignalIndicatorSelfTest, "function");
   assert.equal(app.renderSignalIndicatorSelfTest(), true);
   assert.equal(panel.classList.contains("hidden"), false);
