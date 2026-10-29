@@ -1318,12 +1318,17 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   if(!earningsVerified) missingInputs.push("a verified upcoming earnings date");
   if(!recentHeadlines.length) missingInputs.push("recent timestamped news coverage");
   if(atr===null||!Number.isFinite(atr)) missingInputs.push("complete daily high/low price history for risk measurement");
-  const insufficientData=missingInputs.length>0;
+  // Overall research coverage uses five core checks. Three or more supports a
+  // useful, caveated overview; trade/valuation gates below remain independently strict.
+  const researchCoverageCount=[quoteCurrent,annualDataAvailable,quarterlyDataAvailable,earningsVerified,Boolean(history?.data?.length)].filter(Boolean).length;
+  const decisionInputsIncomplete=missingInputs.length>0;
+  const insufficientData=researchCoverageCount<=2;
   let state;
   if (fundamentalAvoid) state="AVOID";
   else if (dailySnapshot) state="WAIT";
   else if (gapCheck.blocked) state="WAIT";
   else if (insufficientData) state="INSUFFICIENT DATA";
+  else if (decisionInputsIncomplete) state="WAIT";
   else if (!valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
   else if (flaggedHeadlines.length) state="WAIT";
   else if (buySetupPass && !historicalValidationPass) state="BUY SETUP — UNVALIDATED";
@@ -1332,7 +1337,8 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":
     dailySnapshot?"Provider supplied a daily-bar snapshot, not a verified current quote":
     gapCheck.blocked?"Valuation model outside the 0.40×–2.50× review band"+(missingInputs.length?"; also missing: "+missingInputs.join("; "):""):
-    insufficientData?"Missing required inputs: "+missingInputs.join("; "):
+    insufficientData?"Only "+researchCoverageCount+"/5 core research checks passed; missing: "+missingInputs.join("; "):
+    decisionInputsIncomplete?"Analysis available with "+researchCoverageCount+"/5 core checks; decision-specific inputs still need verification: "+missingInputs.join("; "):
     daysToEarnings!==null&&daysToEarnings<=3?"Earnings event is within 3 calendar days":
     !valuationDecisionReady?"Valuation decision gate is not satisfied":
     flaggedHeadlines.length?"Potential material-risk headline requires primary-source review":
