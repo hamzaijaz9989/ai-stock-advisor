@@ -101,13 +101,15 @@ test("annualSeries keeps unambiguous annual values and sorts chronologically", (
   assert.equal(series[2].value, 600e9);
 });
 
-test("annualSeries excludes conflicting same-period values", () => {
+test("annualSeries resolves same-period conflicts using the latest-filed official observation", () => {
   const app = loadAppFunctions();
   const rows = annualFixtures();
   rows.push(obs("revenue", 610e9, "2024-01-01", "2024-12-31", "10-K", "USD", "2025-02-15"));
   const series = app.annualSeries(rows, "revenue");
-  assert.equal(series.length, 2);
-  assert.ok(!series.some(row => row.end === "2024-12-31"));
+  assert.equal(series.length, 3);
+  const latest = series.find(row => row.end === "2024-12-31");
+  assert.equal(latest.value, 610e9);
+  assert.equal(latest.filed, "2025-02-15");
 });
 
 test("quarterlySeries selects three-month disclosures and matches the prior year", () => {
