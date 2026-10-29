@@ -33,7 +33,7 @@ export async function onRequestGet({ request, env }) {
   const ticker = (url.searchParams.get("ticker") || "").trim().toUpperCase();
   const companyName = (url.searchParams.get("company") || "").trim().slice(0, 120);
   if (!TICKER_RE.test(ticker)) return Response.json({ error: "Enter a valid ticker." }, { status: 400 });
-  const cleanCompany = companyName.replace(/,?\s+(Inc\\.?|Incorporated|Corp\\.?|Corporation|Ltd\\.?|Limited|PLC|LLC|Class [A-Z])\s*$/i, "").trim();
+  const cleanCompany = companyName.replace(/,?\s+(Inc\.?|Incorporated|Corp\.?|Corporation|Ltd\.?|Limited|PLC|LLC|Class [A-Z])\s*$/i, "").trim();
   const companyAliases = {
     AAPL: /\b(apple|iphone|ipad|macbook|mac\b|ios|app store|apple watch|airpods|tim cook)\b/i,
     MSFT: /\b(microsoft|windows|azure|office 365|satya nadella)\b/i,
