@@ -1272,6 +1272,44 @@ async function requestAiReasoning({ticker,decision,evidence}) {
     status.textContent="The Cloudflare Workers AI binding may not be configured yet. Northstar’s rules-based verdict remains active; no data or verdict was fabricated.";
   }
 }
+function renderPriceGauge(decision) {
+  const priceRow=$("beginner-price")?.parentElement;
+  if(!priceRow)return;
+  let gauge=$("beginner-price-gauge");
+  if(!gauge){
+    gauge=document.createElement("section");
+    gauge.id="beginner-price-gauge";
+    gauge.className="price-gauge";
+    gauge.setAttribute("aria-label","Northstar buy wait sell signal meter");
+    const top=document.createElement("div");top.className="price-gauge-top";
+    const label=document.createElement("p");label.className="eyebrow";label.textContent="NORTHSTAR SIGNAL";
+    const status=document.createElement("span");status.className="price-gauge-status";status.textContent="Research only";
+    top.append(label,status);
+    const arc=document.createElement("div");arc.className="price-gauge-arc";
+    const needle=document.createElement("div");needle.id="price-gauge-needle";needle.className="price-gauge-needle";
+    const hub=document.createElement("div");hub.className="price-gauge-hub";
+    arc.append(needle,hub);
+    const labels=document.createElement("div");labels.className="price-gauge-labels";
+    for(const [word,cls] of [["SELL","sell"],["WAIT","wait"],["BUY","buy"]]){const span=document.createElement("span");span.className=cls;span.textContent=word;labels.append(span);}
+    const message=document.createElement("p");message.id="price-gauge-message";message.className="price-gauge-message";
+    gauge.append(top,arc,labels,message);
+    priceRow.insertAdjacentElement("afterend",gauge);
+  }
+  const signals={
+    "AVOID":{angle:-68,label:"AVOID",tone:"sell",message:"A company-quality check failed. Review the failed evidence."},
+    "SELL REVIEW":{angle:-55,label:"SELL REVIEW",tone:"sell",message:"Verify the risk warning in original sources before deciding."},
+    "WAIT":{angle:0,label:"WAIT",tone:"wait",message:"No validated buy signal. Resolve valuation or data warnings first."},
+    "INSUFFICIENT DATA":{angle:0,label:"WAIT",tone:"wait",message:"Not enough verified evidence to support a buy decision."},
+    "HOLD":{angle:0,label:"WAIT",tone:"wait",message:"No validated new-entry signal is present."},
+    "BUY SETUP — UNVALIDATED":{angle:26,label:"UNVALIDATED",tone:"caution",message:"Some checks may pass, but historical validation is incomplete. Not an approved BUY."},
+    "BUY":{angle:65,label:"BUY",tone:"buy",message:"Configured checks passed. Independently review risk; research only."}
+  };
+  const signal=signals[decision]||signals["WAIT"];
+  const needle=$("price-gauge-needle");needle.style.transform="translateX(-50%) rotate("+signal.angle+"deg)";needle.dataset.tone=signal.tone;
+  const status=gauge.querySelector(".price-gauge-status");status.textContent=signal.label;status.dataset.tone=signal.tone;
+  $("price-gauge-message").textContent=signal.message;
+  gauge.dataset.tone=signal.tone;
+}
 function renderDecisionMeter(decision) {
   const hero=$("decision-hero");
   if(!hero)return;
@@ -1585,6 +1623,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
   renderDecisionMeter(state);
+  renderPriceGauge(state);
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
   requestAiReasoning({ticker,decision:state,evidence:{
     quote:currentPrice,
