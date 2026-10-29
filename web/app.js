@@ -13,7 +13,7 @@ const METRICS = [
   {label:"Total liabilities", tags:["Liabilities"], key:"liabilities"},
   {label:"Stockholders' equity", tags:["StockholdersEquity","StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest","Equity"], key:"equity"},
   {label:"Operating cash flow", tags:["NetCashProvidedByUsedInOperatingActivities","CashFlowsFromUsedInOperatingActivities"], key:"operatingCashFlow"},
-  {label:"Capital expenditures", tags:["PaymentsToAcquirePropertyPlantAndEquipment","PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"], key:"capex"},
+  {label:"Capital expenditures", tags:["PaymentsToAcquirePropertyPlantAndEquipment","PaymentsToAcquireProductiveAssets","PaymentsToAcquirePropertyPlantAndEquipmentAndIntangibleAssets","PaymentsToAcquirePropertyPlantAndEquipmentAndOtherProductiveAssets","PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"], key:"capex"},
   {label:"Weighted-average diluted shares", tags:["WeightedAverageNumberOfDilutedSharesOutstanding"], key:"dilutedShares"},
   {label:"Diluted earnings per share (GAAP)", tags:["EarningsPerShareDiluted","DilutedEarningsPerShare"], key:"dilutedEps"},
   {label:"Cash and cash equivalents", tags:["CashAndCashEquivalentsAtCarryingValue","CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents","CashAndCashEquivalents"], key:"cash"},
