@@ -1243,6 +1243,35 @@ function renderBeginnerOverview(data) {
   for(const item of headlines){const card=document.createElement("article");card.className="beginner-list-item";const link=document.createElement("a");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;const meta=document.createElement("p");const date=item.publishedAt?new Date(item.publishedAt):null;meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Time unavailable");card.append(link,meta);headlineRoot.append(card);}
 }
 
+async function requestAiReasoning({ticker,decision,evidence}) {
+  const existing=$("northstar-ai-reasoning");
+  if(existing)existing.remove();
+  const card=document.createElement("section");
+  card.id="northstar-ai-reasoning";
+  card.className="beginner-verdict";
+  card.style.marginTop="14px";
+  const title=document.createElement("h3");title.textContent="NORTHSTAR AI REASONING";
+  const status=document.createElement("p");status.textContent="Checking the verified evidence…";
+  card.append(title,status);
+  const verdict=$("beginner-verdict");
+  if(verdict?.parentElement)verdict.insertAdjacentElement("afterend",card);
+  try {
+    const response=await fetch("/api/reasoning",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({ticker,decision,evidence})});
+    const result=await response.json();
+    if(!response.ok||!result.available)throw new Error(result.error||"AI reasoning unavailable");
+    title.textContent=result.headline;
+    status.remove();
+    const list=document.createElement("ul");
+    for(const reason of result.reasons){const li=document.createElement("li");li.textContent=reason;list.append(li);}
+    const risk=document.createElement("p");risk.textContent="Key risk: "+result.risk;
+    const quality=document.createElement("p");quality.textContent="Data quality: "+result.dataQuality;
+    const note=document.createElement("p");note.className="muted";note.textContent="AI-assisted explanation only. The rules-based verdict above is unchanged.";
+    card.append(list,risk,quality,note);
+  } catch(error) {
+    title.textContent="AI reasoning unavailable";
+    status.textContent="The Cloudflare Workers AI binding may not be configured yet. Northstar’s rules-based verdict remains active; no data or verdict was fabricated.";
+  }
+}
 function renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter}) {
   latestDecisionContext = null;
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
@@ -1508,6 +1537,24 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
+  const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
+  requestAiReasoning({ticker,decision:state,evidence:{
+    quote:currentPrice,
+    quoteFresh:quoteCurrent,
+    valuationAvailable:valuationDecisionReady,
+    valuationRatio:valuation.available&&currentPrice&&valuation.base>0?currentPrice/valuation.base:null,
+    annualRevenueGrowthPct:annualDataAvailable?annualRevenueGrowth*100:null,
+    quarterlyRevenueGrowthPct:quarterlyDataAvailable?quarter.revenueYoY*100:null,
+    annualNetIncomePositive:Boolean(annualDataAvailable&&latestIncome.value>0),
+    annualFreeCashFlowPositive:Boolean(annualDataAvailable&&latestFcf.value>0),
+    quarterlyNetIncomePositive:Boolean(quarterlyDataAvailable&&quarter.currentIncome>0),
+    earningsVerified,
+    daysToEarnings,
+    recentHeadlineCount:recentHeadlines.length,
+    flaggedHeadlineCount:flaggedHeadlines.length,
+    historyAvailable:Boolean(history?.data?.length),
+    missingChecks:missingInputs
+  }});
 }
 function readResearchLog() {
   try {
