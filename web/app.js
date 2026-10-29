@@ -96,10 +96,10 @@ async function getJson(url) {
   const endpoint=SEC_API+encodeURIComponent(path);
   let lastError=null;
   for(let attempt=0;attempt<2;attempt++) {
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),12000);
+    const controller=typeof AbortController!=="undefined"?new AbortController():null;
+    const timeout=controller?setTimeout(()=>controller.abort(),12000):null;
     try {
-      const response=await fetch(endpoint,{headers:{"Accept":"application/json"},signal:controller.signal,cache:"no-store"});
+      const response=await fetch(endpoint,{headers:{"Accept":"application/json"},signal:controller?.signal,cache:"no-store"});
       if(!response.ok) {
         const error=new Error("SEC request returned HTTP "+response.status+" for "+path+".");
         if(response.status<500&&response.status!==429) throw error;
@@ -112,7 +112,7 @@ async function getJson(url) {
     } catch(error) {
       lastError=error?.name==="AbortError"?new Error("SEC request timed out for "+path+"."):error;
       if(error?.message?.includes("HTTP ")&&!/HTTP (429|5\d\d)/.test(error.message)) throw error;
-    } finally { clearTimeout(timeout); }
+    } finally { if(timeout!==null)clearTimeout(timeout); }
     if(attempt===0) await new Promise(resolve=>setTimeout(resolve,350));
   }
   throw lastError||new Error("SEC request failed for "+path+".");
@@ -1270,7 +1270,7 @@ function renderBeginnerOverview(data) {
   if(oneOffFlag) risks.push({text:"Other non-operating income is more than 5% of pre-tax income; reported profit may include one-off or non-core items.",meta:"Same reported period ended "+fmtDate(other.end)});
   for(const item of missingInputs||[]) risks.push({text:"Not verified: "+item,meta:"Data-confidence risk"});
   if(!risks.length) risks.push({text:"No high-priority automated warning was identified in the available inputs. This does not mean the stock is risk-free.",meta:"Limited automated screen"});
-  for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.textContent=item.text;title.prepend(dot);const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
+  for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.textContent=item.text;title.append(dot);const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
   const headlineRoot=$("beginner-headlines");headlineRoot.innerHTML="";
   const allHeadlines=(news?.items||[]).filter(item=>item.title);
   const importantTerms=/\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\b/i;
@@ -1382,7 +1382,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const priceInEntryRange=quoteCurrent&&entryLow!==null&&quote.price>=entryLow&&quote.price<=entryHigh;
   const plannedShares=valuationDecisionReady&&entryMid!==null&&invalidation!==null&&invalidation>0&&entryMid>invalidation?Math.min(Math.floor(5/(entryMid-invalidation)),Math.floor(500/entryMid)):0;
   const dataChecks=[
-    {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?(quote?.quoteTime?"Provider quote timestamp "+quoteDate.toLocaleString():quote?.quoteLabel?"Provider quote date "+quote.quoteLabel+"; exact trade time was not supplied":"Provider date/time "+quoteDate.toLocaleString()):(dailySnapshot?"Provider returned a daily-bar snapshot, not a current quote":"Quote unavailable, missing a usable date/time, or older than 48 hours")},
+    {label:"Current price",ok:quoteCurrent,detail:quoteCurrent?(quote?.quoteTime?"Provider quote timestamp "+quoteDate.toLocaleString():quote?.quoteLabel?"Provider quote date: "+quote.quoteLabel+"; exact trade time was not supplied":"Provider date/time "+quoteDate.toLocaleString()):(dailySnapshot?"Provider returned a daily-bar snapshot, not a current quote":"Quote unavailable, missing a usable date/time, or older than 48 hours")},
     {label:"Valuation inputs / market-gap review",ok:valuationDecisionReady,detail:!valuation.available?valuation.reason:!quoteCurrent?"Raw DCF inputs exist, but no reliable recent timestamped quote is available; entry/exit levels are withheld.":gapCheck.blocked?gapCheck.reason:"Matched annual USD inputs and recent SEC share count passed basic checks; this remains an illustrative, unvalidated DCF."},
     {label:"Annual fundamentals",ok:annualFundamentalPass,detail:annualFundamentalPass?"Latest annual revenue, net income and approximate FCF are positive; annual revenue has not dropped more than 10% year over year":"Annual quality filter failed or comparable data is missing"},
     {label:"Latest quarterly trend",ok:quarterlyPass,detail:quarterlyPass?"Quarterly revenue/net income are positive and revenue is no worse than -15% year over year":"Latest quarterly net income, same-quarter revenue comparison, or quality threshold did not pass"},
