@@ -1805,7 +1805,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   addGaugeEvidence("Annual fundamentals",25,annualFundamentalPass?1:-1,annualDataAvailable);
   const annualGrowthScore=annualRevenueGrowth>=0.10?1:annualRevenueGrowth>=0?0.35:annualRevenueGrowth>=-0.10?-0.35:-1;
   addGaugeEvidence("Annual revenue trend",10,annualGrowthScore,annualDataAvailable&&Number.isFinite(annualRevenueGrowth));
-  addGaugeEvidence("Annual free cash flow",10,latestFcf.value>0?1:-1,annualDataAvailable&&Number.isFinite(latestFcf.value));
+  addGaugeEvidence("Annual free cash flow",10,latestFcf?.value>0?1:-1,Boolean(annualDataAvailable&&latestFcf&&Number.isFinite(latestFcf.value)));
   const quarterlyTrendScore=quarterlyDataAvailable?(quarter.revenueYoY>=0.10?1:quarter.revenueYoY>=0?0.35:quarter.revenueYoY>=-0.15?-0.35:-1):0;
   addGaugeEvidence("Quarterly fundamentals",25,quarterlyPass?quarterlyTrendScore:-1,quarterlyDataAvailable);
   const headlineScore=flaggedHeadlines.length?Math.max(-1,-0.5-0.25*(flaggedHeadlines.length-1)):0.25;
