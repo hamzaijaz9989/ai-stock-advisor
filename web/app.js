@@ -1492,7 +1492,8 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
     priceRow.insertAdjacentElement("afterend",gauge);
   }
   // This is an evidence balance, not a predicted return or probability of success.
-  const score=Math.max(-100,Math.min(100,Number.isFinite(evidenceScore)?evidenceScore:0));
+  const rawScore=Math.max(-100,Math.min(100,Number.isFinite(evidenceScore)?evidenceScore:0));
+  const score=(hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW")?Math.min(-35,rawScore):rawScore;
   const confidence=Math.max(0,Math.min(100,Number.isFinite(evidenceConfidence)?evidenceConfidence:0));
   let tone,label;
   const angle=score*0.65;
