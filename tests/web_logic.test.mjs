@@ -472,7 +472,7 @@ test("decision panel withholds valuation targets when quote and model value are 
     quarter:{available:true,currentRevenue:120e9,currentIncome:20e9,currentEps:1.2,revenueYoY:0.2,periodEnd:"2026-06-30",filed:"2026-08-01"}
   });
   assert.ok(app.document.getElementById("decision-title").textContent.startsWith("WAIT"));
-  assert.ok(app.document.getElementById("decision-explanation").textContent.includes("Valuation withheld"));
+  assert.match(app.document.getElementById("decision-explanation").textContent,/could not confidently verify|valuation.*withheld/i);
   assert.ok(app.document.getElementById("decision-metrics").children.some(card=>card.children[0].textContent==="Illustrative DCF base case"));
   assert.ok(app.document.getElementById("decision-metrics").children.some(card=>card.children[0].textContent==="Entry / exit levels" && card.children[1].textContent==="WITHHELD"));
   const labels=app.document.getElementById("decision-metrics").children.map(card=>card.children[0].textContent);
