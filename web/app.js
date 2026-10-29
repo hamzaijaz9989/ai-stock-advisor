@@ -1468,7 +1468,7 @@ function renderBeginnerOverview(data) {
   for(const item of headlines){const card=document.createElement("article");card.className="beginner-list-item";const link=document.createElement("a");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;const meta=document.createElement("p");const date=item.publishedAt?new Date(item.publishedAt):null;meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Time unavailable");card.append(link,meta);headlineRoot.append(card);}
 }
 
-function renderPriceGauge(decision, positiveLean=false, negativeLean=false) {
+function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceSummary, hardQualityFailure=false) {
   const priceRow=$("beginner-price")?.parentElement;
   if(!priceRow)return;
   let gauge=$("beginner-price-gauge");
@@ -1476,9 +1476,9 @@ function renderPriceGauge(decision, positiveLean=false, negativeLean=false) {
     gauge=document.createElement("section");
     gauge.id="beginner-price-gauge";
     gauge.className="price-gauge";
-    gauge.setAttribute("aria-label","Northstar buy wait sell signal meter");
+    gauge.setAttribute("aria-label","Northstar weighted evidence and risk gauge");
     const top=document.createElement("div");top.className="price-gauge-top";
-    const label=document.createElement("p");label.className="eyebrow";label.textContent="NORTHSTAR SIGNAL";
+    const label=document.createElement("p");label.className="eyebrow";label.textContent="NORTHSTAR EVIDENCE GAUGE";
     const status=document.createElement("span");status.className="price-gauge-status";status.textContent="Research only";
     top.append(label,status);
     const arc=document.createElement("div");arc.className="price-gauge-arc";
@@ -1486,38 +1486,33 @@ function renderPriceGauge(decision, positiveLean=false, negativeLean=false) {
     const hub=document.createElement("div");hub.className="price-gauge-hub";
     arc.append(needle,hub);
     const labels=document.createElement("div");labels.className="price-gauge-labels";
-    for(const [word,cls] of [["SELL","sell"],["WAIT","wait"],["BUY","buy"]]){const span=document.createElement("span");span.className=cls;span.textContent=word;labels.append(span);}
+    for(const [word,cls] of [["HIGH RISK","sell"],["CAUTION","orange"],["MIXED","wait"],["POSITIVE","buy"]]){const span=document.createElement("span");span.className=cls;span.textContent=word;labels.append(span);}
     const message=document.createElement("p");message.id="price-gauge-message";message.className="price-gauge-message";
     gauge.append(top,arc,labels,message);
     priceRow.insertAdjacentElement("afterend",gauge);
   }
-  const signals={
-    "AVOID":{angle:-68,label:"AVOID",tone:"sell",message:"A company-quality check failed. Review the failed evidence."},
-    "SELL REVIEW":{angle:-55,label:"SELL REVIEW",tone:"sell",message:"Verify the risk warning in original sources before deciding."},
-    "WAIT":{angle:0,label:"WAIT",tone:"wait",message:"No validated buy signal. Resolve valuation or data warnings first."},
-    "INSUFFICIENT DATA":{angle:0,label:"WAIT",tone:"wait",message:"Not enough verified evidence to support a buy decision."},
-    "HOLD":{angle:0,label:"WAIT",tone:"wait",message:"No validated new-entry signal is present."},
-    "BUY SETUP — UNVALIDATED":{angle:26,label:"UNVALIDATED",tone:"caution",message:"Some checks may pass, but historical validation is incomplete. Not an approved BUY."},
-    "BUY":{angle:65,label:"BUY",tone:"buy",message:"Configured checks passed. Independently review risk; research only."}
-  };
-  const signal={...(signals[decision]||signals["WAIT"])};
-  // A positive tilt communicates only that the available business evidence leans constructive.
-  // It never changes the official decision or bypasses valuation/data/validation gates.
-  if(decision==="WAIT" && negativeLean) {
-    signal.angle=-22;
-    signal.label="WAIT · RISK LEAN";
-    signal.tone="orange";
-    signal.message="Risk evidence is elevated or unresolved. The needle leans toward SELL for caution, but WAIT remains the official decision.";
-  } else if(decision==="WAIT" && positiveLean) {
-    signal.angle=22;
-    signal.label="WAIT · LEAN BUY";
-    signal.tone="caution";
-    signal.message="Business evidence leans positive, but valuation or required data is not verified. WAIT remains the official decision.";
+  // This is an evidence balance, not a predicted return or probability of success.
+  const score=Math.max(-100,Math.min(100,Number.isFinite(evidenceScore)?evidenceScore:0));
+  const confidence=Math.max(0,Math.min(100,Number.isFinite(evidenceConfidence)?evidenceConfidence:0));
+  let tone,label;
+  const angle=score*0.65;
+  if(hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW" || score<=-35) {
+    tone="sell"; label=hardQualityFailure||decision==="AVOID"?"RED · QUALITY FAIL":"RED · HIGH RISK";
+  } else if(score<=-10) {
+    tone="orange"; label="ORANGE · ELEVATED RISK";
+  } else if(confidence<60 || score<25) {
+    tone="caution"; label=confidence<60?"YELLOW · LOW CONFIDENCE":"YELLOW · MIXED EVIDENCE";
+  } else {
+    tone="buy"; label="GREEN · POSITIVE EVIDENCE";
   }
-  const needle=$("price-gauge-needle");needle.style.transform="translateX(-50%) rotate("+signal.angle+"deg)";needle.dataset.tone=signal.tone;
-  const status=gauge.querySelector(".price-gauge-status");status.textContent=signal.label;status.dataset.tone=signal.tone;
-  $("price-gauge-message").textContent=signal.message;
-  gauge.dataset.tone=signal.tone;
+  // Green requires adequate evidence coverage and never overrides the official decision.
+  if(confidence<60 && tone==="buy"){tone="caution";label="YELLOW · LOW CONFIDENCE";}
+  const needle=$("price-gauge-needle");
+  needle.style.transform="translateX(-50%) rotate("+angle+"deg)";
+  needle.dataset.tone=tone;
+  const status=gauge.querySelector(".price-gauge-status");status.textContent=label;status.dataset.tone=tone;
+  $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. "+evidenceSummary+" Official decision: "+decision+". This score is not a probability; BUY remains blocked until historical validation is approved.";
+  gauge.dataset.tone=tone;
 }
 function renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter}) {
   latestDecisionContext = null;
@@ -1797,9 +1792,32 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
-  const negativeEvidenceLean = fundamentalAvoid || flaggedHeadlines.length>0 || (annualDataAvailable && latestIncome.value<=0) || (quarterlyDataAvailable && quarter.currentIncome<=0);
-  const positiveBusinessLean = !negativeEvidenceLean && !fundamentalAvoid && annualFundamentalPass && quarterlyPass && flaggedHeadlines.length===0;
-  renderPriceGauge(state, positiveBusinessLean, negativeEvidenceLean);
+  // Weighted evidence score: missing inputs are excluded from the score and lower coverage confidence.
+  const gaugeParts=[];
+  let weightedTotal=0, observedWeight=0;
+  const addGaugeEvidence=(name,weight,value,available)=>{
+    if(!available || !Number.isFinite(value)) return;
+    const bounded=Math.max(-1,Math.min(1,value));
+    weightedTotal+=weight*bounded; observedWeight+=weight;
+    gaugeParts.push(name+": "+(bounded>0?"+":"")+Math.round(bounded*100)+"%");
+  };
+  addGaugeEvidence("Annual fundamentals",25,annualFundamentalPass?1:-1,annualDataAvailable);
+  const annualGrowthScore=annualRevenueGrowth>=0.10?1:annualRevenueGrowth>=0?0.35:annualRevenueGrowth>=-0.10?-0.35:-1;
+  addGaugeEvidence("Annual revenue trend",10,annualGrowthScore,annualDataAvailable&&Number.isFinite(annualRevenueGrowth));
+  addGaugeEvidence("Annual free cash flow",10,latestFcf.value>0?1:-1,annualDataAvailable&&Number.isFinite(latestFcf.value));
+  const quarterlyTrendScore=quarter.revenueYoY>=0.10?1:quarter.revenueYoY>=0?0.35:quarter.revenueYoY>=-0.15?-0.35:-1;
+  addGaugeEvidence("Quarterly fundamentals",25,quarterlyPass?quarterlyTrendScore:-1,quarterlyDataAvailable);
+  const headlineScore=flaggedHeadlines.length?Math.max(-1,-0.5-0.25*(flaggedHeadlines.length-1)):0.25;
+  addGaugeEvidence("Recent headline risk",20,headlineScore,recentHeadlines.length>0);
+  addGaugeEvidence("Valuation gate",15,valuationDecisionReady?0.5:-0.25,valuation.available&&quoteCurrent);
+  const eventScore=daysToEarnings!==null&&daysToEarnings<=3?-1:daysToEarnings!==null&&daysToEarnings<=7?-0.6:0.25;
+  addGaugeEvidence("Earnings timing",10,eventScore,earningsVerified);
+  const setupScore=priceInEntryRange&&rewardRisk!==null&&rewardRisk>=2?1:rewardRisk!==null&&rewardRisk>=2?0.25:-0.75;
+  addGaugeEvidence("Entry / reward-risk setup",15,setupScore,quoteCurrent&&valuationDecisionReady&&rewardRisk!==null);
+  const evidenceScore=observedWeight?Math.round(weightedTotal/observedWeight*100):0;
+  const evidenceConfidence=Math.round(observedWeight/130*100);
+  const evidenceSummary=gaugeParts.length?gaugeParts.join(" · "):"No scorable evidence is currently available.";
+  renderPriceGauge(state,evidenceScore,evidenceConfidence,evidenceSummary,fundamentalAvoid);
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
 }
 function readResearchLog() {
