@@ -1239,10 +1239,32 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
       const heading=document.createElement("strong");heading.textContent=String(item.field||"Research finding");
       const value=document.createElement("p");value.textContent=String(item.value||"");
       const meta=document.createElement("p");meta.className="muted";
-      meta.textContent=[item.sourceTitle,item.publishedDate?"Published "+item.publishedDate:"",item.asOfDate?"As of "+item.asOfDate:"","Confidence: "+(item.confidence||"unrated")].filter(Boolean).join(" · ");
+      meta.textContent=[item.sourceTitle,item.publishedDate?"Published "+item.publishedDate:"",item.asOfDate?"As of "+item.asOfDate:"","Confidence: "+(item.confidence||"unrated"),item.evidenceType?"Evidence: "+item.evidenceType:""].filter(Boolean).join(" · ");
       article.append(heading,value,meta);
       if(/^https?:\/\//i.test(String(item.sourceUrl||""))) { const link=document.createElement("a");link.href=item.sourceUrl;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Open source";article.append(link); }
       root.append(article);
+    }
+    // Surface an AI-discovered earnings-date candidate in the earnings panel, but
+    // never promote it to a confirmed event or use it to alter the decision.
+    // Only exact ISO dates paired with an explicit source URL are eligible.
+    if(earnings&&!earnings.available) {
+      const candidate=findings.find(item =>
+        /earnings.{0,24}(date|report)|(?:date|report).{0,24}earnings/i.test(String(item.field||"")) &&
+        /\\b20\\d{2}-\\d{2}-\\d{2}\\b/.test(String(item.value||"")) &&
+        /^https?:\\/\\//i.test(String(item.sourceUrl||""))
+      );
+      if(candidate) {
+        const panel=$("earnings-panel"),target=$("earnings-content");
+        if(panel&&target) {
+          panel.classList.remove("hidden");
+          const article=document.createElement("article");article.className="news-item";
+          const heading=document.createElement("strong");heading.textContent="AI-researched earnings-date candidate · unconfirmed";
+          const dateMatch=String(candidate.value).match(/\\b20\\d{2}-\\d{2}-\\d{2}\\b/);
+          const detail=document.createElement("p");detail.textContent="Candidate date: "+dateMatch[0]+". This was found through AI-assisted web research and has not been verified by Northstar's calendar provider. Do not treat it as confirmed.";
+          const link=document.createElement("a");link.href=candidate.sourceUrl;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Check original source";
+          article.append(heading,detail,link);target.prepend(article);
+        }
+      }
     }
     for(const note of (Array.isArray(payload.notes)?payload.notes:[])) { const p=document.createElement("p");p.className="muted";p.textContent=String(note);root.append(p); }
     if(!findings.length&&!description) return null;
