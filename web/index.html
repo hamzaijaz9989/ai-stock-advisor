@@ -107,6 +107,19 @@
           <p id="decision-action" class="decision-action">No action until the analysis finishes.</p>
         </div>
       </div>
+      <div class="signal-self-test-control">
+        <button id="signal-self-test-button" type="button" class="secondary-button" aria-expanded="false">Preview BUY / WAIT / SELL indicators</button>
+        <p class="muted">Display-only self-test. Preview states are simulated and do not change this stock's analysis.</p>
+      </div>
+      <section id="signal-self-test-panel" class="signal-self-test-panel hidden" aria-live="polite" aria-label="Signal indicator display test">
+        <p class="eyebrow">INDICATOR DISPLAY TEST · SIMULATED</p>
+        <div class="signal-self-test-grid">
+          <article class="signal-self-test-card state-buy"><strong>BUY</strong><span>Validated setup preview</span></article>
+          <article class="signal-self-test-card state-wait"><strong>WAIT</strong><span>More evidence needed preview</span></article>
+          <article class="signal-self-test-card state-sell"><strong>SELL REVIEW</strong><span>Risk review preview</span></article>
+        </div>
+        <p class="muted">This confirms the status styles can render. It does not validate a live stock signal or prove the strategy has an edge.</p>
+      </section>
       <div class="decision-bottom-line"><p class="eyebrow">WHY THIS DECISION?</p><p id="decision-bottom-line">Analyze a ticker to get a plain-language assessment.</p><p class="eyebrow">WHAT TO DO NEXT</p><p id="decision-next-step">Required checks will appear here.</p></div>
       <details id="developer-diagnostics-details" class="developer-panel"><summary><span><strong>Developer diagnostics</strong><small>Technical checks, raw risk rules and provisional valuation calculations</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
       <p id="decision-explanation" class="table-note">Analyze a ticker to receive a data-quality and risk assessment.</p>
