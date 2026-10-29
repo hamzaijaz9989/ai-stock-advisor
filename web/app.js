@@ -200,18 +200,24 @@ function annualSeries(observations, key) {
     ["10-K","20-F","40-F"].includes(row.form) && row.start && row.end &&
     (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 >= 329 &&
     (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 <= 399);
-  const byEnd = new Map();
+  // SEC companyfacts can include the same fiscal period in multiple filings,
+  // including later comparative disclosures or amendments. Do not discard an
+  // entire year just because those filings disagree: select the latest-filed
+  // official annual observation for the same period and unit.
+  const byPeriod = new Map();
   for (const row of candidates) {
-    if (!byEnd.has(row.end)) byEnd.set(row.end, []);
-    byEnd.get(row.end).push(row);
+    const periodKey = [row.start, row.end, row.unit].join("|");
+    const prior = byPeriod.get(periodKey);
+    if (!prior || String(row.filed || "") > String(prior.filed || "")) byPeriod.set(periodKey, row);
   }
-  const series = [];
-  for (const [end, rows] of byEnd) {
-    const distinct = new Map(rows.map(row => [String(row.value) + "|" + row.unit, row]));
-    if (distinct.size !== 1) continue;
-    series.push({ end, ...[...distinct.values()][0] });
+  const byEnd = new Map();
+  for (const row of byPeriod.values()) {
+    const prior = byEnd.get(row.end);
+    const duration = (Date.parse(row.end + "T00:00:00Z") - Date.parse(row.start + "T00:00:00Z")) / 86400000;
+    const priorDuration = prior ? (Date.parse(prior.end + "T00:00:00Z") - Date.parse(prior.start + "T00:00:00Z")) / 86400000 : -1;
+    if (!prior || duration > priorDuration || (duration === priorDuration && String(row.filed || "") > String(prior.filed || ""))) byEnd.set(row.end, row);
   }
-  return series.sort((a,b) => a.end.localeCompare(b.end));
+  return [...byEnd.values()].sort((a,b) => a.end.localeCompare(b.end));
 }
 function quarterlySeries(observations, key) {
   const candidates = observations.filter(row => row.key === key &&
@@ -219,18 +225,23 @@ function quarterlySeries(observations, key) {
     row.start && row.end &&
     (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 >= 70 &&
     (new Date(row.end + "T00:00:00Z") - new Date(row.start + "T00:00:00Z")) / 86400000 <= 110);
-  const byEnd = new Map();
+  // Resolve repeated quarterly facts using the latest filing for each exact
+  // period/unit, instead of suppressing that quarter when a later filing
+  // reports a revised comparative value.
+  const byPeriod = new Map();
   for (const row of candidates) {
-    if (!byEnd.has(row.end)) byEnd.set(row.end, []);
-    byEnd.get(row.end).push(row);
+    const periodKey = [row.start, row.end, row.unit].join("|");
+    const prior = byPeriod.get(periodKey);
+    if (!prior || String(row.filed || "") > String(prior.filed || "")) byPeriod.set(periodKey, row);
   }
-  const series = [];
-  for (const [end, rows] of byEnd) {
-    const distinct = new Map(rows.map(row => [String(row.value) + "|" + row.unit, row]));
-    if (distinct.size !== 1) continue;
-    series.push({end,...[...distinct.values()][0]});
+  const byEnd = new Map();
+  for (const row of byPeriod.values()) {
+    const prior = byEnd.get(row.end);
+    const duration = (Date.parse(row.end + "T00:00:00Z") - Date.parse(row.start + "T00:00:00Z")) / 86400000;
+    const priorDuration = prior ? (Date.parse(prior.end + "T00:00:00Z") - Date.parse(prior.start + "T00:00:00Z")) / 86400000 : -1;
+    if (!prior || duration < priorDuration || (duration === priorDuration && String(row.filed || "") > String(prior.filed || ""))) byEnd.set(row.end, row);
   }
-  return series.sort((a,b) => a.end.localeCompare(b.end));
+  return [...byEnd.values()].sort((a,b) => a.end.localeCompare(b.end));
 }
 function matchingPriorYear(series, current) {
   if (!current?.end) return null;
