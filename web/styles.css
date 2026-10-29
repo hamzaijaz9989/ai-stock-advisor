@@ -736,3 +736,16 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 #market-scan-link {
   display: none !important;
 }
+
+
+/* Display-only signal indicator self-test; intentionally separate from live decisions. */
+.signal-self-test-control { margin: 1rem 0; }
+.signal-self-test-control .muted, .signal-self-test-panel .muted { font-size: .85rem; line-height: 1.5; }
+.signal-self-test-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: .75rem 0; }
+.signal-self-test-card { display: flex; flex-direction: column; gap: .45rem; min-width: 0; padding: 1rem; border: 1px solid var(--border, #343434); border-radius: 14px; background: #0b0b0b; }
+.signal-self-test-card strong { font-size: 1rem; letter-spacing: .06em; }
+.signal-self-test-card span { color: var(--muted, #aaa); font-size: .8rem; line-height: 1.4; }
+.signal-self-test-card.state-buy { border-color: #39c98a; }
+.signal-self-test-card.state-wait { border-color: #e8bd55; }
+.signal-self-test-card.state-sell { border-color: #ef5364; }
+@media (max-width: 520px) { .signal-self-test-grid { grid-template-columns: 1fr; } }
