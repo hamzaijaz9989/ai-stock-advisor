@@ -1183,7 +1183,7 @@ function renderBeginnerOverview(data) {
   const {ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome,annualFcf,missingInputs,flaggedHeadlines,daysToEarnings}=data;
   const fundamentalPass=annualFundamentalPass&&quarterlyPass;
   setText("beginner-company-name",titleCaseCompanyName(company?.name||ticker)+" ("+ticker+")");
-  setText("beginner-company-description",companyDescription(ticker));
+  setText("beginner-company-description","“"+companyDescription(ticker)+"”");
   const quoteValid=typeof quote?.price==="number"&&quote.price>0;
   const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
   const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
