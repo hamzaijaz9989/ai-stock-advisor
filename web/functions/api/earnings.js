@@ -167,31 +167,32 @@ export async function onRequestGet({ request }) {
     }
   }
 
-  // If Nasdaq's near-term calendar had any failed dates, cross-check the same
-  // window against the independent EarningsNxt calendar before declaring the date unverified.
+  // Always cross-check the next 31 days with EarningsNxt when Nasdaq has no match,
+  // even if every Nasdaq request returned successfully. A successful calendar response
+  // can still omit a ticker's event; this catches that silent-omission case.
   // Only accept an exact-symbol, in-window event when the response is not capped.
-  if (failedDates.length) {
-    try {
-      const secondary=await queryEarningsNxtWindow(today,nearTermEnd);
-      if(!secondary.capped) {
-        const match=secondary.events
-          .filter(event=>String(event.symbol||"").trim().toUpperCase()===ticker)
-          .filter(event=>String(event.reportDate||"")>=today&&String(event.reportDate||"")<=nearTermEnd)
-          .sort((a,b)=>String(a.reportDate).localeCompare(String(b.reportDate)))[0];
-        if(match) {
-          const event=mapEarningsNxtEvent(match);
-          return Response.json({
-            ticker,provider:"EarningsNxt public calendar (cross-check)",fetchedAt:new Date().toISOString(),
-            windowStart:today,windowEnd:nearTermEnd,throughDate,checkedDates:checkedDates.length,
-            checkedWindows:1,failedDates,events:[event],found:true,verified:true,calendarLimitReached:false,
-            warning:"The next event was found in an independent third-party calendar because some Nasdaq dates failed to load. Confirm the date and time on company investor relations before trading.",
-            sourceUrl:"https://earningsnxt.ai/docs/api"
-          },{headers:responseHeaders()});
-        }
+  try {
+    const secondary=await queryEarningsNxtWindow(today,nearTermEnd);
+    if(!secondary.capped) {
+      const match=secondary.events
+        .filter(event=>String(event.symbol||"").trim().toUpperCase()===ticker)
+        .filter(event=>String(event.reportDate||"")>=today&&String(event.reportDate||"")<=nearTermEnd)
+        .sort((a,b)=>String(a.reportDate).localeCompare(String(b.reportDate)))[0];
+      if(match) {
+        const event=mapEarningsNxtEvent(match);
+        return Response.json({
+          ticker,provider:"EarningsNxt public calendar (cross-check)",fetchedAt:new Date().toISOString(),
+          windowStart:today,windowEnd:nearTermEnd,throughDate,checkedDates:checkedDates.length,
+          checkedWindows:1,failedDates,events:[event],found:true,verified:true,calendarLimitReached:false,
+          warning:failedDates.length
+            ? "The next event was found in an independent third-party calendar because some Nasdaq dates failed to load. Confirm the date and time on company investor relations before trading."
+            : "Nasdaq did not list an event for this ticker in the checked window, but EarningsNxt did. Confirm the date and time on company investor relations before trading.",
+          sourceUrl:"https://earningsnxt.ai/docs/api"
+        },{headers:responseHeaders()});
       }
-    } catch (_) {
-      // Preserve the explicit unverified state if the independent source cannot confirm an event.
     }
+  } catch (_) {
+    // Preserve the explicit unverified state if the independent source cannot confirm an event.
   }
 
   // A missing event in the first 31 days triggers a wider, date-windowed discovery.
