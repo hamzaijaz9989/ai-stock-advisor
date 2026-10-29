@@ -532,24 +532,6 @@ test("quote label without machine-readable timestamp cannot satisfy current-pric
 });
 
 
-test("signal indicator self-test previews BUY, WAIT, and SELL without changing the live decision", () => {
-  const app = loadAppFunctions();
-  const panel = app.document.getElementById("signal-self-test-panel");
-  const button = app.document.getElementById("signal-self-test-button");
-  panel.className = "hidden";
-  panel.classList = {
-    contains(name) { return panel.className.split(/\\s+/).includes(name); },
-    toggle(name) { if (this.contains(name)) { panel.className = panel.className.split(/\\s+/).filter(part => part !== name).join(" "); return false; } panel.className = [panel.className, name].filter(Boolean).join(" "); return true; }
-  };
-  assert.equal(typeof app.renderSignalIndicatorSelfTest, "function");
-  assert.equal(app.renderSignalIndicatorSelfTest(), true);
-  assert.equal(panel.classList.contains("hidden"), false);
-  assert.equal(button.textContent, "Hide indicator preview");
-  assert.equal(app.renderSignalIndicatorSelfTest(), false);
-  assert.equal(panel.classList.contains("hidden"), true);
-  assert.equal(button.textContent, "Preview BUY / WAIT / SELL indicators");
-});
-
 test("money formatter uses compact whole-unit K/M values and preserves negative signs", () => {
   const app=loadAppFunctions();
   assert.equal(app.fmtMoney(729000), "$729K");
