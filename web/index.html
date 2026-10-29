@@ -189,21 +189,21 @@
         box = document.createElement("div");
         box.id = "northstar-runtime-error";
         box.style.cssText = "position:fixed;bottom:12px;left:12px;right:12px;z-index:99999;padding:14px 16px;background:#3b1515;color:#fff;border:1px solid #ff7777;border-radius:10px;font:13px/1.5 system-ui,sans-serif";
-        box.textContent = "Northstar encountered a loading error. Refresh the page; if it persists, share a screenshot of this message.";
+        box.textContent = "Northstar JavaScript error: " + (event.message || "unknown error") + (event.filename ? " (" + event.filename.split("/").pop() + ":" + event.lineno + ")" : "") + ". Share this exact message if it persists.";
         document.body.appendChild(box);
       }
     });
-    window.addEventListener("unhandledrejection", function () {
+    window.addEventListener("unhandledrejection", function (event) {
       var box = document.getElementById("northstar-runtime-error");
       if (!box) {
         box = document.createElement("div");
         box.id = "northstar-runtime-error";
         box.style.cssText = "position:fixed;bottom:12px;left:12px;right:12px;z-index:99999;padding:14px 16px;background:#3b1515;color:#fff;border:1px solid #ff7777;border-radius:10px;font:13px/1.5 system-ui,sans-serif";
-        box.textContent = "Northstar data request failed. Refresh the page; if it persists, share a screenshot of this message.";
+        box.textContent = "Northstar request error: " + (event.reason && event.reason.message ? event.reason.message : String(event.reason || "unknown error")) + ". Share this exact message if it persists.";
         document.body.appendChild(box);
       }
     });
   </script>
-  <script src="./app.js?v=runtimefix2" defer></script>
+  <script src="./app.js?v=runtimefix3" defer></script>
 </body>
 </html>
