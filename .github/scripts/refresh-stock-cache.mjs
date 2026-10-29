@@ -9,7 +9,7 @@ try {
   page.setDefaultTimeout(30000);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
   await page.locator("#ranking-disclosure").evaluate(el => { el.open = true; });
-  await page.locator("#run-live-screen").click();
+  await page.locator("#run-live-screen").evaluate(button => button.click());
   await page.waitForFunction(() => {
     const status = document.querySelector("#screen-status")?.textContent || "";
     const cards = document.querySelectorAll("#screen-results .screen-card").length;
