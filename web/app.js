@@ -1623,8 +1623,21 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   else if (buySetupPass && !historicalValidationPass) state="BUY SETUP — UNVALIDATED";
   else if (buySetupPass && historicalValidationPass) state="BUY";
   else state="WAIT";
-  const reasonRule=fundamentalAvoid?"Fundamental quality rule failed":
-    dailySnapshot?"Provider supplied a daily-bar snapshot, not a verified current quote":
+  const fundamentalFailureReasons=[];
+  if(annualDataAvailable) {
+    if(latestRevenue.value<=0) fundamentalFailureReasons.push("annual revenue is not positive");
+    if(latestIncome.value<=0) fundamentalFailureReasons.push("annual net income is not positive");
+    if(latestFcf.value<=0) fundamentalFailureReasons.push("latest annual free cash flow is not positive");
+    if(annualRevenueGrowth< -0.10) fundamentalFailureReasons.push("annual revenue declined more than the 10% quality threshold");
+  }
+  if(quarterlyDataAvailable) {
+    if(quarter.currentRevenue<=0) fundamentalFailureReasons.push("latest quarterly revenue is not positive");
+    if(quarter.currentIncome<=0) fundamentalFailureReasons.push("latest quarterly net income is not positive");
+    if(quarter.revenueYoY< -0.15) fundamentalFailureReasons.push("quarterly revenue declined more than the 15% quality threshold year over year");
+  }
+  const reasonRule=fundamentalAvoid
+    ?"Fundamental quality checks failed: "+(fundamentalFailureReasons.join("; ")||"one or more configured financial thresholds were not met")
+    :dailySnapshot?"Provider supplied a daily-bar snapshot, not a verified current quote":
     gapCheck.blocked?"Estimated value could not be verified"+(missingInputs.length?"; additional checks unavailable: "+missingInputs.join("; "):""):
     insufficientData?"Only "+researchCoverageCount+"/5 core research checks passed; missing: "+missingInputs.join("; "):
     decisionInputsIncomplete?"Analysis available with "+researchCoverageCount+"/5 core checks; decision-specific inputs still need verification: "+missingInputs.join("; "):
