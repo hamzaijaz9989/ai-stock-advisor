@@ -1111,6 +1111,7 @@ function companyDescription(ticker) {
     AAPL:"Designs consumer devices, software and digital services.",
     NVDA:"Designs GPUs, AI computing chips and related software platforms.",
     MRAM:"Develops and supplies magnetoresistive random-access memory products.",
+    MU:"Designs and manufactures memory and storage semiconductors, including DRAM and NAND products used in data centers, computers, mobile devices and AI systems.",
     JPM:"Provides banking, lending, payments and financial services.",
     TSM:"Manufactures semiconductors for chip designers and technology companies.",
     "BRK.B":"A diversified holding company with insurance, rail, energy and other businesses.",
@@ -1156,6 +1157,19 @@ function renderBeginnerOverview(data) {
   else if(quote.price/valuation.base<0.8){verdict="Looks attractive";verdictClass="good";why="The quote is below the illustrative model value, and the configured basic company checks passed. This is not a validated BUY signal or a guarantee.";}
   else if(quote.price/valuation.base<=1.2){verdict="Fairly priced";verdictClass="caution";why="The quote is within 20% of the illustrative model value. Model assumptions are uncertain; review the risks before acting.";}
   else {verdict="Looks expensive: wait";verdictClass="bad";why="The quote is more than 20% above the illustrative model value. The model is not a price target, so wait for stronger evidence rather than chase.";}
+  // Keep the plain-English valuation summary consistent with the stricter decision engine.
+  // A low model estimate alone must never produce a green/attractive verdict when core evidence is missing.
+  if(state==="INSUFFICIENT DATA") {
+    verdict="Insufficient data — no valuation conclusion";
+    verdictClass="unknown";
+    why="The model may calculate an illustrative value, but Northstar has not verified every required input. Do not treat the price/model comparison as an attractive setup.";
+  } else if(state==="WAIT" || state==="AVOID" || state==="SELL REVIEW") {
+    if(verdict==="Looks attractive") {
+      verdict="Potential value — not cleared";
+      verdictClass="caution";
+      why="The illustrative model value is above the quote, but Northstar's decision checks do not clear this stock for an entry. Review the missing data and risk warnings first.";
+    }
+  }
   setText("beginner-verdict-title",verdict);setText("beginner-verdict-reason",why);
   const verdictBox=$("beginner-verdict");verdictBox.className="beginner-verdict verdict-"+verdictClass;
   const dot=$("beginner-verdict-dot");dot.className="meaning-dot "+verdictClass;
