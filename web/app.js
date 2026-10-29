@@ -1272,6 +1272,53 @@ async function requestAiReasoning({ticker,decision,evidence}) {
     status.textContent="The Cloudflare Workers AI binding may not be configured yet. Northstar’s rules-based verdict remains active; no data or verdict was fabricated.";
   }
 }
+function renderDecisionMeter(decision) {
+  const hero=$("decision-hero");
+  if(!hero)return;
+  let meter=$("decision-meter");
+  if(!meter){
+    meter=document.createElement("section");
+    meter.id="decision-meter";
+    meter.className="decision-meter";
+    meter.setAttribute("aria-label","Categorical stock research signal");
+    const heading=document.createElement("div");heading.className="decision-meter-heading";
+    const title=document.createElement("p");title.className="eyebrow";title.textContent="RESEARCH SIGNAL";
+    const note=document.createElement("span");note.className="decision-meter-note";note.textContent="Not a probability";
+    heading.append(title,note);
+    const track=document.createElement("div");track.className="decision-meter-track";
+    for(const [label,cls] of [["SELL","sell"],["WAIT","wait"],["BUY","buy"]]){
+      const segment=document.createElement("div");segment.className="decision-meter-segment "+cls;
+      const labelEl=document.createElement("span");labelEl.textContent=label;segment.append(labelEl);track.append(segment);
+    }
+    const marker=document.createElement("div");marker.id="decision-meter-marker";marker.className="decision-meter-marker";
+    marker.setAttribute("aria-hidden","true");track.append(marker);
+    const pointer=document.createElement("div");pointer.className="decision-meter-pointer-row";
+    const left=document.createElement("span");left.textContent="Avoid / sell review";
+    const middle=document.createElement("span");middle.textContent="No clear edge";
+    const right=document.createElement("span");right.textContent="Buy setup";
+    pointer.append(left,middle,right);
+    const explanation=document.createElement("p");explanation.id="decision-meter-explanation";explanation.className="decision-meter-explanation";
+    meter.append(heading,track,pointer,explanation);
+    hero.insertAdjacentElement("beforebegin",meter);
+  }
+  const positions={
+    "AVOID":{x:9,label:"AVOID — risk screen failed",tone:"sell",detail:"A configured company-quality check failed. Review the specific evidence before acting."},
+    "SELL REVIEW":{x:15,label:"SELL REVIEW — verify risk",tone:"sell",detail:"A headline warning needs primary-source review; this is not an automatic sell instruction."},
+    "WAIT":{x:50,label:"WAIT — no validated entry",tone:"wait",detail:"The available evidence does not justify a validated buy. Resolve the highlighted data or valuation warning first."},
+    "INSUFFICIENT DATA":{x:50,label:"WAIT — insufficient data",tone:"wait",detail:"There is not enough verified evidence to position this stock on the buy side."},
+    "HOLD":{x:50,label:"WAIT — no new buy signal",tone:"wait",detail:"No validated new-entry signal is present."},
+    "BUY SETUP — UNVALIDATED":{x:69,label:"UNVALIDATED BUY SETUP",tone:"caution",detail:"Some entry checks may pass, but historical validation is incomplete. This is not an approved BUY."},
+    "BUY":{x:91,label:"BUY — validation passed",tone:"buy",detail:"Configured entry checks and historical validation passed; independent review is still required."}
+  };
+  const current=positions[decision]||positions["WAIT"];
+  const marker=$("decision-meter-marker");
+  marker.style.left=current.x+"%";
+  marker.className="decision-meter-marker tone-"+current.tone;
+  marker.setAttribute("aria-label",current.label);
+  const explanation=$("decision-meter-explanation");
+  explanation.textContent=current.label+" · "+current.detail;
+  meter.dataset.signal=current.tone;
+}
 function renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter}) {
   latestDecisionContext = null;
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
@@ -1537,6 +1584,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
+  renderDecisionMeter(state);
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
   requestAiReasoning({ticker,decision:state,evidence:{
     quote:currentPrice,
