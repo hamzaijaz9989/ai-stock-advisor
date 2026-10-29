@@ -1468,7 +1468,7 @@ function renderBeginnerOverview(data) {
   for(const item of headlines){const card=document.createElement("article");card.className="beginner-list-item";const link=document.createElement("a");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;const meta=document.createElement("p");const date=item.publishedAt?new Date(item.publishedAt):null;meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Time unavailable");card.append(link,meta);headlineRoot.append(card);}
 }
 
-function renderPriceGauge(decision) {
+function renderPriceGauge(decision, positiveLean=false) {
   const priceRow=$("beginner-price")?.parentElement;
   if(!priceRow)return;
   let gauge=$("beginner-price-gauge");
@@ -1500,7 +1500,15 @@ function renderPriceGauge(decision) {
     "BUY SETUP — UNVALIDATED":{angle:26,label:"UNVALIDATED",tone:"caution",message:"Some checks may pass, but historical validation is incomplete. Not an approved BUY."},
     "BUY":{angle:65,label:"BUY",tone:"buy",message:"Configured checks passed. Independently review risk; research only."}
   };
-  const signal=signals[decision]||signals["WAIT"];
+  const signal={...(signals[decision]||signals["WAIT"])};
+  // A positive tilt communicates only that the available business evidence leans constructive.
+  // It never changes the official decision or bypasses valuation/data/validation gates.
+  if(decision==="WAIT" && positiveLean) {
+    signal.angle=22;
+    signal.label="WAIT · LEAN BUY";
+    signal.tone="caution";
+    signal.message="Business evidence leans positive, but valuation or required data is not verified. WAIT remains the official decision.";
+  }
   const needle=$("price-gauge-needle");needle.style.transform="translateX(-50%) rotate("+signal.angle+"deg)";needle.dataset.tone=signal.tone;
   const status=gauge.querySelector(".price-gauge-status");status.textContent=signal.label;status.dataset.tone=signal.tone;
   $("price-gauge-message").textContent=signal.message;
@@ -1784,7 +1792,8 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
-  renderPriceGauge(state);
+  const positiveBusinessLean = !fundamentalAvoid && annualFundamentalPass && quarterlyPass && flaggedHeadlines.length===0;
+  renderPriceGauge(state, positiveBusinessLean);
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
 }
 function readResearchLog() {
