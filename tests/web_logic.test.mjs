@@ -6,18 +6,19 @@ import test from "node:test";
 const source = readFileSync(new URL("../web/app.js", import.meta.url), "utf8");
 
 function makeElement(id = "") {
-  return {
-    id,
-    textContent: "",
-    innerHTML: "",
-    className: "",
-    disabled: false,
-    dataset: {},
-    children: [],
-    classList: { add() {}, remove() {} },
+  const element = {
+    id, textContent: "", innerHTML: "", className: "", disabled: false, dataset: {}, children: [],
     append(...children) { this.children.push(...children); },
-    addEventListener() {}
+    addEventListener() {},
+    setAttribute(name, value) { this[name] = value; }
   };
+  element.classList = {
+    add(name) { const parts = new Set(element.className.split(/\s+/).filter(Boolean)); parts.add(name); element.className = [...parts].join(" "); },
+    remove(name) { const parts = new Set(element.className.split(/\s+/).filter(Boolean)); parts.delete(name); element.className = [...parts].join(" "); },
+    contains(name) { return element.className.split(/\s+/).includes(name); },
+    toggle(name) { if (this.contains(name)) { this.remove(name); return false; } this.add(name); return true; }
+  };
+  return element;
 }
 
 function loadAppFunctions(fetchImpl = null) {
@@ -529,6 +530,21 @@ test("quote label without machine-readable timestamp cannot satisfy current-pric
   assert.ok(currentPriceCheck);
   assert.equal(currentPriceCheck.children[0].textContent,"REVIEW");
   assert.ok(currentPriceCheck.children[1].children[1].textContent.includes("missing a usable date/time"));
+});
+
+
+test("signal indicator self-test previews BUY, WAIT, and SELL without changing the live decision", () => {
+  const app = loadAppFunctions();
+  const panel = app.document.getElementById("signal-self-test-panel");
+  const button = app.document.getElementById("signal-self-test-button");
+  panel.className = "hidden";
+  assert.equal(typeof app.renderSignalIndicatorSelfTest, "function");
+  assert.equal(app.renderSignalIndicatorSelfTest(), true);
+  assert.equal(panel.classList.contains("hidden"), false);
+  assert.equal(button.textContent, "Hide indicator preview");
+  assert.equal(app.renderSignalIndicatorSelfTest(), false);
+  assert.equal(panel.classList.contains("hidden"), true);
+  assert.equal(button.textContent, "Preview BUY / WAIT / SELL indicators");
 });
 
 test("money formatter uses compact whole-unit K/M values and preserves negative signs", () => {
