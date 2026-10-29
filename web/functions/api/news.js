@@ -67,6 +67,8 @@ export async function onRequestGet({ request, env }) {
     { name: "Bloomberg", url: googlePublisherFeed("bloomberg.com", ticker, cleanCompany) },
     { name: "The Wall Street Journal", url: googlePublisherFeed("wsj.com", ticker, cleanCompany) },
     { name: "CNBC", url: googlePublisherFeed("cnbc.com", ticker, cleanCompany) },
+    { name: "MarketWatch", url: googlePublisherFeed("marketwatch.com", ticker, cleanCompany) },
+    { name: "Associated Press", url: googlePublisherFeed("apnews.com", ticker, cleanCompany) },
     { name: "Company-wide news search", url: googleCompanyUrl }
   ];
   const results = await Promise.allSettled(feeds.map(feed => fetch(feed.url, {
@@ -134,8 +136,8 @@ export async function onRequestGet({ request, env }) {
       sources.push({name:"Financial Modeling Prep stock news",status:"unavailable",count:0,detail:String(error?.message||error).slice(0,160)});
     }
   }
-  // Nasdaq is an additional fallback, not a requirement for a successful response.
-  if (items.length < 5) {
+  // Always query Nasdaq as one source in the combined feed, never as the only intended source.
+  {
     try {
       const endpoint = "https://www.nasdaq.com/api/news/topic/articlebysymbol?q=" + encodeURIComponent(ticker + "|STOCKS") + "&offset=0&limit=20&fallback=true";
       const response = await fetch(endpoint, { headers: {
