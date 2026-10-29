@@ -1250,8 +1250,8 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
     if(earnings&&!earnings.available) {
       const candidate=findings.find(item =>
         /earnings.{0,24}(date|report)|(?:date|report).{0,24}earnings/i.test(String(item.field||"")) &&
-        /\\b20\\d{2}-\\d{2}-\\d{2}\\b/.test(String(item.value||"")) &&
-        /^https?:\\/\\//i.test(String(item.sourceUrl||""))
+        /\b20\d{2}-\d{2}-\d{2}\b/.test(String(item.value||"")) &&
+        /^https?:\/\//i.test(String(item.sourceUrl||""))
       );
       if(candidate) {
         const panel=$("earnings-panel"),target=$("earnings-content");
@@ -1259,7 +1259,7 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
           panel.classList.remove("hidden");
           const article=document.createElement("article");article.className="news-item";
           const heading=document.createElement("strong");heading.textContent="AI-researched earnings-date candidate · unconfirmed";
-          const dateMatch=String(candidate.value).match(/\\b20\\d{2}-\\d{2}-\\d{2}\\b/);
+          const dateMatch=String(candidate.value).match(/\b20\d{2}-\d{2}-\d{2}\b/);
           const detail=document.createElement("p");detail.textContent="Candidate date: "+dateMatch[0]+". This was found through AI-assisted web research and has not been verified by Northstar's calendar provider. Do not treat it as confirmed.";
           const link=document.createElement("a");link.href=candidate.sourceUrl;link.target="_blank";link.rel="noopener noreferrer";link.textContent="Check original source";
           article.append(heading,detail,link);target.prepend(article);
