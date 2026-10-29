@@ -141,6 +141,26 @@ async function findCompany(ticker) {
   if(unique.size>1) throw new Error("This ticker maps to multiple SEC issuers. Use a less ambiguous symbol.");
   return [...unique.values()][0];
 }
+async function addShareCountFallback(observations,cik) {
+  // The SEC companyfacts endpoint may omit cover-page DEI facts for some issuers.
+  // Query the official companyconcept endpoint directly before declaring shares missing.
+  const today=newYorkDateOnly();
+  const ageDays=date=>date?(Date.parse(today+"T00:00:00Z")-Date.parse(date+"T00:00:00Z"))/86400000:Infinity;
+  try {
+    const payload=await getJson(SEC_DATA_URL+"/api/xbrl/companyconcept/CIK"+cik+"/dei/EntityCommonStockSharesOutstanding.json");
+    const rows=payload?.units?.shares;
+    if(!Array.isArray(rows)) return observations;
+    const valid=rows.filter(row=>Number.isFinite(row?.val)&&row.val>0&&row.end&&row.filed&&row.end<=today&&row.filed<=today&&ageDays(row.end)>=0&&ageDays(row.end)<=180&&ageDays(row.filed)>=0&&ageDays(row.filed)<=180)
+      .sort((a,b)=>String(b.end).localeCompare(String(a.end))||String(b.filed).localeCompare(String(a.filed)));
+    if(valid.length) {
+      const row=valid[0];
+      observations.push({metric:"Shares outstanding",key:"commonShares",tag:"EntityCommonStockSharesOutstanding",taxonomy:"dei",tagRank:0,unit:"shares",value:row.val,start:null,end:row.end,filed:row.filed,form:row.form||"—",accession:row.accn||"—",fy:row.fy,fp:row.fp,frame:row.frame||""});
+    }
+  } catch (_) {
+    // Keep the strict valuation gate closed if the SEC fallback is unavailable.
+  }
+  return observations;
+}
 function getObservations(payload) {
   const gaap=payload?.facts?.["us-gaap"]||{};
   const ifrs=payload?.facts?.["ifrs-full"]||{};
@@ -470,7 +490,7 @@ function scoreRange(value,min,max,points){return clamp((value-min)/(max-min)*poi
 async function scoreTicker(ticker) {
   const company=await findCompany(ticker);
   const facts=await getJson(SEC_DATA_URL+"/api/xbrl/companyfacts/CIK"+company.cik+".json");
-  const observations=getObservations(facts);
+  const observations=await addShareCountFallback(getObservations(facts),company.cik);
   const revenue=annualSeries(observations,"revenue");
   const income=annualSeries(observations,"netIncome");
   const cash=annualSeries(observations,"operatingCashFlow");
@@ -1747,7 +1767,7 @@ async function analyze(ticker) {
     const supportedIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K","20-F","6-K","40-F"].includes(form));
     const usDomesticIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K"].includes(form));
     const foreignFiler=usDomesticIndex<0&&recentForms.some(form=>["20-F","6-K","40-F"].includes(form));
-    const observations=getObservations(facts);
+    const observations=await addShareCountFallback(getObservations(facts),company.cik);
     $("company-name").textContent=titleCaseCompanyName(company.name);
     const recentDate=supportedIndex>=0?submissions.filings.recent.filingDate?.[supportedIndex]:null;
     const recentForm=supportedIndex>=0?recentForms[supportedIndex]:null;
