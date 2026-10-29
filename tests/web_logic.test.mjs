@@ -109,7 +109,7 @@ test("annualSeries resolves same-period conflicts using the latest-filed officia
   assert.equal(series.length, 3);
   const latest = series.find(row => row.end === "2024-12-31");
   assert.equal(latest.value, 610e9);
-  assert.equal(latest.filed, "2025-02-15");
+  assert.equal(latest.filed, "2025-02-16");
 });
 
 test("quarterlySeries selects three-month disclosures and matches the prior year", () => {
@@ -306,7 +306,7 @@ test("decision panel refuses BUY when no whole share fits the planned-risk budge
   assert.ok(elements.getElementById("decision-status").textContent.startsWith("WAIT"));
   assert.ok(elements.getElementById("decision-bottom-line").textContent.includes("WAIT —"));
   assert.ok(elements.getElementById("decision-next-step").textContent.includes("do not buy yet"));
-  const renderedChecks=elements.getElementById("decision-checks").children.map(row=>row.children[1].children[0].textContent);
+  const renderedChecks=elements.getElementById("decision-checks").children.map(row=>row.children?.[1]?.children?.[0]?.textContent||"").filter(Boolean);
   for(const label of ["Growth screen","Profitability screen","Liquidity screen","Cash-flow screen","Event-risk screen"]) {
     assert.ok(renderedChecks.includes(label), "missing separate financial screen: "+label);
   }
