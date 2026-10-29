@@ -62,32 +62,41 @@ export async function onRequestGet({ request, env }) {
   const googleCompanyUrl = "https://news.google.com/rss/search?q=" + encodeURIComponent('"' + ticker + '"' + (cleanCompany ? ' OR "' + cleanCompany.replace(/"/g, "") + '"' : "")) + "&hl=en-US&gl=US&ceid=US:en";
   // Prefer feeds scoped to each publisher; Google News is used as a discovery proxy where publishers do not provide a reliable public feed.
   const feeds = [
-    { name: "Yahoo Finance", url: yahooUrl },
-    { name: "Reuters", url: googlePublisherFeed("reuters.com", ticker, cleanCompany) },
-    { name: "Bloomberg", url: googlePublisherFeed("bloomberg.com", ticker, cleanCompany) },
-    { name: "The Wall Street Journal", url: googlePublisherFeed("wsj.com", ticker, cleanCompany) },
-    { name: "CNBC", url: googlePublisherFeed("cnbc.com", ticker, cleanCompany) },
+    { name: "Yahoo Finance", url: yahooUrl, fallbackUrl: googlePublisherFeed("finance.yahoo.com", ticker, cleanCompany) },
+    { name: "Reuters", url: googlePublisherFeed("reuters.com", ticker, cleanCompany), fallbackUrl: "https://www.bing.com/news/search?q=" + encodeURIComponent("site:reuters.com " + ticker + " " + cleanCompany) + "&format=rss" },
+    { name: "Bloomberg", url: googlePublisherFeed("bloomberg.com", ticker, cleanCompany), fallbackUrl: "https://www.bing.com/news/search?q=" + encodeURIComponent("site:bloomberg.com " + ticker + " " + cleanCompany) + "&format=rss" },
+    { name: "The Wall Street Journal", url: googlePublisherFeed("wsj.com", ticker, cleanCompany), fallbackUrl: "https://www.bing.com/news/search?q=" + encodeURIComponent("site:wsj.com " + ticker + " " + cleanCompany) + "&format=rss" },
+    { name: "CNBC", url: googlePublisherFeed("cnbc.com", ticker, cleanCompany), fallbackUrl: "https://www.bing.com/news/search?q=" + encodeURIComponent("site:cnbc.com " + ticker + " " + cleanCompany) + "&format=rss" },
     { name: "MarketWatch", url: googlePublisherFeed("marketwatch.com", ticker, cleanCompany) },
     { name: "Associated Press", url: googlePublisherFeed("apnews.com", ticker, cleanCompany) },
     { name: "Bing News discovery", url: "https://www.bing.com/news/search?q=" + encodeURIComponent('"' + ticker + '" ' + (cleanCompany ? '"' + cleanCompany + '"' : "") ) + "&format=rss" },
     { name: "Company-wide news search", url: googleCompanyUrl }
   ];
-  const results = await Promise.allSettled(feeds.map(feed => fetch(feed.url, {
-    headers: { "Accept": "application/rss+xml, application/xml, text/xml" },
-    signal: AbortSignal.timeout(7000)
-  })));
   const sources = [];
   const items = [];
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const feed = feeds[i];
-    if (result.status !== "fulfilled" || !result.value.ok) {
-      sources.push({ name: feed.name, status: "unavailable", count: 0 });
-      continue;
+  // Retry blocked publisher feeds through an independent public news index.
+  for (const feed of feeds) {
+    let parsed = [];
+    let route = "primary";
+    const endpoints = [{url:feed.url, route:"primary"}];
+    if (feed.fallbackUrl) endpoints.push({url:feed.fallbackUrl, route:"fallback"});
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint.url, {
+          headers: { "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml, */*" },
+          signal: AbortSignal.timeout(7000)
+        });
+        if (!response.ok) continue;
+        const candidates = parseItems(await response.text(), feed.name, 30).filter(matchesCompany);
+        if (candidates.length) { parsed = candidates; route = endpoint.route; break; }
+      } catch (_) { /* Continue to the next public discovery route. */ }
     }
-    const parsed = parseItems(await result.value.text(), feed.name, 30).filter(matchesCompany);
-    items.push(...parsed.map(item => ({ ...item, source: item.publisherVerified ? item.source : (feed.name === "Company-wide news search" || feed.name === "Bing News discovery" ? item.source + " (via " + feed.name + ")" : feed.name + " (publisher not identified)") })));
-    sources.push({ name: feed.name, status: parsed.length ? "ok" : "no matching headlines", count: parsed.length });
+    items.push(...parsed.map(item => ({ ...item,
+      source: item.publisherVerified ? item.source :
+        (feed.name === "Company-wide news search" || feed.name === "Bing News discovery" || route === "fallback"
+          ? item.source + " (via " + feed.name + " discovery)" : feed.name + " (publisher not identified)")
+    })));
+    sources.push({ name: feed.name, status: parsed.length ? (route === "fallback" ? "fallback ok" : "ok") : "no results from checked routes", count: parsed.length });
   }
   // Optional licensed/API-key news sources. These return publisher-attributed stories
   // directly and can help when public RSS feeds are blocked or sparse.
