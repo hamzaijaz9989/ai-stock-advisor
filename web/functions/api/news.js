@@ -19,7 +19,7 @@ function parseItems(xml, source, limit = 20) {
     const pubDate = field("pubDate");
     const publisher = field("source").replace(/<[^>]*>/g, "").trim();
     if (!title || !/^https?:\/\//i.test(link)) continue;
-    items.push({ title, description, url: link, publishedAt: pubDate || null, source: publisher || source });
+    items.push({ title, description, url: link, publishedAt: pubDate || null, source: publisher || source, publisherVerified: Boolean(publisher) });
     if (items.length >= limit) break;
   }
   return items;
@@ -69,6 +69,7 @@ export async function onRequestGet({ request, env }) {
     { name: "CNBC", url: googlePublisherFeed("cnbc.com", ticker, cleanCompany) },
     { name: "MarketWatch", url: googlePublisherFeed("marketwatch.com", ticker, cleanCompany) },
     { name: "Associated Press", url: googlePublisherFeed("apnews.com", ticker, cleanCompany) },
+    { name: "Bing News discovery", url: "https://www.bing.com/news/search?q=" + encodeURIComponent('"' + ticker + '" ' + (cleanCompany ? '"' + cleanCompany + '"' : "") ) + "&format=rss" },
     { name: "Company-wide news search", url: googleCompanyUrl }
   ];
   const results = await Promise.allSettled(feeds.map(feed => fetch(feed.url, {
@@ -85,7 +86,7 @@ export async function onRequestGet({ request, env }) {
       continue;
     }
     const parsed = parseItems(await result.value.text(), feed.name, 30).filter(matchesCompany);
-    items.push(...parsed.map(item => ({ ...item, source: feed.name === "Company-wide news search" ? (item.source || "Google News") : feed.name })));
+    items.push(...parsed.map(item => ({ ...item, source: item.publisherVerified ? item.source : (feed.name === "Company-wide news search" || feed.name === "Bing News discovery" ? item.source + " (via " + feed.name + ")" : feed.name + " (publisher not identified)") })));
     sources.push({ name: feed.name, status: parsed.length ? "ok" : "no matching headlines", count: parsed.length });
   }
   // Optional licensed/API-key news sources. These return publisher-attributed stories
@@ -165,9 +166,20 @@ export async function onRequestGet({ request, env }) {
     }
   }
   const seen = new Set();
-  const unique = items.filter(item => matchesCompany(item) && !seen.has(item.url) && seen.add(item.url))
-    .sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0))
-    .slice(0, 40);
+  const deduped = items.filter(item => matchesCompany(item) && !seen.has(item.url) && seen.add(item.url))
+    .sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+  // Avoid allowing one publisher to occupy the entire visible feed when other outlets have matching coverage.
+  const publisherCounts = new Map();
+  const diverse = [];
+  for (const item of deduped) {
+    const key = String(item.source || "Unknown publisher").trim().toLowerCase();
+    const count = publisherCounts.get(key) || 0;
+    if (count >= 4) continue;
+    publisherCounts.set(key, count + 1);
+    diverse.push(item);
+    if (diverse.length >= 40) break;
+  }
+  const unique = diverse;
   const representedPublishers = [...new Set(unique.map(item => item.source))];
   return Response.json({
     ticker, company: companyName || null, fetchedAt: new Date().toISOString(),
