@@ -505,6 +505,27 @@ async function loadHistory(ticker) {
   }
 }
 
+async function loadBenchmarkHistory() {
+  // Retry the benchmark through broad-market index histories when SPY is
+  // temporarily rate-limited. The chosen benchmark is returned with its data
+  // so the report can label the comparison honestly.
+  const candidates=[
+    {ticker:"SPY",label:"S&P 500 ETF (SPY)"},
+    {ticker:"^GSPC",label:"S&P 500 Index (^GSPC)"},
+    {ticker:"^IXIC",label:"Nasdaq Composite (^IXIC)"}
+  ];
+  for(const candidate of candidates) {
+    try {
+      const response=await fetch("/api/history?ticker="+encodeURIComponent(candidate.ticker),{headers:{"Accept":"application/json"}});
+      const payload=await response.json();
+      if(response.ok&&Array.isArray(payload.data)&&payload.data.length>=30) {
+        return {...payload,benchmarkLabel:candidate.label,benchmarkFallback:candidate.ticker!=="SPY"};
+      }
+    } catch (_) { /* Try the next benchmark source. */ }
+  }
+  return null;
+}
+
 function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
 function scoreRange(value,min,max,points){return clamp((value-min)/(max-min)*points,0,points);}
 async function scoreTicker(ticker) {
@@ -1946,8 +1967,10 @@ function renderNews(payload) {
     feedNote.className = "news-availability-note";
     const okFeeds = feedStatuses.filter(source => source.status === "ok").map(source => source.name);
     const unavailableFeeds = feedStatuses.filter(source => source.status === "unavailable").map(source => source.name);
+    const emptyFeeds = feedStatuses.filter(source => source.status === "no results from checked routes" || source.status === "no matching headlines").map(source => source.name);
     feedNote.textContent = "News feed check — returning results: " + (okFeeds.join(", ") || "none") +
-      (unavailableFeeds.length ? ". Unavailable: " + unavailableFeeds.join(", ") : "") +
+      (unavailableFeeds.length ? ". Connection unavailable: " + unavailableFeeds.join(", ") : "") +
+      (emptyFeeds.length ? ". No matching stories found via checked routes: " + emptyFeeds.join(", ") : "") +
       ". Publisher labels reflect the article publisher when the feed provides it; discovery services are not the publisher.";
     impactRoot.prepend(feedNote);
   }
@@ -2029,7 +2052,7 @@ async function analyze(ticker) {
     analysisPhase="market data, history, news and earnings";
     const [quote,history,news,earnings,benchmarkHistory]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker,company.name),loadEarnings(ticker),
-      fetch("/api/history?ticker=SPY",{headers:{"Accept":"application/json"}}).then(async response=>{if(!response.ok)throw new Error("S&P 500 benchmark unavailable");return response.json();}).catch(()=>null),
+      loadBenchmarkHistory(),
     ]);
     loadStrategyBacktest(ticker).catch(error=>{const status=$("strategy-backtest-status");const details=$("strategy-backtest-details");if(status)status.textContent="Unavailable";if(details)details.textContent=(error?.message||"Historical backtest unavailable")+". The main research report is unaffected.";});
     setActivityStage(2,"Price, news and earnings responses received. Reviewing event risk…");
