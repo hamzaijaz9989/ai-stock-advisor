@@ -754,3 +754,12 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .price-gauge-status[data-tone="orange"]{color:#f2a23a;border-color:rgba(242,162,58,.5);background:rgba(242,162,58,.10)}
 .price-gauge-needle[data-tone="orange"]{background:#f2a23a}
 .price-gauge-needle[data-tone="orange"]:before{border-bottom-color:#f2a23a}
+
+/* Weighted evidence gauge: orange is elevated risk; yellow is mixed or low-confidence evidence. */
+.price-gauge-labels .orange{color:#f2a23a}
+.price-gauge-status[data-tone="orange"]{color:#f2a23a;border-color:rgba(242,162,58,.5);background:rgba(242,162,58,.10)}
+.price-gauge-needle[data-tone="orange"]{background:#f2a23a}
+.price-gauge-needle[data-tone="orange"]:before{border-bottom-color:#f2a23a}
+.price-gauge-needle[data-tone="caution"]{background:#f2cc59}
+.price-gauge-needle[data-tone="caution"]:before{border-bottom-color:#f2cc59}
+.price-gauge-status[data-tone="caution"]{color:#f2cc59;border-color:rgba(242,204,89,.45);background:rgba(242,204,89,.08)}
