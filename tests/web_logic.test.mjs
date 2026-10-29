@@ -83,6 +83,15 @@ test("benchmark history falls back from SPY to the S&P 500 index without fabrica
   assert.equal(requested.length,2);
 });
 
+test("latest-headline freshness filter excludes stale and undated articles", () => {
+  const app=loadAppFunctions();
+  const now=Date.now();
+  assert.equal(app.isRecentHeadline({publishedAt:new Date(now-7*86400000).toISOString()}),true);
+  assert.equal(app.isRecentHeadline({publishedAt:new Date(now-31*86400000).toISOString()}),false);
+  assert.equal(app.isRecentHeadline({publishedAt:""}),false);
+  assert.equal(app.isRecentHeadline({publishedAt:new Date(now+2*86400000).toISOString()}),false);
+});
+
 test("requested ticker acceptance set resolves cleanly and unknown tickers fail closed", async () => {
   const tickers=["NVDA","MRAM","AAPL","JPM","TSM","BRK.B"];
   const rows=tickers.map((ticker,index)=>({cik:String(1000000+index),name:ticker+" Test Company",ticker,exchange:"NASDAQ"}));
