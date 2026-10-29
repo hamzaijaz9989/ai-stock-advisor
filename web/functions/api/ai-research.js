@@ -15,8 +15,9 @@ export async function onRequestPost({ request, env }) {
     "X-Content-Type-Options": "nosniff"
   };
   const respond = (payload, status = 200) => Response.json(payload, { status, headers });
-  if (!env?.OPENAI_API_KEY) {
-    return respond({ available: false, reason: "AI research service is not configured." }, 503);
+  const provider = env?.GEMINI_API_KEY ? "gemini" : env?.OPENAI_API_KEY ? "openai" : "";
+  if (!provider) {
+    return respond({ available: false, reason: "AI research is not configured. Add GEMINI_API_KEY in Cloudflare Pages settings." }, 503);
   }
   let body;
   try { body = await request.json(); } catch { return respond({ error: "Invalid JSON body." }, 400); }
@@ -44,29 +45,49 @@ export async function onRequestPost({ request, env }) {
   ].join("\n\n");
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { "Authorization": "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: env.OPENAI_RESEARCH_MODEL || "gpt-5",
-        tools: [{ type: "web_search" }],
-        input: prompt,
-        text: { format: { type: "json_object" } },
-        max_output_tokens: 1800
-      }),
-      signal: AbortSignal.timeout(25000)
-    });
+    let response, payload, outputText, model;
+    if (provider === "gemini") {
+      model = env.GEMINI_RESEARCH_MODEL || "gemini-2.5-flash";
+      const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "x-goog-api-key": env.GEMINI_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: "Return valid JSON only. You are a careful financial research assistant. Never invent facts or sources." }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          tools: [{ google_search: {} }],
+          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1800, temperature: 0.1 }
+        }),
+        signal: AbortSignal.timeout(25000)
+      });
+    } else {
+      model = env.OPENAI_RESEARCH_MODEL || "gpt-5";
+      response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          tools: [{ type: "web_search" }],
+          input: prompt,
+          text: { format: { type: "json_object" } },
+          max_output_tokens: 1800
+        }),
+        signal: AbortSignal.timeout(25000)
+      });
+    }
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      return respond({ available: false, reason: "AI research provider request failed.", providerStatus: response.status, detail: detail.slice(0, 240) }, 502);
+      return respond({ available: false, reason: "AI research provider request failed.", provider, providerStatus: response.status, detail: detail.slice(0, 240) }, 502);
     }
-    const payload = await response.json();
-    const outputText = payload.output_text || (payload.output || [])
-      .flatMap(item => item.content || [])
-      .filter(item => item.type === "output_text")
-      .map(item => item.text || "").join("\n");
+    payload = await response.json();
+    outputText = provider === "gemini"
+      ? (payload.candidates || []).flatMap(candidate => candidate.content?.parts || []).map(part => part.text || "").join("\n")
+      : (payload.output_text || (payload.output || [])
+        .flatMap(item => item.content || [])
+        .filter(item => item.type === "output_text")
+        .map(item => item.text || "").join("\n"));
     let research;
-    try { research = JSON.parse(outputText); } catch { return respond({ available: false, reason: "AI research response could not be parsed." }, 502); }
+    try { research = JSON.parse(outputText); } catch { return respond({ available: false, reason: "AI research response could not be parsed.", provider }, 502); }
     const findings = Array.isArray(research.findings) ? research.findings.slice(0, 12).filter(item =>
       item && typeof item.field === "string" && typeof item.value === "string" &&
       typeof item.sourceUrl === "string" && /^https?:\/\//i.test(item.sourceUrl) &&
@@ -88,9 +109,10 @@ export async function onRequestPost({ request, env }) {
       findings,
       notes: Array.isArray(research.notes) ? research.notes.slice(0, 8).map(x => cleanText(x, 300)) : [],
       retrievedAt: new Date().toISOString(),
-      model: env.OPENAI_RESEARCH_MODEL || "gpt-5"
+      provider,
+      model
     });
   } catch (error) {
-    return respond({ available: false, reason: "AI research request failed.", detail: cleanText(error?.message || error, 200) }, 502);
+    return respond({ available: false, reason: "AI research request failed.", provider, detail: cleanText(error?.message || error, 200) }, 502);
   }
 }
