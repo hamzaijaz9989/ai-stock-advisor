@@ -1,8 +1,130 @@
 {
   "schemaVersion": 1,
-  "generatedAt": null,
+  "generatedAt": "2026-10-29T20:32:20.495Z",
   "refreshIntervalHours": 3,
-  "status": "pending_first_scheduled_scan",
-  "stocks": [],
-  "note": "The scheduled scanner has not completed its first successful run yet. Use the live scan action if available."
+  "source": "Northstar AI scheduled live 60-stock screen",
+  "status": "success",
+  "stocks": [
+    {
+      "ticker": "AMD",
+      "name": "Advanced Micro Devices Inc.",
+      "score": 86.3,
+      "financialPeriod": "2025-12-27",
+      "historyPeriod": "2025-10-29 to 2026-10-28",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "34.3%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "12.5%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "19.4%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+118.8%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-27.8%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
+      "ticker": "MU",
+      "name": "Micron Technology Inc.",
+      "score": 85.5,
+      "financialPeriod": "2026-09-03",
+      "historyPeriod": "2025-10-29 to 2026-10-28",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "256.3%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "63.8%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "44.3%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+333.9%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-39.1%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
+      "ticker": "JNJ",
+      "name": "Johnson & Johnson",
+      "score": 84.6,
+      "financialPeriod": "2025-12-28",
+      "historyPeriod": "2025-10-29 to 2026-10-28",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "6.0%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "28.5%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "20.9%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+45.3%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-11.0%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
+      "ticker": "NVDA",
+      "name": "Nvidia Corp.",
+      "score": 84.5,
+      "financialPeriod": "2026-01-25",
+      "historyPeriod": "2025-10-29 to 2026-10-28",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "65.5%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "55.6%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "44.8%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+4.0%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-20.2%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    }
+  ],
+  "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis."
 }
