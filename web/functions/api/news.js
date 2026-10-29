@@ -28,7 +28,7 @@ function googlePublisherFeed(domain, ticker, company) {
   const terms = [ticker, company].filter(Boolean).map(term => '"' + term.replace(/"/g, "") + '"').join(" OR ");
   return "https://news.google.com/rss/search?q=" + encodeURIComponent("(" + terms + ") site:" + domain) + "&hl=en-US&gl=US&ceid=US:en";
 }
-export async function onRequestGet({ request }) {
+export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const ticker = (url.searchParams.get("ticker") || "").trim().toUpperCase();
   const companyName = (url.searchParams.get("company") || "").trim().slice(0, 120);
