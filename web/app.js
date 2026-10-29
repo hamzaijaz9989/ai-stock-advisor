@@ -1851,7 +1851,19 @@ function saveResearchSnapshot() {
       (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() :
         String(Date.now()) + "-" + Math.random().toString(36).slice(2))});
     localStorage.setItem(RESEARCH_LOG_KEY, JSON.stringify(records.slice(-200)));
-    renderResearchLog();
+    function renderSignalIndicatorSelfTest() {
+  const panel = $("signal-self-test-panel");
+  const button = $("signal-self-test-button");
+  if (!panel || !button) return false;
+  panel.classList.toggle("hidden");
+  const expanded = !panel.classList.contains("hidden");
+  button.textContent = expanded ? "Hide indicator preview" : "Preview BUY / WAIT / SELL indicators";
+  button.setAttribute?.("aria-expanded", String(expanded));
+  return expanded;
+}
+$("signal-self-test-button")?.addEventListener("click", renderSignalIndicatorSelfTest);
+
+renderResearchLog();
     setMessage("Research snapshot saved on this device. It is a record of the report, not a trade or a BUY signal.", "success");
   } catch {
     setMessage("Could not save locally. Check browser storage/privacy settings and try again.", "error");
