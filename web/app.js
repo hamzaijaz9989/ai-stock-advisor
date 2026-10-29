@@ -21,7 +21,7 @@ const METRICS = [
   {label:"Long-term debt", tags:["LongTermDebtNoncurrent","LongTermDebt","LongTermDebtAndFinanceLeaseObligationsNoncurrent","NoncurrentBorrowings"], key:"longTermDebt"},
   {label:"Other non-operating income", tags:["NonoperatingIncomeExpense","OtherNonoperatingIncomeExpense","OtherIncome"], key:"otherIncome"},
   {label:"Income before taxes", tags:["IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest","ProfitLossBeforeTax"], key:"pretaxIncome"},
-  {label:"Shares outstanding", tags:["EntityCommonStockSharesOutstanding"], key:"commonShares", taxonomy:"dei"}
+  {label:"Shares outstanding", tags:["EntityCommonStockSharesOutstanding","CommonStockSharesOutstanding"], key:"commonShares"}
 ];
 const cache = new Map();
 function setMessage(text, type="") { const el=$("message"); el.textContent=text; el.className="message"+(type?" "+type:""); }
@@ -142,22 +142,42 @@ async function findCompany(ticker) {
   return [...unique.values()][0];
 }
 async function addShareCountFallback(observations,cik) {
-  // The SEC companyfacts endpoint may omit cover-page DEI facts for some issuers.
-  // Query the official companyconcept endpoint directly before declaring shares missing.
+  // Some issuers expose the latest cover-page count under DEI, while others
+  // expose a standard US-GAAP shares-outstanding concept. Try both official SEC
+  // companyconcept endpoints before declaring the value missing.
   const today=newYorkDateOnly();
   const ageDays=date=>date?(Date.parse(today+"T00:00:00Z")-Date.parse(date+"T00:00:00Z"))/86400000:Infinity;
-  try {
-    const payload=await getJson(SEC_DATA_URL+"/api/xbrl/companyconcept/CIK"+cik+"/dei/EntityCommonStockSharesOutstanding.json");
-    const rows=payload?.units?.shares;
-    if(!Array.isArray(rows)) return observations;
-    const valid=rows.filter(row=>Number.isFinite(row?.val)&&row.val>0&&row.end&&row.filed&&row.end<=today&&row.filed<=today&&ageDays(row.end)>=0&&ageDays(row.end)<=180&&ageDays(row.filed)>=0&&ageDays(row.filed)<=180)
-      .sort((a,b)=>String(b.end).localeCompare(String(a.end))||String(b.filed).localeCompare(String(a.filed)));
-    if(valid.length) {
-      const row=valid[0];
-      observations.push({metric:"Shares outstanding",key:"commonShares",tag:"EntityCommonStockSharesOutstanding",taxonomy:"dei",tagRank:0,unit:"shares",value:row.val,start:null,end:row.end,filed:row.filed,form:row.form||"—",accession:row.accn||"—",fy:row.fy,fp:row.fp,frame:row.frame||""});
+  const concepts=[
+    {taxonomy:"dei",tag:"EntityCommonStockSharesOutstanding"},
+    {taxonomy:"us-gaap",tag:"CommonStockSharesOutstanding"}
+  ];
+  const candidates=[];
+  for(const concept of concepts) {
+    try {
+      const payload=await getJson(SEC_DATA_URL+"/api/xbrl/companyconcept/CIK"+cik+"/"+concept.taxonomy+"/"+concept.tag+".json");
+      const units=payload?.units||{};
+      for(const [unit,rows] of Object.entries(units)) {
+        if(!Array.isArray(rows)) continue;
+        for(const row of rows) {
+          if(!Number.isFinite(row?.val)||row.val<=0||!row.end||!row.filed||row.end>today||row.filed>today) continue;
+          const endAge=ageDays(row.end),filedAge=ageDays(row.filed);
+          if(endAge<0||endAge>180||filedAge<0||filedAge>180) continue;
+          if(unit!=="shares") continue;
+          candidates.push({...row,unit,concept});
+        }
+      }
+    } catch (_) {
+      // A missing taxonomy/concept is normal for some filers; continue to the next official SEC concept.
     }
-  } catch (_) {
-    // Keep the strict valuation gate closed if the SEC fallback is unavailable.
+  }
+  candidates.sort((a,b)=>String(b.end).localeCompare(String(a.end))||String(b.filed).localeCompare(String(a.filed)));
+  const best=candidates[0];
+  if(best&&!observations.some(row=>row.key==="commonShares"&&row.value===best.val&&row.end===best.end&&row.filed===best.filed)) {
+    observations.push({
+      metric:"Shares outstanding",key:"commonShares",tag:best.concept.tag,taxonomy:best.concept.taxonomy,
+      tagRank:0,unit:"shares",value:best.val,start:null,end:best.end,filed:best.filed,
+      form:best.form||"—",accession:best.accn||"—",fy:best.fy,fp:best.fp,frame:best.frame||""
+    });
   }
   return observations;
 }
@@ -170,7 +190,7 @@ function getObservations(payload) {
     let found=false;
     for(let tagRank=0;tagRank<metric.tags.length;tagRank++) {
       const tag=metric.tags[tagRank];
-      const taxonomies=metric.taxonomy?[metric.taxonomy]:["us-gaap","ifrs-full"];
+      const taxonomies=metric.taxonomy?[metric.taxonomy]:(metric.key==="commonShares"?["dei","us-gaap","ifrs-full"]:["us-gaap","ifrs-full"]);
       const selectedFact=taxonomies.map(taxonomy=>({taxonomy,fact:(payload?.facts?.[taxonomy]||{})[tag]})).find(item=>item.fact?.units);
       const fact=selectedFact?.fact;
       if(!fact?.units) continue;
