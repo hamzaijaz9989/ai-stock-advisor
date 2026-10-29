@@ -74,8 +74,9 @@ export async function onRequestGet({ request, env }) {
   ];
   const sources = [];
   const items = [];
-  // Retry blocked publisher feeds through an independent public news index.
-  for (const feed of feeds) {
+  // Run publishers concurrently, while preserving each publisher's ordered fallback.
+  // A slow publisher now delays only its own result, not every other publisher.
+  const feedResults = await Promise.all(feeds.map(async feed => {
     let parsed = [];
     let route = "primary";
     const endpoints = [{url:feed.url, route:"primary"}];
@@ -91,6 +92,9 @@ export async function onRequestGet({ request, env }) {
         if (candidates.length) { parsed = candidates; route = endpoint.route; break; }
       } catch (_) { /* Continue to the next public discovery route. */ }
     }
+    return {feed,parsed,route};
+  }));
+  for (const {feed,parsed,route} of feedResults) {
     items.push(...parsed.map(item => ({ ...item,
       source: item.publisherVerified ? item.source :
         (feed.name === "Company-wide news search" || feed.name === "Bing News discovery" || route === "fallback"
