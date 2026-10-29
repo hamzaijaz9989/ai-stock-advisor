@@ -1563,7 +1563,6 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
   renderPriceGauge(state);
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
-  }});
 }
 function readResearchLog() {
   try {
