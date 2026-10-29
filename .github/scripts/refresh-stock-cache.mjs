@@ -8,12 +8,12 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(30000);
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
-  await page.locator("#ranking-disclosure > summary").click();
+  await page.locator("#ranking-disclosure").evaluate(el => { el.open = true; });
   await page.locator("#run-live-screen").click();
   await page.waitForFunction(() => {
     const status = document.querySelector("#screen-status")?.textContent || "";
     const cards = document.querySelectorAll("#screen-results .screen-card").length;
-    return /\\d+ ranked|Screen interrupted/i.test(status) && (cards > 0 || /interrupted/i.test(status));
+    return /\d+ ranked|Screen interrupted/i.test(status) && (cards > 0 || /interrupted/i.test(status));
   }, null, { timeout: 12 * 60 * 1000 });
   const result = await page.evaluate(() => {
     const cards = [...document.querySelectorAll("#screen-results .screen-card")].slice(0,5).map(card => {
