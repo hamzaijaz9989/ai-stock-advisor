@@ -67,18 +67,34 @@ function mapNasdaqEvent(row, date) {
 
 async function queryEarningsNxtWindow(from, to) {
   const endpoint = EARNINGSNXT_API + "?from=" + from + "&to=" + to + "&limit=500";
-  const response = await fetch(endpoint, {
-    headers: {"Accept":"application/json"},
-    signal: AbortSignal.timeout(8000)
-  });
-  if (!response.ok) throw new Error("EarningsNxt calendar returned HTTP " + response.status);
-  const payload = await response.json();
-  if (!Array.isArray(payload?.events)) throw new Error("EarningsNxt calendar response had no events array");
-  return {
-    from, to,
-    events: payload.events,
-    capped: payload.events.length >= 500 || Number(payload.count) >= 500
-  };
+  let lastError;
+  // Retry once for transient provider/network failures. Never convert a failed
+  // response into an empty calendar: after retry, callers keep the unverified state.
+  for (let attempt=0; attempt<2; attempt++) {
+    try {
+      const response = await fetch(endpoint, {
+        headers: {"Accept":"application/json"},
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!response.ok) {
+        const error = new Error("EarningsNxt calendar returned HTTP " + response.status);
+        if (response.status < 500 && response.status !== 429) throw error;
+        lastError = error;
+      } else {
+        const payload = await response.json();
+        if (!Array.isArray(payload?.events)) throw new Error("EarningsNxt calendar response had no events array");
+        return {
+          from, to,
+          events: payload.events,
+          capped: payload.events.length >= 500 || Number(payload.count) >= 500
+        };
+      }
+    } catch (error) {
+      lastError = error;
+      if (attempt === 1 || (error instanceof Error && /^EarningsNxt calendar returned HTTP 4/.test(error.message) && !/HTTP 429$/.test(error.message))) break;
+    }
+  }
+  throw lastError || new Error("EarningsNxt calendar request failed");
 }
 
 function mapEarningsNxtEvent(event) {
@@ -117,8 +133,10 @@ export async function onRequestGet({ request }) {
   let nearTermMatch = null;
 
   // Prefer Nasdaq's daily earnings calendar for the next month.
-  for (let i=0; i<nearTermDates.length; i+=5) {
-    const batch=nearTermDates.slice(i,i+5);
+  // Check up to ten dates concurrently. This preserves the full weekday
+  // coverage while reducing serial batches compared with groups of five.
+  for (let i=0; i<nearTermDates.length; i+=10) {
+    const batch=nearTermDates.slice(i,i+10);
     const results=await Promise.allSettled(batch.map(queryNasdaqDate));
     for (let j=0;j<results.length;j++) {
       const date=batch[j];
