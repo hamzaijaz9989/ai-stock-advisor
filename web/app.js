@@ -1180,14 +1180,28 @@ function companyDescription(ticker) {
 async function loadAiResearchFallback({ticker,company,observations,quote,news,earnings}) {
   const descriptionMissing=companyDescription(ticker).includes("not available");
   const missingFields=[];
+  const coreGaps=[];
+  const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
+  const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
+  const quoteInterval=String(quote?.interval||"").toLowerCase();
+  const quoteLabel=String(quote?.delayedOrRealtime||"").toLowerCase();
+  const quoteLooksDaily=quoteInterval==="1d"||quoteLabel.includes("daily interval")||quoteLabel.includes("not real-time");
+  const quoteIsUsable=typeof quote?.price==="number"&&quote.price>0&&quoteAgeHours>=-2&&quoteAgeHours<=48&&!quoteLooksDaily;
+  if(!quoteIsUsable) {
+    const reason=typeof quote?.price==="number"&&quote.price>0?"current quote is stale or not sufficiently current":"current market quote is unavailable";
+    missingFields.push(reason+"; recover only from a reliable market-data source");
+    coreGaps.push("quote");
+  }
+  if(!annualSeries(observations,"revenue").length) { missingFields.push("latest reported annual revenue"); coreGaps.push("revenue"); }
+  if(!annualSeries(observations,"netIncome").length) { missingFields.push("latest reported annual net income"); coreGaps.push("netIncome"); }
+  if(!annualSeries(observations,"operatingCashFlow").length) { missingFields.push("latest reported annual operating cash flow"); coreGaps.push("operatingCashFlow"); }
+  // Low-priority context gaps are collected only when a core gap already justifies spending an AI research request.
   if(descriptionMissing) missingFields.push("plain-English company business description and products/services");
-  if(!quote||!(typeof quote.price==="number"&&quote.price>0)) missingFields.push("current market quote and quote timestamp");
-  if(!annualSeries(observations,"revenue").length) missingFields.push("latest reported annual revenue");
-  if(!annualSeries(observations,"netIncome").length) missingFields.push("latest reported annual net income");
-  if(!annualSeries(observations,"operatingCashFlow").length) missingFields.push("latest reported annual operating cash flow");
   if(!news||!Array.isArray(news.items)||news.items.length===0) missingFields.push("recent company-specific news from reputable publishers");
   if(!earnings||!earnings.available) missingFields.push("upcoming earnings date or consensus expectations from a reliable source");
-  if(!missingFields.length) return null;
+  // Do not spend limited Gemini credits just to fill optional descriptions, news, or earnings-estimate gaps.
+  // Native data providers must be exhausted first; AI is called only after this analysis has exposed a core data gap.
+  if(!coreGaps.length) return null;
   const nativeContext={
     availableAnnualMetrics:["revenue","netIncome","operatingCashFlow","capex","dilutedShares"].map(key=>({field:key,available:annualSeries(observations,key).length>0})),
     quote:{available:Boolean(quote&&typeof quote.price==="number"&&quote.price>0),price:quote?.price??null,quoteTime:quote?.quoteTime??null,source:quote?.source??null},
