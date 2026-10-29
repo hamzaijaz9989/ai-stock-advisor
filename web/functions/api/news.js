@@ -86,6 +86,54 @@ export async function onRequestGet({ request }) {
     items.push(...parsed.map(item => ({ ...item, source: feed.name === "Company-wide news search" ? (item.source || "Google News") : feed.name })));
     sources.push({ name: feed.name, status: parsed.length ? "ok" : "no matching headlines", count: parsed.length });
   }
+  // Optional licensed/API-key news sources. These return publisher-attributed stories
+  // directly and can help when public RSS feeds are blocked or sparse.
+  if (typeof env !== "undefined" && env.FINNHUB_API_KEY) {
+    try {
+      const to = Math.floor(Date.now() / 1000);
+      const from = to - 60 * 86400;
+      const endpoint = "https://finnhub.io/api/v1/company-news?symbol=" + encodeURIComponent(ticker) +
+        "&from=" + new Date(from * 1000).toISOString().slice(0,10) +
+        "&to=" + new Date(to * 1000).toISOString().slice(0,10) +
+        "&token=" + encodeURIComponent(env.FINNHUB_API_KEY);
+      const response = await fetch(endpoint, {headers:{"Accept":"application/json"},signal:AbortSignal.timeout(7000)});
+      if (!response.ok) throw new Error("Finnhub news returned HTTP " + response.status);
+      const payload = await response.json();
+      let count = 0;
+      for (const row of (Array.isArray(payload) ? payload : []).slice(0,100)) {
+        if (!row.headline || !row.url || !/^https?:\/\//i.test(row.url)) continue;
+        items.push({title:String(row.headline),description:String(row.summary||""),
+          url:String(row.url),publishedAt:Number.isFinite(row.datetime)?new Date(row.datetime*1000).toISOString():null,
+          source:String(row.source||"Finnhub news feed")});
+        count++;
+      }
+      sources.push({name:"Finnhub company news",status:count?"ok":"no matching headlines",count});
+    } catch (error) {
+      sources.push({name:"Finnhub company news",status:"unavailable",count:0,detail:String(error?.message||error).slice(0,160)});
+    }
+  }
+  if (typeof env !== "undefined" && env.FMP_API_KEY && items.length < 12) {
+    try {
+      const endpoint = "https://financialmodelingprep.com/stable/news/stock?symbols=" + encodeURIComponent(ticker) +
+        "&limit=50&apikey=" + encodeURIComponent(env.FMP_API_KEY);
+      const response = await fetch(endpoint, {headers:{"Accept":"application/json"},signal:AbortSignal.timeout(7000)});
+      if (!response.ok) throw new Error("FMP stock news returned HTTP " + response.status);
+      const payload = await response.json();
+      let count = 0;
+      for (const row of (Array.isArray(payload) ? payload : []).slice(0,50)) {
+        const articleUrl = row.url || row.link;
+        const title = row.title || row.text;
+        if (!title || !articleUrl || !/^https?:\/\//i.test(articleUrl)) continue;
+        items.push({title:String(title),description:String(row.text||row.summary||""),
+          url:String(articleUrl),publishedAt:row.publishedDate||row.date||null,
+          source:String(row.site||row.publisher||"Financial Modeling Prep news feed")});
+        count++;
+      }
+      sources.push({name:"Financial Modeling Prep stock news",status:count?"ok":"no matching headlines",count});
+    } catch (error) {
+      sources.push({name:"Financial Modeling Prep stock news",status:"unavailable",count:0,detail:String(error?.message||error).slice(0,160)});
+    }
+  }
   // Nasdaq is an additional fallback, not a requirement for a successful response.
   if (items.length < 5) {
     try {
