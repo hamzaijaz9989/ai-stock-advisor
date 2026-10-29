@@ -1115,9 +1115,17 @@ function companyDescription(ticker) {
     TSM:"Manufactures semiconductors for chip designers and technology companies.",
     "BRK.B":"A diversified holding company with insurance, rail, energy and other businesses.",
     MSFT:"Develops software, cloud services, devices and business productivity tools.",
-    AMZN:"Operates online retail, cloud computing and digital services."
+    AMZN:"Operates online retail, cloud computing and digital services.",
+    V:"Operates a global payments network connecting consumers, merchants, financial institutions and governments.",
+    MA:"Operates a global payments network and provides payment technology and related services.",
+    GOOGL:"Parent company of Google, with businesses in online search, advertising, cloud computing and digital services.",
+    GOOG:"Parent company of Google, with businesses in online search, advertising, cloud computing and digital services.",
+    META:"Operates social and messaging platforms including Facebook, Instagram and WhatsApp, and develops virtual-reality technologies.",
+    TSLA:"Designs and sells electric vehicles, energy storage systems and related software.",
+    MRVL:"Designs semiconductor solutions for data infrastructure, networking, storage and compute.",
+    NVTS:"Develops gallium nitride and silicon carbide power semiconductors."
   };
-  return known[ticker]||"A verified plain-English business description is not available in the current data feed.";
+  return known[ticker]||"A concise business description is not available in Northstar's verified local descriptions. Check the company's official investor-relations profile.";
 }
 function setText(id,value) { const el=$(id); if(el)el.textContent=value; }
 function addBeginnerNumber(root,{label,value,trend,explain,meta=""}) {
