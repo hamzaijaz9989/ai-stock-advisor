@@ -1964,18 +1964,8 @@ function renderNews(payload) {
   }
   if (impactStatus) impactStatus.textContent = selected.length + " stories · " + new Set(selected.map(item => String(item.source || "").trim()).filter(Boolean)).size + " sources";
   const feedStatuses = Array.isArray(payload?.sources) ? payload.sources : [];
-  if (impactRoot && feedStatuses.length) {
-    const feedNote = document.createElement("p");
-    feedNote.className = "news-availability-note";
-    const okFeeds = feedStatuses.filter(source => source.status === "ok").map(source => source.name);
-    const unavailableFeeds = feedStatuses.filter(source => source.status === "unavailable").map(source => source.name);
-    const emptyFeeds = feedStatuses.filter(source => source.status === "no results from checked routes" || source.status === "no matching headlines").map(source => source.name);
-    feedNote.textContent = "News feed check — returning results: " + (okFeeds.join(", ") || "none") +
-      (unavailableFeeds.length ? ". Connection unavailable: " + unavailableFeeds.join(", ") : "") +
-      (emptyFeeds.length ? ". No matching stories found via checked routes: " + emptyFeeds.join(", ") : "") +
-      ". Publisher labels reflect the article publisher when the feed provides it; discovery services are not the publisher.";
-    impactRoot.prepend(feedNote);
-  }
+  // Source diagnostics remain in the API response for debugging, but the
+  // personal-use UI displays only the actual news stories.
 }
 async function loadNews(ticker, companyName="") {
   $("news-status").textContent="Loading…";
