@@ -1452,12 +1452,13 @@ function renderBeginnerOverview(data) {
       title="Financial data incomplete";
       detail="Required financial inputs are missing or do not meet the report's validation criteria.";
     }
-    risks.push({text:title,meta:detail});
+    const dataLimitation=/unconfirmed|unavailable|incomplete|needs confirmation|could not|insufficient|missing/i.test(title+" "+detail);
+    risks.push({text:title,meta:detail,severity:dataLimitation?"caution":"bad"});
   }
-  if(!risks.length) risks.push({text:"No high-priority automated warning was identified in the available inputs. This does not mean the stock is risk-free.",meta:"Limited automated screen"});
-  for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.meta.includes("Data-confidence")?"caution":"bad");title.textContent=item.text;title.append(dot);const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
+  if(!risks.length) risks.push({text:"No high-priority automated warning was identified in the available inputs. This does not mean the stock is risk-free.",meta:"Limited automated screen",severity:"caution"});
+  for(const item of risks.slice(0,3)){const card=document.createElement("article");card.className="beginner-list-item";const title=document.createElement("strong");const dot=document.createElement("span");dot.className="meaning-dot "+(item.severity==="caution"?"caution":"bad");title.textContent=item.text;title.append(dot);const meta=document.createElement("p");meta.textContent=item.meta;card.append(title,meta);riskRoot.append(card);}
   const headlineRoot=$("beginner-headlines");headlineRoot.innerHTML="";
-  const allHeadlines=(news?.items||[]).filter(item=>item.title);
+  const allHeadlines=(news?.items||[]).filter(item=>item.title&&isRecentHeadline(item));
   const importantTerms=/\b(earnings|revenue|profit|loss|guidance|forecast|outlook|acquisition|merger|deal|lawsuit|investigation|regulator|approval|recall|dividend|buyback|downgrade|upgrade|price target|breach|outage|layoff|contract|partnership|CEO|CFO|resign|misses|beats|record)\b/i;
   const riskTerms=/\b(misses|loss|lawsuit|investigation|probe|recall|downgrade|fraud|breach|outage|layoff|decline|warning|fine|ban|weak demand|disappoint)\b/i;
   const positiveTerms=/\b(beats|raises guidance|upgrade|approval|record revenue|profit rises|growth accelerates|buyback|dividend increase|major contract|wins contract|strong demand)\b/i;
@@ -1931,6 +1932,13 @@ function renderFilings(submissions, company) {
     list.append(card);
   }
 }
+function isRecentHeadline(item, maxAgeDays=30) {
+  const published=Date.parse(item?.publishedAt||"");
+  if(!Number.isFinite(published)) return false;
+  const age=Date.now()-published;
+  return age>=-24*60*60*1000 && age<=maxAgeDays*24*60*60*1000;
+}
+
 function renderNews(payload) {
   const list = $("news-list");
   const impactRoot = $("stock-news-impact-list");
@@ -1940,10 +1948,10 @@ function renderNews(payload) {
   list.innerHTML = "";
   if (impactRoot) impactRoot.innerHTML = "";
   if (impactPanel) impactPanel.classList.remove("hidden");
-  const items = (payload && Array.isArray(payload.items) ? payload.items : [])
+  const allValidItems = (payload && Array.isArray(payload.items) ? payload.items : [])
     .filter(item => item && item.title && item.url && /^https?:\/\//i.test(item.url))
-    .filter((item, index, all) => all.findIndex(other => other.url === item.url) === index)
-    .sort((a, b) => {
+    .filter((item, index, all) => all.findIndex(other => other.url === item.url) === index);
+  const items = allValidItems.filter(isRecentHeadline).sort((a, b) => {
       const da = Date.parse(a.publishedAt || "") || 0;
       const db = Date.parse(b.publishedAt || "") || 0;
       return db - da;
@@ -1953,7 +1961,7 @@ function renderNews(payload) {
     const validDate = date && !Number.isNaN(date.getTime());
     return (item.source || "Source unavailable") + (validDate ? " · " + date.toLocaleString() : " · Date unavailable");
   };
-  $("news-status").textContent = items.length ? Math.min(items.length, 8) + " stories" : "No news";
+  $("news-status").textContent = items.length ? Math.min(items.length, 8) + " recent stories" : "No recent news";
   const makeCard = (item, className) => {
     const card = document.createElement("article");
     card.className = className;
@@ -1981,7 +1989,9 @@ function renderNews(payload) {
   if (!items.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
-    empty.textContent = "No company-specific news was returned by the available feeds. This does not mean there is no news.";
+    empty.textContent = allValidItems.length
+      ? "No company-specific stories were published in the last 30 days in the available feeds. Older stories are excluded from the latest-headlines view."
+      : "No company-specific news was returned by the available feeds. This does not mean there is no news.";
     list.append(empty);
     if (impactRoot) impactRoot.append(empty.cloneNode(true));
     if (impactStatus) impactStatus.textContent = "News unavailable";
