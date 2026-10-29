@@ -151,8 +151,8 @@ async function addShareCountFallback(observations,cik) {
     {taxonomy:"dei",tag:"EntityCommonStockSharesOutstanding"},
     {taxonomy:"us-gaap",tag:"CommonStockSharesOutstanding"}
   ];
-  const candidates=[];
-  for(const concept of concepts) {
+  const candidateGroups=await Promise.all(concepts.map(async concept=>{
+    const found=[];
     try {
       const payload=await getJson(SEC_DATA_URL+"/api/xbrl/companyconcept/CIK"+cik+"/"+concept.taxonomy+"/"+concept.tag+".json");
       const units=payload?.units||{};
@@ -163,13 +163,15 @@ async function addShareCountFallback(observations,cik) {
           const endAge=ageDays(row.end),filedAge=ageDays(row.filed);
           if(endAge<0||endAge>180||filedAge<0||filedAge>180) continue;
           if(unit!=="shares") continue;
-          candidates.push({...row,unit,concept});
+          found.push({...row,unit,concept});
         }
       }
     } catch (_) {
-      // A missing taxonomy/concept is normal for some filers; continue to the next official SEC concept.
+      // A missing taxonomy/concept is normal for some filers; continue with the other official SEC concept.
     }
-  }
+    return found;
+  }));
+  const candidates=candidateGroups.flat();
   candidates.sort((a,b)=>String(b.end).localeCompare(String(a.end))||String(b.filed).localeCompare(String(a.filed)));
   const best=candidates[0];
   if(best&&!observations.some(row=>row.key==="commonShares"&&row.value===best.val&&row.end===best.end&&row.filed===best.filed)) {
