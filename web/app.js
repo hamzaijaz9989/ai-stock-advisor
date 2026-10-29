@@ -1659,11 +1659,22 @@ function saveResearchSnapshot() {
   }
 }
 function renderQuote(quote) {
-  // Quote details card was removed; the main overview renders the validated price.
-  // Keep this helper safe for quote-loading success and error paths.
+  // The main overview renders the price. If a quote-time field is present in a
+  // layout or test harness, preserve the provider's timestamp precision honestly.
   const price = $("beginner-price");
   if (price && typeof quote?.price === "number" && quote.price > 0) {
     price.textContent = new Intl.NumberFormat(undefined, {style:"currency",currency:quote.currency||"USD",maximumFractionDigits:2}).format(quote.price);
+  }
+  const time=$("quote-time");
+  if(time) {
+    if(quote?.quoteTime) {
+      const parsed=new Date(quote.quoteTime);
+      time.textContent=!Number.isNaN(parsed.getTime())?"Quote timestamp: "+parsed.toLocaleString():"Quote timestamp unavailable.";
+    } else if(quote?.quoteLabel) {
+      time.textContent="Provider quote date: "+quote.quoteLabel+"; exact trade time not supplied.";
+    } else {
+      time.textContent="Quote timestamp unavailable.";
+    }
   }
 }
 async function loadQuote(ticker) {
