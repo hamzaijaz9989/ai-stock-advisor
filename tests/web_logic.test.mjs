@@ -67,6 +67,22 @@ function annualFixtures({ includeShares = true } = {}) {
   return rows;
 }
 
+test("benchmark history falls back from SPY to the S&P 500 index without fabricating data", async () => {
+  const requested=[];
+  const app=loadAppFunctions(async url=>{
+    requested.push(String(url));
+    if(String(url).includes("ticker=SPY")) return {ok:false,json:async()=>({error:"rate limited"})};
+    if(String(url).includes("ticker=%5EGSPC")) return {ok:true,json:async()=>({ticker:"^GSPC",data:Array.from({length:40},(_,i)=>({date:"2026-01-"+String(i+1).padStart(2,"0"),close:100+i}))})};
+    throw new Error("Unexpected benchmark request");
+  });
+  const result=await app.loadBenchmarkHistory();
+  assert.equal(result.ticker,"^GSPC");
+  assert.equal(result.benchmarkFallback,true);
+  assert.equal(result.benchmarkLabel,"S&P 500 Index (^GSPC)");
+  assert.equal(result.data.length,40);
+  assert.equal(requested.length,2);
+});
+
 test("requested ticker acceptance set resolves cleanly and unknown tickers fail closed", async () => {
   const tickers=["NVDA","MRAM","AAPL","JPM","TSM","BRK.B"];
   const rows=tickers.map((ticker,index)=>({cik:String(1000000+index),name:ticker+" Test Company",ticker,exchange:"NASDAQ"}));
