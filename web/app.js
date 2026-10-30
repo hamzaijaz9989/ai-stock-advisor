@@ -1491,32 +1491,36 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
     gauge.append(top,arc,labels,message);
     priceRow.insertAdjacentElement("afterend",gauge);
   }
-  // This is an evidence balance, not a predicted return or probability of success.
+  // The needle represents weighted evidence balance, not probability or expected return.
   const rawScore=Math.max(-100,Math.min(100,Number.isFinite(evidenceScore)?evidenceScore:0));
   const confidence=Math.max(0,Math.min(100,Number.isFinite(evidenceConfidence)?evidenceConfidence:0));
   const insufficientCoverage=confidence<70;
-  // A low-coverage score is not directional: park the needle at neutral rather than
-  // allowing a few available factors to create a misleading green/red impression.
-  const score=(hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW")?Math.min(-35,rawScore):(insufficientCoverage?0:rawScore);
-  let tone,label;
+  const hardRisk=hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW";
+  // Preserve the evidence position, but never let a positive score overrule WAIT or missing data.
+  const score=insufficientCoverage?0:rawScore;
   const angle=score*0.65;
-  if(hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW" || (!insufficientCoverage&&score<=-35)) {
+  let tone="caution",label="YELLOW · WAIT — NOT CLEARED";
+  if(hardRisk) {
     tone="sell"; label=hardQualityFailure||decision==="AVOID"?"RED · QUALITY FAIL":"RED · HIGH RISK";
-  } else if(!insufficientCoverage && score<=-10) {
-    tone="orange"; label="ORANGE · ELEVATED RISK";
   } else if(insufficientCoverage) {
     tone="caution"; label="YELLOW · INSUFFICIENT EVIDENCE";
+  } else if(score<=-35) {
+    tone="sell"; label="RED · HIGH RISK";
+  } else if(score<=-10) {
+    tone="orange"; label="ORANGE · ELEVATED RISK";
+  } else if(decision==="BUY" && score>=25) {
+    // A green gauge is reserved for an official BUY decision; historical validation
+    // remains a separate hard gate and is not changed by this display.
+    tone="buy"; label="GREEN · POSITIVE EVIDENCE";
   } else if(score<25) {
     tone="caution"; label="YELLOW · MIXED EVIDENCE";
-  } else {
-    tone="buy"; label="GREEN · POSITIVE EVIDENCE";
   }
-  // Green requires at least 70% coverage and never overrides the official decision.
   const needle=$("price-gauge-needle");
   needle.style.transform="translateX(-50%) rotate("+angle+"deg)";
   needle.dataset.tone=tone;
   const status=gauge.querySelector(".price-gauge-status");status.textContent=label;status.dataset.tone=tone;
-  $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. Coverage is available factor weight divided by 130 total possible weight; balance is the weighted average of available factor scores. "+(insufficientCoverage?"Coverage is below the 70% minimum, so the needle is held at neutral and no directional gauge signal is shown. ":"")+evidenceSummary+" Official decision: "+decision+". This score is not a probability or expected return. Missing inputs reduce coverage; they are never counted as positive. BUY remains blocked until historical validation is approved.";
+  const decisionNote=decision==="BUY"?"Official decision: BUY (still subject to the separate historical-validation lock).":"Official decision: "+decision+"; a positive evidence balance is not an actionable BUY signal.";
+  $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. Coverage is available factor weight divided by 130 total possible weight; balance is the weighted average of available factor scores. "+(insufficientCoverage?"Coverage is below the 70% minimum, so the needle is held at neutral and no directional reading is shown. ":"")+evidenceSummary+" "+decisionNote+" This score is not a probability or expected return. Missing inputs reduce coverage; they are never counted as positive. Historical validation must pass independently before BUY can be enabled.";
   gauge.dataset.tone=tone;
 }
 function reconcileFmpWithSec(fmpFundamentals, observations) {
