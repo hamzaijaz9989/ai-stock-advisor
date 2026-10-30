@@ -38,7 +38,7 @@ jobs:
             node --input-type=module --check < "$file"
           done
       - name: Run frontend analysis logic tests
-        run: node --test tests/web_logic.test.mjs tests/fmp_endpoint.test.mjs tests/ai_research.test.mjs
+        run: node --test tests/web_logic.test.mjs tests/fmp_endpoint.test.mjs tests/ai_research.test.mjs tests/fmp_history.test.mjs
       - name: Test SEC point-in-time ingestion adapter
         run: pytest tests/test_sec_ingest.py
       - name: Smoke-test SEC ingestion CLI argument validation
