@@ -23,13 +23,13 @@ export async function onRequestGet({request,env}){
  if(!env?.FMP_API_KEY)return Response.json({available:false,configured:false,error:"FMP_API_KEY is not configured."},{status:503,headers:{"Cache-Control":"no-store"}});
  const tasks=[
   ["prices",`historical-price-eod/full?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}`],
-  ["annualIncome",`income-statement?symbol=${ticker}&period=annual&limit=20`],
-  ["annualBalance",`balance-sheet-statement?symbol=${ticker}&period=annual&limit=20`],
-  ["annualCashflow",`cash-flow-statement?symbol=${ticker}&period=annual&limit=20`],
-  ["quarterIncome",`income-statement?symbol=${ticker}&period=quarter&limit=80`],
-  ["quarterBalance",`balance-sheet-statement?symbol=${ticker}&period=quarter&limit=80`],
-  ["quarterCashflow",`cash-flow-statement?symbol=${ticker}&period=quarter&limit=80`],
-  ["news",`news/stock?symbols=${ticker}&from=${from}&to=${to}&limit=250&page=0`]
+  ["annualIncome",`income-statement?symbol=${ticker}&period=annual&limit=5`],
+  ["annualBalance",`balance-sheet-statement?symbol=${ticker}&period=annual&limit=5`],
+  ["annualCashflow",`cash-flow-statement?symbol=${ticker}&period=annual&limit=5`],
+  ["quarterIncome",`income-statement?symbol=${ticker}&period=quarter&limit=5`],
+  ["quarterBalance",`balance-sheet-statement?symbol=${ticker}&period=quarter&limit=5`],
+  ["quarterCashflow",`cash-flow-statement?symbol=${ticker}&period=quarter&limit=5`],
+  ["news",`news/stock?symbols=${ticker}&from=${from}&to=${to}&limit=5&page=0`]
  ];
  const settled=await Promise.allSettled(tasks.map(([,path])=>get(path,env.FMP_API_KEY)));
  const raw={},errors=[];
