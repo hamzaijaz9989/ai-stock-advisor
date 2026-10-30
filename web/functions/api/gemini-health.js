@@ -68,7 +68,9 @@ export async function onRequestGet({ env }) {
       );
       attempted.push({model:candidate.name.replace(/^models\//,""),status:generationResponse.status});
       if(generationResponse.ok) break;
-      if([400,404,429].includes(generationResponse.status)) break;
+      // Model-specific 404s can occur when a model is listed but unavailable to this key.
+      // Continue to the next listed model; stop only for request errors or quota limits.
+      if([400,429].includes(generationResponse.status)) break;
     }
     if(!generationResponse?.ok) return Response.json({
       available:false,configured:true,authenticated:true,generationTest:"failed",
