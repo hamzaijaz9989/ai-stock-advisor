@@ -139,6 +139,37 @@ export async function onRequestPost({ request, env }) {
         .map(item => item.text || "").join("\n"));
     let research;
     try { research = JSON.parse(outputText); } catch { return respond({ available: false, reason: "AI research response could not be parsed.", provider, model }, 502); }
+    if (!research || typeof research !== "object" || Array.isArray(research)) {
+      return respond({ available: false, reason: "AI research returned an invalid response shape.", provider, model }, 502);
+    }
+    const safeUrl = value => {
+      try {
+        const parsed = new URL(String(value || ""));
+        return parsed.protocol === "https:" && parsed.hostname.includes(".") ? parsed.toString() : "";
+      } catch { return ""; }
+    };
+    const findings = (Array.isArray(research.findings) ? research.findings : []).slice(0, MAX_FIELDS)
+      .map(item => ({
+        field: cleanText(item?.field, 100),
+        value: cleanText(item?.value, 1200),
+        sourceTitle: cleanText(item?.sourceTitle, 240),
+        sourceUrl: safeUrl(item?.sourceUrl),
+        publishedDate: cleanText(item?.publishedDate, 40),
+        asOfDate: cleanText(item?.asOfDate, 40),
+        confidence: cleanText(item?.confidence, 40),
+        evidenceType: cleanText(item?.evidenceType, 100)
+      }))
+      .filter(item => item.field && item.value && item.sourceTitle && item.sourceUrl);
+    const companyDescription = cleanText(research.companyDescription, 700);
+    const notes = (Array.isArray(research.notes) ? research.notes : [])
+      .map(note => cleanText(note, 400)).filter(Boolean).slice(0, 8);
+    if (!findings.length && !companyDescription) {
+      return respond({ available: false, reason: "AI research returned no source-linked findings.", provider, model, notes }, 502);
+    }
+    return respond({
+      available: true, provider, model, ticker, companyDescription, findings, notes,
+      disclaimer: "Supplemental AI-assisted research only. Source links must be reviewed. These findings do not replace native market/SEC data or alter Northstar's decision, valuation, or validation gates."
+    });
   } catch (error) {
     return respond({ available: false, reason: "AI research request failed.", provider, detail: cleanText(error?.message || error, 200) }, 502);
   }
