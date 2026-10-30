@@ -1497,15 +1497,14 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
   const rawScore=Math.max(-100,Math.min(100,Number.isFinite(evidenceScore)?evidenceScore:0));
   const confidence=Math.max(0,Math.min(100,Number.isFinite(evidenceConfidence)?evidenceConfidence:0));
   const insufficientCoverage=confidence<85 || scoreDetails.scoreEligible===false;
-  const hardRisk=hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW";
+  // This is an evidence-direction gauge, not the company-quality or trade-decision badge.
+  // Keep the needle neutral when coverage is insufficient; show hard quality decisions separately.
   const score=insufficientCoverage?0:rawScore;
   // Five equal zones across the semicircle: -100..-60 red, -60..-25 orange,
   // -25..+25 yellow, +25..+60 lime, +60..+100 green.
   const angle=score*0.9;
   let tone="wait",label="YELLOW · MIXED / WAIT";
-  if(hardRisk) {
-    tone="sell";label=hardQualityFailure||decision==="AVOID"?"RED · QUALITY FAIL":"RED · HIGH RISK";
-  } else if(insufficientCoverage) {
+  if(insufficientCoverage) {
     tone="wait";label=scoreDetails.sectorModelBlock?"YELLOW · SECTOR MODEL NOT VERIFIED":"YELLOW · INSUFFICIENT EVIDENCE";
   } else if(score<=-60) {
     tone="sell";label="RED · HIGH RISK";
@@ -1526,8 +1525,20 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
   const status=gauge.querySelector(".price-gauge-status");status.textContent=label;status.dataset.tone=tone;
   const decisionNote=decision==="BUY"
     ?"Official decision: BUY; historical validation remains a separate hard approval gate."
-    :"Official decision: "+decision+"; gauge evidence does not override the official decision.";
-  $("price-gauge-message").textContent="Normalized balance "+Math.round(score)+"/100 · raw weighted contribution "+Number(scoreDetails.rawWeightedPoints||0).toFixed(1)+"/100 · observed factor weight "+Number(scoreDetails.observedWeight||0)+"/100 · evidence coverage "+Math.round(confidence)+"%. Raw contribution preserves missing weight as zero contribution; normalized balance averages observed factors only and is directional only when the evidence gate permits it. "+(insufficientCoverage?(scoreDetails.sectorModelBlock||"Coverage is below the 85% minimum")+". Needle held neutral. ":"")+evidenceSummary+" "+decisionNote+" This score is not a probability or expected return. Historical validation must pass independently before BUY can be enabled.";
+    :"Official decision: "+decision+"; this decision is separate from the evidence gauge.";
+  const missingFactors=Array.isArray(scoreDetails.missingFactors)?scoreDetails.missingFactors:[];
+  const qualityNote=hardQualityFailure
+    ?" Company-quality gate: FAILED. "+(scoreDetails.qualityFailureReason||"Review the failed financial checks in the decision details.") 
+    :" Company-quality gate: "+(scoreDetails.qualityGatePassed===true?"PASSED":"NOT CLEARED")+".";
+  const coverageNote=insufficientCoverage
+    ?(scoreDetails.sectorModelBlock||"Evidence coverage is below the required 85%.")+" The needle is intentionally neutral."
+    :"Evidence coverage meets the minimum required for a directional reading.";
+  $("price-gauge-message").textContent=
+    "Evidence balance: "+Math.round(score)+"/100 · raw contribution: "+Number(scoreDetails.rawWeightedPoints||0).toFixed(1)+"/100 · coverage: "+Math.round(confidence)+"% ("+Number(scoreDetails.observedWeight||0)+"/100 weight). "+
+    coverageNote+
+    (missingFactors.length?" Missing / unverified: "+missingFactors.join("; ")+".":"")+
+    qualityNote+" "+evidenceSummary+" "+decisionNote+
+    " This is an evidence balance, not a probability or expected return. Historical validation is separate and must pass before BUY can be enabled.";
   gauge.dataset.tone=tone;
 }
 function reconcileFmpWithSec(fmpFundamentals, observations) {
@@ -1878,7 +1889,10 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     : f.label+": NOT VERIFIED (weight "+f.weight+")").join(" · ")+catalystDisclosure;
   renderPriceGauge(state,evidenceResult.normalizedScore,evidenceResult.coverage,evidenceSummary,fundamentalAvoid,{
     rawWeightedPoints:evidenceResult.rawWeightedPoints,observedWeight:evidenceResult.observedWeight,
-    sectorModelBlock,scoreEligible:evidenceResult.eligible
+    sectorModelBlock,scoreEligible:evidenceResult.eligible,
+    missingFactors:evidenceResult.factors.filter(f=>!f.available).map(f=>f.label),
+    qualityGatePassed:!fundamentalAvoid,
+    qualityFailureReason:fundamentalFailureReasons.length?fundamentalFailureReasons.join("; "):null
   });
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
 }
