@@ -1254,8 +1254,8 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
     if(!panel||!root) return payload;
     root.innerHTML="";
     const description=String(payload.companyDescription||"").trim();
-    if(descriptionMissing&&description) setText("beginner-company-description","“"+description+"”");
-    if(description) { const p=document.createElement("p");p.textContent="Company profile supplemented by AI-assisted web research. Native SEC and market-data calculations remain unchanged.";root.append(p); }
+    // Do not replace the authoritative company description with unverified model prose.
+    // Only source-linked findings below are displayed as supplemental research.
     const findings=Array.isArray(payload.findings)?payload.findings:[];
     for(const item of findings) {
       const article=document.createElement("article");article.className="beginner-list-item";
@@ -1290,7 +1290,7 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
       }
     }
     for(const note of (Array.isArray(payload.notes)?payload.notes:[])) { const p=document.createElement("p");p.className="muted";p.textContent=String(note);root.append(p); }
-    if(!findings.length&&!description) return null;
+    if(!findings.length) return null;
     setText("ai-research-status",findings.length+" sourced finding"+(findings.length===1?"":"s"));
     setText("ai-research-intro","Northstar found additional source-linked context. Numerical inputs are not replaced by AI; the native engine remains responsible for calculations and decision rules.");
     panel.classList.remove("hidden");
