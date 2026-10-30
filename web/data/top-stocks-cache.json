@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-30T00:52:27.501Z",
+  "generatedAt": "2026-10-30T08:49:37.631Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 60-stock screen",
   "status": "success",
@@ -10,7 +10,7 @@
       "name": "Advanced Micro Devices Inc.",
       "score": 86.9,
       "financialPeriod": "2025-12-27",
-      "historyPeriod": "2025-10-30 to 2026-10-28",
+      "historyPeriod": "2025-10-30 to 2026-10-29",
       "components": [
         {
           "name": "Revenue growth",
@@ -26,7 +26,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+127.0%"
+          "display": "+122.3%"
         },
         {
           "name": "Maximum drawdown",
@@ -36,41 +36,11 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
-      "ticker": "ANET",
-      "name": "Arista Networks, Inc.",
-      "score": 85.9,
-      "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-10-30 to 2026-10-28",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "28.6%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "39.0%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "47.2%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+17.9%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-26.7%"
-        }
-      ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
-    },
-    {
       "ticker": "MU",
       "name": "Micron Technology Inc.",
       "score": 85.5,
       "financialPeriod": "2026-09-03",
-      "historyPeriod": "2025-10-30 to 2026-10-28",
+      "historyPeriod": "2025-10-30 to 2026-10-29",
       "components": [
         {
           "name": "Revenue growth",
@@ -86,7 +56,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+338.9%"
+          "display": "+317.1%"
         },
         {
           "name": "Maximum drawdown",
@@ -96,11 +66,41 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
+      "ticker": "ANET",
+      "name": "Arista Networks, Inc.",
+      "score": 85.3,
+      "financialPeriod": "2025-12-31",
+      "historyPeriod": "2025-10-30 to 2026-10-29",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "28.6%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "39.0%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "47.2%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+16.3%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-26.7%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
       "ticker": "NVDA",
       "name": "Nvidia Corp.",
-      "score": 85.4,
+      "score": 85,
       "financialPeriod": "2026-01-25",
-      "historyPeriod": "2025-10-30 to 2026-10-28",
+      "historyPeriod": "2025-10-30 to 2026-10-29",
       "components": [
         {
           "name": "Revenue growth",
@@ -116,7 +116,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+6.2%"
+          "display": "+5.3%"
         },
         {
           "name": "Maximum drawdown",
