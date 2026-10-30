@@ -1549,7 +1549,9 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
   const grid=$("decision-metrics"),checks=$("decision-checks");
   grid.innerHTML=""; checks.innerHTML="";
-  const valuation=buildDcfEstimate(observations);
+  const sicCode=Number(company?.sic);
+  const isFinancialInstitution=Number.isFinite(sicCode)&&sicCode>=6000&&sicCode<=6799;
+  const valuation=isFinancialInstitution?{available:false,reason:"Not applicable: SEC classifies this issuer as a financial institution. Northstar does not apply its industrial-company free-cash-flow DCF to banks, insurers or investment firms; a sector-specific model and capital/credit-quality inputs are required."}:buildDcfEstimate(observations);
   const atr=averageTrueRange(history);
   const quoteDate=quote?.quoteTime?new Date(quote.quoteTime):null;
   const quoteAgeHours=quoteDate&&!Number.isNaN(quoteDate.getTime())?(Date.now()-quoteDate.getTime())/3600000:Infinity;
@@ -1579,15 +1581,14 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const latestRevenue=rev[rev.length-1],priorRevenue=rev[rev.length-2];
   const latestIncome=latestRevenue?income.find(item=>item.end===latestRevenue.end&&item.start===latestRevenue.start&&item.unit===latestRevenue.unit):null;
   const latestFcf=latestRevenue?fcf.find(item=>item.end===latestRevenue.end&&item.start===latestRevenue.start):null;
-  const annualDataAvailable=Boolean(
-    latestRevenue&&priorRevenue&&priorRevenue.value>0&&
+  const annualCoreAvailable=Boolean(latestRevenue&&priorRevenue&&priorRevenue.value>0&&
     typeof latestRevenue.value==="number"&&Number.isFinite(latestRevenue.value)&&
-    latestIncome&&Number.isFinite(latestIncome.value)&&
-    latestFcf&&Number.isFinite(latestFcf.value)
-  );
+    latestIncome&&Number.isFinite(latestIncome.value));
+  const annualDataAvailable=Boolean(annualCoreAvailable&&
+    (isFinancialInstitution||(latestFcf&&Number.isFinite(latestFcf.value))));
   const annualRevenueGrowth=annualDataAvailable?latestRevenue.value/priorRevenue.value-1:null;
   const annualFundamentalPass=Boolean(annualDataAvailable&&latestRevenue.value>0&&
-    latestIncome.value>0&&latestFcf.value>0&&annualRevenueGrowth>=-0.10);
+    latestIncome.value>0&&(isFinancialInstitution||latestFcf.value>0)&&annualRevenueGrowth>=-0.10);
   const quarterlyDataAvailable=Boolean(
     quarter&&typeof quarter.currentRevenue==="number"&&Number.isFinite(quarter.currentRevenue)&&
     typeof quarter.currentIncome==="number"&&Number.isFinite(quarter.currentIncome)&&
@@ -1627,11 +1628,11 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const liquidityRatio=liquidityAvailable&&latestLiabilities.value>0?latestAssets.value/latestLiabilities.value:null;
   const growthScreen={label:"Growth screen",ok:annualDataAvailable&&annualRevenueGrowth>=0&&quarterlyDataAvailable&&quarter.revenueYoY>=0,
     detail:!annualDataAvailable||!quarterlyDataAvailable?"WARN — comparable annual or quarterly revenue is missing.": "Annual revenue growth "+(annualRevenueGrowth*100).toFixed(1)+"% (period ending "+latestRevenue.end+"); latest-quarter revenue YoY "+(quarter.revenueYoY*100).toFixed(1)+"% (period ending "+quarter.periodEnd+"). Rule: both must be >= 0%."};
-  const profitabilityScreen={label:"Profitability screen",ok:annualDataAvailable&&latestIncome.value>0&&latestFcf.value>0&&quarterlyDataAvailable&&quarter.currentIncome>0,
-    detail:!annualDataAvailable||!quarterlyDataAvailable?"WARN — comparable net income or FCF is missing.":"Annual net income "+fmtMoney(latestIncome.value)+" and approximate annual FCF "+fmtMoney(latestFcf.value)+" (period ending "+latestRevenue.end+"); latest-quarter net income "+fmtMoney(quarter.currentIncome)+". Rule: all reported values must be positive."};
-  const liquidityScreen={label:"Liquidity screen",ok:liquidityAvailable&&latestAssets.value>=latestLiabilities.value,
+  const profitabilityScreen={label:"Profitability screen",ok:annualDataAvailable&&latestIncome.value>0&&(isFinancialInstitution||latestFcf.value>0)&&quarterlyDataAvailable&&quarter.currentIncome>0,
+    detail:!annualDataAvailable||!quarterlyDataAvailable?"WARN — comparable annual/quarterly profitability facts are missing.":isFinancialInstitution?"Annual net income "+fmtMoney(latestIncome.value)+" and latest-quarter net income "+fmtMoney(quarter.currentIncome)+" are positive. Bank cash-flow/FCF is excluded from this industrial-company profitability test; bank-specific credit and capital quality remain unassessed.":"Annual net income "+fmtMoney(latestIncome.value)+" and approximate annual FCF "+fmtMoney(latestFcf.value)+" (period ending "+latestRevenue.end+"); latest-quarter net income "+fmtMoney(quarter.currentIncome)+". Rule: all reported values must be positive."};
+  const liquidityScreen=isFinancialInstitution?{label:"Liquidity / capital screen",ok:false,notApplicable:true,detail:"Not applicable: a simple assets-to-liabilities test is not a bank capital or liquidity adequacy measure. CET1, risk-weighted assets, liquidity coverage and regulatory capital disclosures require a dedicated sector model."}:{label:"Liquidity screen",ok:liquidityAvailable&&latestAssets.value>=latestLiabilities.value,
     detail:!liquidityAvailable?"WARN — matched annual assets/liabilities are unavailable.":"Assets "+fmtMoney(latestAssets.value)+"; liabilities "+fmtMoney(latestLiabilities.value)+" (period ending "+latestRevenue.end+"); assets/liabilities "+(liquidityRatio===null?"not calculable":liquidityRatio.toFixed(2)+"x")+". Rule: assets must be >= liabilities. This is a broad balance-sheet check, not a current ratio."};
-  const cashFlowScreen={label:"Cash-flow screen",ok:annualDataAvailable&&latestFcf.value>0,
+  const cashFlowScreen=isFinancialInstitution?{label:"Free-cash-flow screen",ok:false,notApplicable:true,detail:"Not applicable: operating cash flow and capex do not provide a comparable industrial-company FCF signal for this financial institution. No FCF penalty or DCF valuation is applied."}:{label:"Cash-flow screen",ok:annualDataAvailable&&latestFcf.value>0,
     detail:!annualDataAvailable?"WARN — matched annual operating cash flow and capex are unavailable.":"Approximate FCF = operating cash flow minus absolute capex = "+fmtMoney(latestFcf.value)+" (period ending "+latestFcf.end+"). Rule: positive latest annual FCF; no TTM substitution is claimed."};
   const eventRiskScreen={label:"Event-risk screen",ok:earningsVerified&&daysToEarnings>3&&flaggedHeadlines.length===0,
     detail:!earningsVerified?"WARN — next earnings date is not verified.":daysToEarnings<=3?"FAIL — earnings expected within "+Math.max(0,Math.round(daysToEarnings))+" days.":flaggedHeadlines.length?"WARN — "+flaggedHeadlines.length+" recent headline(s) match risk keywords.":"No keyword-triggered risk headline found in recent timestamped coverage; this is not proof that no material event exists."};
@@ -1795,10 +1796,10 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     const row=document.createElement("div");row.className="decision-check";
     const detailText=String(item.detail||"").toLowerCase();
     const missing=/missing|unavailable|not confirmed|not finished|incomplete|no timestamped|not available|withheld|not supplied|cannot be validated|not eligible/.test(detailText);
-    const status=item.ok?"good":missing?"caution":"bad";
+    const status=item.notApplicable?"caution":item.ok?"good":missing?"caution":"bad";
     const indicator=document.createElement("span");indicator.className="decision-indicator "+status;
-    indicator.textContent=item.ok?"CHECKED":missing?"REVIEW":"RISK";
-    indicator.title=item.ok?"Positive check":missing?"Needs attention":"Risk check failed";
+    indicator.textContent=item.notApplicable?"N/A":item.ok?"CHECKED":missing?"REVIEW":"RISK";
+    indicator.title=item.notApplicable?"Not applicable to this issuer type":item.ok?"Positive check":missing?"Needs attention":"Risk check failed";
     const text=document.createElement("div");const title=document.createElement("strong");title.textContent=item.label;const detail=document.createElement("p");detail.textContent=item.detail;detail.className="muted";
     text.append(title,detail);row.append(indicator,text);checks.append(row);
   }
@@ -1841,7 +1842,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   addGaugeEvidence("Annual fundamentals",25,annualFundamentalPass?1:-1,annualDataAvailable);
   const annualGrowthScore=annualRevenueGrowth>=0.10?1:annualRevenueGrowth>=0?0.35:annualRevenueGrowth>=-0.10?-0.35:-1;
   addGaugeEvidence("Annual revenue trend",10,annualGrowthScore,annualDataAvailable&&Number.isFinite(annualRevenueGrowth));
-  addGaugeEvidence("Annual free cash flow",10,latestFcf?.value>0?1:-1,Boolean(annualDataAvailable&&latestFcf&&Number.isFinite(latestFcf.value)));
+  addGaugeEvidence("Annual free cash flow",10,latestFcf?.value>0?1:-1,Boolean(!isFinancialInstitution&&annualDataAvailable&&latestFcf&&Number.isFinite(latestFcf.value)));
   const quarterlyTrendScore=quarterlyDataAvailable?(quarter.revenueYoY>=0.10?1:quarter.revenueYoY>=0?0.35:quarter.revenueYoY>=-0.15?-0.35:-1):0;
   addGaugeEvidence("Quarterly fundamentals",25,quarterlyPass?quarterlyTrendScore:-1,quarterlyDataAvailable);
   const headlineScore=flaggedHeadlines.length?Math.max(-1,-0.5-0.25*(flaggedHeadlines.length-1)):0.25;
@@ -2205,6 +2206,8 @@ async function analyze(ticker) {
     const supportedIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K","20-F","6-K","40-F"].includes(form));
     const usDomesticIndex=recentForms.findIndex(form=>["10-K","10-Q","8-K"].includes(form));
     const foreignFiler=usDomesticIndex<0&&recentForms.some(form=>["20-F","6-K","40-F"].includes(form));
+    company.sic=Number(submissions?.sic)||null;
+    company.sicDescription=submissions?.sicDescription||"";
     const observations=await addShareCountFallback(getObservations(facts),company.cik);
     $("company-name").textContent=titleCaseCompanyName(company.name);
     const recentDate=supportedIndex>=0?submissions.filings.recent.filingDate?.[supportedIndex]:null;
