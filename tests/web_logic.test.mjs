@@ -619,3 +619,35 @@ test("research quote eligibility allows only a small five-minute future clock sk
   quote.quoteTime=new Date(now+6*60_000).toISOString();
   assert.equal(app.assessResearchQuoteEligibility(quote,now).eligible,false);
 });
+
+
+test("SEC-classified financial institutions are not penalized by industrial FCF or assigned an industrial DCF", () => {
+  const app=loadAppFunctions();
+  const observations=[...annualFixtures().filter(row=>row.key!=="commonShares"),...quarterlyFixtures(),obs("commonShares",90e6,null,new Date().toISOString().slice(0,10),"10-Q","shares",new Date().toISOString().slice(0,10))];
+  for(const row of observations) {
+    if(row.key==="operatingCashFlow") row.value=-Math.abs(row.value);
+    if(row.key==="capex") row.value=0;
+  }
+  const future=new Date(Date.now()+60*86400000).toISOString().slice(0,10);
+  app.renderDecision({
+    ticker:"BANK",
+    company:{name:"Example Bank",sic:6021,sicDescription:"National commercial banks"},
+    observations,
+    quote:{price:100,quoteTime:new Date().toISOString(),source:"test",interval:"provider quote",delayedOrRealtime:"timestamped provider quote"},
+    history:{data:Array.from({length:16},(_,i)=>({date:"2026-01-"+String(i+1).padStart(2,"0"),close:100,high:102,low:98}))},
+    news:{items:[{title:"Quarterly update",publishedAt:new Date().toISOString(),source:"test"}]},
+    earnings:{provider:"test calendar",verified:true,events:[{reportDate:future,reportTime:"AMC",company:"Example Bank"}]},
+    quarter:app.renderQuarterlySnapshot(observations)
+  });
+  const status=app.document.getElementById("decision-status").textContent;
+  assert.ok(!status.startsWith("AVOID"),"negative bank operating cash flow must not trigger the industrial FCF avoid rule");
+  const checks=app.document.getElementById("decision-checks").children;
+  const labels=checks.map(row=>row.children?.[1]?.children?.[0]?.textContent||"");
+  assert.ok(labels.includes("Free-cash-flow screen"));
+  assert.ok(labels.includes("Liquidity / capital screen"));
+  const cashFlow=checks.find(row=>row.children?.[1]?.children?.[0]?.textContent==="Free-cash-flow screen");
+  assert.equal(cashFlow.children[0].textContent,"N/A");
+  const liquidity=checks.find(row=>row.children?.[1]?.children?.[0]?.textContent==="Liquidity / capital screen");
+  assert.equal(liquidity.children[0].textContent,"N/A");
+  assert.match(app.document.getElementById("decision-explanation").textContent,/financial institution/i);
+});
