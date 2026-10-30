@@ -71,7 +71,7 @@ def test_bad_financial_quality_and_risk_headline_block_signal():
     result = evaluate_snapshot(row)
     assert result["eligible"] is False
     assert "quarter_net_income_quality_gate_failed" in result["failed_gates"]
-    assert "potential_material_risk_headline_or_unknown" in result["failed_gates"]
+    assert "potential_material_risk_headline_requires_review" in result["failed_gates"]
 
 
 def test_report_never_self_approves_even_when_attestations_are_true():
