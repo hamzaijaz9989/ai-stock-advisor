@@ -101,6 +101,17 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
                     failed.append(f"lookahead_{key}")
             except ValueError:
                 failed.append(f"availability_{key}_missing_or_invalid")
+        # Optional event/news feeds do not block solely when absent, but if supplied
+        # their timestamps are still checked strictly to prevent look-ahead leakage.
+        for key in ("earnings", "news"):
+            if availability.get(key) is None:
+                continue
+            try:
+                available_at = _timestamp(availability[key], f"available_at.{key}")
+                if available_at > as_of_timestamp:
+                    failed.append(f"lookahead_{key}")
+            except ValueError:
+                failed.append(f"availability_{key}_invalid")
 
     is_financial_institution = snapshot.get("sector_type") == "financial_institution"
     numeric_names = (
