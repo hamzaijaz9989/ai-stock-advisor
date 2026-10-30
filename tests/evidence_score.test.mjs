@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateEvidenceScore } from "../web/evidence-score.mjs";
+import "../web/evidence-score.js";
+const calculateEvidenceScore = globalThis.calculateEvidenceScore;
 const full=[
 {id:"annual",weight:20,score:1,available:true},{id:"growth",weight:10,score:0.5,available:true},
 {id:"cashflow",weight:10,score:1,available:true},{id:"quarter",weight:15,score:0.5,available:true},
