@@ -102,11 +102,12 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
             except ValueError:
                 failed.append(f"availability_{key}_missing_or_invalid")
 
+    is_financial_institution = snapshot.get("sector_type") == "financial_institution"
     numeric_names = (
         "close", "dcf_base", "annual_revenue", "prior_annual_revenue",
-        "annual_net_income", "annual_fcf", "quarter_revenue",
-        "quarter_net_income", "quarter_revenue_yoy", "atr14",
-    )
+        "annual_net_income", "quarter_revenue", "quarter_net_income",
+        "quarter_revenue_yoy", "atr14",
+    ) + (() if is_financial_institution else ("annual_fcf",))
     values = {name: _finite(snapshot.get(name)) for name in numeric_names}
     for name in numeric_names:
         if values[name] is None:
@@ -124,7 +125,6 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
     if ratio is not None and not 0.40 <= ratio <= 2.50:
         failed.append("market_model_ratio_outside_allowed_band")
 
-    is_financial_institution = snapshot.get("sector_type") == "financial_institution"
     quality_fields = ("annual_revenue", "prior_annual_revenue", "annual_net_income",
                       "quarter_revenue", "quarter_net_income")
     if not is_financial_institution:
