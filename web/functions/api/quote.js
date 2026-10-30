@@ -67,7 +67,7 @@ function parseEasternQuoteLabel(label) {
   return check.toISOString();
 }
 
-export async function onRequestGet({ request }) {
+export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const ticker = (url.searchParams.get("ticker") || "").trim().toUpperCase();
   if (!ALLOWED.test(ticker)) return Response.json({ error: "Enter a valid ticker." }, { status: 400 });
