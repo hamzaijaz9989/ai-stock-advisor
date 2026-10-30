@@ -1,3 +1,4 @@
+import { calculateEvidenceScore } from "./evidence-score.mjs";
 const $ = (id) => document.getElementById(id);
 let latestResearchSnapshot = null;
 let latestDecisionContext = null;
@@ -1468,7 +1469,7 @@ function renderBeginnerOverview(data) {
   for(const item of headlines){const card=document.createElement("article");card.className="beginner-list-item";const link=document.createElement("a");link.href=item.url;link.target="_blank";link.rel="noopener noreferrer";link.textContent=item.title;const meta=document.createElement("p");const date=item.publishedAt?new Date(item.publishedAt):null;meta.textContent=(item.source||"Source unavailable")+(date&&!Number.isNaN(date.getTime())?" · "+date.toLocaleString():" · Time unavailable");card.append(link,meta);headlineRoot.append(card);}
 }
 
-function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceSummary, hardQualityFailure=false) {
+function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceSummary, hardQualityFailure=false, scoreDetails={}) {
   const priceRow=$("beginner-price")?.parentElement;
   if(!priceRow)return;
   let gauge=$("beginner-price-gauge");
@@ -1496,7 +1497,7 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
   // Score is the weighted evidence balance (-100 to +100), not a probability.
   const rawScore=Math.max(-100,Math.min(100,Number.isFinite(evidenceScore)?evidenceScore:0));
   const confidence=Math.max(0,Math.min(100,Number.isFinite(evidenceConfidence)?evidenceConfidence:0));
-  const insufficientCoverage=confidence<85;
+  const insufficientCoverage=confidence<85 || scoreDetails.scoreEligible===false;
   const hardRisk=hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW";
   const score=insufficientCoverage?0:rawScore;
   // Five equal zones across the semicircle: -100..-60 red, -60..-25 orange,
@@ -1506,7 +1507,7 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
   if(hardRisk) {
     tone="sell";label=hardQualityFailure||decision==="AVOID"?"RED · QUALITY FAIL":"RED · HIGH RISK";
   } else if(insufficientCoverage) {
-    tone="wait";label="YELLOW · INSUFFICIENT EVIDENCE";
+    tone="wait";label=scoreDetails.sectorModelBlock?"YELLOW · SECTOR MODEL NOT VERIFIED":"YELLOW · INSUFFICIENT EVIDENCE";
   } else if(score<=-60) {
     tone="sell";label="RED · HIGH RISK";
   } else if(score<=-25) {
@@ -1527,7 +1528,7 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
   const decisionNote=decision==="BUY"
     ?"Official decision: BUY; historical validation remains a separate hard approval gate."
     :"Official decision: "+decision+"; gauge evidence does not override the official decision.";
-  $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. Coverage is available factor weight divided by 100 total possible weight; balance is the weighted average of available factor scores. "+(insufficientCoverage?"Coverage is below the 85% minimum, so the needle is held at neutral. ":"")+evidenceSummary+" "+decisionNote+" This score is not a probability or expected return. Missing inputs reduce coverage and are never counted as positive. Historical validation must pass independently before BUY can be enabled.";
+  $("price-gauge-message").textContent="Normalized balance "+Math.round(score)+"/100 · raw weighted contribution "+Number(scoreDetails.rawWeightedPoints||0).toFixed(1)+"/100 · observed factor weight "+Number(scoreDetails.observedWeight||0)+"/100 · evidence coverage "+Math.round(confidence)+"%. Raw contribution preserves missing weight as zero contribution; normalized balance averages observed factors only and is directional only when the evidence gate permits it. "+(insufficientCoverage?(scoreDetails.sectorModelBlock||"Coverage is below the 85% minimum")+". Needle held neutral. ":"")+evidenceSummary+" "+decisionNote+" This score is not a probability or expected return. Historical validation must pass independently before BUY can be enabled.";
   gauge.dataset.tone=tone;
 }
 function reconcileFmpWithSec(fmpFundamentals, observations) {
@@ -1849,32 +1850,35 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
-  // Weighted evidence score: missing inputs are excluded from the score and lower coverage confidence.
-  const gaugeParts=[];
-  let weightedTotal=0, observedWeight=0;
-  const addGaugeEvidence=(name,weight,value,available)=>{
-    if(!available || !Number.isFinite(value)) return;
-    const bounded=Math.max(-1,Math.min(1,value));
-    weightedTotal+=weight*bounded; observedWeight+=weight;
-    gaugeParts.push(name+": factor score "+(bounded>0?"+":"")+Math.round(bounded*100)+"/100");
+  // Deterministic evidence score. Missing factor weights remain visible in raw contribution.
+  const gaugeFactors=[];
+  const addGaugeEvidence=(id,name,weight,value,available)=>{
+    const ok=Boolean(available&&Number.isFinite(value));
+    gaugeFactors.push({id,label:name,weight,score:ok?Math.max(-1,Math.min(1,value)):null,available:ok});
   };
-  addGaugeEvidence("Annual fundamentals",20,annualFundamentalPass?1:-1,annualDataAvailable);
+  addGaugeEvidence("annual","Annual fundamentals",20,annualFundamentalPass?1:-1,annualDataAvailable);
   const annualGrowthScore=annualRevenueGrowth>=0.10?1:annualRevenueGrowth>=0?0.35:annualRevenueGrowth>=-0.10?-0.35:-1;
-  addGaugeEvidence("Annual revenue trend",10,annualGrowthScore,annualDataAvailable&&Number.isFinite(annualRevenueGrowth));
-  addGaugeEvidence("Annual cash-flow quality",10,latestFcf?.value>0?1:-1,Boolean(!isFinancialInstitution&&annualDataAvailable&&latestFcf&&Number.isFinite(latestFcf.value)));
+  addGaugeEvidence("revenue-growth","Annual revenue trend",10,annualGrowthScore,annualDataAvailable&&Number.isFinite(annualRevenueGrowth));
+  if(isFinancialInstitution) addGaugeEvidence("bank-capital-credit","Bank capital and credit quality",10,0,false);
+  else addGaugeEvidence("cashflow","Annual cash-flow quality",10,latestFcf?.value>0?1:-1,Boolean(annualDataAvailable&&latestFcf&&Number.isFinite(latestFcf.value)));
   const quarterlyTrendScore=quarterlyDataAvailable?(quarter.revenueYoY>=0.10?1:quarter.revenueYoY>=0?0.35:quarter.revenueYoY>=-0.15?-0.35:-1):0;
-  addGaugeEvidence("Quarterly fundamentals",15,quarterlyPass?quarterlyTrendScore:-1,quarterlyDataAvailable);
+  addGaugeEvidence("quarterly","Quarterly fundamentals",15,quarterlyPass?quarterlyTrendScore:-1,quarterlyDataAvailable);
   const headlineScore=flaggedHeadlines.length?Math.max(-1,-0.5-0.25*(flaggedHeadlines.length-1)):0;
-  addGaugeEvidence("News and material risk",15,headlineScore,recentHeadlines.length>0);
-  addGaugeEvidence("Valuation",10,valuationDecisionReady?0.5:-0.25,valuation.available&&quoteCurrent);
+  addGaugeEvidence("news-risk","News and material risk",15,headlineScore,recentHeadlines.length>0);
+  addGaugeEvidence("valuation","Valuation",10,valuationDecisionReady?0.5:-0.25,valuation.available&&quoteCurrent);
   const eventScore=daysToEarnings!==null&&daysToEarnings<=3?-1:daysToEarnings!==null&&daysToEarnings<=7?-0.6:0;
-  addGaugeEvidence("Earnings timing",5,eventScore,earningsVerified);
+  addGaugeEvidence("earnings","Earnings timing",5,eventScore,earningsVerified);
   const setupScore=priceInEntryRange&&rewardRisk!==null&&rewardRisk>=2?1:!priceInEntryRange&&rewardRisk!==null&&rewardRisk>=2?-0.35:-1;
-  addGaugeEvidence("Entry / reward-risk setup",15,setupScore,quoteCurrent&&valuationDecisionReady&&rewardRisk!==null);
-  const evidenceScore=observedWeight?Math.round(weightedTotal/observedWeight*100):0;
-  const evidenceConfidence=Math.round(observedWeight/100*100);
-  const evidenceSummary=gaugeParts.length?gaugeParts.join(" · "):"No scorable evidence is currently available.";
-  renderPriceGauge(state,evidenceScore,evidenceConfidence,evidenceSummary,fundamentalAvoid);
+  addGaugeEvidence("setup","Entry / reward-risk setup",15,setupScore,quoteCurrent&&valuationDecisionReady&&rewardRisk!==null);
+  const sectorModelBlock=isFinancialInstitution?"Bank capital and credit-quality metrics are not yet implemented; directional gauge withheld.":null;
+  const evidenceResult=calculateEvidenceScore(gaugeFactors,{minimumCoverage:85,forceNeutralReason:sectorModelBlock});
+  const evidenceSummary=evidenceResult.factors.map(f=>f.available
+    ? f.label+": "+(f.score>0?"+":"")+Math.round(f.score*100)+"/100 (weight "+f.weight+")"
+    : f.label+": NOT VERIFIED (weight "+f.weight+")").join(" · ");
+  renderPriceGauge(state,evidenceResult.normalizedScore,evidenceResult.coverage,evidenceSummary,fundamentalAvoid,{
+    rawWeightedPoints:evidenceResult.rawWeightedPoints,observedWeight:evidenceResult.observedWeight,
+    sectorModelBlock,scoreEligible:evidenceResult.eligible
+  });
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
 }
 function readResearchLog() {
