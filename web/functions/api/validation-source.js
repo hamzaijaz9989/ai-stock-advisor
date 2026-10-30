@@ -141,7 +141,7 @@ export async function onRequestGet({ request, env }) {
   const from = params.get("from") || "2021-01-01";
   const to = params.get("to") || new Date().toISOString().slice(0, 10);
   const requested = (params.get("tickers") || TICKERS.join(",")).split(",").map(x => x.trim().toUpperCase()).filter(Boolean);
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(from) || !/^\\d{4}-\\d{2}-\\d{2}$/.test(to) || from > to ||
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to ||
       (Date.parse(to) - Date.parse(from)) / 86400000 > 3653) {
     return Response.json({ available: false, error: "Use valid ISO dates and a maximum 10-year window." }, { status: 400 });
   }
