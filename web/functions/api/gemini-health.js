@@ -91,7 +91,7 @@ export async function onRequestGet({ env }) {
       modelsListed:models.length,generateContentModelsAvailable:supported.length,
       checkedAt:new Date().toISOString()
     },{status:generatedText?200:502,headers});
-  }catch{
+  }catch(error){
     return Response.json({
       available:false,configured:true,provider:"Google Gemini",generationTest:"failed",
       stage, errorName:String(error?.name||"Error").slice(0,60), errorDetail:String(error?.message||error||"Unknown error").slice(0,180),
