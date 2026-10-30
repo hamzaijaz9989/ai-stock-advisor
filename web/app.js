@@ -1493,26 +1493,30 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
   }
   // This is an evidence balance, not a predicted return or probability of success.
   const rawScore=Math.max(-100,Math.min(100,Number.isFinite(evidenceScore)?evidenceScore:0));
-  const score=(hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW")?Math.min(-35,rawScore):rawScore;
   const confidence=Math.max(0,Math.min(100,Number.isFinite(evidenceConfidence)?evidenceConfidence:0));
+  const insufficientCoverage=confidence<70;
+  // A low-coverage score is not directional: park the needle at neutral rather than
+  // allowing a few available factors to create a misleading green/red impression.
+  const score=(hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW")?Math.min(-35,rawScore):(insufficientCoverage?0:rawScore);
   let tone,label;
   const angle=score*0.65;
-  if(hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW" || score<=-35) {
+  if(hardQualityFailure || decision==="AVOID" || decision==="SELL REVIEW" || (!insufficientCoverage&&score<=-35)) {
     tone="sell"; label=hardQualityFailure||decision==="AVOID"?"RED · QUALITY FAIL":"RED · HIGH RISK";
-  } else if(score<=-10) {
+  } else if(!insufficientCoverage && score<=-10) {
     tone="orange"; label="ORANGE · ELEVATED RISK";
-  } else if(confidence<60 || score<25) {
-    tone="caution"; label=confidence<60?"YELLOW · LOW CONFIDENCE":"YELLOW · MIXED EVIDENCE";
+  } else if(insufficientCoverage) {
+    tone="caution"; label="YELLOW · INSUFFICIENT EVIDENCE";
+  } else if(score<25) {
+    tone="caution"; label="YELLOW · MIXED EVIDENCE";
   } else {
     tone="buy"; label="GREEN · POSITIVE EVIDENCE";
   }
-  // Green requires adequate evidence coverage and never overrides the official decision.
-  if(confidence<60 && tone==="buy"){tone="caution";label="YELLOW · LOW CONFIDENCE";}
+  // Green requires at least 70% coverage and never overrides the official decision.
   const needle=$("price-gauge-needle");
   needle.style.transform="translateX(-50%) rotate("+angle+"deg)";
   needle.dataset.tone=tone;
   const status=gauge.querySelector(".price-gauge-status");status.textContent=label;status.dataset.tone=tone;
-  $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. Coverage is available factor weight divided by 130 total possible weight; balance is the weighted average of available factor scores. "+evidenceSummary+" Official decision: "+decision+". This score is not a probability or expected return. Missing inputs reduce coverage; they are never counted as positive. BUY remains blocked until historical validation is approved.";
+  $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. Coverage is available factor weight divided by 130 total possible weight; balance is the weighted average of available factor scores. "+(insufficientCoverage?"Coverage is below the 70% minimum, so the needle is held at neutral and no directional gauge signal is shown. ":"")+evidenceSummary+" Official decision: "+decision+". This score is not a probability or expected return. Missing inputs reduce coverage; they are never counted as positive. BUY remains blocked until historical validation is approved.";
   gauge.dataset.tone=tone;
 }
 function reconcileFmpWithSec(fmpFundamentals, observations) {
@@ -1845,12 +1849,12 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   addGaugeEvidence("Annual free cash flow",10,latestFcf?.value>0?1:-1,Boolean(!isFinancialInstitution&&annualDataAvailable&&latestFcf&&Number.isFinite(latestFcf.value)));
   const quarterlyTrendScore=quarterlyDataAvailable?(quarter.revenueYoY>=0.10?1:quarter.revenueYoY>=0?0.35:quarter.revenueYoY>=-0.15?-0.35:-1):0;
   addGaugeEvidence("Quarterly fundamentals",25,quarterlyPass?quarterlyTrendScore:-1,quarterlyDataAvailable);
-  const headlineScore=flaggedHeadlines.length?Math.max(-1,-0.5-0.25*(flaggedHeadlines.length-1)):0.25;
+  const headlineScore=flaggedHeadlines.length?Math.max(-1,-0.5-0.25*(flaggedHeadlines.length-1)):0;
   addGaugeEvidence("Headline keyword screen",20,headlineScore,recentHeadlines.length>0);
   addGaugeEvidence("Valuation gate",15,valuationDecisionReady?0.5:-0.25,valuation.available&&quoteCurrent);
-  const eventScore=daysToEarnings!==null&&daysToEarnings<=3?-1:daysToEarnings!==null&&daysToEarnings<=7?-0.6:0.25;
+  const eventScore=daysToEarnings!==null&&daysToEarnings<=3?-1:daysToEarnings!==null&&daysToEarnings<=7?-0.6:0;
   addGaugeEvidence("Earnings timing",10,eventScore,earningsVerified);
-  const setupScore=priceInEntryRange&&rewardRisk!==null&&rewardRisk>=2?1:rewardRisk!==null&&rewardRisk>=2?0.25:-0.75;
+  const setupScore=priceInEntryRange&&rewardRisk!==null&&rewardRisk>=2?1:!priceInEntryRange&&rewardRisk!==null&&rewardRisk>=2?-0.35:-1;
   addGaugeEvidence("Entry / reward-risk setup",15,setupScore,quoteCurrent&&valuationDecisionReady&&rewardRisk!==null);
   const evidenceScore=observedWeight?Math.round(weightedTotal/observedWeight*100):0;
   const evidenceConfidence=Math.round(observedWeight/130*100);
