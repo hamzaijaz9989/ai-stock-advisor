@@ -41,9 +41,17 @@ export async function onRequestGet({ env }) {
       Array.isArray(m.supportedGenerationMethods) &&
       m.supportedGenerationMethods.includes("generateContent")
     );
-    const preferred = supported.find(m => m.name === "models/gemini-3.8-flash");
-    const chosen = preferred || supported.find(m => !/embedding|aqa|tts|image|audio|veo/i.test(m.name || ""));
-    if (!chosen?.name) {
+    const preferredNames = [
+      "models/gemini-3.8-flash",
+      "models/gemini-2.5-flash",
+      "models/gemini-2.0-flash"
+    ];
+    const candidates = [
+      ...preferredNames.map(name => supported.find(m => m.name === name)).filter(Boolean),
+      ...supported.filter(m => !/embedding|aqa|tts|image|audio|veo/i.test(m.name || ""))
+    ].filter((m, i, a) => a.findIndex(x => x.name === m.name) === i).slice(0, 3);
+
+    if (!candidates.length) {
       return Response.json({
         available: false, configured: true, authenticated: true,
         generationTest: "not_run", provider: "Google Gemini",
@@ -52,30 +60,37 @@ export async function onRequestGet({ env }) {
       }, { status: 502, headers });
     }
 
-    const generationResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/" + chosen.name + ":generateContent",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: "Reply with exactly: NORTHSTAR GEMINI TEST OK" }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 16 }
-        })
-      }
-    );
+    let generationResponse;
+    let chosen;
+    const attempted = [];
+    for (const candidate of candidates) {
+      chosen = candidate;
+      generationResponse = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/" + candidate.name + ":generateContent",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: "Reply with exactly: NORTHSTAR GEMINI TEST OK" }] }],
+            generationConfig: { temperature: 0, maxOutputTokens: 16 }
+          })
+        }
+      );
+      attempted.push({ model: candidate.name.replace(/^models\//, ""), status: generationResponse.status });
+      if (generationResponse.ok || generationResponse.status === 429) break;
+    }
 
-    if (!generationResponse.ok) {
-      const status = generationResponse.status;
+    if (!generationResponse?.ok) {
+      const status = generationResponse?.status || 502;
       const reason = status === 400 || status === 401 || status === 403
         ? "Authentication passed for model listing, but text generation was rejected. Check model access and API restrictions."
         : status === 429
           ? "Authentication passed, but text generation quota or rate limit was reached."
-          : "Gemini text generation request failed.";
+          : "Text generation failed on the tested models. Google may be experiencing a temporary service issue or model access problem.";
       return Response.json({
         available: false, configured: true, authenticated: true,
         generationTest: "failed", provider: "Google Gemini",
-        model: chosen.name.replace(/^models\//, ""),
-        upstreamStatus: status, reason
+        attemptedModels: attempted, upstreamStatus: status, reason
       }, { status: status === 429 ? 429 : 502, headers });
     }
 
