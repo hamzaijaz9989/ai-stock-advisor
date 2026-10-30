@@ -1527,8 +1527,9 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
     ?"Official decision: BUY; historical validation remains a separate hard approval gate."
     :"Official decision: "+decision+"; this decision is separate from the evidence gauge.";
   const missingFactors=Array.isArray(scoreDetails.missingFactors)?scoreDetails.missingFactors:[];
-  const qualityNote=hardQualityFailure
-    ?" Company-quality gate: FAILED. "+(scoreDetails.qualityFailureReason||"Review the failed financial checks in the decision details.") 
+  const qualityFailed=hardQualityFailure||scoreDetails.qualityGatePassed===false;
+  const qualityNote=qualityFailed
+    ?" Company-quality gate: FAILED. "+(scoreDetails.qualityFailureReason||"Review the failed financial checks in the decision details.")
     :" Company-quality gate: "+(scoreDetails.qualityGatePassed===true?"PASSED":"NOT CLEARED")+".";
   const coverageNote=insufficientCoverage
     ?(scoreDetails.sectorModelBlock||"Evidence coverage is below the required 85%.")+" The needle is intentionally neutral."
