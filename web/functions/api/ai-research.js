@@ -165,7 +165,7 @@ export async function onRequestPost({ request, env }) {
     const companyDescription = cleanText(research.companyDescription, 700);
     const notes = (Array.isArray(research.notes) ? research.notes : [])
       .map(note => cleanText(note, 400)).filter(Boolean).slice(0, 8);
-    if (!findings.length && !companyDescription) {
+    if (!findings.length) {
       return respond({ available: false, reason: "AI research returned no source-linked findings.", provider, model, notes }, 502);
     }
     return respond({
