@@ -713,22 +713,24 @@ footer{display:flex;justify-content:space-between;gap:15px;padding:22px 4px 0;bo
 .price-gauge-top .eyebrow{margin:0;font-size:11px;letter-spacing:.15em;font-weight:800}
 .price-gauge-status{font-size:11px;font-weight:800;letter-spacing:.04em;padding:6px 9px;border:1px solid #4b4b50;border-radius:99px;color:#f3d17e;background:rgba(232,185,79,.08)}
 .price-gauge-status[data-tone="sell"]{color:#ff858b;border-color:rgba(255,102,109,.45);background:rgba(255,102,109,.08)}
+.price-gauge-status[data-tone="orange"]{color:#ffad52;border-color:rgba(255,153,51,.48);background:rgba(255,153,51,.09)}
+.price-gauge-status[data-tone="lime"]{color:#c6e85b;border-color:rgba(190,220,65,.48);background:rgba(190,220,65,.09)}
 .price-gauge-status[data-tone="buy"]{color:#72e29a;border-color:rgba(85,216,139,.45);background:rgba(85,216,139,.08)}
-.price-gauge-status[data-tone="caution"]{color:#d3d4dc}
-.price-gauge-arc{position:relative;width:min(100%,350px);height:clamp(108px,29vw,166px);margin:12px auto 0;overflow:hidden}
-.price-gauge-arc:before{content:"";position:absolute;left:4%;right:4%;top:0;height:200%;border-radius:50%;background:conic-gradient(from 270deg at 50% 50%,#f04450 0deg,#f04450 44deg,#f2a23a 44deg,#f2a23a 88deg,#f2cc59 88deg,#f2cc59 132deg,#81c94a 132deg,#39c77c 180deg,transparent 180deg);clip-path:inset(0 0 50% 0)}
-.price-gauge-arc:after{content:"";position:absolute;left:17%;right:17%;top:28%;height:150%;border-radius:50%;background:#0c0c0e;clip-path:inset(0 0 50% 0)}
-.price-gauge-needle{position:absolute;z-index:2;left:50%;bottom:3px;width:4px;height:76%;background:#f4f4f5;border-radius:5px;transform-origin:50% 100%;transform:translateX(-50%) rotate(0deg);transition:transform .45s ease;box-shadow:0 0 8px rgba(255,255,255,.16)}
-.price-gauge-needle:before{content:"";position:absolute;left:50%;top:-2px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:18px solid #f4f4f5;transform:translateX(-50%)}
-.price-gauge-needle[data-tone="sell"]{background:#ff777e}
-.price-gauge-needle[data-tone="sell"]:before{border-bottom-color:#ff777e}
-.price-gauge-needle[data-tone="buy"]{background:#62df91}
-.price-gauge-needle[data-tone="buy"]:before{border-bottom-color:#62df91}
-.price-gauge-hub{position:absolute;z-index:3;left:50%;bottom:-1px;width:25px;height:25px;border-radius:50%;background:#f5f5f5;border:5px solid #28282d;transform:translateX(-50%);box-shadow:0 0 0 1px rgba(255,255,255,.24)}
-.price-gauge-labels{display:flex;justify-content:space-between;gap:8px;margin:8px 2px 0;font-size:12px;font-weight:900;letter-spacing:.12em}
-.price-gauge-labels .sell{color:#ff777e}.price-gauge-labels .wait{color:#f2cc72}.price-gauge-labels .buy{color:#65dd92}
+.price-gauge-status[data-tone="wait"]{color:#ffe16a;border-color:rgba(255,220,80,.45);background:rgba(255,220,80,.08)}
+.price-gauge-arc{position:relative;width:min(100%,430px);height:clamp(125px,34vw,190px);margin:14px auto 0;overflow:hidden}
+.price-gauge-arc:before{content:"";position:absolute;left:3%;right:3%;top:0;height:200%;border-radius:50%;background:conic-gradient(from 270deg at 50% 50%,#ff3939 0deg 36deg,#ff9300 36deg 72deg,#ffe600 72deg 108deg,#a5c91a 108deg 144deg,#00bf35 144deg 180deg,transparent 180deg);clip-path:inset(0 0 50% 0)}
+.price-gauge-arc:after{content:"";position:absolute;left:17%;right:17%;top:28%;height:150%;border-radius:50%;background:#080d0d;clip-path:inset(0 0 50% 0)}
+.price-gauge-needle{position:absolute;z-index:2;left:50%;bottom:4px;width:13px;height:76%;background:#ffe600;clip-path:polygon(50% 0,100% 91%,82% 100%,18% 100%,0 91%);transform-origin:50% 100%;transform:translateX(-50%) rotate(0deg);transition:transform .55s cubic-bezier(.2,.75,.25,1),background .25s ease;filter:drop-shadow(0 1px 3px rgba(0,0,0,.65))}
+.price-gauge-needle[data-tone="sell"]{background:#ff5555}
+.price-gauge-needle[data-tone="orange"]{background:#ffad36}
+.price-gauge-needle[data-tone="wait"]{background:#ffe600}
+.price-gauge-needle[data-tone="lime"]{background:#c5df36}
+.price-gauge-needle[data-tone="buy"]{background:#16c957}
+.price-gauge-hub{position:absolute;z-index:3;left:50%;bottom:-1px;width:31px;height:31px;border-radius:50%;background:#fff;border:6px solid #17191b;transform:translateX(-50%);box-shadow:0 0 0 1px rgba(255,255,255,.32)}
+.price-gauge-labels{display:flex;justify-content:space-between;gap:4px;margin:9px 0 0;font-size:clamp(8px,2.3vw,11px);font-weight:900;letter-spacing:.045em;white-space:nowrap}
+.price-gauge-labels .sell{color:#ff777e}.price-gauge-labels .orange{color:#ffad52}.price-gauge-labels .wait{color:#ffe16a}.price-gauge-labels .lime{color:#c6e85b}.price-gauge-labels .buy{color:#35d875}
 .price-gauge-message{font-size:13px;line-height:1.5;color:var(--muted,#b7b7c0);text-align:center;margin:13px 0 0;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)}
-@media(max-width:520px){.price-gauge{padding:15px 12px 13px;margin:14px 0 18px}.price-gauge-arc{height:clamp(100px,32vw,135px);max-width:310px}.price-gauge-labels{font-size:11px}}
+@media(max-width:520px){.price-gauge{padding:15px 12px 13px;margin:14px 0 18px}.price-gauge-arc{height:clamp(112px,35vw,150px);max-width:360px}.price-gauge-labels{font-size:clamp(8px,2.2vw,10px);letter-spacing:.025em}}
 
 
 /* Temporarily hide the experimental stock shortlist and its navigation entry. */
