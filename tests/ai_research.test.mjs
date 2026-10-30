@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { onRequestPost } from "../web/functions/api/ai-research.js";
 
-test("Gemini fallback discovers available models and retries a temporary model failure", async () => {
+test("Gemini fallback discovers available models and retries unavailable model IDs", async () => {
   const originalFetch=globalThis.fetch;
   const calls=[];
   globalThis.fetch=async (input,init={})=>{
@@ -11,10 +11,12 @@ test("Gemini fallback discovers available models and retries a temporary model f
     if(url.includes("/v1beta/models?")) return Response.json({models:[
       {name:"models/gemini-3.8-flash",supportedGenerationMethods:["generateContent"]},
       {name:"models/gemini-3.7-flash",supportedGenerationMethods:["generateContent"]},
+      {name:"models/gemini-3.6-flash",supportedGenerationMethods:["generateContent"]},
       {name:"models/gemini-embedding-2",supportedGenerationMethods:["embedContent"]}
     ]});
     if(url.endsWith("/models/gemini-3.8-flash:generateContent")) return Response.json({error:{message:"temporary unavailable"}},{status:503});
-    if(url.endsWith("/models/gemini-3.7-flash:generateContent")) return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({
+    if(url.endsWith("/models/gemini-3.7-flash:generateContent")) return Response.json({error:{message:"model not found for this key"}},{status:404});
+    if(url.endsWith("/models/gemini-3.6-flash:generateContent")) return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({
       companyDescription:"A diversified bank.",
       findings:[{field:"Annual report",value:"Latest filing is available.",sourceTitle:"SEC filing",sourceUrl:"https://www.sec.gov/Archives/example",publishedDate:"2026-02-20",asOfDate:"2025-12-31",confidence:"high",evidenceType:"reported filing"}],
       notes:[]
@@ -30,10 +32,10 @@ test("Gemini fallback discovers available models and retries a temporary model f
     const payload=await response.json();
     assert.equal(payload.available,true);
     assert.equal(payload.provider,"gemini");
-    assert.equal(payload.model,"gemini-3.7-flash");
+    assert.equal(payload.model,"gemini-3.6-flash");
     assert.equal(payload.findings.length,1);
     assert.ok(calls.some(call=>call.body?.tools?.[0]?.google_search));
-    assert.equal(calls.filter(call=>call.url.includes(":generateContent")).length,2);
+    assert.equal(calls.filter(call=>call.url.includes(":generateContent")).length,3);
   }finally{globalThis.fetch=originalFetch;}
 });
 
