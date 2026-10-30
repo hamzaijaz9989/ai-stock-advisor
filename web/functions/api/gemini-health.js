@@ -12,6 +12,7 @@ export async function onRequestGet({ env }) {
     reason:"GEMINI_API_KEY is not configured in this deployment."
   },{status:503,headers});
 
+  let stage="model discovery";
   try {
     const listResponse=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100",{
       headers:{"Accept":"application/json","x-goog-api-key":key},
@@ -51,6 +52,7 @@ export async function onRequestGet({ env }) {
 
     const attempted=[];
     let generationResponse=null,chosen=null;
+    stage="text generation";
     for(const candidate of candidates){
       chosen=candidate;
       generationResponse=await fetch(
@@ -92,6 +94,7 @@ export async function onRequestGet({ env }) {
   }catch{
     return Response.json({
       available:false,configured:true,provider:"Google Gemini",generationTest:"failed",
+      stage, errorName:String(error?.name||"Error").slice(0,60), errorDetail:String(error?.message||error||"Unknown error").slice(0,180),
       reason:"Could not complete Gemini discovery and generation. Check network availability and retry."
     },{status:502,headers});
   }
