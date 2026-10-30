@@ -1246,7 +1246,7 @@ async function loadAiResearchFallback({ticker,company,observations,quote,news,ea
     const response=await fetch("/api/ai-research",{
       method:"POST",headers:{"Accept":"application/json","Content-Type":"application/json"},
       body:JSON.stringify({ticker,companyName:company?.name||ticker,missingFields,nativeContext}),
-      signal:AbortSignal.timeout(28000)
+      signal:AbortSignal.timeout(45000)
     });
     const payload=await response.json().catch(()=>null);
     if(!response.ok||!payload?.available) return null;
