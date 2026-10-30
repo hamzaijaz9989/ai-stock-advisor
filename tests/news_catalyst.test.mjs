@@ -1,0 +1,11 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import "../web/news-catalyst.js";
+const classify=globalThis.classifyNewsCatalyst,aggregate=globalThis.aggregateNewsCatalysts;
+const reuters=title=>({title,source:"Reuters",url:"https://www.reuters.com/markets/example"});
+test("classifies material positive catalysts",()=>{const r=classify(reuters("Tesla wins major multi-year contract"));assert.equal(r.category,"positive");assert.equal(r.label,"Contract win");assert.equal(r.scoreEligible,true);});
+test("negative catalysts take priority over positive language",()=>{const r=classify(reuters("Company beats estimates but faces SEC investigation"));assert.equal(r.category,"negative");assert.ok(r.score<0);});
+test("unverified social claims cannot affect the score",()=>{const item={title:"CEO announces breakthrough product launch",source:"X social post",url:"https://x.com/example"};assert.equal(classify(item).scoreEligible,false);const a=aggregate([item]);assert.equal(a.available,false);assert.equal(a.score,null);});
+test("vague headlines remain unclassified",()=>assert.equal(aggregate([reuters("Company comments on market conditions")]).available,false));
+test("opposing catalysts are aggregated within bounds",()=>{const a=aggregate([reuters("Company wins major contract"),reuters("Company cuts full-year guidance")]);assert.equal(a.available,true);assert.ok(a.score>=-1&&a.score<=1);assert.ok(a.score<.1);});
+test("issuer primary sources are identified",()=>{const r=classify({title:"Company raises guidance",source:"Company newsroom",url:"https://investor.example.com/news"});assert.equal(r.sourceTier,"primary-source");assert.equal(r.scoreEligible,true);});
