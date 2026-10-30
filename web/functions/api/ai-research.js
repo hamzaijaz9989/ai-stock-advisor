@@ -47,19 +47,70 @@ export async function onRequestPost({ request, env }) {
   try {
     let response, payload, outputText, model;
     if (provider === "gemini") {
-      model = env.GEMINI_RESEARCH_MODEL || "gemini-2.5-flash";
-      const endpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
-      response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "x-goog-api-key": env.GEMINI_API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: "Return valid JSON only. You are a careful financial research assistant. Never invent facts or sources." }] },
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          tools: [{ google_search: {} }],
-          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1800, temperature: 0.1 }
-        }),
-        signal: AbortSignal.timeout(25000)
+      // Discover models from this key instead of pinning the fallback to a retired
+      // or unavailable model ID. Only use models the API lists for generateContent.
+      const listResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100", {
+        headers: { "Accept": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        signal: AbortSignal.timeout(7000)
       });
+      if (!listResponse.ok) {
+        return respond({ available: false, reason: "Gemini model discovery failed.", provider, providerStatus: listResponse.status }, 502);
+      }
+      const modelPayload = await listResponse.json();
+      const listed = Array.isArray(modelPayload.models) ? modelPayload.models : [];
+      const supported = listed.filter(item =>
+        typeof item?.name === "string" &&
+        Array.isArray(item.supportedGenerationMethods) &&
+        item.supportedGenerationMethods.includes("generateContent") &&
+        !/embedding|aqa|tts|image|audio|veo|live|transcri/i.test(item.name)
+      );
+      const preferred = [
+        env.GEMINI_RESEARCH_MODEL,
+        "models/gemini-3.8-flash",
+        "models/gemini-3.7-flash",
+        "models/gemini-3.6-flash",
+        "models/gemini-3.5-flash",
+        "models/gemini-3.1-flash-lite",
+        "models/gemini-2.5-flash",
+        "models/gemini-2.5-pro"
+      ].filter(Boolean);
+      const candidates = [
+        ...preferred.map(name => supported.find(item => item.name === name || item.name === "models/" + name)).filter(Boolean),
+        ...supported
+      ].filter((item, index, all) => all.findIndex(other => other.name === item.name) === index).slice(0, 3);
+      if (!candidates.length) {
+        return respond({ available: false, reason: "Gemini authenticated, but no supported text-generation model was listed.", provider, modelsListed: listed.length }, 502);
+      }
+
+      let lastStatus = 502;
+      let lastDetail = "";
+      for (const candidate of candidates) {
+        model = candidate.name.replace(/^models\//, "");
+        const endpoint = "https://generativelanguage.googleapis.com/v1beta/" + candidate.name + ":generateContent";
+        response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "x-goog-api-key": env.GEMINI_API_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: "Return valid JSON only. You are a careful financial research assistant. Never invent facts or sources." }] },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            tools: [{ google_search: {} }],
+            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1800, temperature: 0.1 }
+          }),
+          signal: AbortSignal.timeout(11000)
+        });
+        if (response.ok) break;
+        lastStatus = response.status;
+        lastDetail = await response.text().catch(() => "");
+        // Quota/auth errors are not fixed by changing model. Retry only model/service failures.
+        if ([400, 404, 429].includes(response.status)) break;
+      }
+      if (!response?.ok) {
+        return respond({
+          available: false, reason: "Gemini research generation failed on the available models.",
+          provider, providerStatus: lastStatus, modelsTried: candidates.map(item => item.name.replace(/^models\//, "")),
+          detail: cleanText(lastDetail, 180)
+        }, 502);
+      }
     } else {
       model = env.OPENAI_RESEARCH_MODEL || "gpt-5";
       response = await fetch("https://api.openai.com/v1/responses", {
@@ -77,7 +128,7 @@ export async function onRequestPost({ request, env }) {
     }
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      return respond({ available: false, reason: "AI research provider request failed.", provider, providerStatus: response.status, detail: detail.slice(0, 240) }, 502);
+      return respond({ available: false, reason: "AI research provider request failed.", provider, providerStatus: response.status, detail: cleanText(detail, 180) }, 502);
     }
     payload = await response.json();
     outputText = provider === "gemini"
@@ -87,31 +138,7 @@ export async function onRequestPost({ request, env }) {
         .filter(item => item.type === "output_text")
         .map(item => item.text || "").join("\n"));
     let research;
-    try { research = JSON.parse(outputText); } catch { return respond({ available: false, reason: "AI research response could not be parsed.", provider }, 502); }
-    const findings = Array.isArray(research.findings) ? research.findings.slice(0, 12).filter(item =>
-      item && typeof item.field === "string" && typeof item.value === "string" &&
-      typeof item.sourceUrl === "string" && /^https?:\/\//i.test(item.sourceUrl) &&
-      typeof item.sourceTitle === "string"
-    ).map(item => ({
-      field: cleanText(item.field, 100),
-      value: cleanText(item.value, 1200),
-      sourceTitle: cleanText(item.sourceTitle, 180),
-      sourceUrl: cleanText(item.sourceUrl, 1000),
-      publishedDate: cleanText(item.publishedDate, 40),
-      asOfDate: cleanText(item.asOfDate, 40),
-      confidence: ["high", "medium", "low"].includes(String(item.confidence).toLowerCase()) ? String(item.confidence).toLowerCase() : "unrated",
-      evidenceType: cleanText(item.evidenceType, 80)
-    })) : [];
-    return respond({
-      available: true,
-      ticker,
-      companyDescription: cleanText(research.companyDescription, 900),
-      findings,
-      notes: Array.isArray(research.notes) ? research.notes.slice(0, 8).map(x => cleanText(x, 300)) : [],
-      retrievedAt: new Date().toISOString(),
-      provider,
-      model
-    });
+    try { research = JSON.parse(outputText); } catch { return respond({ available: false, reason: "AI research response could not be parsed.", provider, model }, 502); }
   } catch (error) {
     return respond({ available: false, reason: "AI research request failed.", provider, detail: cleanText(error?.message || error, 200) }, 502);
   }
