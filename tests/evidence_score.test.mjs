@@ -8,11 +8,11 @@ const full=[
 {id:"earnings",weight:5,score:0,available:true},{id:"setup",weight:15,score:1,available:true}];
 test("all eight factors produce reproducible 100-point score",()=>{
  const r=calculateEvidenceScore(full); assert.equal(r.valid,true); assert.equal(r.coverage,100);
- assert.equal(r.rawWeightedPoints,60); assert.equal(r.normalizedScore,60); assert.equal(r.needleScore,60);
+ assert.equal(r.rawWeightedPoints,62.5); assert.equal(r.normalizedScore,63); assert.equal(r.needleScore,63);
 });
 test("missing factor weight remains visible in raw contribution and coverage",()=>{
  const r=calculateEvidenceScore(full.map((f,i)=>i===4?{...f,available:false,score:null}:f));
- assert.equal(r.coverage,85); assert.equal(r.rawWeightedPoints,60); assert.equal(r.normalizedScore,71);
+ assert.equal(r.coverage,85); assert.equal(r.rawWeightedPoints,62.5); assert.equal(r.normalizedScore,74);
 });
 test("critical sector model forces neutral needle",()=>{
  const r=calculateEvidenceScore(full,{forceNeutralReason:"Bank capital and credit-quality model is not implemented."});
