@@ -1512,7 +1512,7 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
   needle.style.transform="translateX(-50%) rotate("+angle+"deg)";
   needle.dataset.tone=tone;
   const status=gauge.querySelector(".price-gauge-status");status.textContent=label;status.dataset.tone=tone;
-  $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. "+evidenceSummary+" Official decision: "+decision+". This score is not a probability; BUY remains blocked until historical validation is approved.";
+  $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. Coverage is available factor weight divided by 130 total possible weight; balance is the weighted average of available factor scores. "+evidenceSummary+" Official decision: "+decision+". This score is not a probability or expected return. Missing inputs reduce coverage; they are never counted as positive. BUY remains blocked until historical validation is approved.";
   gauge.dataset.tone=tone;
 }
 function reconcileFmpWithSec(fmpFundamentals, observations) {
@@ -1836,7 +1836,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     if(!available || !Number.isFinite(value)) return;
     const bounded=Math.max(-1,Math.min(1,value));
     weightedTotal+=weight*bounded; observedWeight+=weight;
-    gaugeParts.push(name+": "+(bounded>0?"+":"")+Math.round(bounded*100)+"%");
+    gaugeParts.push(name+": factor score "+(bounded>0?"+":"")+Math.round(bounded*100)+"/100");
   };
   addGaugeEvidence("Annual fundamentals",25,annualFundamentalPass?1:-1,annualDataAvailable);
   const annualGrowthScore=annualRevenueGrowth>=0.10?1:annualRevenueGrowth>=0?0.35:annualRevenueGrowth>=-0.10?-0.35:-1;
@@ -1845,7 +1845,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const quarterlyTrendScore=quarterlyDataAvailable?(quarter.revenueYoY>=0.10?1:quarter.revenueYoY>=0?0.35:quarter.revenueYoY>=-0.15?-0.35:-1):0;
   addGaugeEvidence("Quarterly fundamentals",25,quarterlyPass?quarterlyTrendScore:-1,quarterlyDataAvailable);
   const headlineScore=flaggedHeadlines.length?Math.max(-1,-0.5-0.25*(flaggedHeadlines.length-1)):0.25;
-  addGaugeEvidence("Recent headline risk",20,headlineScore,recentHeadlines.length>0);
+  addGaugeEvidence("Headline keyword screen",20,headlineScore,recentHeadlines.length>0);
   addGaugeEvidence("Valuation gate",15,valuationDecisionReady?0.5:-0.25,valuation.available&&quoteCurrent);
   const eventScore=daysToEarnings!==null&&daysToEarnings<=3?-1:daysToEarnings!==null&&daysToEarnings<=7?-0.6:0.25;
   addGaugeEvidence("Earnings timing",10,eventScore,earningsVerified);
