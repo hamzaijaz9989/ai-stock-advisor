@@ -2,7 +2,7 @@
  const positive=[
   [/\b(raises?|increases?) (full[- ]year )?(guidance|outlook|forecast)\b|\bstronger guidance\b/i,.85,"Raised guidance"],
   [/\b(beats?|tops?) (revenue|earnings|eps|estimates|expectations)\b/i,.55,"Results beat expectations"],
-  [/\b(wins?|awarded?) (a )?(major|multi[- ]year|\$[\d,.]+|\d+[- ]year)? ?(contract|deal)\b|\bmajor contract\b/i,.75,"Contract win"],
+  [/\b(wins?|awarded?) (a )?(major )?(multi[- ]year )?(contract|deal)\b|\bmajor contract\b/i,.75,"Contract win"],
   [/\b(merger|acquisition|acquires|to acquire|takeover)\b/i,.35,"M&A announcement"],
   [/\b(regulatory|fda|faa) approval\b|\bcleared by the fda\b/i,.75,"Regulatory approval"],
   [/\b(launches?|unveils?) (a )?(new )?(product|platform|service|chip|vehicle)\b/i,.3,"Product launch"],
