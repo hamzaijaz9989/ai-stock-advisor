@@ -1643,10 +1643,14 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   dataChecks.push(growthScreen,profitabilityScreen,liquidityScreen,cashFlowScreen,eventRiskScreen);
   // Explicit decision states are shown for every research run. BUY remains locked until
   // point-in-time walk-forward and untouched holdout validation demonstrate a credible edge.
+  // Missing third-party news or earnings coverage is disclosed as uncertainty,
+  // not silently treated as positive evidence or made a permanent hard blocker.
+  // Verified near-term earnings and identified material-risk headlines still block.
+  const eventWindowClear = daysToEarnings===null || daysToEarnings>7;
   const coreEvidencePass = quoteCurrent && valuationDecisionReady && annualFundamentalPass &&
-    quarterlyPass && earningsVerified && recentHeadlines.length>0 && flaggedHeadlines.length===0 &&
-    atr!==null && Number.isFinite(atr) && rewardRisk!==null && Number.isFinite(rewardRisk);
-  const buySetupPass = coreEvidencePass && daysToEarnings>7 && priceInEntryRange &&
+    quarterlyPass && flaggedHeadlines.length===0 && atr!==null && Number.isFinite(atr) &&
+    rewardRisk!==null && Number.isFinite(rewardRisk);
+  const buySetupPass = coreEvidencePass && eventWindowClear && priceInEntryRange &&
     rewardRisk>=2 && invalidation!==null && invalidation>0 && invalidation<entryLow && plannedShares>0;
   const historicalValidationPass = false; // Fail closed until a real validation report is reviewed and approved.
   const missingInputs=[];
@@ -1654,8 +1658,8 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   if(!valuation.available) missingInputs.push(valuation.reason||"matched, fresh DCF inputs");
   if(!annualDataAvailable) missingInputs.push("comparable annual financial statements");
   if(!quarterlyDataAvailable) missingInputs.push("a comparable latest-quarter financial report");
-  if(!earningsVerified) missingInputs.push("a verified upcoming earnings date");
-  if(!recentHeadlines.length) missingInputs.push("recent timestamped news coverage");
+  if(!earningsVerified) missingInputs.push("earnings date unavailable (event-risk warning)");
+  if(!recentHeadlines.length) missingInputs.push("recent news coverage unavailable (news-risk warning)");
   if(atr===null||!Number.isFinite(atr)) missingInputs.push("complete daily high/low price history for risk measurement");
   // Overall research coverage uses five core checks. Three or more supports a
   // useful, caveated overview; trade/valuation gates below remain independently strict.
@@ -1667,8 +1671,8 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   else if (dailySnapshot) state="WAIT";
   else if (gapCheck.blocked) state="WAIT";
   else if (insufficientData) state="INSUFFICIENT DATA";
-  else if (decisionInputsIncomplete) state="WAIT";
-  else if (!valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=3)) state="WAIT";
+  else if (decisionInputsIncomplete && (!quoteCurrent || !annualDataAvailable || !quarterlyDataAvailable || !Number.isFinite(atr))) state="WAIT";
+  else if (!valuationDecisionReady || (daysToEarnings!==null && daysToEarnings<=7)) state="WAIT";
   else if (flaggedHeadlines.length) state="WAIT";
   else if (buySetupPass && !historicalValidationPass) state="BUY SETUP — UNVALIDATED";
   else if (buySetupPass && historicalValidationPass) state="BUY";
