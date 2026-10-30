@@ -32,9 +32,9 @@ export async function onRequestGet({ env }) {
       !/embedding|aqa|tts|image|audio|veo|live|transcri/i.test(m.name));
     const preferred=[
       env.GEMINI_RESEARCH_MODEL,
+      "models/gemini-3.6-flash",
       "models/gemini-3.8-flash",
       "models/gemini-3.7-flash",
-      "models/gemini-3.6-flash",
       "models/gemini-3.5-flash",
       "models/gemini-3.1-flash-lite",
       "models/gemini-2.5-flash",
@@ -65,7 +65,7 @@ export async function onRequestGet({ env }) {
             contents:[{role:"user",parts:[{text:'Return exactly this JSON: {"status":"NORTHSTAR_GEMINI_OK"}'}]}],
             generationConfig:{responseMimeType:"application/json",temperature:0,maxOutputTokens:32}
           }),
-          signal:AbortSignal.timeout(9000)
+          signal:AbortSignal.timeout(20000)
         }
       );
       attempted.push({model:candidate.name.replace(/^models\//,""),status:generationResponse.status});
