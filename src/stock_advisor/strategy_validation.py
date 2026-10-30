@@ -33,8 +33,7 @@ REQUIRED_SNAPSHOT_FIELDS = (
     "risk_headline", "atr14",
 )
 REQUIRED_AVAILABILITY_FIELDS = (
-    "price", "fundamentals", "quarterly_fundamentals", "earnings",
-    "news", "universe_membership",
+    "price", "fundamentals", "quarterly_fundamentals", "universe_membership",
 )
 
 
@@ -125,8 +124,12 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
     if ratio is not None and not 0.40 <= ratio <= 2.50:
         failed.append("market_model_ratio_outside_allowed_band")
 
-    for name in ("annual_revenue", "prior_annual_revenue", "annual_net_income",
-                 "annual_fcf", "quarter_revenue", "quarter_net_income"):
+    is_financial_institution = snapshot.get("sector_type") == "financial_institution"
+    quality_fields = ("annual_revenue", "prior_annual_revenue", "annual_net_income",
+                      "quarter_revenue", "quarter_net_income")
+    if not is_financial_institution:
+        quality_fields += ("annual_fcf",)
+    for name in quality_fields:
         if values[name] is not None and values[name] <= 0:
             failed.append(f"{name}_quality_gate_failed")
     annual_revenue, prior_revenue = values["annual_revenue"], values["prior_annual_revenue"]
@@ -136,6 +139,7 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
     if values["quarter_revenue_yoy"] is not None and values["quarter_revenue_yoy"] < -0.15:
         failed.append("quarterly_revenue_decline_exceeds_15pct")
 
+    warnings: list[str] = []
     try:
         earnings_date = _day(snapshot.get("earnings_date"), "earnings_date")
         days_to_earnings = (earnings_date - as_of).days
@@ -143,12 +147,15 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
             failed.append("earnings_within_7_days_or_date_in_past")
     except ValueError:
         days_to_earnings = None
-        failed.append("earnings_date_missing_or_invalid")
+        warnings.append("earnings_date_unavailable_event_risk_not_cleared")
 
-    if not isinstance(snapshot.get("recent_news_count"), int) or snapshot["recent_news_count"] < 1:
-        failed.append("recent_timestamped_news_missing")
-    if snapshot.get("risk_headline") is not False:
-        failed.append("potential_material_risk_headline_or_unknown")
+    news_count = snapshot.get("recent_news_count")
+    if not isinstance(news_count, int) or news_count < 1:
+        warnings.append("recent_timestamped_news_unavailable")
+    if snapshot.get("risk_headline") is True:
+        failed.append("potential_material_risk_headline_requires_review")
+    elif snapshot.get("risk_headline") is not False:
+        warnings.append("headline_risk_screen_unavailable_not_assumed_clear")
 
     entry_low, entry_high = base * 0.75, base * 0.80
     entry_mid = (entry_low + entry_high) / 2
@@ -185,6 +192,7 @@ def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
         "days_to_earnings": days_to_earnings,
         "market_model_ratio": ratio,
         "failed_gates": sorted(set(failed)),
+        "warnings": sorted(set(warnings)),
         "label": "BUY SETUP — UNVALIDATED" if not failed else "NO SIGNAL",
     }
 
