@@ -66,9 +66,9 @@ export async function onRequestPost({ request, env }) {
       );
       const preferred = [
         env.GEMINI_RESEARCH_MODEL,
+        "models/gemini-3.6-flash",
         "models/gemini-3.8-flash",
         "models/gemini-3.7-flash",
-        "models/gemini-3.6-flash",
         "models/gemini-3.5-flash",
         "models/gemini-3.1-flash-lite",
         "models/gemini-2.5-flash",
@@ -96,7 +96,7 @@ export async function onRequestPost({ request, env }) {
             tools: [{ google_search: {} }],
             generationConfig: { responseMimeType: "application/json", maxOutputTokens: 1800, temperature: 0.1 }
           }),
-          signal: AbortSignal.timeout(11000)
+          signal: AbortSignal.timeout(20000)
         });
         if (response.ok) break;
         lastStatus = response.status;
