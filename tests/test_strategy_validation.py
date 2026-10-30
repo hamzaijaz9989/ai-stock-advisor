@@ -153,3 +153,27 @@ def test_missing_broad_market_benchmark_blocks_validation():
     report = build_validation_report([snapshot()], {"TEST": strategy_bars})
     assert "broad_market_benchmark_data_missing" in report["validation"]["blockers"]
     assert report["summary"]["average_excess_return_pct"] is None
+
+
+def test_missing_news_and_earnings_are_warnings_not_permanent_hard_blocks():
+    row = snapshot(earnings_date=None, recent_news_count=0, risk_headline=None)
+    row["available_at"].pop("earnings")
+    row["available_at"].pop("news")
+    result = evaluate_snapshot(row)
+    assert result["eligible"] is True
+    assert "earnings_date_unavailable_event_risk_not_cleared" in result["warnings"]
+    assert "recent_timestamped_news_unavailable" in result["warnings"]
+    assert "headline_risk_screen_unavailable_not_assumed_clear" in result["warnings"]
+
+
+def test_financial_institution_does_not_require_industrial_fcf():
+    row = snapshot(annual_fcf=None, sector_type="financial_institution")
+    result = evaluate_snapshot(row)
+    assert result["eligible"] is True
+    assert "annual_fcf_missing_or_invalid" not in result["failed_gates"]
+
+
+def test_known_material_risk_headline_still_blocks_signal():
+    result = evaluate_snapshot(snapshot(risk_headline=True))
+    assert result["eligible"] is False
+    assert "potential_material_risk_headline_requires_review" in result["failed_gates"]
