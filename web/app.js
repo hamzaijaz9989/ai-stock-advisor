@@ -1588,8 +1588,8 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   const earningsVerified=Boolean(nextEvent&&earnings?.verified);
   const headlines=Array.isArray(news?.items)?news.items:[];
   const recentHeadlines=headlines.filter(item=>item.publishedAt&&Number.isFinite(Date.parse(item.publishedAt))&&(Date.now()-Date.parse(item.publishedAt))/86400000<=7&&(Date.now()-Date.parse(item.publishedAt))/86400000>=-0.1);
-  const riskWords=/fraud|investigation|probe|restatement|bankrupt|accounting irregular|recall|antitrust|guidance cut|cuts outlook|data breach|ceo resign|secondary offering|dilution|sec charge|criminal charges|regulatory action|lawsuit|misses estimates/i;
-  const flaggedHeadlines=recentHeadlines.filter(item=>riskWords.test(item.title||""));
+  const newsCatalystResult=aggregateNewsCatalysts(recentHeadlines);
+  const flaggedHeadlines=recentHeadlines.filter(item=>{const c=classifyNewsCatalyst(item);return c.category==="negative"&&c.scoreEligible;});
   const rev=annualSeries(observations,"revenue");
   const income=annualSeries(observations,"netIncome");
   const fcf=(()=>{const c=annualSeries(observations,"operatingCashFlow"),x=annualSeries(observations,"capex");return c.map(row=>{const cap=x.find(item=>item.end===row.end&&item.start===row.start&&item.unit===row.unit);return cap?{end:row.end,start:row.start,value:row.value-Math.abs(cap.value)}:null;}).filter(Boolean).sort((a,b)=>a.end.localeCompare(b.end));})();
@@ -1862,8 +1862,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   else addGaugeEvidence("cashflow","Annual cash-flow quality",10,latestFcf?.value>0?1:-1,Boolean(annualDataAvailable&&latestFcf&&Number.isFinite(latestFcf.value)));
   const quarterlyTrendScore=quarterlyDataAvailable?(quarter.revenueYoY>=0.10?1:quarter.revenueYoY>=0?0.35:quarter.revenueYoY>=-0.15?-0.35:-1):0;
   addGaugeEvidence("quarterly","Quarterly fundamentals",15,quarterlyPass?quarterlyTrendScore:-1,quarterlyDataAvailable);
-  const headlineScore=flaggedHeadlines.length?Math.max(-1,-0.5-0.25*(flaggedHeadlines.length-1)):0;
-  addGaugeEvidence("news-risk","News and material risk",15,headlineScore,recentHeadlines.length>0);
+  addGaugeEvidence("news-risk","News and material risk",15,newsCatalystResult.score,newsCatalystResult.available);
   addGaugeEvidence("valuation","Valuation",10,valuationDecisionReady?0.5:-0.25,valuation.available&&quoteCurrent);
   const eventScore=daysToEarnings!==null&&daysToEarnings<=3?-1:daysToEarnings!==null&&daysToEarnings<=7?-0.6:0;
   addGaugeEvidence("earnings","Earnings timing",5,eventScore,earningsVerified);
@@ -1871,9 +1870,12 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
   addGaugeEvidence("setup","Entry / reward-risk setup",15,setupScore,quoteCurrent&&valuationDecisionReady&&rewardRisk!==null);
   const sectorModelBlock=isFinancialInstitution?"Bank capital and credit-quality metrics are not yet implemented; directional gauge withheld.":null;
   const evidenceResult=calculateEvidenceScore(gaugeFactors,{minimumCoverage:85,forceNeutralReason:sectorModelBlock});
+  const catalystDisclosure=newsCatalystResult.classified.length
+    ? " News catalyst review: "+newsCatalystResult.classified.slice(0,5).map(x=>x.label+" ["+x.sourceTier+"]").join("; ")+"."
+    : " No recent timestamped news to classify.";
   const evidenceSummary=evidenceResult.factors.map(f=>f.available
     ? f.label+": "+(f.score>0?"+":"")+Math.round(f.score*100)+"/100 (weight "+f.weight+")"
-    : f.label+": NOT VERIFIED (weight "+f.weight+")").join(" · ");
+    : f.label+": NOT VERIFIED (weight "+f.weight+")").join(" · ")+catalystDisclosure;
   renderPriceGauge(state,evidenceResult.normalizedScore,evidenceResult.coverage,evidenceSummary,fundamentalAvoid,{
     rawWeightedPoints:evidenceResult.rawWeightedPoints,observedWeight:evidenceResult.observedWeight,
     sectorModelBlock,scoreEligible:evidenceResult.eligible
@@ -2073,7 +2075,14 @@ function renderNews(payload) {
     const link = document.createElement("a");
     link.href = item.url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = item.title;
     const meta = document.createElement("p"); meta.className = "muted"; meta.textContent = formatMeta(item);
-    card.append(link, meta);
+    const catalyst = classifyNewsCatalyst(item);
+    const impact = document.createElement("p"); impact.className = "news-availability-note";
+    impact.textContent = catalyst.label + " · " +
+      (catalyst.sourceTier === "primary-source" ? "Primary source" :
+       catalyst.sourceTier === "reported-source" ? "Established reporting; verify material claims" :
+       "Unverified source; excluded from gauge") +
+      (catalyst.scoreEligible ? " · Included in news evidence" : " · Not scored");
+    card.append(link, meta, impact);
     return card;
   };
   // Pick a publisher-diverse set before rendering either news panel; don't let one outlet dominate the visible headlines.
