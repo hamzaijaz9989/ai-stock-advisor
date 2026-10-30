@@ -1527,10 +1527,11 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
     ?"Official decision: BUY; historical validation remains a separate hard approval gate."
     :"Official decision: "+decision+"; this decision is separate from the evidence gauge.";
   const missingFactors=Array.isArray(scoreDetails.missingFactors)?scoreDetails.missingFactors:[];
-  const qualityFailed=hardQualityFailure||scoreDetails.qualityGatePassed===false;
-  const qualityNote=qualityFailed
+  const qualityGateStatus=scoreDetails.qualityGateStatus||
+    (hardQualityFailure?"FAILED":scoreDetails.qualityGatePassed===true?"PASSED":"NOT VERIFIED");
+  const qualityNote=qualityGateStatus==="FAILED"
     ?" Company-quality gate: FAILED. "+(scoreDetails.qualityFailureReason||"Review the failed financial checks in the decision details.")
-    :" Company-quality gate: "+(scoreDetails.qualityGatePassed===true?"PASSED":"NOT CLEARED")+".";
+    :" Company-quality gate: "+qualityGateStatus+".";
   const coverageNote=insufficientCoverage
     ?(scoreDetails.sectorModelBlock||"Evidence coverage is below the required 85%.")+" The needle is intentionally neutral."
     :"Evidence coverage meets the minimum required for a directional reading.";
@@ -1892,7 +1893,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     rawWeightedPoints:evidenceResult.rawWeightedPoints,observedWeight:evidenceResult.observedWeight,
     sectorModelBlock,scoreEligible:evidenceResult.eligible,
     missingFactors:evidenceResult.factors.filter(f=>!f.available).map(f=>f.label),
-    qualityGatePassed:!fundamentalAvoid,
+    qualityGateStatus:fundamentalAvoid?"FAILED":annualDataAvailable&&quarterlyDataAvailable?"PASSED":"NOT VERIFIED",
     qualityFailureReason:fundamentalFailureReasons.length?fundamentalFailureReasons.join("; "):null
   });
   const currentPrice=typeof quote?.price==="number"&&quote.price>0?quote.price:null;
