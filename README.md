@@ -30,6 +30,16 @@ python scripts/fetch_research_price_history.py --symbols AAPL MSFT NVDA AMZN GOO
 
 The source is an **unofficial Yahoo Finance chart endpoint**. Output is explicitly marked `commercial_use_authorized: false` and `decision_eligible: false`. Use it only for internal research/pipeline testing after reviewing applicable terms; do not use it for commercial display or redistribution. Replace it with a licensed market-data provider before production or commercial use. This price bundle does not include historical universe membership or the live strategy's historical valuation, earnings, timestamped news, and risk-headline inputs.
 
+## Financial Modeling Prep cross-check
+
+Northstar can optionally load a separate Financial Modeling Prep (FMP) fundamentals panel alongside SEC-reported data. The Cloudflare Pages Function at `/api/fmp-fundamentals` retrieves annual income statements, balance sheets, cash-flow statements, key metrics, ratios, and analyst estimates. The FMP API key is read only by the server-side function and is never placed in browser JavaScript.
+
+To enable it, add `FMP_API_KEY` as a **Cloudflare Pages secret/environment variable** for the production project (and Preview if needed), then redeploy. Do not commit the key or paste it into source files. The existing quote route also supports FMP as a provider fallback when its timestamped quote is returned.
+
+FMP is an independent secondary data source. Northstar keeps its figures separate from SEC observations because fiscal periods, currencies, units, and later restatements may differ. Analyst estimates are explicitly forecasts. Missing endpoints are reported as partial coverage rather than silently filled. This integration does **not** enable BUY: the historical-validation gate remains closed until the actual strategy passes point-in-time walk-forward and untouched holdout testing with verified inputs and realistic costs.
+
+Official FMP docs: https://site.financialmodelingprep.com/developer/docs/quickstart and https://site.financialmodelingprep.com/developer/docs.
+
 ## Python core
 
 Requires Python 3.11+.
