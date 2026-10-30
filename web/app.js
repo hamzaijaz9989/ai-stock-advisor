@@ -1515,6 +1515,35 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
   $("price-gauge-message").textContent="Evidence balance "+Math.round(score)+"/100 · evidence coverage "+Math.round(confidence)+"%. "+evidenceSummary+" Official decision: "+decision+". This score is not a probability; BUY remains blocked until historical validation is approved.";
   gauge.dataset.tone=tone;
 }
+function reconcileFmpWithSec(fmpFundamentals, observations) {
+  const checks = [];
+  if (!fmpFundamentals?.available) return { status: "unavailable", checks, matched: 0, passed: 0, summary: "FMP data unavailable; SEC remains primary." };
+  const mappings = [
+    ["Revenue", "income", "revenue", "revenue"],
+    ["Net income", "income", "netIncome", "netIncome"],
+    ["Total assets", "balance", "totalAssets", "assets"],
+    ["Total liabilities", "balance", "totalLiabilities", "liabilities"],
+    ["Operating cash flow", "cashflow", "operatingCashFlow", "operatingCashFlow"]
+  ];
+  for (const [label, group, field, secKey] of mappings) {
+    const rows = fmpFundamentals.history?.[group] || [];
+    const fmp = rows.find(row => row?.date === fmpFundamentals.latest?.fiscalDate && Number.isFinite(row?.[field]));
+    if (!fmp) { checks.push({label, status:"not_comparable", detail:"No matching FMP value for the latest reported period."}); continue; }
+    if (fmp.reportedCurrency && fmp.reportedCurrency !== "USD") {
+      checks.push({label,status:"not_comparable",detail:"FMP reports "+fmp.reportedCurrency+"; currency conversion is not applied."}); continue;
+    }
+    const secRows = annualSeries(observations, secKey).filter(row => row.end === fmp.date && row.unit === "USD");
+    if (!secRows.length) { checks.push({label,status:"not_comparable",detail:"No SEC annual USD observation for fiscal year ending "+fmp.date+"."}); continue; }
+    const sec = secRows[secRows.length - 1];
+    const diff = Math.abs(fmp[field] - sec.value) / Math.max(Math.abs(sec.value), 1);
+    const passed = diff <= 0.02;
+    checks.push({label,status:passed?"match":"mismatch",differencePercent:diff*100,detail:passed?"FMP and SEC agree within 2% for "+fmp.date+".":"FMP and SEC differ by "+(diff*100).toFixed(2)+"% for "+fmp.date+"; review filing tags, period and accounting treatment."});
+  }
+  const matched = checks.filter(x => x.status === "match" || x.status === "mismatch").length;
+  const passed = checks.filter(x => x.status === "match").length;
+  const status = checks.some(x => x.status === "mismatch") ? "mismatch" : matched >= 3 && passed === matched ? "matched" : "partial";
+  return {status,checks,matched,passed,summary:passed+"/"+matched+" comparable SEC/FMP metrics agree within 2%; "+checks.filter(x=>x.status==="not_comparable").length+" are not comparable."};
+}
 function renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter,fmpFundamentals}) {
   latestDecisionContext = null;
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
@@ -1586,12 +1615,11 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
     {label:"Historical validation",ok:false,detail:"Complete walk-forward and untouched holdout validation is not finished; any BUY shown remains provisional and unvalidated."}
   ];
+  const fmpReconciliation = reconcileFmpWithSec(fmpFundamentals, observations);
   dataChecks.push({
-    label: "Independent FMP fundamentals cross-check",
-    ok: Boolean(fmpFundamentals?.available && (fmpFundamentals.datasetCoverage?.available ?? 0) >= 4),
-    detail: !fmpFundamentals?.available
-      ? "FMP cross-check unavailable or API key not configured; SEC remains the primary filing source."
-      : (fmpFundamentals.datasetCoverage?.available ?? 0) + "/5 FMP statement/ratio datasets loaded. Period, currency and value reconciliation is still required before this can support a validated BUY."
+    label: "FMP vs SEC period-matched reconciliation",
+    ok: fmpReconciliation.status === "matched",
+    detail: fmpReconciliation.summary + " This is a data-quality cross-check only; it does not increase the BUY score or bypass historical validation."
   });
   const latestAssets=latestRevenue?annualSeries(observations,"assets").find(item=>item.end===latestRevenue.end):null;
   const latestLiabilities=latestRevenue?annualSeries(observations,"liabilities").find(item=>item.end===latestRevenue.end):null;
@@ -1797,6 +1825,7 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     valuationReady:valuationDecisionReady, valuationGapBlocked:Boolean(gapCheck.blocked), valuationGapRatio:gapCheck.ratio,
     invalidation, rewardRisk, explanation:reasons.join(" "),
     checks:dataChecks.map(check=>({label:check.label,passed:Boolean(check.ok),detail:check.detail})),
+    fmpSecReconciliation:fmpReconciliation,
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
