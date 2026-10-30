@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
 
+const helperSource = readFileSync(new URL("../web/evidence-score.js", import.meta.url), "utf8");
 const source = readFileSync(new URL("../web/app.js", import.meta.url), "utf8");
 
 function makeElement(id = "") {
@@ -31,7 +32,7 @@ function loadAppFunctions(fetchImpl = null) {
     createElement(tag) { return makeElement(tag); }
   };
   const context = { document, fetch: fetchImpl || (async () => { throw new Error("Unexpected fetch in unit test"); }) };
-  runInNewContext(source, context, { filename: "web/app.js" });
+  runInNewContext(helperSource + "\\n" + source, context, { filename: "web/app.js" });
   return context;
 }
 
