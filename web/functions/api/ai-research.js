@@ -101,8 +101,10 @@ export async function onRequestPost({ request, env }) {
         if (response.ok) break;
         lastStatus = response.status;
         lastDetail = await response.text().catch(() => "");
-        // Quota/auth errors are not fixed by changing model. Retry only model/service failures.
-        if ([400, 404, 429].includes(response.status)) break;
+        // A 404 can mean this key does not have access to this particular listed model;
+        // continue to the next model. A 400 usually means a request/configuration issue,
+        // while 429 is quota/rate limiting and will not improve by switching models.
+        if ([400, 429].includes(response.status)) break;
       }
       if (!response?.ok) {
         return respond({
