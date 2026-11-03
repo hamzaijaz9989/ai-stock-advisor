@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-02T21:42:23.957Z",
+  "generatedAt": "2026-11-03T06:38:27.143Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 60-stock screen",
   "status": "success",
@@ -8,9 +8,9 @@
     {
       "ticker": "AMD",
       "name": "Advanced Micro Devices Inc.",
-      "score": 86.9,
+      "score": 86.1,
       "financialPeriod": "2025-12-27",
-      "historyPeriod": "2025-11-03 to 2026-10-30",
+      "historyPeriod": "2025-11-03 to 2026-11-02",
       "components": [
         {
           "name": "Revenue growth",
@@ -26,11 +26,11 @@
         },
         {
           "name": "1-year price return",
-          "display": "+94.4%"
+          "display": "+79.8%"
         },
         {
           "name": "Maximum drawdown",
-          "display": "-26.5%"
+          "display": "-28.1%"
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
@@ -40,7 +40,7 @@
       "name": "Micron Technology Inc.",
       "score": 85.5,
       "financialPeriod": "2026-09-03",
-      "historyPeriod": "2025-11-03 to 2026-10-30",
+      "historyPeriod": "2025-11-03 to 2026-11-02",
       "components": [
         {
           "name": "Revenue growth",
@@ -56,7 +56,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+277.0%"
+          "display": "+255.2%"
         },
         {
           "name": "Maximum drawdown",
@@ -70,7 +70,7 @@
       "name": "Johnson & Johnson",
       "score": 84.6,
       "financialPeriod": "2025-12-28",
-      "historyPeriod": "2025-11-03 to 2026-10-30",
+      "historyPeriod": "2025-11-03 to 2026-11-02",
       "components": [
         {
           "name": "Revenue growth",
@@ -86,7 +86,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+46.7%"
+          "display": "+45.3%"
         },
         {
           "name": "Maximum drawdown",
@@ -100,7 +100,7 @@
       "name": "Amgen Inc.",
       "score": 84.2,
       "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-11-03 to 2026-10-30",
+      "historyPeriod": "2025-11-03 to 2026-11-02",
       "components": [
         {
           "name": "Revenue growth",
@@ -116,7 +116,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+57.3%"
+          "display": "+57.1%"
         },
         {
           "name": "Maximum drawdown",
