@@ -1,46 +1,16 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-03T23:15:58.627Z",
+  "generatedAt": "2026-11-04T06:06:00.909Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 60-stock screen",
   "status": "success",
   "stocks": [
     {
-      "ticker": "AAPL",
-      "name": "Apple Inc.",
-      "score": 87.1,
-      "financialPeriod": "2026-09-26",
-      "historyPeriod": "2025-11-03 to 2026-11-02",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "15.1%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "27.6%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "28.4%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+25.8%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-13.8%"
-        }
-      ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
-    },
-    {
       "ticker": "AMD",
       "name": "Advanced Micro Devices Inc.",
       "score": 86.1,
       "financialPeriod": "2025-12-27",
-      "historyPeriod": "2025-11-03 to 2026-11-02",
+      "historyPeriod": "2025-11-04 to 2026-11-03",
       "components": [
         {
           "name": "Revenue growth",
@@ -56,7 +26,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+79.8%"
+          "display": "+93.5%"
         },
         {
           "name": "Maximum drawdown",
@@ -66,11 +36,41 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "score": 85.9,
+      "financialPeriod": "2026-09-26",
+      "historyPeriod": "2025-11-04 to 2026-11-03",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "15.1%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "27.6%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "28.4%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+22.9%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-13.8%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
       "ticker": "MU",
       "name": "Micron Technology Inc.",
       "score": 85.5,
       "financialPeriod": "2026-09-03",
-      "historyPeriod": "2025-11-03 to 2026-11-02",
+      "historyPeriod": "2025-11-04 to 2026-11-03",
       "components": [
         {
           "name": "Revenue growth",
@@ -86,7 +86,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+255.2%"
+          "display": "+292.2%"
         },
         {
           "name": "Maximum drawdown",
@@ -96,31 +96,31 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
-      "ticker": "JNJ",
-      "name": "Johnson & Johnson",
-      "score": 84.6,
-      "financialPeriod": "2025-12-28",
-      "historyPeriod": "2025-11-03 to 2026-11-02",
+      "ticker": "NVDA",
+      "name": "Nvidia Corp.",
+      "score": 84.9,
+      "financialPeriod": "2026-01-25",
+      "historyPeriod": "2025-11-04 to 2026-11-03",
       "components": [
         {
           "name": "Revenue growth",
-          "display": "6.0%"
+          "display": "65.5%"
         },
         {
           "name": "Net profit margin",
-          "display": "28.5%"
+          "display": "55.6%"
         },
         {
           "name": "Approx. FCF margin",
-          "display": "20.9%"
+          "display": "44.8%"
         },
         {
           "name": "1-year price return",
-          "display": "+45.3%"
+          "display": "+4.0%"
         },
         {
           "name": "Maximum drawdown",
-          "display": "-11.0%"
+          "display": "-19.4%"
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
