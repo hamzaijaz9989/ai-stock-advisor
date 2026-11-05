@@ -1,36 +1,36 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-04T21:18:15.130Z",
+  "generatedAt": "2026-11-05T06:34:20.884Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 60-stock screen",
   "status": "success",
   "stocks": [
     {
-      "ticker": "AMD",
-      "name": "Advanced Micro Devices Inc.",
-      "score": 86.1,
-      "financialPeriod": "2025-12-27",
-      "historyPeriod": "2025-11-04 to 2026-11-03",
+      "ticker": "ANET",
+      "name": "Arista Networks, Inc.",
+      "score": 90.8,
+      "financialPeriod": "2025-12-31",
+      "historyPeriod": "2025-11-05 to 2026-11-04",
       "components": [
         {
           "name": "Revenue growth",
-          "display": "34.3%"
+          "display": "28.6%"
         },
         {
           "name": "Net profit margin",
-          "display": "12.5%"
+          "display": "39.0%"
         },
         {
           "name": "Approx. FCF margin",
-          "display": "19.4%"
+          "display": "47.2%"
         },
         {
           "name": "1-year price return",
-          "display": "+93.5%"
+          "display": "+27.1%"
         },
         {
           "name": "Maximum drawdown",
-          "display": "-28.1%"
+          "display": "-24.3%"
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
@@ -38,9 +38,9 @@
     {
       "ticker": "AAPL",
       "name": "Apple Inc.",
-      "score": 85.9,
+      "score": 88.5,
       "financialPeriod": "2026-09-26",
-      "historyPeriod": "2025-11-04 to 2026-11-03",
+      "historyPeriod": "2025-11-05 to 2026-11-04",
       "components": [
         {
           "name": "Revenue growth",
@@ -56,7 +56,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+22.9%"
+          "display": "+29.4%"
         },
         {
           "name": "Maximum drawdown",
@@ -66,11 +66,41 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
+      "ticker": "AMD",
+      "name": "Advanced Micro Devices Inc.",
+      "score": 86.1,
+      "financialPeriod": "2025-12-27",
+      "historyPeriod": "2025-11-05 to 2026-11-04",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "34.3%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "12.5%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "19.4%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+90.7%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-28.1%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
       "ticker": "MU",
       "name": "Micron Technology Inc.",
       "score": 85.5,
       "financialPeriod": "2026-09-03",
-      "historyPeriod": "2025-11-04 to 2026-11-03",
+      "historyPeriod": "2025-11-05 to 2026-11-04",
       "components": [
         {
           "name": "Revenue growth",
@@ -86,41 +116,11 @@
         },
         {
           "name": "1-year price return",
-          "display": "+292.2%"
+          "display": "+234.8%"
         },
         {
           "name": "Maximum drawdown",
           "display": "-39.1%"
-        }
-      ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
-    },
-    {
-      "ticker": "NVDA",
-      "name": "Nvidia Corp.",
-      "score": 84.9,
-      "financialPeriod": "2026-01-25",
-      "historyPeriod": "2025-11-04 to 2026-11-03",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "65.5%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "55.6%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "44.8%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+4.0%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-19.4%"
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
