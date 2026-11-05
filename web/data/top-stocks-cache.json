@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T17:21:25.410Z",
+  "generatedAt": "2026-11-05T23:36:04.326Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 60-stock screen",
   "status": "success",
@@ -66,6 +66,36 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
+      "ticker": "V",
+      "name": "Visa Inc.",
+      "score": 86.2,
+      "financialPeriod": "2026-09-30",
+      "historyPeriod": "2025-11-05 to 2026-11-04",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "14.8%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "51.2%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "48.1%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+28.4%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-17.4%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
       "ticker": "AMD",
       "name": "Advanced Micro Devices Inc.",
       "score": 86.1,
@@ -91,36 +121,6 @@
         {
           "name": "Maximum drawdown",
           "display": "-28.1%"
-        }
-      ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
-    },
-    {
-      "ticker": "MU",
-      "name": "Micron Technology Inc.",
-      "score": 85.5,
-      "financialPeriod": "2026-09-03",
-      "historyPeriod": "2025-11-05 to 2026-11-04",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "256.3%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "63.8%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "44.3%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+234.8%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-39.1%"
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
