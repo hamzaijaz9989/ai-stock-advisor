@@ -26,7 +26,7 @@ async function load(keepTimer=false){
   const payload=await response.json();
   if(!response.ok)throw new Error(payload.error||"Market data unavailable");
   const equity=Number($("auto-equity").value);
-  const result=runNorthstarAgents({ticker,bars:payload.bars,quote:payload.quote,equity:Number.isFinite(equity)&&equity>0?equity:null,now:new Date().toISOString(),config:{maxQuoteAgeMs:120000}});
+  const result=runNorthstarAgents({ticker,bars:payload.bars,quote:payload.quote||{price:null,timestamp:null},equity:Number.isFinite(equity)&&equity>0?equity:null,now:new Date().toISOString(),config:{maxQuoteAgeMs:120000}});
   lastPayload=payload;render(result,payload);
  }catch(error){$("auto-status").textContent="Unavailable";$("auto-flags").innerHTML="<li>"+esc(error.message)+"</li>";}
 }
