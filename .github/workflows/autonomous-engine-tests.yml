@@ -1,0 +1,23 @@
+name: Autonomous equity engine tests
+on:
+  pull_request:
+    paths:
+      - "web/autonomous-engine.mjs"
+      - "tests/autonomous-engine.test.mjs"
+      - ".github/workflows/autonomous-engine-tests.yml"
+  push:
+    branches:
+      - "feature/autonomous-equity-intelligence"
+    paths:
+      - "web/autonomous-engine.mjs"
+      - "tests/autonomous-engine.test.mjs"
+      - ".github/workflows/autonomous-engine-tests.yml"
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node --test tests/autonomous-engine.test.mjs
