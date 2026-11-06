@@ -114,7 +114,7 @@ function positionSizer(price, atr, equity, config) {
   };
 }
 
-function round(n, digits = 2) { return Number(n.toFixed(digits)); }
+function round(n, digits = 2) { return finite(n) ? Number(n.toFixed(digits)) : null; }
 
 /**
  * Six logical agents share a single validated snapshot:
