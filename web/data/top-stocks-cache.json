@@ -1,46 +1,16 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-05T23:36:04.326Z",
+  "generatedAt": "2026-11-06T06:30:15.607Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 60-stock screen",
   "status": "success",
   "stocks": [
     {
-      "ticker": "ANET",
-      "name": "Arista Networks, Inc.",
-      "score": 90.8,
-      "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-11-05 to 2026-11-04",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "28.6%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "39.0%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "47.2%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+27.1%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-24.3%"
-        }
-      ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
-    },
-    {
       "ticker": "AAPL",
       "name": "Apple Inc.",
-      "score": 88.5,
+      "score": 87.8,
       "financialPeriod": "2026-09-26",
-      "historyPeriod": "2025-11-05 to 2026-11-04",
+      "historyPeriod": "2025-11-06 to 2026-11-05",
       "components": [
         {
           "name": "Revenue growth",
@@ -56,7 +26,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+29.4%"
+          "display": "+27.6%"
         },
         {
           "name": "Maximum drawdown",
@@ -66,11 +36,41 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
+      "ticker": "ANET",
+      "name": "Arista Networks, Inc.",
+      "score": 86.3,
+      "financialPeriod": "2025-12-31",
+      "historyPeriod": "2025-11-06 to 2026-11-05",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "28.6%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "39.0%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "47.2%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+18.8%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-26.6%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
       "ticker": "V",
       "name": "Visa Inc.",
-      "score": 86.2,
+      "score": 85,
       "financialPeriod": "2026-09-30",
-      "historyPeriod": "2025-11-05 to 2026-11-04",
+      "historyPeriod": "2025-11-06 to 2026-11-05",
       "components": [
         {
           "name": "Revenue growth",
@@ -86,7 +86,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+28.4%"
+          "display": "+25.4%"
         },
         {
           "name": "Maximum drawdown",
@@ -96,31 +96,31 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
-      "ticker": "AMD",
-      "name": "Advanced Micro Devices Inc.",
-      "score": 86.1,
-      "financialPeriod": "2025-12-27",
-      "historyPeriod": "2025-11-05 to 2026-11-04",
+      "ticker": "JNJ",
+      "name": "Johnson & Johnson",
+      "score": 84.6,
+      "financialPeriod": "2025-12-28",
+      "historyPeriod": "2025-11-06 to 2026-11-05",
       "components": [
         {
           "name": "Revenue growth",
-          "display": "34.3%"
+          "display": "6.0%"
         },
         {
           "name": "Net profit margin",
-          "display": "12.5%"
+          "display": "28.5%"
         },
         {
           "name": "Approx. FCF margin",
-          "display": "19.4%"
+          "display": "20.9%"
         },
         {
           "name": "1-year price return",
-          "display": "+90.7%"
+          "display": "+45.6%"
         },
         {
           "name": "Maximum drawdown",
-          "display": "-28.1%"
+          "display": "-11.0%"
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
