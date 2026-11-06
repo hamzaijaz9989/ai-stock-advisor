@@ -48,3 +48,17 @@ See:
 - [News and Signal Policy](docs/NEWS_AND_SIGNAL_POLICY.md)
 - [Market Data and Recommendations Policy](docs/MARKET_DATA_AND_RECOMMENDATIONS.md)
 - [Recommendation Engine Specification](docs/RECOMMENDATION_ENGINE_SPEC.md)
+## Northstar Operations Terminal (paper mode)
+
+The browser dashboard includes a separate operations module at the **Stock operations terminal** section.
+
+- Scans a user-editable universe of up to 30 US tickers using the existing /api/quote and /api/history endpoints.
+- Ranks candidates using transparent 20/50-day trend, 20/60-day momentum, average dollar-volume, ATR volatility, quote freshness, and OHLC outlier checks.
+- A candidate must pass every scanner rule and have a suitable timestamped quote before the paper-entry control is enabled.
+- Paper sizing uses a $500 virtual starting balance, $5 planned risk per trade, a 35% maximum portfolio allocation per position, and no more than three open positions.
+- Simulated entries and exits include 0.10% adverse slippage. Initial stop distance is 2×ATR; the reference target is 2R.
+- Positions are marked on the latest successful scan. Exits are manual in the paper ledger; the module does not claim intraday stop/target fills.
+- Events and paper positions are stored in browser localStorage on the current device. CSV export is available. Clearing browser data or using another device does not sync this ledger.
+- The scanner score is a technical screening score, not a probability, forecast, or validated BUY signal. A paper simulation is not a real trade or proof of profitability.
+
+**No broker integration, real-money order routing, or autonomous live execution is included.** Do not enable real execution until a separate point-in-time backtest, walk-forward and holdout validation, corporate-action handling, realistic costs, and operational controls have been independently reviewed.
