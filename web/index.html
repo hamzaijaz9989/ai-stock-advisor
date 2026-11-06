@@ -174,6 +174,25 @@
     </section>
     </div>
     </div>
+    <section id="autonomous-equity-panel" class="news-section">
+      <div class="section-heading"><div><p class="eyebrow">AUTONOMOUS EQUITY INTELLIGENCE · BETA</p><h2>Live opportunity terminal</h2></div><span id="auto-status" class="count">Waiting for data</span></div>
+      <p class="table-note">Six coordinated analytical agents · IEX-only feed · Research-only. The free feed does not represent consolidated US market volume and this module never places orders.</p>
+      <div class="auto-controls">
+        <label for="auto-ticker">Ticker</label><input id="auto-ticker" value="NVDA" maxlength="10" autocomplete="off" spellcheck="false">
+        <select id="auto-preset" aria-label="Quick ticker selection"></select>
+        <label for="auto-equity">Portfolio equity (USD)</label><input id="auto-equity" type="number" min="1" step="any" value="500">
+        <button id="auto-run" class="secondary-button" type="button">Analyze now</button>
+        <button id="auto-poll" class="secondary-button" type="button">Start 30-second refresh</button>
+      </div>
+      <div class="auto-metrics">
+        <article class="metric-card"><div class="metric-label">Opportunity score</div><div id="auto-score" class="metric-value">—</div><div class="metric-date">Heuristic ranking, not win probability</div></article>
+        <article class="metric-card"><div class="metric-label">Latest daily close</div><div id="auto-price" class="metric-value">—</div><div class="metric-date">Daily-bar basis</div></article>
+        <article class="metric-card"><div class="metric-label">Illustrative position size</div><div id="auto-size" class="metric-value">—</div><div class="metric-date">Risk and exposure capped</div></article>
+      </div>
+      <div class="auto-feed-row"><span id="auto-feed">Feed not connected</span><span id="auto-updated">Not updated</span></div>
+      <div class="auto-terminal-grid"><div><h3>Scanner findings & risk blockers</h3><ul id="auto-flags"><li>Connect Alpaca credentials to begin.</li></ul></div><div><h3>Six-agent audit log</h3><div id="auto-audit"><p class="empty">No analysis recorded.</p></div></div></div>
+      <p id="auto-note" class="table-note">Add Alpaca API credentials as Cloudflare Pages secrets to enable authenticated IEX data.</p>
+    </section>
     <details id="ranking-disclosure" class="ranking-disclosure">
       <summary class="ranking-disclosure-summary"><span><span class="eyebrow">EXPERIMENTAL TOOL</span><strong>Stock research shortlist</strong><small>Provisional screening only · validation is incomplete</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary>
             <section id="ranking" class="ranking-section suggestion-results-section">
@@ -220,5 +239,6 @@
   <script src="./evidence-score.js?v=evidenceaudit1" defer></script>
   <script src="./news-catalyst.js?v=newscatalyst1" defer></script>
   <script src="./app.js?v=newscatalyst2" defer></script>
+  <script type="module" src="./autonomous-dashboard.js?v=beta1"></script>
 </body>
 </html>
