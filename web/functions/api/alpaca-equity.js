@@ -9,7 +9,7 @@ export async function onRequestGet({request,env}){
  const auth=headers(env);
  try{
   const [barsResponse,snapshotResponse]=await Promise.all([
-   fetch(BASE+"/stocks/"+encodeURIComponent(symbol)+"/bars?timeframe=1Day&limit=65&feed=iex&adjustment=split&sort=asc",{headers:auth,signal:AbortSignal.timeout(10000)}),
+   fetch(BASE+"/stocks/"+encodeURIComponent(symbol)+"/bars?timeframe=1Day&limit=65&feed=iex&adjustment=split&sort=desc",{headers:auth,signal:AbortSignal.timeout(10000)}),
    fetch(BASE+"/stocks/"+encodeURIComponent(symbol)+"/snapshot?feed=iex",{headers:auth,signal:AbortSignal.timeout(10000)})
   ]);
   if(!barsResponse.ok)throw new Error("Alpaca historical bars returned HTTP "+barsResponse.status);
