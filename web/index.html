@@ -76,6 +76,34 @@
       <div id="strategy-backtest-metrics" class="metrics-grid"></div>
       <div id="strategy-backtest-details" class="table-note"></div><div id="strategy-walk-forward" class="table-note"></div>
     </section>
+    <section id="operations-terminal" class="operations-section">
+      <div class="section-heading"><div><p class="eyebrow">NORTHSTAR AUTONOMOUS RESEARCH</p><h2>Stock operations terminal</h2></div><span class="count">PAPER MODE · NO BROKER</span></div>
+      <p class="table-note">A rules-based scanner and paper portfolio simulator. It does not execute real orders or claim predictive AI. Quotes and history depend on public providers and may be delayed.</p>
+      <div class="ops-controls">
+        <label for="ops-tickers">SCAN UNIVERSE <span>Comma or space separated · up to 30 symbols</span></label>
+        <textarea id="ops-tickers" rows="2">AAPL MSFT NVDA AMZN GOOGL META AVGO ORCL AMD JPM LLY COST TSLA NFLX</textarea>
+        <div class="ops-actions"><button id="ops-scan" class="primary-button" type="button">Run opportunity scan</button><button id="ops-export" class="secondary-button" type="button">Export paper log CSV</button><span id="ops-status" class="count">Ready · not scanned</span></div>
+      </div>
+      <div class="ops-agents">
+        <article class="ops-agent"><span class="agent-dot"></span><strong>SCANNER</strong><small id="ops-agent-scan">Idle · waiting for scan</small></article>
+        <article class="ops-agent"><span class="agent-dot"></span><strong>CATALYST & RISK</strong><small id="ops-agent-risk">Technical and data-quality filters</small></article>
+        <article class="ops-agent"><span class="agent-dot"></span><strong>POSITION SIZER</strong><small id="ops-agent-size">$5 planned risk per trade</small></article>
+        <article class="ops-agent"><span class="agent-dot"></span><strong>PORTFOLIO LOGGER</strong><small id="ops-agent-log">Browser-local paper ledger</small></article>
+      </div>
+      <div class="ops-metrics" id="ops-metrics">
+        <article class="metric-card"><div class="metric-label">PAPER EQUITY</div><div class="metric-value" id="ops-equity">$500.00</div><div class="metric-date">Starting virtual capital</div></article>
+        <article class="metric-card"><div class="metric-label">CASH AVAILABLE</div><div class="metric-value" id="ops-cash">$500.00</div><div class="metric-date">After simulated entries</div></article>
+        <article class="metric-card"><div class="metric-label">OPEN POSITIONS</div><div class="metric-value" id="ops-open-count">0 / 3</div><div class="metric-date">Maximum three concurrent</div></article>
+        <article class="metric-card"><div class="metric-label">CLOSED P&L</div><div class="metric-value" id="ops-realized">$0.00</div><div class="metric-date">Simulated, before tax</div></article>
+      </div>
+      <div class="ops-subhead"><h3>Opportunity radar</h3><span id="ops-radar-count" class="count">No results</span></div>
+      <div id="ops-results" class="ops-results"><p class="empty">Run a scan to rank symbols using trend, momentum, liquidity, volatility and OHLC quality.</p></div>
+      <div class="ops-subhead"><h3>Paper positions</h3><span class="count">Not real money</span></div>
+      <div id="ops-positions" class="ops-results"><p class="empty">No simulated positions yet.</p></div>
+      <div class="ops-subhead"><h3>Activity log</h3><span id="ops-log-count" class="count">0 events</span></div>
+      <div id="ops-log" class="ops-log"><p class="empty">Every simulated action and scan decision will be recorded on this device.</p></div>
+      <p class="table-note">Method: 20/50-day trend, 20/60-day momentum, 20-day average dollar volume, 14-day ATR, and the history endpoint's outlier flags. A high score means a candidate passed these transparent technical filters; it is not a forecast, probability of profit, or BUY recommendation. Paper entries assume 0.10% adverse slippage and a 2×ATR stop. Live execution is disabled.</p>
+    </section>
     <section id="ranking" class="ranking-section">
       <div class="section-heading"><div><p class="eyebrow">RESEARCH SHORTLIST</p><h2>Top 10 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
       <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
@@ -119,5 +147,6 @@
     <footer><span>Northstar AI <span class="footer-sep">/</span> Market intelligence</span><span>SEC EDGAR · Research only · No automated trading</span></footer>
   </main>
   <script src="./app.js" defer></script>
+  <script src="./operations.js" defer></script>
 </body>
 </html>
