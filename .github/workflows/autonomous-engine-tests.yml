@@ -4,6 +4,9 @@ on:
     paths:
       - "web/autonomous-engine.mjs"
       - "tests/autonomous-engine.test.mjs"
+      - "web/functions/api/alpaca-equity.js"
+      - "web/autonomous-dashboard.js"
+      - "web/index.html"
       - ".github/workflows/autonomous-engine-tests.yml"
   push:
     branches:
