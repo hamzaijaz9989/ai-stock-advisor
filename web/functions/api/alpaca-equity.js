@@ -15,7 +15,7 @@ export async function onRequestGet({request,env}){
   if(!barsResponse.ok)throw new Error("Alpaca historical bars returned HTTP "+barsResponse.status);
   if(!snapshotResponse.ok)throw new Error("Alpaca snapshot returned HTTP "+snapshotResponse.status);
   const [barData,snapshot]=await Promise.all([barsResponse.json(),snapshotResponse.json()]);
-  const bars=(barData.bars||[]).map(b=>({timestamp:b.t,open:b.o,high:b.h,low:b.l,close:b.c,volume:b.v}));
+  const bars=(barData.bars||[]).map(b=>({timestamp:b.t,open:b.o,high:b.h,low:b.l,close:b.c,volume:b.v})).reverse();
   if(bars.length<55)throw new Error("Alpaca returned fewer than 55 daily bars; refusing to score this ticker.");
   const trade=snapshot.latestTrade||null,quote=snapshot.latestQuote||null,day=snapshot.dailyBar||null;
   const quotePrice=trade?.p??quote?.ap??quote?.bp??null;
