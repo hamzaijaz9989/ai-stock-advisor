@@ -460,3 +460,24 @@ test("snapshot CSV cell escaping quotes commas and structured rule results", () 
   assert.equal(app.csvCell(null), '""');
 });
 
+test("operations terminal is paper-only and enforces risk, allocation, position and data-quality gates", () => {
+  const source=readFileSync(new URL("../web/operations.js",import.meta.url),"utf8");
+  const html=readFileSync(new URL("../web/index.html",import.meta.url),"utf8");
+  assert.match(html,/id="operations-terminal"/);
+  assert.match(html,/id="ops-scan"/);
+  assert.match(source,/const START_CAPITAL = 500, RISK_PER_TRADE = 5, MAX_POSITIONS = 3/);
+  assert.match(source,/const MAX_ALLOC = 0\.35/);
+  assert.match(source,/const entry=r\.price\*1\.001/);
+  assert.match(source,/const stop=entry-2\*r\.stats\.atr/);
+  assert.match(source,/quality\?\.status==="NO_RULE_TRIGGERED"/);
+  assert.match(source,/paper\.disabled=!r\.eligible\|\|!r\.quoteUsable/);
+  assert.doesNotMatch(source,/api\/orders|broker\.submit|placeOrder/i);
+});
+
+test("operations scanner requires trend, momentum, liquidity, volatility, fresh data and clean OHLC", () => {
+  const source=readFileSync(new URL("../web/operations.js",import.meta.url),"utf8");
+  for (const rule of ["s.price>s.sma20&&s.sma20>s.sma50","s.mom20>0&&s.mom60>0","s.avgDollarVol>=5000000","s.atrPct<=8","s.dataAge<=3","const clean=quality?.status==="NO_RULE_TRIGGERED""]) {
+    assert.ok(source.includes(rule),"Missing scanner rule: "+rule);
+  }
+});
+
