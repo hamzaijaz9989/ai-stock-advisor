@@ -25,3 +25,18 @@ SEC company submissions and XBRL APIs remain the primary filing/fundamental sour
 
 ## Validation before any stronger signal
 This is a foundation module, not an approved strategy. Connect it to licensed provider data, add point-in-time event/corporate-action inputs, then run walk-forward and untouched holdout tests including survivorship, slippage, spreads, gaps, commissions/fees and benchmark comparison. Do not interpret the heuristic score as probability of profit. The existing Northstar BUY gate remains closed.
+
+## Cloudflare Pages setup for the beta terminal
+1. Create a free Alpaca account and generate Market Data API credentials. Do not put keys in browser code, GitHub files, screenshots, or chat.
+2. In the Cloudflare Pages project settings, add these as encrypted **Secrets** for the production environment (and preview environment only if needed):
+   - `ALPACA_API_KEY_ID`
+   - `ALPACA_API_SECRET_KEY`
+3. Redeploy the Pages project after adding the secrets.
+4. Open the Autonomous Equity Intelligence panel, enter a ticker, and choose Analyze now. Optional 30-second refresh repeatedly requests a new authenticated snapshot. Stop it when not needed.
+
+The beta endpoint `/api/alpaca-equity` retrieves up to 65 recent daily IEX bars and the latest IEX snapshot on each request. The dashboard's 30-second refresh is **REST polling**, not a persistent WebSocket stream. Do not describe it as a tick-by-tick feed. The displayed quote timestamp, provider and IEX coverage warning must remain visible. When the market is closed or the latest trade is stale, the integrity guard may block scoring; this is expected fail-closed behavior.
+
+The endpoint is deliberately single-symbol and does not expose credentials to the browser. The beta UI defaults to NVDA and provides AAPL, MSFT, GOOGL and AMZN presets. It is not yet a broad 60-stock live scanner. Keep the existing three-hour 60-stock cache distinct from this single-symbol live-check workflow.
+
+## Deployment status
+The code is committed to `feature/autonomous-equity-intelligence` and proposed in draft PR #39. It is not merged or deployed. Add the Cloudflare secrets and merge/deploy only after CI and manual preview checks pass.
