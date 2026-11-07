@@ -23,7 +23,7 @@ try {
   if (rankedCount + excludedCount !== 253) throw new Error("Universe accounting mismatch: " + rankedCount + " ranked + " + excludedCount + " excluded. Preserving previous cache.");
 
   const result = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll("#screen-results .screen-card")].slice(0,10).map(card => {
+    const cards = [...document.querySelectorAll("#screen-results .screen-card:not(.screen-best-pick)")].slice(0,10).map(card => {
       const title = card.querySelector(".screen-card-header strong")?.textContent || "";
       const match = title.match(/^\d+\.\s+([A-Z0-9.^=-]+)\s+·\s+(.*)$/);
       const scoreText = card.querySelector(".screen-score")?.textContent || "";
@@ -59,6 +59,7 @@ try {
   });
   if (!result.stocks.length) throw new Error("Screen completed but no stock cards could be extracted; refusing to overwrite the previous cache.");
   if (result.rankedCount !== rankedCount || result.excludedCount !== excludedCount) throw new Error("Cached result counts do not match the completed scan status; refusing to overwrite the previous cache.");
+  if (result.stocks.length !== Math.min(10, rankedCount)) throw new Error("Expected " + Math.min(10, rankedCount) + " shortlist cards but extracted " + result.stocks.length + "; refusing to overwrite the previous cache.");
   if (result.stocks.length > 10) throw new Error("Shortlist exceeded the ten-candidate cache limit; refusing to overwrite the previous cache.");
   const target = path.resolve("web/data/top-stocks-cache.json");
   await fs.mkdir(path.dirname(target), { recursive: true });
