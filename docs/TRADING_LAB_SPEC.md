@@ -75,6 +75,19 @@ Freeze each strategy's rules and parameters before holdout testing. Compare agai
 
 The existing 50/200-day moving-average dashboard experiment is diagnostic only; it is not automatically the selected strategy.
 
+
+## 4A. Broad equity universe and staged computation
+
+The first-pass research universe contains **253 curated US-listed equity symbols** across technology, semiconductors, financials, healthcare, consumer, energy, industrials, utilities, communications, real estate and travel. It is a deliberately broad, maintainable coverage list—not a claim to cover every US listing. The scan records the number attempted, qualified and excluded; SEC coverage gaps, insufficient price history, stale data and invalid fundamentals are exclusions, never silently imputed values.
+
+The pipeline is staged to keep computation efficient and auditable:
+1. Run the same deterministic fundamental and one-year price-history screen across the full 253-symbol universe in small request batches.
+2. Rank only successfully scored names and retain the full pass/fail audit for every symbol.
+3. Run the more expensive current quote, earnings and news enrichment only on the highest-ranked ten candidates; the interactive full ticker analysis remains available for any symbol.
+4. Never treat the composite research score as an entry signal. A separate technical setup, freshness, event and portfolio-risk gate is required before any paper order can be considered.
+
+The universe list is version-controlled with the scanner. Universe breadth increases opportunity coverage; it does not itself create alpha, improve the quality of inputs, or justify increasing risk. The 253 names should be periodically reviewed for symbol changes, delistings, liquidity and source coverage. A historical backtest must reconstruct point-in-time membership rather than replay today's list over old data.
+
 ## 5. Data and freshness requirements
 
 - Every quote/bar must include provider, timestamp, market session and delay/entitlement status.
