@@ -38,7 +38,7 @@ export async function onRequestPost({request,env}) {
   try {
     control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all();
-    ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,status FROM paper_orders ORDER BY updated_at DESC").all();
+    ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
   } catch { return fail("Could not read the complete paper ledger; fail-closed.",503); }
   if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Execution controls are not in the required disabled/kill-switched state.",503);
   let account,brokerPositions,brokerOrders=[],pageToken=null,pages=0;
