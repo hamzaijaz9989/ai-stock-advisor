@@ -187,6 +187,16 @@
       <div class="diagnostic-content">
         <p><strong>Page:</strong> <span id="ui-health">Loaded</span></p>
         <p><strong>SEC connection:</strong> <span id="sec-health">Not tested yet</span></p>
+        <div class="alpaca-connection" style="margin:18px 0;padding:16px;border:1px solid #343a2b;border-radius:14px;background:#0d100b">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <strong>Alpaca Paper Trading</strong>
+            <span id="alpaca-status" aria-live="polite" class="muted">Not checked yet</span>
+          </div>
+          <p class="muted" style="margin:8px 0 12px">Secure server-side connection. Read-only: Northstar will not place trades.</p>
+          <button id="alpaca-connect-button" type="button" style="width:auto;min-height:42px;padding:10px 16px;border:1px solid #c7ff4f;border-radius:10px;background:#c7ff4f;color:#10130b;font-weight:750">Test Alpaca connection</button>
+          <div id="alpaca-account" class="hidden" style="margin-top:14px"></div>
+          <div id="alpaca-positions" class="hidden" style="margin-top:12px"></div>
+        </div>
         <p><strong>Last request:</strong> <span id="last-request">—</span></p>
         <p class="muted">Financial facts come from SEC EDGAR. This is a research prototype, not a valuation model or trade recommendation.</p>
         <p><a href="https://www.sec.gov/edgar/sec-api-documentation" target="_blank" rel="noreferrer">SEC API documentation ↗</a></p>
