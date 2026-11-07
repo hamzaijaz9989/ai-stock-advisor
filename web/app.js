@@ -799,6 +799,11 @@ async function enrichTopCandidates(results) {
   }
 }
 
+function isFresh253Cache(data, nowMs=Date.now()) {
+ const stamp=Date.parse(data?.generatedAt||"");
+ return data?.universeSize===253 && data?.status==="success" && Number.isFinite(stamp) && stamp<=nowMs+5*60*1000 && nowMs-stamp<=6*60*60*1000;
+}
+
 async function loadCachedScreen() {
  const button=$("run-screen"); button.disabled=true; button.textContent="Loading latest shortlist…";
  const status=$("screen-status"); const root=$("screen-results");
@@ -809,7 +814,7 @@ async function loadCachedScreen() {
    if(!Array.isArray(data.stocks)||!data.stocks.length) throw new Error("The latest scan did not produce qualified candidates.");
    renderCachedScreen(data);
    const stamp=data.generatedAt?new Date(data.generatedAt):null;
-   const currentUniverse=data.universeSize===253&&data.status==="success";
+   const currentUniverse=isFresh253Cache(data);
    status.textContent=currentUniverse
      ? "Updated "+(stamp&&!Number.isNaN(stamp.getTime())?stamp.toLocaleString():"time unavailable")+" · 253-stock cached results"
      : "Cached scan is outdated · run the 253-stock scan";
@@ -822,7 +827,7 @@ async function loadCachedScreen() {
 function renderCachedScreen(data) {
  const root=$("screen-results"); root.innerHTML="";
  const note=document.createElement("p"); note.className="table-note";
- const currentUniverse=data.universeSize===253&&data.status==="success";
+ const currentUniverse=isFresh253Cache(data);
  note.textContent=currentUniverse
    ? "Precomputed shortlist from the latest scheduled 253-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals."
    : "STALE CACHE: this shortlist predates the 253-stock scanner and must not be treated as its output. Run the live 253-stock scan to refresh coverage. Research candidates only — not validated BUY signals.";
