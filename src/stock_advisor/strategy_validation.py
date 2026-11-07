@@ -300,7 +300,7 @@ def _benchmark_return_pct(
 
 def _evaluate_fold(fold: Any, rows: list[Mapping[str, Any]],
                    bars_by_symbol: Mapping[str, list[DailyBar]],
-                   config: BacktestConfig | None) -> dict[str, Any]:
+                   config: BacktestConfig | None, benchmark_prices: Mapping[date, float]) -> dict[str, Any]:
     """Evaluate only signals dated in a fold's test window, truncating future bars."""
     test_rows = [row for row in rows if fold.test_start <= _day(row.get("as_of_date"), "as_of_date") <= fold.test_end]
     signals, audit = generate_signals(test_rows)
@@ -313,9 +313,18 @@ def _evaluate_fold(fold: Any, rows: list[Mapping[str, Any]],
         outcomes.append(simulate_signal(signal, bounded_bars, config))
     completed = [item for item in outcomes if item.status == "closed" and item.net_return_pct is not None]
     summary = summarize_outcomes(outcomes)
-    paired = [item for item in completed if item.benchmark_return_pct is not None]
-    summary["average_excess_return_pct"] = mean([float(item.net_return_pct) - float(item.benchmark_return_pct) for item in paired]) if paired else None
-    summary["benchmark_matched_trades"] = len(paired)
+    paired_excess: list[float] = []
+    for item in completed:
+        if item.entry_date is None or item.exit_date is None:
+            continue
+        benchmark_return, _basis = _benchmark_return_pct(
+            _day(item.entry_date, "entry_date"), _day(item.exit_date, "exit_date"), benchmark_prices
+        )
+        if benchmark_return is not None:
+            paired_excess.append(float(item.net_return_pct) - benchmark_return)
+    summary["average_excess_return_pct"] = mean(paired_excess) if paired_excess else None
+    summary["benchmark_matched_trades"] = len(paired_excess)
+    summary["benchmark_missing_trades"] = len(completed) - len(paired_excess)
     return {"train_start": fold.train_start.isoformat(), "train_end": fold.train_end.isoformat(),
             "test_start": fold.test_start.isoformat(), "test_end": fold.test_end.isoformat(),
             "snapshots_in_test_window": len(test_rows), "signals": len(signals),
@@ -398,7 +407,7 @@ def build_validation_report(
     summary["missing_bars"] = missing_bars
     dates = sorted({_day(row["as_of_date"], "as_of_date") for row in rows if row.get("as_of_date")})
     folds = walk_forward_folds(dates, min_train_sessions=252, test_sessions=126, step_sessions=126) if len(dates) >= 378 else []
-    fold_reports = [_evaluate_fold(fold, rows, normalized_bars, config) for fold in folds]
+    fold_reports = [_evaluate_fold(fold, rows, normalized_bars, config, benchmark_prices) for fold in folds]
     folds_with_trades = sum(report["summary"]["completed_trades"] > 0 for report in fold_reports)
     folds_with_positive_expectancy = sum(report["summary"]["average_net_return_pct"] is not None and report["summary"]["average_net_return_pct"] > 0 for report in fold_reports)
     flags = {
