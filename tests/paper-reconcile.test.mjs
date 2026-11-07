@@ -10,7 +10,7 @@ const control={enabled:0,mode:"paper",kill_switch:1};
 function mockDb({positions=[],orders=[]}={}) {
   return {prepare(sql) {
     return {async first(){assert.match(sql,/execution_control/);return control;},
-      async all(){if(/paper_positions/.test(sql))return {results:positions};if(/paper_orders/.test(sql))return {results:orders};throw new Error("unexpected SQL");}};
+      async all(){if(/paper_positions/.test(sql))return {results:positions};if(/paper_orders/.test(sql)){assert.match(sql,/response_json/,"reconciliation must read the stored fill snapshot");return {results:orders};}throw new Error("unexpected SQL");}};
   }};
 }
 function request(token="secret") {
