@@ -25,7 +25,8 @@
     .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field label{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}.field input{width:100%;border:1px solid #343b31;border-radius:11px;background:#080a08;color:var(--text);padding:12px;font:inherit;min-width:0}.result{background:#171d12;border:1px solid #3b4b27;border-radius:13px;padding:14px;margin-top:14px}.result strong{font-size:25px;color:var(--accent)}button{border:0;border-radius:11px;padding:12px 15px;font:700 13px/1.2 system-ui,-apple-system,Segoe UI,sans-serif;cursor:pointer}button.primary{background:var(--accent);color:#10140a}button.secondary{background:#1a2017;color:var(--text);border:1px solid #343b31}button:disabled{opacity:.5;cursor:not-allowed}
     .journal-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #242a22;font-size:13px}.journal-row:last-child{border-bottom:0}
     .footer{padding:28px 0 42px;color:#737a70;font-size:11px}.linkrow{display:flex;gap:15px;flex-wrap:wrap;margin-top:14px}
-    @media(max-width:760px){.span-8,.span-6,.span-4{grid-column:span 12}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modules{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{padding-top:28px}.card{padding:15px}.candidate{grid-template-columns:50px 1fr auto}}
+    .dash-nav{display:flex;gap:8px;overflow-x:auto;padding:9px 0 14px;margin:0 0 8px;position:sticky;top:68px;z-index:4;background:#050705ed;backdrop-filter:blur(14px);scrollbar-width:thin}.dash-nav a{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;padding:7px 11px;color:#c5cabe;font-size:11px;font-weight:700}.dash-nav a:hover,.dash-nav a:focus-visible{border-color:var(--accent);color:var(--accent)}.guide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px}.guide-item{border:1px solid var(--line);background:#0d100c;border-radius:13px;padding:13px}.guide-item b{display:block;font-size:12px;margin-bottom:4px}.guide-item p{font-size:11px;color:var(--muted);margin:0;line-height:1.55}.section-anchor{scroll-margin-top:128px}
+    @media(max-width:760px){.guide{grid-template-columns:1fr}.dash-nav{top:58px}.span-8,.span-6,.span-4{grid-column:span 12}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modules{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{padding-top:28px}.card{padding:15px}.candidate{grid-template-columns:50px 1fr auto}}
   </style>
 </head>
 <body>
@@ -33,8 +34,10 @@
 <main class="wrap">
   <section class="hero"><div class="eyebrow">Northstar intelligence suite / module 02</div><h1>Trading Lab<span style="color:var(--accent)">.</span></h1><p class="sub">A risk-first command centre for screening, sizing and auditing US equity trade ideas. It is not an autonomous money-making machine; every decision must be backed by fresh data and validated rules.</p></section>
   <div class="warning"><strong>Experimental · no live orders.</strong> This page uses a separate $1,000 virtual planning allocation. It does not read, sell or modify your real holdings. Alpaca is checked read-only. No trade is submitted from this dashboard.</div>
+  <nav class="dash-nav" aria-label="Trading Lab sections"><a href="#overview">Overview</a><a href="#pipeline">System status</a><a href="#candidates-panel">Candidates</a><a href="#risk-calculator">Risk calculator</a><a href="#ledger-panel">Ledger</a><a href="#broker-panel">Broker check</a><a href="#journal-panel">Journal</a></nav>
+  <section class="guide" aria-label="How to use this dashboard"><div class="guide-item"><b>1 · Review evidence</b><p>Start with the market context and research shortlist. A high score is not a buy signal.</p></div><div class="guide-item"><b>2 · Define invalidation</b><p>Use the calculator only after you have a reasoned entry and a clear stop level.</p></div><div class="guide-item"><b>3 · Record, don’t execute</b><p>Saved plans are local notes. Paper order execution is not enabled.</p></div></section>
   <section class="grid">
-    <article class="card span-12">
+    <article id="overview" class="card span-12 section-anchor">
       <div class="card-head"><h2>Virtual account overview</h2><span class="state">SIMULATION BUDGET</span></div>
       <div class="stat-grid">
         <div class="stat"><label>Planning allocation</label><strong id="capital">$1,000</strong></div>
@@ -44,8 +47,8 @@
       </div>
       <p class="muted small" style="margin:12px 0 0">The planning allocation is a fixed research budget, not your broker's buying power or current equity. Planned risk is not a guaranteed maximum loss because prices can gap through stops.</p>
     </article>
-    <article class="card span-12">
-      <div class="card-head"><h2>Agent pipeline</h2><span class="state">READ-ONLY / PLANNING</span></div>
+    <article id="pipeline" class="card span-12 section-anchor">
+      <div class="card-head"><h2>System status</h2><span class="state">READ-ONLY / PLANNING</span></div>
       <div class="modules">
         <div class="module"><b>01 · Scanner</b><span id="scanner-state">Loading cached shortlist…</span></div>
         <div class="module"><b>02 · Setup analyst</b><span>Research-only · no validated edge</span></div>
@@ -57,13 +60,13 @@
         <div class="module"><b>Kill switch</b><span>Order execution unavailable</span></div>
       </div>
     </article>
-    <article class="card span-6">
+    <article id="candidates-panel" class="card span-6 section-anchor">
       <div class="card-head"><h2>Top research candidates</h2><span class="state">NOT BUY SIGNALS</span></div>
       <div id="candidates"><p class="muted small">Loading latest cached screen…</p></div>
       <p id="cache-note" class="muted small" style="margin-bottom:0">Candidates are research priorities only. Open full analysis to verify live price, valuation, earnings and news.</p>
       <div class="linkrow"><a href="./#ranking-disclosure">Open full 253-stock research scan ↗</a></div>
     </article>
-    <article class="card span-6">
+    <article id="risk-calculator" class="card span-6 section-anchor">
       <div class="card-head"><h2>Position risk calculator</h2><span class="state">NO ORDER SUBMISSION</span></div>
       <div class="form-grid">
         <div class="field"><label for="symbol">Ticker</label><input id="symbol" maxlength="10" value="NVDA" autocomplete="off"></div>
@@ -75,20 +78,20 @@
       <div class="linkrow"><button id="save-plan" class="primary" type="button">Save trade plan</button><button id="reset-calc" class="secondary" type="button">Reset</button></div>
       <p class="muted small">Sizing uses the smaller of the 0.5% risk budget and 25% position-notional cap, rounded down to whole shares. It excludes real-time spread/slippage until verified.</p>
     </article>
-    <article class="card span-6" aria-live="polite">
+    <article id="ledger-panel" class="card span-6 section-anchor" aria-live="polite">
       <div class="card-head"><h2>Paper ledger readiness · safety checks</h2><span id="ledger-badge" class="state">CHECKING</span></div>
       <p id="ledger-message" class="muted small">Verifying the durable ledger and risk limits…</p>
       <div id="ledger-detail" class="small muted"></div>
       <p class="muted small">Read-only status. Order execution remains disabled; no trades are submitted here.</p>
     </article>
-    <article class="card span-6">
+    <article id="broker-panel" class="card span-6 section-anchor">
       <div class="card-head"><h2>Alpaca paper connection</h2><span id="alpaca-badge" class="state">NOT CHECKED</span></div>
       <p id="alpaca-message" class="muted small">The existing integration is read-only. Test it to verify that the server can reach your paper account.</p>
       <button id="check-alpaca" class="secondary" type="button">Test paper connection</button>
       <div id="alpaca-detail" class="small muted" style="margin-top:12px"></div>
       <p class="muted small">Broker account cash and buying power are intentionally not treated as your $1,000 planning allocation.</p>
     </article>
-    <article class="card span-6">
+    <article id="journal-panel" class="card span-6 section-anchor">
       <div class="card-head"><h2>Trade-plan journal</h2><span class="state">THIS DEVICE ONLY</span></div>
       <div id="journal"><p class="muted small">No saved plans yet.</p></div>
       <p class="muted small">Saved plans are not orders, fills or performance results. They are stored locally in this browser and are not synced to a server.</p>
