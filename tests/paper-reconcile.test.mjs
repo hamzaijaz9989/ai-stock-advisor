@@ -37,8 +37,8 @@ test("reconciliation rejects missing operator authentication",async()=>{
 });
 test("reconciliation passes when broker and ledger positions and orders match",async()=>{
   const positions=[{symbol:"AAPL",qty:"2",avg_entry_price:"100"}];
-  const orders=[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"2",status:"filled"}];
-  const db=mockDb({positions,orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:2,status:"filled"}]});
+  const orders=[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"2",status:"filled",filled_qty:"2",filled_avg_price:"100"}];
+  const db=mockDb({positions,orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:2,status:"FILLED",response_json:JSON.stringify({filled_qty:"2",filled_avg_price:"100"})}]});
   const response=await run({db,broker:{positions,orders}});
   const body=await response.json();
   assert.equal(response.status,200);
@@ -68,6 +68,30 @@ test("reconciliation flags ledger orders without broker IDs or broker matches",a
   assert.equal(response.status,409);
   assert.deepEqual(body.mismatches.orders.map(x=>x.reason),["LEDGER_ORDER_MISSING_BROKER_ID","LEDGER_ORDER_NOT_FOUND_AT_BROKER"]);
 });
+
+test("reconciliation flags order status mismatch",async()=>{
+  const db=mockDb({orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:2,status:"NEW",response_json:JSON.stringify({filled_qty:"0"})}]});
+  const response=await run({db,broker:{orders:[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"2",status:"filled",filled_qty:"2",filled_avg_price:"100"}]}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="ORDER_STATUS_DIFFER"));
+});
+test("reconciliation fails closed when cumulative fill data is missing from ledger",async()=>{
+  const db=mockDb({orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:2,status:"FILLED"}]});
+  const response=await run({db,broker:{orders:[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"2",status:"filled",filled_qty:"2",filled_avg_price:"100"}]}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="FILLED_QUANTITY_NOT_RECONCILED"));
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="AVERAGE_FILL_PRICE_NOT_RECONCILED"));
+});
+test("reconciliation flags duplicate broker order IDs",async()=>{
+  const orders=[{id:"dup",symbol:"AAPL",side:"buy",qty:"1",status:"new",filled_qty:"0"},{id:"dup",symbol:"AAPL",side:"buy",qty:"1",status:"new",filled_qty:"0"}];
+  const response=await run({broker:{orders}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="MISSING_OR_DUPLICATE_BROKER_ORDER_ID"));
+});
+
 test("reconciliation fails closed when broker data is unavailable",async()=>{
   const {onRequestPost}=await loadFunction();
   const oldFetch=globalThis.fetch;globalThis.fetch=async()=>new Response("unavailable",{status:503});
