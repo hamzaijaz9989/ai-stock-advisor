@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "generatedAt": "2026-11-07T05:52:17.887Z",
   "refreshIntervalHours": 3,
-  "source": "Northstar AI scheduled live 60-stock screen",
-  "status": "success",
+  "source": "Previous scheduled 60-stock scan; stale pending first 253-stock refresh",
+  "status": "stale_universe_mismatch",
   "stocks": [
     {
       "ticker": "ANET",
@@ -126,5 +126,6 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     }
   ],
-  "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis."
+  "note": "This is the previous 60-stock cache, not the new 253-stock scan. Run or wait for the 253-stock workflow before relying on the shortlist.",
+  "universeSize": 60
 }
