@@ -40,6 +40,14 @@ FMP is an independent secondary data source. Northstar keeps its figures separat
 
 Official FMP docs: https://site.financialmodelingprep.com/developer/docs/quickstart and https://site.financialmodelingprep.com/developer/docs.
 
+## Alpaca Paper Trading connection (read-only)
+
+Northstar includes a server-side connection check for an Alpaca **Paper Trading** account at `/api/alpaca/status`. The Cloudflare Pages Function reads the secrets `ALPACA_API_KEY_ID` and `ALPACA_API_SECRET_KEY`, calls only the paper account and positions GET endpoints, and returns a small account/positions summary to the dashboard. The keys are never sent to browser JavaScript. The integration deliberately does not submit, cancel, or modify orders and does not connect to the live trading host.
+
+Add both values as Cloudflare Pages **Secrets** for Production (and Preview only if you also want to test preview deployments), then trigger a new deployment. Use the matching Paper Trading key pair; paper and live credentials are different. In Northstar, open **Data connection details** and select **Test Alpaca connection**.
+
+Official references: [Alpaca authentication](https://docs.alpaca.markets/us/docs/authentication), [Get account](https://docs.alpaca.markets/us/reference/getaccount-1), and [Paper trading](https://docs.alpaca.markets/us/docs/paper-trading).
+
 ## Python core
 
 Requires Python 3.11+.
