@@ -76,6 +76,7 @@ export async function onRequestPost({request,env}) {
     }
   }
   const brokerById=new Map();
+  const orderMismatches=[];
   for(const order of brokerOrders) {
     const id=String(order?.id || "");
     if(!id || brokerById.has(id)) {
@@ -85,7 +86,6 @@ export async function onRequestPost({request,env}) {
     brokerById.set(id,order);
   }
   const ledgerByBrokerId=new Map();
-  const orderMismatches=[];
   for(const l of orderRows) {
     const id=l.broker_order_id?String(l.broker_order_id):"";
     if(!id) { orderMismatches.push({ledgerOrderId:l.id,reason:"LEDGER_ORDER_MISSING_BROKER_ID"}); continue; }
