@@ -2335,5 +2335,81 @@ function reviewHolding() {
 }
 $("review-holding").addEventListener("click",reviewHolding);
 
+async function testAlpacaConnection() {
+  const button = $("alpaca-connect-button");
+  const status = $("alpaca-status");
+  const accountBox = $("alpaca-account");
+  const positionsBox = $("alpaca-positions");
+  if (!button || !status) return;
+  button.disabled = true;
+  button.textContent = "Connecting…";
+  status.textContent = "Checking secure Paper Trading connection…";
+  accountBox?.classList.add("hidden");
+  positionsBox?.classList.add("hidden");
+  try {
+    const response = await fetch("/api/alpaca/status", { headers: { "Accept": "application/json" }, cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || !data.connected) throw new Error(data.error || "Alpaca connection failed.");
+    status.textContent = "Connected · Paper account";
+    const money = value => {
+      const number = Number(value);
+      return Number.isFinite(number) ? new Intl.NumberFormat("en-US", { style: "currency", currency: data.account.currency || "USD" }).format(number) : "Not available";
+    };
+    accountBox.replaceChildren();
+    const summary = document.createElement("p");
+    summary.style.cssText = "line-height:1.8;margin:0";
+    summary.textContent = "Account: " + (data.account.status || "Unknown") +
+      " · Cash: " + money(data.account.cash) +
+      " · Buying power: " + money(data.account.buyingPower) +
+      " · Equity: " + money(data.account.equity);
+    accountBox.appendChild(summary);
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.style.margin = "8px 0 0";
+    note.textContent = data.mode || "Read-only connection.";
+    accountBox.appendChild(note);
+    accountBox.classList.remove("hidden");
+
+    positionsBox.replaceChildren();
+    const heading = document.createElement("strong");
+    heading.textContent = "Open positions (" + data.positions.length + ")";
+    positionsBox.appendChild(heading);
+    if (data.positions.length) {
+      const list = document.createElement("ul");
+      list.style.cssText = "padding-left:20px;line-height:1.8";
+      for (const position of data.positions) {
+        const item = document.createElement("li");
+        item.textContent = position.symbol + " · " + position.qty + " shares · Market value " + money(position.marketValue) + " · Unrealized P/L " + money(position.unrealizedPl);
+        list.appendChild(item);
+      }
+      positionsBox.appendChild(list);
+    } else {
+      const empty = document.createElement("p");
+      empty.className = "muted";
+      empty.textContent = "No open positions in this paper account.";
+      positionsBox.appendChild(empty);
+    }
+    if (data.positionsWarning) {
+      const warning = document.createElement("p");
+      warning.className = "muted";
+      warning.textContent = data.positionsWarning;
+      positionsBox.appendChild(warning);
+    }
+    positionsBox.classList.remove("hidden");
+  } catch (error) {
+    status.textContent = "Not connected";
+    accountBox.replaceChildren();
+    const message = document.createElement("p");
+    message.textContent = error?.message || "Could not connect to Alpaca.";
+    accountBox.appendChild(message);
+    accountBox.classList.remove("hidden");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Test Alpaca connection";
+  }
+}
+$("alpaca-connect-button")?.addEventListener("click", testAlpacaConnection);
+
 renderResearchLog();
 $("ui-health").textContent="Loaded";
+
