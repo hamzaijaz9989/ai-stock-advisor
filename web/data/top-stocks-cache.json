@@ -1,46 +1,16 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-06T23:03:21.836Z",
+  "generatedAt": "2026-11-07T05:52:17.887Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 60-stock screen",
   "status": "success",
   "stocks": [
     {
-      "ticker": "AAPL",
-      "name": "Apple Inc.",
-      "score": 87.8,
-      "financialPeriod": "2026-09-26",
-      "historyPeriod": "2025-11-06 to 2026-11-05",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "15.1%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "27.6%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "28.4%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+27.6%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-13.8%"
-        }
-      ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
-    },
-    {
       "ticker": "ANET",
       "name": "Arista Networks, Inc.",
-      "score": 86.3,
+      "score": 89.6,
       "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-11-06 to 2026-11-05",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -56,7 +26,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+18.8%"
+          "display": "+26.9%"
         },
         {
           "name": "Maximum drawdown",
@@ -66,11 +36,41 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "score": 87.8,
+      "financialPeriod": "2026-09-26",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "15.1%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "27.6%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "28.4%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+27.5%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-13.8%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
       "ticker": "V",
       "name": "Visa Inc.",
-      "score": 85,
+      "score": 85.1,
       "financialPeriod": "2026-09-30",
-      "historyPeriod": "2025-11-06 to 2026-11-05",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -86,7 +86,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+25.4%"
+          "display": "+25.8%"
         },
         {
           "name": "Maximum drawdown",
@@ -100,7 +100,7 @@
       "name": "Johnson & Johnson",
       "score": 84.6,
       "financialPeriod": "2025-12-28",
-      "historyPeriod": "2025-11-06 to 2026-11-05",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -116,7 +116,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+45.6%"
+          "display": "+48.0%"
         },
         {
           "name": "Maximum drawdown",
