@@ -1,10 +1,73 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T12:54:51.771Z",
+  "generatedAt": "2026-11-07T15:37:59.770Z",
   "refreshIntervalHours": 3,
-  "source": "Previous scheduled 60-stock scan; stale pending first 253-stock refresh",
-  "status": "stale_universe_mismatch",
+  "source": "Northstar AI scheduled live 253-stock screen",
+  "universeSize": 253,
+  "rankedCount": 201,
+  "excludedCount": 52,
+  "status": "success",
   "stocks": [
+    {
+      "ticker": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Co. Ltd.",
+      "score": 91.3,
+      "financialPeriod": "2024-12-31",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "33.9%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "40.0%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "30.1%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+31.0%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-27.3%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
+      "ticker": "KEY",
+      "name": "Keycorp /New/",
+      "score": 89.8,
+      "financialPeriod": "2025-12-31",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "62.7%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "24.3%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "28.0%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+15.3%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-18.6%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
     {
       "ticker": "ANET",
       "name": "Arista Networks, Inc.",
@@ -61,6 +124,36 @@
         {
           "name": "Maximum drawdown",
           "display": "-13.8%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
+      "ticker": "ADI",
+      "name": "Analog Devices Inc.",
+      "score": 86.5,
+      "financialPeriod": "2025-11-01",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "16.9%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "20.6%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "38.8%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+59.1%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-20.7%"
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
@@ -124,8 +217,67 @@
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
+      "ticker": "VRTX",
+      "name": "Vertex Pharmaceuticals Inc. / Ma",
+      "score": 84.2,
+      "financialPeriod": "2025-12-31",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "8.9%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "32.9%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "26.6%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+33.6%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-15.2%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
+      "ticker": "AMGN",
+      "name": "Amgen Inc.",
+      "score": 84.2,
+      "financialPeriod": "2025-12-31",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "10.0%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "21.0%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "22.0%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+43.8%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-16.6%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
     }
   ],
-  "note": "This is the previous 60-stock cache, not the new 253-stock scan. Run or wait for the 253-stock workflow before relying on the shortlist.",
-  "universeSize": 60
+  "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis."
 }
