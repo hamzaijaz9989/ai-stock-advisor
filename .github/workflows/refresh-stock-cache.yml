@@ -21,7 +21,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
           npm init -y
           npm install --no-save playwright
           npx playwright install --with-deps chromium
-      - name: Scan the live 60-stock universe and save top five
+      - name: Scan the live 253-stock universe and save top ten
         run: node .github/scripts/refresh-stock-cache.mjs
       - name: Commit updated shortlist only when changed
         run: |
