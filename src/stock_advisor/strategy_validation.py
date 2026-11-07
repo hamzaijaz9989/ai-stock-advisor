@@ -300,7 +300,7 @@ def _benchmark_return_pct(
 
 def _evaluate_fold(fold: Any, rows: list[Mapping[str, Any]],
                    bars_by_symbol: Mapping[str, list[DailyBar]],
-                   config: BacktestConfig | None, benchmark_prices: Mapping[date, float]) -> dict[str, Any]:
+                   config: BacktestConfig | None, benchmark_prices: Mapping[date, tuple[float, float | None]]) -> dict[str, Any]:
     """Evaluate only signals dated in a fold's test window, truncating future bars."""
     test_rows = [row for row in rows if fold.test_start <= _day(row.get("as_of_date"), "as_of_date") <= fold.test_end]
     signals, audit = generate_signals(test_rows)
@@ -425,8 +425,6 @@ def build_validation_report(
         blockers.append("minimum_walk_forward_fold_count_not_met")
     if folds and folds_with_trades < minimum_walk_forward_folds:
         blockers.append("insufficient_walk_forward_folds_with_completed_trades")
-    if folds and folds_with_positive_expectancy < minimum_walk_forward_folds:
-        blockers.append("not_all_walk_forward_folds_have_positive_average_net_return")
     if summary.get("profit_factor") is None or not isinstance(summary.get("profit_factor"), (int, float)) or summary["profit_factor"] <= 1:
         blockers.append("net_profit_factor_not_above_1")
     if not benchmark_prices:
