@@ -793,21 +793,27 @@ async function loadCachedScreen() {
    if(!Array.isArray(data.stocks)||!data.stocks.length) throw new Error("The latest scan did not produce qualified candidates.");
    renderCachedScreen(data);
    const stamp=data.generatedAt?new Date(data.generatedAt):null;
-   status.textContent="Updated "+(stamp&&!Number.isNaN(stamp.getTime())?stamp.toLocaleString():"time unavailable")+" · cached results";
+   const currentUniverse=data.universeSize===253&&data.status==="success";
+   status.textContent=currentUniverse
+     ? "Updated "+(stamp&&!Number.isNaN(stamp.getTime())?stamp.toLocaleString():"time unavailable")+" · 253-stock cached results"
+     : "Cached scan is outdated · run the 253-stock scan";
  } catch(error) {
    status.textContent="Latest shortlist unavailable";
    root.innerHTML="";
    const p=document.createElement("p"); p.className="empty"; p.textContent="The scheduled shortlist is not available yet. You can run a live scan instead."; root.append(p);
- } finally {button.disabled=false; button.textContent="Show latest top 5";}
+ } finally {button.disabled=false; button.textContent="Show latest top 10";}
 }
 function renderCachedScreen(data) {
  const root=$("screen-results"); root.innerHTML="";
  const note=document.createElement("p"); note.className="table-note";
- note.textContent="Precomputed shortlist from the latest scheduled 253-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals.";
+ const currentUniverse=data.universeSize===253&&data.status==="success";
+ note.textContent=currentUniverse
+   ? "Precomputed shortlist from the latest scheduled 253-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals."
+   : "STALE CACHE: this shortlist predates the 253-stock scanner and must not be treated as its output. Run the live 253-stock scan to refresh coverage. Research candidates only — not validated BUY signals.";
  root.append(note);
  const stamp=document.createElement("p"); stamp.className="cache-timestamp";
  const when=data.generatedAt?new Date(data.generatedAt):null;
- stamp.textContent="Last full scan: "+(when&&!Number.isNaN(when.getTime())?when.toLocaleString():"timestamp unavailable")+" · Scheduled refresh every 3 hours";
+ stamp.textContent="Last scan: "+(when&&!Number.isNaN(when.getTime())?when.toLocaleString():"timestamp unavailable")+" · Universe: "+(data.universeSize||"unknown")+" symbols · Scheduled refresh every 3 hours";
  root.append(stamp);
  data.stocks.slice(0,10).forEach((item,index)=>{
    const card=document.createElement("article"); card.className="screen-card cached-screen-card";
