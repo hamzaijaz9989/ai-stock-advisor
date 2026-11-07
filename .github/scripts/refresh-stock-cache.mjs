@@ -16,7 +16,7 @@ try {
     return /\d+ ranked|Screen interrupted/i.test(status) && (cards > 0 || /interrupted/i.test(status));
   }, null, { timeout: 12 * 60 * 1000 });
   const scanStatus = await page.locator("#screen-status").textContent();
-  const completed = /^(\\d+) ranked · (\\d+) excluded from 253$/.exec((scanStatus || "").trim());
+  const completed = /^(\d+) ranked · (\d+) excluded from 253$/.exec((scanStatus || "").trim());
   if (!completed) throw new Error("The 253-symbol scan did not finish cleanly; preserving the previous cache. Status: " + (scanStatus || "unavailable"));
   const rankedCount = Number(completed[1]);
   const excludedCount = Number(completed[2]);
