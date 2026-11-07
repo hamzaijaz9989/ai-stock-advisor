@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T15:37:59.770Z",
+  "generatedAt": "2026-11-07T16:20:44.694Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "universeSize": 253,
@@ -274,6 +274,36 @@
         {
           "name": "Maximum drawdown",
           "display": "-16.6%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
+      "ticker": "MNST",
+      "name": "Monster Beverage Corp",
+      "score": 84.1,
+      "financialPeriod": "2025-12-31",
+      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "10.7%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "23.0%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "23.7%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+31.1%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-17.7%"
         }
       ],
       "entryStatus": "Checking latest quote and valuation inputs…"
