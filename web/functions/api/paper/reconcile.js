@@ -1,0 +1,98 @@
+// Authenticated, read-only broker-to-ledger reconciliation. Never submits or mutates orders.
+const H = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
+const fail = (error,status=400,extra={}) => Response.json({ok:false,reconciled:false,execution:false,error,...extra},{status,headers:H});
+function safeEqual(a,b) {
+  if(typeof a!=="string"||typeof b!=="string"||!a||!b) return false;
+  let diff=a.length^b.length;
+  for(let i=0;i<Math.max(a.length,b.length);i++) diff|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);
+  return diff===0;
+}
+function authorized(request,env) {
+  return !!env?.NORTHSTAR_OPERATOR_TOKEN && safeEqual(request.headers.get("Authorization")||"","Bearer "+env.NORTHSTAR_OPERATOR_TOKEN);
+}
+async function alpaca(path,key,secret) {
+  const response=await fetch("https://paper-api.alpaca.markets"+path,{
+    headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,"Accept":"application/json"},
+    signal:AbortSignal.timeout(10000)
+  });
+  if(!response.ok) throw new Error("BROKER_HTTP_"+response.status);
+  return response.json();
+}
+const num = value => Number.isFinite(Number(value)) ? Number(value) : null;
+const close = (a,b,tol=0.0001) => Math.abs(Number(a)-Number(b))<=tol;
+export async function onRequestPost({request,env}) {
+  if(!authorized(request,env)) return fail("Unauthorized.",401);
+  const db=env?.NORTHSTAR_DB, key=env?.ALPACA_API_KEY_ID, secret=env?.ALPACA_API_SECRET_KEY;
+  if(!db||!key||!secret) return fail("Paper ledger or Alpaca Paper credentials unavailable; reconciliation blocked.",503);
+  let control,ledgerPositions,ledgerOrders;
+  try {
+    control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();
+    ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all();
+    ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,status FROM paper_orders ORDER BY updated_at DESC").all();
+  } catch { return fail("Could not read the complete paper ledger; fail-closed.",503); }
+  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Execution controls are not in the required disabled/kill-switched state.",503);
+  let account,brokerPositions,brokerOrders=[],pageToken=null,pages=0;
+  try {
+    [account,brokerPositions]=await Promise.all([
+      alpaca("/v2/account",key,secret),
+      alpaca("/v2/positions",key,secret)
+    ]);
+    do {
+      const query=new URLSearchParams({status:"all",limit:"500",direction:"desc"});
+      if(pageToken) query.set("page_token",pageToken);
+      const result=await alpaca("/v2/orders?"+query.toString(),key,secret);
+      if(!Array.isArray(result)) throw new Error("BROKER_INVALID_ORDERS");
+      brokerOrders.push(...result);
+      pageToken=result.length===500 ? (result[result.length-1]?.id||null) : null;
+      pages++;
+      if(pages>=5 && pageToken) throw new Error("BROKER_ORDER_HISTORY_LIMIT");
+    } while(pageToken);
+  } catch(error) {
+    const code=String(error?.message||"");
+    return fail(code==="BROKER_ORDER_HISTORY_LIMIT"?"Broker order history exceeds the safe reconciliation page limit; results are incomplete.":code.startsWith("BROKER_HTTP_")?"Alpaca Paper reconciliation request failed ("+code.slice(12)+").":"Alpaca Paper data unavailable or malformed; reconciliation blocked.",503);
+  }
+  if(account?.status!=="ACTIVE"||account?.trading_blocked||account?.account_blocked) return fail("Alpaca Paper account is not active or is blocked.",503);
+  if(!Array.isArray(brokerPositions)) return fail("Alpaca returned an invalid positions payload.",503);
+  const posRows=Array.isArray(ledgerPositions?.results)?ledgerPositions.results:[];
+  const orderRows=Array.isArray(ledgerOrders?.results)?ledgerOrders.results:[];
+  const normPos=rows=>rows.map(p=>({symbol:String(p.symbol||"").toUpperCase(),qty:num(p.qty),avg:num(p.avg_entry_price)})).sort((a,b)=>a.symbol.localeCompare(b.symbol));
+  const bp=normPos(brokerPositions), lp=normPos(posRows);
+  const positionMismatches=[];
+  const posSymbols=[...new Set([...bp.map(x=>x.symbol),...lp.map(x=>x.symbol)])].sort();
+  for(const symbol of posSymbols) {
+    const b=bp.find(x=>x.symbol===symbol), l=lp.find(x=>x.symbol===symbol);
+    if(!b||!l||b.qty===null||l.qty===null||b.avg===null||l.avg===null||!close(b.qty,l.qty)||!close(b.avg,l.avg,0.01)) {
+      positionMismatches.push({symbol,broker:b||null,ledger:l||null});
+    }
+  }
+  const brokerById=new Map(brokerOrders.map(o=>[String(o.id),o]));
+  const ledgerByBrokerId=new Map();
+  const orderMismatches=[];
+  for(const l of orderRows) {
+    const id=l.broker_order_id?String(l.broker_order_id):"";
+    if(!id) { orderMismatches.push({ledgerOrderId:l.id,reason:"LEDGER_ORDER_MISSING_BROKER_ID"}); continue; }
+    if(ledgerByBrokerId.has(id)) { orderMismatches.push({brokerOrderId:id,reason:"DUPLICATE_LEDGER_BROKER_ID"}); continue; }
+    ledgerByBrokerId.set(id,l);
+    const b=brokerById.get(id);
+    if(!b) { orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"LEDGER_ORDER_NOT_FOUND_AT_BROKER"}); continue; }
+    const lqty=num(l.qty), bqty=num(b.qty);
+    if(String(l.symbol||"").toUpperCase()!==String(b.symbol||"").toUpperCase() ||
+       String(l.side||"").toLowerCase()!==String(b.side||"").toLowerCase() ||
+       lqty===null||bqty===null||!close(lqty,bqty)) {
+      orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"ORDER_FIELDS_DIFFER",ledger:{symbol:l.symbol,side:l.side,qty:l.qty},broker:{symbol:b.symbol,side:b.side,qty:b.qty}});
+    }
+  }
+  for(const b of brokerOrders) {
+    if(!ledgerByBrokerId.has(String(b.id))) orderMismatches.push({brokerOrderId:String(b.id),reason:"BROKER_ORDER_MISSING_FROM_LEDGER",symbol:b.symbol,status:b.status});
+  }
+  const mismatches=positionMismatches.length+orderMismatches.length;
+  return Response.json({
+    ok:mismatches===0,reconciled:mismatches===0,execution:false,
+    status:mismatches===0?"RECONCILIATION_PASSED_READ_ONLY":"RECONCILIATION_MISMATCH_FAIL_CLOSED",
+    account:{status:account.status,currency:account.currency},
+    counts:{brokerPositions:bp.length,ledgerPositions:lp.length,brokerOrders:brokerOrders.length,ledgerOrders:orderRows.length,orderHistoryPages:pages},
+    mismatches:{positions:positionMismatches,orders:orderMismatches},
+    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","Execution remains disabled and the kill switch remains engaged."],
+    checkedAt:new Date().toISOString()
+  },{status:mismatches===0?200:409,headers:H});
+}
