@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050705">
+  <meta name="description" content="Northstar AI Trading Lab — risk-first US equity research and paper-trading preparation.">
+  <title>Northstar AI — Trading Lab</title>
+  <style>
+    :root{color-scheme:dark;--bg:#050705;--panel:#10130f;--panel2:#151a12;--line:#292e27;--muted:#92998e;--text:#f3f5ef;--accent:#c7ff4f;--amber:#f3c85b;--red:#ff6b6b;--green:#64d99a}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -15%,#172012 0,transparent 44%),var(--bg);color:var(--text);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+    a{color:var(--accent);text-decoration:none}.wrap{width:min(1120px,100% - 32px);margin:auto}
+    header{height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#080a08ed;backdrop-filter:blur(16px);z-index:5;padding:0 max(16px,calc((100vw - 1120px)/2))}
+    .brand{font-weight:850;letter-spacing:.08em}.brand span{color:var(--accent)}.header-right{display:flex;gap:12px;align-items:center}
+    .pill{border:1px solid #4c5d2a;color:var(--accent);border-radius:999px;padding:7px 12px;font-size:11px;font-weight:800;letter-spacing:.08em}
+    .hero{padding:40px 0 22px}.eyebrow{color:var(--accent);font-size:10px;font-weight:850;letter-spacing:.17em;text-transform:uppercase}
+    h1{font-size:clamp(32px,6vw,54px);line-height:1.02;letter-spacing:-.055em;margin:10px 0}.sub{color:#a7ada2;max-width:690px;margin:12px 0}
+    .warning{border:1px solid #675728;background:#211c0d;color:#f1d58b;padding:13px 15px;border-radius:13px;font-size:13px;margin:20px 0}
+    .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.card{background:linear-gradient(145deg,#111410,#0b0d0b);border:1px solid var(--line);border-radius:18px;padding:18px;min-width:0}.span-12{grid-column:span 12}.span-8{grid-column:span 8}.span-6{grid-column:span 6}.span-4{grid-column:span 4}
+    .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}.card h2{font-size:16px;margin:0;letter-spacing:-.02em}.muted{color:var(--muted)}.small{font-size:12px}.stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .stat{background:#171c14;border:1px solid #293126;border-radius:13px;padding:13px}.stat label{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em}.stat strong{display:block;font-size:clamp(19px,3vw,27px);margin-top:5px;font-variant-numeric:tabular-nums}
+    .modules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.module{background:#151a13;border:1px solid #293126;border-radius:12px;padding:12px}.module b{display:block;font-size:12px}.module span{font-size:10px;color:var(--muted)}
+    .state{display:inline-block;border:1px solid #4b4d3b;border-radius:999px;padding:3px 8px;font-size:10px;font-weight:800;color:var(--amber)}
+    .candidate{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #242a22}.candidate:last-child{border-bottom:0}.candidate-link{display:flex;align-items:center;gap:12px;min-width:0;color:inherit;border-radius:8px;text-decoration:none}.candidate-link:hover .ticker,.candidate-link:focus-visible .ticker{color:#efffae;text-decoration:underline;text-underline-offset:4px}.candidate-link .muted{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ticker{font-size:15px;font-weight:850;color:var(--accent);flex:0 0 58px}.score{font-variant-numeric:tabular-nums;font-weight:800}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field label{display:block;color:var(--muted);font-size:11px;margin-bottom:6px}.field input{width:100%;border:1px solid #343b31;border-radius:11px;background:#080a08;color:var(--text);padding:12px;font:inherit;min-width:0}.result{background:#171d12;border:1px solid #3b4b27;border-radius:13px;padding:14px;margin-top:14px}.result strong{font-size:25px;color:var(--accent)}button{border:0;border-radius:11px;padding:12px 15px;font:700 13px/1.2 system-ui,-apple-system,Segoe UI,sans-serif;cursor:pointer}button.primary{background:var(--accent);color:#10140a}button.secondary{background:#1a2017;color:var(--text);border:1px solid #343b31}button:disabled{opacity:.5;cursor:not-allowed}
+    .journal-row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #242a22;font-size:13px}.journal-row:last-child{border-bottom:0}
+    .footer{padding:28px 0 42px;color:#737a70;font-size:11px}.linkrow{display:flex;gap:15px;flex-wrap:wrap;margin-top:14px}
+    .dash-nav{display:flex;gap:8px;overflow-x:auto;padding:9px 0 14px;margin:0 0 8px;position:sticky;top:68px;z-index:4;background:#050705ed;backdrop-filter:blur(14px);scrollbar-width:thin}.dash-nav a{flex:0 0 auto;border:1px solid var(--line);border-radius:999px;padding:7px 11px;color:#c5cabe;font-size:11px;font-weight:700}.dash-nav a:hover,.dash-nav a:focus-visible{border-color:var(--accent);color:var(--accent)}.guide{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px}.guide-item{border:1px solid var(--line);background:#0d100c;border-radius:13px;padding:13px}.guide-item b{display:block;font-size:12px;margin-bottom:4px}.guide-item p{font-size:11px;color:var(--muted);margin:0;line-height:1.55}.section-anchor{scroll-margin-top:128px}
+    @media(max-width:760px){.guide{grid-template-columns:1fr}.dash-nav{top:58px}.span-8,.span-6,.span-4{grid-column:span 12}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modules{grid-template-columns:repeat(2,minmax(0,1fr))}.hero{padding-top:28px}.card{padding:15px}.candidate{grid-template-columns:minmax(0,1fr) auto}.candidate-link{gap:9px}.ticker{flex-basis:54px}}
+  </style>
+</head>
+<body>
+<header><a class="brand" href="./">NORTHSTAR <span>AI</span></a><div class="header-right"><a class="small muted" href="./">← Research</a><span class="pill">PAPER ONLY</span></div></header>
+<main class="wrap">
+  <section class="hero"><div class="eyebrow">Northstar intelligence suite / module 02</div><h1>Trading Lab<span style="color:var(--accent)">.</span></h1><p class="sub">A risk-first command centre for screening, sizing and auditing US equity trade ideas. It is not an autonomous money-making machine; every decision must be backed by fresh data and validated rules.</p></section>
+  <div class="warning"><strong>Experimental · no live orders.</strong> This page uses a separate $1,000 virtual planning allocation. It does not read, sell or modify your real holdings. Alpaca is checked read-only. No trade is submitted from this dashboard.</div>
+  <nav class="dash-nav" aria-label="Trading Lab sections"><a href="#overview">Overview</a><a href="#pipeline">System status</a><a href="#candidates-panel">Candidates</a><a href="#risk-calculator">Risk calculator</a><a href="#ledger-panel">Ledger</a><a href="#broker-panel">Broker check</a><a href="#journal-panel">Journal</a></nav>
+  <section class="guide" aria-label="How to use this dashboard"><div class="guide-item"><b>1 · Review evidence</b><p>Start with the market context and research shortlist. A high score is not a buy signal.</p></div><div class="guide-item"><b>2 · Define invalidation</b><p>Use the calculator only after you have a reasoned entry and a clear stop level.</p></div><div class="guide-item"><b>3 · Record, don’t execute</b><p>Saved plans are local notes. Paper order execution is not enabled.</p></div></section>
+  <section class="grid">
+    <article id="overview" class="card span-12 section-anchor">
+      <div class="card-head"><h2>Virtual account overview</h2><span class="state">SIMULATION BUDGET</span></div>
+      <div class="stat-grid">
+        <div class="stat"><label>Planning allocation</label><strong id="capital">$1,000</strong></div>
+        <div class="stat"><label>Risk per idea</label><strong id="risk-budget">$5</strong></div>
+        <div class="stat"><label>Max position value</label><strong id="max-position">$250</strong></div>
+        <div class="stat"><label>Saved plans</label><strong id="plan-count">0</strong></div>
+      </div>
+      <p class="muted small" style="margin:12px 0 0">The planning allocation is a fixed research budget, not your broker's buying power or current equity. Planned risk is not a guaranteed maximum loss because prices can gap through stops.</p>
+    </article>
+    <article id="pipeline" class="card span-12 section-anchor">
+      <div class="card-head"><h2>System status</h2><span class="state">READ-ONLY / PLANNING</span></div>
+      <div class="modules">
+        <div class="module"><b>01 · Scanner</b><span id="scanner-state">Loading cached shortlist…</span></div>
+        <div class="module"><b>02 · Setup analyst</b><span>Research-only · no validated edge</span></div>
+        <div class="module"><b>03 · Event guard</b><span>Full ticker analysis required</span></div>
+        <div class="module"><b>04 · Risk guard</b><span>Calculator active · hard limits</span></div>
+        <div class="module"><b>05 · Paper executor</b><span>Disabled · no order route</span></div>
+        <div class="module"><b>06 · Audit journal</b><span>Local trade plans only</span></div>
+        <div class="module"><b>07 · Equity monitor</b><span>Not yet broker-reconciled</span></div>
+        <div class="module"><b>Kill switch</b><span>Order execution unavailable</span></div>
+      </div>
+    </article>
+    <article id="candidates-panel" class="card span-6 section-anchor">
+      <div class="card-head"><h2>Top research candidates</h2><span class="state">NOT BUY SIGNALS</span></div>
+      <div id="candidates"><p class="muted small">Loading latest cached screen…</p></div>
+      <p id="cache-note" class="muted small" style="margin-bottom:0">Candidates are research priorities only. Open full analysis to verify live price, valuation, earnings and news.</p>
+      <div class="linkrow"><a href="./#ranking-disclosure">Open full 253-stock research scan ↗</a></div>
+    </article>
+    <article id="risk-calculator" class="card span-6 section-anchor">
+      <div class="card-head"><h2>Position risk calculator</h2><span class="state">NO ORDER SUBMISSION</span></div>
+      <div class="form-grid">
+        <div class="field"><label for="symbol">Ticker</label><input id="symbol" maxlength="10" value="NVDA" autocomplete="off"></div>
+        <div class="field"><label for="entry">Planned entry ($)</label><input id="entry" type="number" min="0.01" step="0.01" value="180"></div>
+        <div class="field"><label for="stop">Invalidation / stop ($)</label><input id="stop" type="number" min="0.01" step="0.01" value="175"></div>
+        <div class="field"><label for="risk-pct">Risk budget (% equity)</label><input id="risk-pct" type="number" min="0.1" max="1" step="0.1" value="0.5"></div>
+      </div>
+      <div class="result" aria-live="polite"><div class="muted small">Maximum planned quantity under current limits</div><strong id="quantity">0 shares</strong><div id="risk-result" class="small" style="margin-top:6px">Enter valid entry and stop values.</div></div>
+      <div class="linkrow"><button id="save-plan" class="primary" type="button">Save trade plan</button><button id="reset-calc" class="secondary" type="button">Reset</button></div>
+      <p class="muted small">Sizing uses the smaller of the 0.5% risk budget and 25% position-notional cap, rounded down to whole shares. It excludes real-time spread/slippage until verified.</p>
+    </article>
+    <article id="ledger-panel" class="card span-6 section-anchor" aria-live="polite">
+      <div class="card-head"><h2>Paper ledger readiness · safety checks</h2><span id="ledger-badge" class="state">CHECKING</span></div>
+      <p id="ledger-message" class="muted small">Verifying the durable ledger and risk limits…</p>
+      <div id="ledger-detail" class="small muted"></div>
+      <p class="muted small">Read-only status. Order execution remains disabled; no trades are submitted here.</p>
+    </article>
+    <article id="broker-panel" class="card span-6 section-anchor">
+      <div class="card-head"><h2>Alpaca paper connection</h2><span id="alpaca-badge" class="state">NOT CHECKED</span></div>
+      <p id="alpaca-message" class="muted small">The existing integration is read-only. Test it to verify that the server can reach your paper account.</p>
+      <button id="check-alpaca" class="secondary" type="button">Test paper connection</button>
+      <div id="alpaca-detail" class="small muted" style="margin-top:12px"></div>
+      <p class="muted small">Broker account cash and buying power are intentionally not treated as your $1,000 planning allocation.</p>
+    </article>
+    <article id="journal-panel" class="card span-6 section-anchor">
+      <div class="card-head"><h2>Trade-plan journal</h2><span class="state">THIS DEVICE ONLY</span></div>
+      <div id="journal"><p class="muted small">No saved plans yet.</p></div>
+      <p class="muted small">Saved plans are not orders, fills or performance results. They are stored locally in this browser and are not synced to a server.</p>
+    </article>
+  </section>
+  <div class="footer">NORTHSTAR AI · Trading Lab · Paper only · No live trading · No guaranteed returns</div>
+</main>
+<script src="./trading-lab.js?v=tradinglab2" defer></script>
+</body>
+</html>

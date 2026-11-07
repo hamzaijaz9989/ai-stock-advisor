@@ -15,8 +15,15 @@ try {
     const cards = document.querySelectorAll("#screen-results .screen-card").length;
     return /\d+ ranked|Screen interrupted/i.test(status) && (cards > 0 || /interrupted/i.test(status));
   }, null, { timeout: 12 * 60 * 1000 });
+  const scanStatus = await page.locator("#screen-status").textContent();
+  const completed = /^(\d+) ranked · (\d+) excluded from 253$/.exec((scanStatus || "").trim());
+  if (!completed) throw new Error("The 253-symbol scan did not finish cleanly; preserving the previous cache. Status: " + (scanStatus || "unavailable"));
+  const rankedCount = Number(completed[1]);
+  const excludedCount = Number(completed[2]);
+  if (rankedCount + excludedCount !== 253) throw new Error("Universe accounting mismatch: " + rankedCount + " ranked + " + excludedCount + " excluded. Preserving previous cache.");
+
   const result = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll("#screen-results .screen-card")].slice(0,5).map(card => {
+    const cards = [...document.querySelectorAll("#screen-results .screen-card")].slice(0,10).map(card => {
       const title = card.querySelector(".screen-card-header strong")?.textContent || "";
       const match = title.match(/^\d+\.\s+([A-Z0-9.^=-]+)\s+·\s+(.*)$/);
       const scoreText = card.querySelector(".screen-score")?.textContent || "";
@@ -41,13 +48,18 @@ try {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
       refreshIntervalHours: 3,
-      source: "Northstar AI scheduled live 60-stock screen",
+      source: "Northstar AI scheduled live 253-stock screen",
+      universeSize: 253,
+      rankedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/^(\d+) ranked/)?.[1]) || cards.length,
+      excludedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/· (\d+) excluded/)?.[1]) || null,
       status: cards.length ? "success" : "no_qualified_candidates",
       stocks: cards,
       note: "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis."
     };
   });
   if (!result.stocks.length) throw new Error("Screen completed but no stock cards could be extracted; refusing to overwrite the previous cache.");
+  if (result.rankedCount !== rankedCount || result.excludedCount !== excludedCount) throw new Error("Cached result counts do not match the completed scan status; refusing to overwrite the previous cache.");
+  if (result.stocks.length > 10) throw new Error("Shortlist exceeded the ten-candidate cache limit; refusing to overwrite the previous cache.");
   const target = path.resolve("web/data/top-stocks-cache.json");
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, JSON.stringify(result, null, 2) + "\n");

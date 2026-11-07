@@ -498,6 +498,22 @@ async function loadStrategyBacktest(ticker) {
   }
 }
 
+async function loadMarketRegimeHistory(ticker) {
+  const response=await fetch("/api/history?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"},cache:"no-store"});
+  const payload=await response.json();
+  if(!response.ok) throw new Error(payload.error||ticker+" market history unavailable");
+  return payload;
+}
+function renderMarketRegime(regime) {
+  const panel=$("market-regime-panel");
+  if(!panel||!regime) return;
+  setText("market-regime-state","Market regime: "+regime.state);
+  setText("market-regime-date",regime.asOf?"As of "+regime.asOf:"Not verified");
+  setText("market-regime-summary",regime.summary);
+  const reasons=Array.isArray(regime.reasons)?regime.reasons:[];
+  setText("market-regime-reasons",reasons.join(" "));
+  panel.classList.remove("hidden");
+}
 async function loadHistory(ticker) {
   $("history-status").textContent="Loading…";
   $("history-meta").textContent="Requesting one year of daily price history…";
@@ -623,7 +639,7 @@ function renderScreenResults(results,errors) {
   exportButton.addEventListener("click",()=>downloadScreenCsv(ranked,errors));
   root.append(exportButton);
   const intro=document.createElement("p"); intro.className="table-note";
-  intro.textContent="These five companies rank highest on the available screening score within the 60-stock starter universe. They are research candidates, NOT validated BUY signals or forecasts. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
+  intro.textContent="These ten companies rank highest on the available screening score within the 253-stock research universe. They are research candidates, NOT validated BUY signals or forecasts. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
   root.append(intro);
   const bestPick=document.createElement("article");
   bestPick.className="screen-card screen-best-pick";
@@ -633,7 +649,7 @@ function renderScreenResults(results,errors) {
   if(!ranked.length) {
     const p=document.createElement("p"); p.className="empty"; p.textContent="No companies met the minimum data requirements. "+errors.join(" · "); root.append(p); return;
   }
-  for(let i=0;i<Math.min(5,ranked.length);i++) {
+  for(let i=0;i<Math.min(10,ranked.length);i++) {
     const item=ranked[i],card=document.createElement("article"); card.className="screen-card";
     const header=document.createElement("div"); header.className="screen-card-header";
     const identity=document.createElement("div");
@@ -692,7 +708,7 @@ function assessResearchQuoteEligibility(quote, nowMs=Date.now()) {
 }
 
 async function enrichTopCandidates(results) {
-  const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,5);
+  const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,10);
   await Promise.all(candidates.map(async item=>{
     const plan=[...document.querySelectorAll(".candidate-plan")].find(node=>node.dataset.ticker===item.ticker);
     if(!plan) return;
@@ -793,23 +809,29 @@ async function loadCachedScreen() {
    if(!Array.isArray(data.stocks)||!data.stocks.length) throw new Error("The latest scan did not produce qualified candidates.");
    renderCachedScreen(data);
    const stamp=data.generatedAt?new Date(data.generatedAt):null;
-   status.textContent="Updated "+(stamp&&!Number.isNaN(stamp.getTime())?stamp.toLocaleString():"time unavailable")+" · cached results";
+   const currentUniverse=data.universeSize===253&&data.status==="success";
+   status.textContent=currentUniverse
+     ? "Updated "+(stamp&&!Number.isNaN(stamp.getTime())?stamp.toLocaleString():"time unavailable")+" · 253-stock cached results"
+     : "Cached scan is outdated · run the 253-stock scan";
  } catch(error) {
    status.textContent="Latest shortlist unavailable";
    root.innerHTML="";
    const p=document.createElement("p"); p.className="empty"; p.textContent="The scheduled shortlist is not available yet. You can run a live scan instead."; root.append(p);
- } finally {button.disabled=false; button.textContent="Show latest top 5";}
+ } finally {button.disabled=false; button.textContent="Show latest top 10";}
 }
 function renderCachedScreen(data) {
  const root=$("screen-results"); root.innerHTML="";
  const note=document.createElement("p"); note.className="table-note";
- note.textContent="Precomputed shortlist from the latest scheduled 60-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals.";
+ const currentUniverse=data.universeSize===253&&data.status==="success";
+ note.textContent=currentUniverse
+   ? "Precomputed shortlist from the latest scheduled 253-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals."
+   : "STALE CACHE: this shortlist predates the 253-stock scanner and must not be treated as its output. Run the live 253-stock scan to refresh coverage. Research candidates only — not validated BUY signals.";
  root.append(note);
  const stamp=document.createElement("p"); stamp.className="cache-timestamp";
  const when=data.generatedAt?new Date(data.generatedAt):null;
- stamp.textContent="Last full scan: "+(when&&!Number.isNaN(when.getTime())?when.toLocaleString():"timestamp unavailable")+" · Scheduled refresh every 3 hours";
+ stamp.textContent="Last scan: "+(when&&!Number.isNaN(when.getTime())?when.toLocaleString():"timestamp unavailable")+" · Universe: "+(data.universeSize||"unknown")+" symbols · Scheduled refresh every 3 hours";
  root.append(stamp);
- data.stocks.slice(0,5).forEach((item,index)=>{
+ data.stocks.slice(0,10).forEach((item,index)=>{
    const card=document.createElement("article"); card.className="screen-card cached-screen-card";
    const head=document.createElement("div"); head.className="screen-card-header";
    const identity=document.createElement("div");
@@ -841,9 +863,10 @@ async function runScreen() {
   const button=$("run-live-screen")||$("run-screen"); const cachedButton=$("run-screen"); const suggestButton=$("suggest-stocks-button"); button.disabled=true; cachedButton.disabled=true; suggestButton.disabled=true; button.textContent="Screening…"; (suggestButton.querySelector("strong")||suggestButton).textContent="Screening stocks…"; beginActivity("Finding research candidates",["Scan company fundamentals","Check price history and risk","Rank available candidates","Verify top results"]);
   $("screen-status").textContent="Fetching SEC filings and daily prices";
   const results=[],errors=[];
-  // A 60-stock, cross-sector starter universe. This is not the full US market.
-  // Process in small batches to reduce provider rate-limit pressure and report progress.
-  const universe=["AAPL","MSFT","NVDA","AMZN","GOOGL","META","AVGO","ORCL","CRM","AMD","QCOM","TXN","MU","AMAT","LRCX","KLAC","INTC","ANET","NOW","ADBE","JPM","BAC","WFC","GS","MS","V","MA","AXP","C","BLK","LLY","JNJ","ABBV","MRK","UNH","ISRG","ABT","TMO","AMGN","PFE","COST","WMT","HD","LOW","PG","KO","PEP","MCD","NKE","CL","XOM","CVX","COP","CAT","GE","HON","RTX","UBER","NFLX","TSLA"];
+  // Curated 253-symbol, cross-sector US-listed equity research universe. This is a research universe, not the full US market.
+  // Eligibility still depends on SEC coverage and a complete year of price history; failed names are counted and excluded.
+  // Keep requests in small batches to respect upstream provider limits.
+  const universe=["AAPL","MSFT","NVDA","AMZN","GOOGL","META","AVGO","ORCL","CRM","AMD","QCOM","TXN","MU","AMAT","LRCX","KLAC","INTC","ANET","NOW","ADBE","CSCO","IBM","ACN","INTU","PANW","CRWD","SNPS","CDNS","ADI","MCHP","NXPI","ON","MRVL","DELL","HPE","HPQ","PLTR","APP","SMCI","TSM","ARM","JPM","BAC","WFC","GS","MS","V","MA","AXP","C","BLK","SCHW","CME","ICE","SPGI","MCO","COIN","HOOD","PYPL","XYZ","FIS","FI","ADP","PAYX","BK","USB","PNC","TFC","COF","DFS","SYF","ALLY","AON","MMC","AJG","CB","PGR","TRV","LLY","JNJ","ABBV","MRK","UNH","ISRG","ABT","TMO","AMGN","PFE","GILD","REGN","VRTX","BSX","SYK","MDT","DHR","BMY","CVS","CI","ELV","HCA","MCK","COR","CAH","ZTS","IDXX","DXCM","EW","RMD","PODD","COST","WMT","HD","LOW","TGT","TJX","ROST","DG","DLTR","KR","SYY","MDLZ","CLX","PG","KO","PEP","PM","MO","KDP","MNST","MCD","SBUX","CMG","YUM","CAVA","NKE","LULU","DECK","TPR","RL","XOM","CVX","COP","EOG","SLB","OXY","PSX","MPC","VLO","CAT","DE","GE","HON","RTX","LMT","NOC","GD","BA","ETN","CMI","PH","EMR","ITW","UPS","FDX","UNP","NSC","CSX","CARR","TT","JCI","AME","FAST","GWW","RSG","WM","CEG","NEE","DUK","SO","AEP","XEL","VST","D","AMT","PLD","EQIX","SPG","WELL","PSA","CCI","VICI","BKNG","ABNB","MAR","HLT","RCL","CCL","DAL","UAL","LUV","AAL","GM","F","FICO","ENPH","FSLR","TSLA","RIVN","LCID","WDAY","TEAM","DDOG","ZS","FTNT","OKTA","MDB","SHOP","ETSY","DASH","EXPE","EBAY","TROW","BEN","STT","MTB","RF","KEY","HBAN","CFG","NTRS","NDAQ","ROP","MSI","IR","CDW","CTSH","EPAM","WAB","URI","PWR","CSGP","ACGL","AFL","MET","PRU","HIG","AIG","L","NCY","AXON","TTWO","EA","RBLX"];
   const batchSize=3;
   try {
     for(let i=0;i<universe.length;i+=batchSize) {
@@ -869,7 +892,7 @@ async function runScreen() {
     finishActivity("Screen interrupted. Partial results are shown.",true);
     renderScreenResults(results,errors);
   } finally {
-    button.disabled=false; cachedButton.disabled=false; suggestButton.disabled=false; button.textContent="Run live 60-stock scan"; (suggestButton.querySelector("strong")||suggestButton).textContent="Suggest me stocks";
+    button.disabled=false; cachedButton.disabled=false; suggestButton.disabled=false; button.textContent="Run live 253-stock scan"; (suggestButton.querySelector("strong")||suggestButton).textContent="Suggest me stocks";
   }
 }
 
@@ -2282,10 +2305,18 @@ async function analyze(ticker) {
     setActivityStage(1,"Company facts loaded. Fetching quote and historical prices…");
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
     analysisPhase="market data, history, news and earnings";
-    const [quote,history,news,earnings,benchmarkHistory,fmpFundamentals]=await Promise.all([
+    const [quote,history,news,earnings,benchmarkHistory,fmpFundamentals,regimeData]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker,company.name),loadEarnings(ticker),
       loadBenchmarkHistory(),loadFmpFundamentals(ticker),
+      Promise.all([loadMarketRegimeHistory("SPY"),loadMarketRegimeHistory("QQQ")])
+        .then(([spy,qqq])=>({spy,qqq})).catch(error=>({error:error?.message||"SPY/QQQ history unavailable"})),
     ]);
+    const marketRegime=regimeData.error
+      ? {state:"UNKNOWN",entryGate:"BLOCK_NEW_ENTRIES",summary:"Market regime could not be verified. Treat conditions as unknown and do not open a new position based on this module.",reasons:[regimeData.error]}
+      : (typeof assessMarketRegime==="function"
+        ? assessMarketRegime(regimeData.spy,regimeData.qqq)
+        : {state:"UNKNOWN",entryGate:"BLOCK_NEW_ENTRIES",summary:"Market regime module unavailable. No entry authorization.",reasons:["Regime calculation could not load."]});
+    renderMarketRegime(marketRegime);
     loadStrategyBacktest(ticker).catch(error=>{const status=$("strategy-backtest-status");const details=$("strategy-backtest-details");if(status)status.textContent="Unavailable";if(details)details.textContent=(error?.message||"Historical backtest unavailable")+". The main research report is unaffected.";});
     setActivityStage(2,"Price, news and earnings responses received. Reviewing event risk…");
     const reportedQuarter=quarter?.fiscalQuarterId||null;

@@ -11,7 +11,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 17.5 9 12l3.2 3.2L20 6.5M14.5 6.5H20v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="brand-name">NORTHSTAR <span>AI</span></span></a>
-    <div class="topbar-right"><a href="#ranking-disclosure" class="nav-link" id="market-scan-link">Market scan</a><span class="status"><i></i> RESEARCH MODE</span></div>
+    <div class="topbar-right"><a href="./trading-lab.html" class="nav-link" style="display:inline-flex!important;color:var(--accent);font-weight:750">Trading Lab ↗</a><a href="#ranking-disclosure" class="nav-link" id="market-scan-link">Market scan</a><span class="status"><i></i> RESEARCH MODE</span></div>
   </header>
   <main class="shell">
     <section class="hero">
@@ -57,10 +57,11 @@
         </div>
       </form>
       <div class="stock-suggestions-cta">
-        <button id="suggest-stocks-button" type="button" class="suggest-stocks-button"><span class="suggest-icon" aria-hidden="true">✦</span><span><strong>Suggest me stocks</strong><small>Find up to 5 data-screened research candidates</small></span><span class="suggest-arrow" aria-hidden="true">↗</span></button>
+        <button id="suggest-stocks-button" type="button" class="suggest-stocks-button"><span class="suggest-icon" aria-hidden="true">✦</span><span><strong>Suggest me stocks</strong><small>Find up to 10 data-screened research candidates</small></span><span class="suggest-arrow" aria-hidden="true">↗</span></button>
       </div>
     </section>
 
+    <section id="market-regime-panel" class="news-section hidden" aria-live="polite" style="margin:22px 0;padding:18px;border:1px solid #30352a;border-radius:16px;background:#0c0f0a"><div class="section-heading"><div><p class="eyebrow">MARKET REGIME INTELLIGENCE</p><h2 id="market-regime-state">Market regime: UNKNOWN</h2></div><span id="market-regime-date" class="count">Not checked</span></div><p id="market-regime-summary" class="table-note">SPY and QQQ market conditions will be checked during stock analysis.</p><div id="market-regime-reasons" class="table-note"></div><p class="table-note">Context and risk gate only—not a stock signal, forecast, or trade authorization. UNKNOWN blocks new entries in this module.</p></section>
     <div id="stock-results" class="stock-results hidden" aria-label="Analysis results for the selected stock">
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="beginner-overview" class="beginner-overview hidden" aria-live="polite">
@@ -177,9 +178,9 @@
     <details id="ranking-disclosure" class="ranking-disclosure">
       <summary class="ranking-disclosure-summary"><span><span class="eyebrow">EXPERIMENTAL TOOL</span><strong>Stock research shortlist</strong><small>Provisional screening only · validation is incomplete</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary>
             <section id="ranking" class="ranking-section suggestion-results-section">
-            <div class="section-heading"><div><p class="eyebrow">DATA-DRIVEN STOCK SUGGESTIONS</p><h2>Top 5 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
+            <div class="section-heading"><div><p class="eyebrow">DATA-DRIVEN STOCK SUGGESTIONS</p><h2>Top 10 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
             <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
-            <p class="table-note">The system compares 60 selected US stocks and displays up to five qualified research candidates and, where the latest quote and valuation inputs pass checks, shows a model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are not guaranteed buy/exit instructions; the strategy has not passed walk-forward and untouched holdout validation.</p><div class="stock-suggestions-hero"><div class="suggestions-heading"><span class="eyebrow">YOUR MARKET SNAPSHOT</span><h2>Top 5 stocks to research</h2><p>Fast, precomputed shortlist from the latest 60-stock scan. Refreshes every three hours; open any stock for live checks.</p></div><div class="suggestions-actions"><button id="run-screen" type="button" class="primary-suggestions-button">Show latest top 5</button><button id="run-live-screen" type="button" class="secondary-button">Run live 60-stock scan</button></div><span id="screen-status" class="count">Loading latest snapshot when opened</span></div><div id="screen-results" class="screen-results"><p class="empty">Your latest shortlist will appear here. Select “Show latest top 5” to load the cached scan.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
+            <p class="table-note">The system compares 60 selected US stocks and displays up to five qualified research candidates and, where the latest quote and valuation inputs pass checks, shows a model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are not guaranteed buy/exit instructions; the strategy has not passed walk-forward and untouched holdout validation.</p><div class="stock-suggestions-hero"><div class="suggestions-heading"><span class="eyebrow">YOUR MARKET SNAPSHOT</span><h2>Top 10 stocks to research</h2><p>Fast, precomputed shortlist from the latest 253-stock scan. Refreshes every three hours; open any stock for live checks.</p></div><div class="suggestions-actions"><button id="run-screen" type="button" class="primary-suggestions-button">Show latest top 10</button><button id="run-live-screen" type="button" class="secondary-button">Run live 253-stock scan</button></div><span id="screen-status" class="count">Loading latest snapshot when opened</span></div><div id="screen-results" class="screen-results"><p class="empty">Your latest shortlist will appear here. Select “Show latest top 10” to load the cached scan.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
           </section>
     </details>
     <details class="diagnostics">
@@ -229,6 +230,7 @@
   </script>
   <script src="./evidence-score.js?v=evidenceaudit1" defer></script>
   <script src="./news-catalyst.js?v=newscatalyst1" defer></script>
+  <script src="./market-regime.js?v=regime1" defer></script>
   <script src="./app.js?v=tickerpersist1" defer></script>
 </body>
 </html>
