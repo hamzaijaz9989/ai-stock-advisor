@@ -623,7 +623,7 @@ function renderScreenResults(results,errors) {
   exportButton.addEventListener("click",()=>downloadScreenCsv(ranked,errors));
   root.append(exportButton);
   const intro=document.createElement("p"); intro.className="table-note";
-  intro.textContent="These ten companies rank highest on the available screening score within the 210-stock research universe. They are research candidates, NOT validated BUY signals or forecasts. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
+  intro.textContent="These ten companies rank highest on the available screening score within the 253-stock research universe. They are research candidates, NOT validated BUY signals or forecasts. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
   root.append(intro);
   const bestPick=document.createElement("article");
   bestPick.className="screen-card screen-best-pick";
@@ -803,7 +803,7 @@ async function loadCachedScreen() {
 function renderCachedScreen(data) {
  const root=$("screen-results"); root.innerHTML="";
  const note=document.createElement("p"); note.className="table-note";
- note.textContent="Precomputed shortlist from the latest scheduled 210-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals.";
+ note.textContent="Precomputed shortlist from the latest scheduled 253-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals.";
  root.append(note);
  const stamp=document.createElement("p"); stamp.className="cache-timestamp";
  const when=data.generatedAt?new Date(data.generatedAt):null;
@@ -870,7 +870,7 @@ async function runScreen() {
     finishActivity("Screen interrupted. Partial results are shown.",true);
     renderScreenResults(results,errors);
   } finally {
-    button.disabled=false; cachedButton.disabled=false; suggestButton.disabled=false; button.textContent="Run live 210-stock scan"; (suggestButton.querySelector("strong")||suggestButton).textContent="Suggest me stocks";
+    button.disabled=false; cachedButton.disabled=false; suggestButton.disabled=false; button.textContent="Run live 253-stock scan"; (suggestButton.querySelector("strong")||suggestButton).textContent="Suggest me stocks";
   }
 }
 
