@@ -623,7 +623,7 @@ function renderScreenResults(results,errors) {
   exportButton.addEventListener("click",()=>downloadScreenCsv(ranked,errors));
   root.append(exportButton);
   const intro=document.createElement("p"); intro.className="table-note";
-  intro.textContent="These five companies rank highest on the available screening score within the 60-stock starter universe. They are research candidates, NOT validated BUY signals or forecasts. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
+  intro.textContent="These ten companies rank highest on the available screening score within the 210-stock research universe. They are research candidates, NOT validated BUY signals or forecasts. Price levels are shown only when required inputs are available; all valuation levels are model scenarios, not reliable forecasts.";
   root.append(intro);
   const bestPick=document.createElement("article");
   bestPick.className="screen-card screen-best-pick";
@@ -633,7 +633,7 @@ function renderScreenResults(results,errors) {
   if(!ranked.length) {
     const p=document.createElement("p"); p.className="empty"; p.textContent="No companies met the minimum data requirements. "+errors.join(" · "); root.append(p); return;
   }
-  for(let i=0;i<Math.min(5,ranked.length);i++) {
+  for(let i=0;i<Math.min(10,ranked.length);i++) {
     const item=ranked[i],card=document.createElement("article"); card.className="screen-card";
     const header=document.createElement("div"); header.className="screen-card-header";
     const identity=document.createElement("div");
@@ -803,13 +803,13 @@ async function loadCachedScreen() {
 function renderCachedScreen(data) {
  const root=$("screen-results"); root.innerHTML="";
  const note=document.createElement("p"); note.className="table-note";
- note.textContent="Precomputed shortlist from the latest scheduled 60-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals.";
+ note.textContent="Precomputed shortlist from the latest scheduled 210-stock scan. Results load quickly; prices and event details can change between refreshes. Research candidates only — not validated BUY signals.";
  root.append(note);
  const stamp=document.createElement("p"); stamp.className="cache-timestamp";
  const when=data.generatedAt?new Date(data.generatedAt):null;
  stamp.textContent="Last full scan: "+(when&&!Number.isNaN(when.getTime())?when.toLocaleString():"timestamp unavailable")+" · Scheduled refresh every 3 hours";
  root.append(stamp);
- data.stocks.slice(0,5).forEach((item,index)=>{
+ data.stocks.slice(0,10).forEach((item,index)=>{
    const card=document.createElement("article"); card.className="screen-card cached-screen-card";
    const head=document.createElement("div"); head.className="screen-card-header";
    const identity=document.createElement("div");
@@ -841,9 +841,10 @@ async function runScreen() {
   const button=$("run-live-screen")||$("run-screen"); const cachedButton=$("run-screen"); const suggestButton=$("suggest-stocks-button"); button.disabled=true; cachedButton.disabled=true; suggestButton.disabled=true; button.textContent="Screening…"; (suggestButton.querySelector("strong")||suggestButton).textContent="Screening stocks…"; beginActivity("Finding research candidates",["Scan company fundamentals","Check price history and risk","Rank available candidates","Verify top results"]);
   $("screen-status").textContent="Fetching SEC filings and daily prices";
   const results=[],errors=[];
-  // A 60-stock, cross-sector starter universe. This is not the full US market.
-  // Process in small batches to reduce provider rate-limit pressure and report progress.
-  const universe=["AAPL","MSFT","NVDA","AMZN","GOOGL","META","AVGO","ORCL","CRM","AMD","QCOM","TXN","MU","AMAT","LRCX","KLAC","INTC","ANET","NOW","ADBE","JPM","BAC","WFC","GS","MS","V","MA","AXP","C","BLK","LLY","JNJ","ABBV","MRK","UNH","ISRG","ABT","TMO","AMGN","PFE","COST","WMT","HD","LOW","PG","KO","PEP","MCD","NKE","CL","XOM","CVX","COP","CAT","GE","HON","RTX","UBER","NFLX","TSLA"];
+  // Curated 210-name, cross-sector US-listed equity universe. This is a research universe, not the full US market.
+  // Eligibility still depends on SEC coverage and a complete year of price history; failed names are counted and excluded.
+  // Keep requests in small batches to respect upstream provider limits.
+  const universe=["AAPL","MSFT","NVDA","AMZN","GOOGL","META","AVGO","ORCL","CRM","AMD","QCOM","TXN","MU","AMAT","LRCX","KLAC","INTC","ANET","NOW","ADBE","CSCO","IBM","ACN","INTU","PANW","CRWD","SNPS","CDNS","ADI","MCHP","NXPI","ON","MRVL","DELL","HPE","HPQ","PLTR","APP","SMCI","TSM","ARM","JPM","BAC","WFC","GS","MS","V","MA","AXP","C","BLK","SCHW","CME","ICE","SPGI","MCO","COIN","HOOD","PYPL","XYZ","FIS","FI","ADP","PAYX","BK","USB","PNC","TFC","COF","DFS","SYF","ALLY","AON","MMC","AJG","CB","PGR","TRV","LLY","JNJ","ABBV","MRK","UNH","ISRG","ABT","TMO","AMGN","PFE","GILD","REGN","VRTX","BSX","SYK","MDT","DHR","BMY","CVS","CI","ELV","HCA","MCK","COR","CAH","ZTS","IDXX","DXCM","EW","RMD","PODD","COST","WMT","HD","LOW","TGT","TJX","ROST","DG","DLTR","KR","SYY","MDLZ","CLX","PG","KO","PEP","PM","MO","KDP","MNST","MCD","SBUX","CMG","YUM","CAVA","NKE","LULU","DECK","TPR","RL","XOM","CVX","COP","EOG","SLB","OXY","PSX","MPC","VLO","CAT","DE","GE","HON","RTX","LMT","NOC","GD","BA","ETN","CMI","PH","EMR","ITW","UPS","FDX","UNP","NSC","CSX","CARR","TT","JCI","AME","FAST","GWW","RSG","WM","CEG","NEE","DUK","SO","AEP","XEL","VST","D","AMT","PLD","EQIX","SPG","WELL","PSA","CCI","VICI","BKNG","ABNB","MAR","HLT","RCL","CCL","DAL","UAL","LUV","AAL","GM","F","FICO","ENPH","FSLR","TSLA","RIVN","LCID","WDAY","TEAM","DDOG","ZS","FTNT","OKTA","MDB","SHOP","ETSY","DASH","EXPE","EBAY","TROW","BEN","STT","MTB","RF","KEY","HBAN","CFG","NTRS","NDAQ","ROP","MSI","IR","CDW","CTSH","EPAM","WAB","URI","PWR","CSGP","ACGL","AFL","MET","PRU","HIG","AIG","L","NCY","AXON","TTWO","EA","RBLX"];
   const batchSize=3;
   try {
     for(let i=0;i<universe.length;i+=batchSize) {
@@ -869,7 +870,7 @@ async function runScreen() {
     finishActivity("Screen interrupted. Partial results are shown.",true);
     renderScreenResults(results,errors);
   } finally {
-    button.disabled=false; cachedButton.disabled=false; suggestButton.disabled=false; button.textContent="Run live 60-stock scan"; (suggestButton.querySelector("strong")||suggestButton).textContent="Suggest me stocks";
+    button.disabled=false; cachedButton.disabled=false; suggestButton.disabled=false; button.textContent="Run live 210-stock scan"; (suggestButton.querySelector("strong")||suggestButton).textContent="Suggest me stocks";
   }
 }
 
