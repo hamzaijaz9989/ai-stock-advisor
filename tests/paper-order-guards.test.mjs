@@ -25,6 +25,8 @@ test("idempotency permits exact replay but blocks same-key changed request",()=>
 test("risk evaluator fails closed without verified daily loss and drawdown",()=>{
  const r=evaluatePortfolioRisk({account:{status:"ACTIVE",equity:1000,buying_power:1000},positions:[],limits:{maxPortfolioUsd:1000,maxPositionFraction:.25,maxRiskFraction:.01}});
  assert.equal(r.ok,false); assert.equal(r.reason,"DAILY_LOSS_OR_DRAWDOWN_NOT_VERIFIED");
+ const nullMetrics=evaluatePortfolioRisk({account:{status:"ACTIVE",equity:1000,buying_power:1000},positions:[],limits:{maxPortfolioUsd:1000,maxPositionFraction:.25,maxRiskFraction:.01},dailyLossUsd:null,maxDrawdownUsd:0});
+ assert.equal(nullMetrics.reason,"DAILY_LOSS_OR_DRAWDOWN_NOT_VERIFIED");
 });
 test("risk evaluator blocks excess exposure and restricted accounts",()=>{
  const limits={maxPortfolioUsd:1000,maxPositionFraction:.25,maxRiskFraction:.01};
