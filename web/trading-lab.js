@@ -122,13 +122,14 @@
       const stale = ageHours < 0 || ageHours > 4 || data.status !== "success";
       status.textContent = stale ? "Cached data stale / verify" : "Cached screen loaded · verify live";
       root.replaceChildren();
-      const rows = Array.isArray(data.stocks) ? data.stocks.slice(0,10) : [];
-      if (!rows.length) throw new Error("No cached research candidates were returned.");
+      const rows = Array.isArray(data.stocks)
+        ? data.stocks.filter(stock => /^[A-Z][A-Z0-9.-]{0,11}$/.test(String(stock?.ticker || "").trim().toUpperCase())).slice(0,10)
+        : [];
+      if (!rows.length) throw new Error("No valid cached research candidates were returned.");
       for (const stock of rows) {
         const row = document.createElement("div");
         row.className = "candidate";
         const symbol = String(stock.ticker || "").trim().toUpperCase();
-        if (!/^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol)) continue;
         const openResearch = document.createElement("a");
         openResearch.className = "candidate-link";
         openResearch.href = "./";
