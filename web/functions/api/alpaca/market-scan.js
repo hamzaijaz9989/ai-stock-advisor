@@ -24,13 +24,14 @@ export async function onRequestGet({ request, env }) {
       const timestamp=s.latestTrade?.t||s.minuteBar?.t||s.dailyBar?.t||null;
       const ageMinutes=timestamp?Math.max(0,(Date.now()-Date.parse(timestamp))/60000):null;
       const priceValid=Number.isFinite(last)&&last>0;
+      const fresh=ageMinutes!==null&&ageMinutes<1440;
       const liquid=Number.isFinite(volume)&&volume>=500000;
       const volumeConfirmed=Number.isFinite(volumeRatio)&&volumeRatio>=1.15;
       const positive=Number.isFinite(change)&&change>0;
       const score=Math.max(0,Math.min(100,Math.round((positive?35:0)+(volumeConfirmed?30:0)+(liquid?20:0)+(Number.isFinite(change)?Math.min(15,Math.max(0,change*3)):0))));
-      const checks={priceValid,liquid,volumeConfirmed,positive};
+      const checks={priceValid,fresh,liquid,volumeConfirmed,positive};
       const passed=Object.values(checks).every(Boolean);
-      candidates.push({symbol,price:last,previousClose:prev,changePct:change,volume,previousVolume:prevVolume,volumeRatio,timestamp,ageMinutes,score,checks,passed,reason:!priceValid?"No reliable last price":!liquid?"Daily volume below 500k shares":!volumeConfirmed?"Relative volume below 1.15×":!positive?"No positive daily momentum":"Momentum and liquidity checks passed"});
+      candidates.push({symbol,price:last,previousClose:prev,changePct:change,volume,previousVolume:prevVolume,volumeRatio,timestamp,ageMinutes,score,checks,passed,reason:!priceValid?"No reliable last price":!fresh?"Last trade is older than 24 hours":!liquid?"Daily volume below 500k shares":!volumeConfirmed?"Relative volume below 1.15×":!positive?"No positive daily momentum":"Momentum and liquidity checks passed"});
     }
     candidates.sort((a,b)=>b.score-a.score);
     return Response.json({ok:true,source:"Alpaca IEX snapshots",feed:"iex",asOf:new Date().toISOString(),universe:symbols.length,candidates},{headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
