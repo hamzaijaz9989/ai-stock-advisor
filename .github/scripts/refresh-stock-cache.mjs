@@ -16,7 +16,7 @@ try {
     return /\d+ ranked|Screen interrupted/i.test(status) && (cards > 0 || /interrupted/i.test(status));
   }, null, { timeout: 12 * 60 * 1000 });
   const result = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll("#screen-results .screen-card")].slice(0,5).map(card => {
+    const cards = [...document.querySelectorAll("#screen-results .screen-card")].slice(0,10).map(card => {
       const title = card.querySelector(".screen-card-header strong")?.textContent || "";
       const match = title.match(/^\d+\.\s+([A-Z0-9.^=-]+)\s+·\s+(.*)$/);
       const scoreText = card.querySelector(".screen-score")?.textContent || "";
@@ -41,7 +41,10 @@ try {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
       refreshIntervalHours: 3,
-      source: "Northstar AI scheduled live 60-stock screen",
+      source: "Northstar AI scheduled live 253-stock screen",
+      universeSize: 253,
+      rankedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/^(\\d+) ranked/)?.[1]) || cards.length,
+      excludedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/· (\\d+) excluded/)?.[1]) || null,
       status: cards.length ? "success" : "no_qualified_candidates",
       stocks: cards,
       note: "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis."
