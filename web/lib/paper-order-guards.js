@@ -35,7 +35,7 @@ export function evaluatePortfolioRisk({account,positions,limits,dailyLossUsd,max
   const equity=Number(account.equity), buyingPower=Number(account.buying_power);
   const cap=Number(limits.maxPortfolioUsd), maxPosition=Number(limits.maxPositionFraction), maxRisk=Number(limits.maxRiskFraction);
   if(![equity,buyingPower,cap,maxPosition,maxRisk,Number(openOrderExposureUsd)].every(Number.isFinite)||equity<=0||buyingPower<0||cap<=0||maxPosition<=0||maxPosition>1||maxRisk<=0||maxRisk>0.01||openOrderExposureUsd<0) return block("INVALID_RISK_INPUTS");
-  if(!Number.isFinite(Number(dailyLossUsd))||!Number.isFinite(Number(maxDrawdownUsd))) return block("DAILY_LOSS_OR_DRAWDOWN_NOT_VERIFIED");
+  if(dailyLossUsd===null||dailyLossUsd===undefined||dailyLossUsd===""||maxDrawdownUsd===null||maxDrawdownUsd===undefined||maxDrawdownUsd===""||!Number.isFinite(Number(dailyLossUsd))||!Number.isFinite(Number(maxDrawdownUsd))||Number(dailyLossUsd)<0||Number(maxDrawdownUsd)<0) return block("DAILY_LOSS_OR_DRAWDOWN_NOT_VERIFIED");
   if(!Array.isArray(positions)||positions.some(p=>!Number.isFinite(Number(p.market_value)))) return block("INVALID_POSITION_MARKS");
   const gross=positions.reduce((s,p)=>s+Math.abs(Number(p.market_value)),0)+Number(openOrderExposureUsd);
   const concentration=positions.map(p=>({symbol:String(p.symbol||"").toUpperCase(),weight:Math.abs(Number(p.market_value))/equity}));
