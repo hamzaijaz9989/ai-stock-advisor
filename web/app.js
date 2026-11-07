@@ -498,6 +498,22 @@ async function loadStrategyBacktest(ticker) {
   }
 }
 
+async function loadMarketRegimeHistory(ticker) {
+  const response=await fetch("/api/history?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"},cache:"no-store"});
+  const payload=await response.json();
+  if(!response.ok) throw new Error(payload.error||ticker+" market history unavailable");
+  return payload;
+}
+function renderMarketRegime(regime) {
+  const panel=$("market-regime-panel");
+  if(!panel||!regime) return;
+  setText("market-regime-state","Market regime: "+regime.state);
+  setText("market-regime-date",regime.asOf?"As of "+regime.asOf:"Not verified");
+  setText("market-regime-summary",regime.summary);
+  const reasons=Array.isArray(regime.reasons)?regime.reasons:[];
+  setText("market-regime-reasons",reasons.join(" "));
+  panel.classList.remove("hidden");
+}
 async function loadHistory(ticker) {
   $("history-status").textContent="Loading…";
   $("history-meta").textContent="Requesting one year of daily price history…";
@@ -2289,10 +2305,18 @@ async function analyze(ticker) {
     setActivityStage(1,"Company facts loaded. Fetching quote and historical prices…");
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
     analysisPhase="market data, history, news and earnings";
-    const [quote,history,news,earnings,benchmarkHistory,fmpFundamentals]=await Promise.all([
+    const [quote,history,news,earnings,benchmarkHistory,fmpFundamentals,regimeData]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker,company.name),loadEarnings(ticker),
       loadBenchmarkHistory(),loadFmpFundamentals(ticker),
+      Promise.all([loadMarketRegimeHistory("SPY"),loadMarketRegimeHistory("QQQ")])
+        .then(([spy,qqq])=>({spy,qqq})).catch(error=>({error:error?.message||"SPY/QQQ history unavailable"})),
     ]);
+    const marketRegime=regimeData.error
+      ? {state:"UNKNOWN",entryGate:"BLOCK_NEW_ENTRIES",summary:"Market regime could not be verified. Treat conditions as unknown and do not open a new position based on this module.",reasons:[regimeData.error]}
+      : (typeof assessMarketRegime==="function"
+        ? assessMarketRegime(regimeData.spy,regimeData.qqq)
+        : {state:"UNKNOWN",entryGate:"BLOCK_NEW_ENTRIES",summary:"Market regime module unavailable. No entry authorization.",reasons:["Regime calculation could not load."]});
+    renderMarketRegime(marketRegime);
     loadStrategyBacktest(ticker).catch(error=>{const status=$("strategy-backtest-status");const details=$("strategy-backtest-details");if(status)status.textContent="Unavailable";if(details)details.textContent=(error?.message||"Historical backtest unavailable")+". The main research report is unaffected.";});
     setActivityStage(2,"Price, news and earnings responses received. Reviewing event risk…");
     const reportedQuarter=quarter?.fiscalQuarterId||null;
