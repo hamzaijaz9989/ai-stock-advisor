@@ -692,7 +692,7 @@ function assessResearchQuoteEligibility(quote, nowMs=Date.now()) {
 }
 
 async function enrichTopCandidates(results) {
-  const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,5);
+  const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,10);
   await Promise.all(candidates.map(async item=>{
     const plan=[...document.querySelectorAll(".candidate-plan")].find(node=>node.dataset.ticker===item.ticker);
     if(!plan) return;
