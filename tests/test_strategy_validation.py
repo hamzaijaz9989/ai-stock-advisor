@@ -1,11 +1,12 @@
 from datetime import date, timedelta
 
-from stock_advisor.backtest import DailyBar, TradeSignal
+from stock_advisor.backtest import DailyBar, TradeSignal, WalkForwardFold
 from stock_advisor.portfolio import simulate_cash_only_portfolio
 from stock_advisor.strategy_validation import (
     build_validation_report,
     evaluate_snapshot,
     generate_signals,
+    _evaluate_fold,
 )
 
 
@@ -177,3 +178,33 @@ def test_known_material_risk_headline_still_blocks_signal():
     result = evaluate_snapshot(snapshot(risk_headline=True))
     assert result["eligible"] is False
     assert "potential_material_risk_headline_requires_review" in result["failed_gates"]
+
+
+def test_fold_evaluation_uses_only_test_window_signals_and_truncates_future_bars():
+    start = date(2025, 1, 2)
+    next_day = start + timedelta(days=1)
+    first = snapshot(as_of_date=start.isoformat(),
+                     as_of_timestamp=start.isoformat() + "T21:00:00Z")
+    second = snapshot(as_of_date=next_day.isoformat(),
+                      as_of_timestamp=next_day.isoformat() + "T21:00:00Z")
+    for row, day in ((first, start), (second, next_day)):
+        row["available_at"] = {
+            "price": day.isoformat() + "T20:59:00Z",
+            "fundamentals": "2024-11-01T12:00:00Z",
+            "quarterly_fundamentals": "2024-11-01T12:00:00Z",
+            "earnings": "2024-12-20T12:00:00Z",
+            "news": day.isoformat() + "T20:30:00Z",
+            "universe_membership": day.isoformat() + "T14:00:00Z",
+        }
+    bars = [
+        DailyBar(start + timedelta(days=i + 1), 77.5, 79, 76, 78, 78)
+        for i in range(130)
+    ]
+    fold = WalkForwardFold(start, start - timedelta(days=1), start, start)
+    report = _evaluate_fold(fold, [first, second], {"TEST": bars}, None, {})
+    assert report["snapshots_in_test_window"] == 1
+    assert report["signals"] == 1
+    assert report["summary"]["completed_trades"] == 0
+    assert report["summary"]["incomplete"] == 1
+    assert report["test_start"] == start.isoformat()
+    assert "no parameter fitting" in report["note"]
