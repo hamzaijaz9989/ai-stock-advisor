@@ -127,16 +127,27 @@
       for (const stock of rows) {
         const row = document.createElement("div");
         row.className = "candidate";
-        const ticker = document.createElement("div");
+        const symbol = String(stock.ticker || "").trim().toUpperCase();
+        if (!/^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol)) continue;
+        const openResearch = document.createElement("a");
+        openResearch.className = "candidate-link";
+        openResearch.href = "./";
+        openResearch.setAttribute("aria-label", "Open full Northstar research for " + symbol);
+        openResearch.addEventListener("click", () => {
+          try { localStorage.setItem("northstar-last-ticker-v2", symbol); } catch {}
+        });
+        const ticker = document.createElement("span");
         ticker.className = "ticker";
-        ticker.textContent = String(stock.ticker || "—");
-        const name = document.createElement("div");
+        ticker.textContent = symbol;
+        const name = document.createElement("span");
         name.className = "muted small";
         name.textContent = String(stock.name || "Company name unavailable");
+        openResearch.append(ticker, name);
         const score = document.createElement("div");
         score.className = "score";
-        score.textContent = Number.isFinite(Number(stock.score)) ? Number(stock.score).toFixed(1) + "/100" : "—";
-        row.append(ticker, name, score);
+        score.textContent = Number.isFinite(Number(stock.score)) && Number(stock.score) >= 0 && Number(stock.score) <= 100
+          ? Number(stock.score).toFixed(1) + "/100" : "—";
+        row.append(openResearch, score);
         root.appendChild(row);
       }
       $("cache-note").textContent = (stale ? "WARNING: " : "") +
