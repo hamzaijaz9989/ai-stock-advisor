@@ -2,6 +2,15 @@ const $ = (id) => document.getElementById(id);
 let latestResearchSnapshot = null;
 let latestDecisionContext = null;
 const RESEARCH_LOG_KEY = "ai-stock-advisor-research-log-v1";
+const LAST_TICKER_KEY = "northstar-last-ticker-v2";
+const initialTicker = (() => {
+  try {
+    const saved = localStorage.getItem(LAST_TICKER_KEY);
+    return /^[A-Z0-9.-]{1,12}$/.test(saved || "") ? saved : "NVDA";
+  } catch { return "NVDA"; }
+})();
+if ($("ticker")) $("ticker").value = initialTicker;
+let analysisInProgress = false;
 const SEC_MAP_URL = "https://www.sec.gov/files/company_tickers_exchange.json";
 const SEC_DATA_URL = "https://data.sec.gov";
 const SEC_API = "/api/sec?path=";
@@ -2231,7 +2240,12 @@ async function loadEarnings(ticker) {
 async function analyze(ticker) {
   ticker=String(ticker||"").trim().toUpperCase().replace(/\s+/g,"");
   if(!/^[A-Z0-9.-]{1,12}$/.test(ticker)) { setMessage("Enter a valid US stock ticker, such as AAPL or MSFT.","error"); return; }
+  if (analysisInProgress) return;
+  analysisInProgress = true;
+  try { localStorage.setItem(LAST_TICKER_KEY, ticker); } catch { /* Persistence is optional. */ }
   const button=$("analyze-button"); button.disabled=true; button.textContent="Analyzing…";
+  $("ticker").disabled = true;
+  document.querySelectorAll("[data-ticker]").forEach(item => { item.disabled = true; });
   const stages=["Find company and official filings","Check price and history","Review news and earnings risk","Check financial health and valuation","Prepare plain-English decision"];
   beginActivity("Analyzing "+ticker,stages);
   const results=$("stock-results"); results.classList.remove("hidden"); results.dataset.ticker=ticker;
@@ -2296,7 +2310,12 @@ async function analyze(ticker) {
     setMessage("Northstar stopped during "+analysisPhase+". "+errorName+": "+errorMessage+". No sample data or guessed prices were substituted.","error");
     finishActivity("Analysis stopped safely. Technical detail: "+errorMessage,true);
     requestAnimationFrame(()=>results.scrollIntoView({behavior:"smooth",block:"start"}));
-  } finally { button.disabled=false; button.innerHTML='Analyze stock <span aria-hidden="true">↗</span>'; }
+  } finally {
+    analysisInProgress = false;
+    $("ticker").disabled = false;
+    document.querySelectorAll("[data-ticker]").forEach(item => { item.disabled = false; });
+    button.disabled=false; button.innerHTML='Analyze stock <span aria-hidden="true">↗</span>';
+  }
 }
 $("analyze-form").addEventListener("submit",event=>{event.preventDefault();analyze($("ticker").value);});
 document.querySelectorAll("[data-ticker]").forEach(button=>button.addEventListener("click",()=>{$("ticker").value=button.dataset.ticker;analyze(button.dataset.ticker);}));
