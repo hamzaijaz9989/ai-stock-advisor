@@ -184,7 +184,39 @@
     }
   });
 
+
+  async function loadLedgerReadiness() {
+    const badge = $("ledger-badge");
+    const message = $("ledger-message");
+    const detail = $("ledger-detail");
+    try {
+      const response = await fetch("/api/paper/readiness", {
+        headers: {Accept:"application/json"},
+        cache: "no-store"
+      });
+      const data = await response.json();
+      if (!response.ok || !data.configured || !data.policyVerified) {
+        badge.textContent = "NOT VERIFIED";
+        message.textContent = data.message || "Ledger readiness could not be verified.";
+        detail.textContent = "Execution remains disabled.";
+        return;
+      }
+      badge.textContent = "POLICY VERIFIED";
+      message.textContent = data.message;
+      detail.textContent = "Virtual capital " + money(data.limits.virtualCapitalUsd) +
+        " · Default risk " + money(data.limits.defaultRiskUsd) +
+        " · Max risk " + money(data.limits.maxRiskUsd) +
+        " · Max position " + money(data.limits.maxPositionUsd) +
+        " · Kill switch engaged";
+    } catch {
+      badge.textContent = "UNAVAILABLE";
+      message.textContent = "Could not reach the paper ledger readiness endpoint.";
+      detail.textContent = "Fail-closed: no order execution is available.";
+    }
+  }
+
   calculate();
   renderJournal();
   loadCandidates();
+  loadLedgerReadiness();
 })();
