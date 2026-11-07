@@ -43,8 +43,8 @@ try {
       refreshIntervalHours: 3,
       source: "Northstar AI scheduled live 253-stock screen",
       universeSize: 253,
-      rankedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/^(\\d+) ranked/)?.[1]) || cards.length,
-      excludedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/· (\\d+) excluded/)?.[1]) || null,
+      rankedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/^(\d+) ranked/)?.[1]) || cards.length,
+      excludedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/· (\d+) excluded/)?.[1]) || null,
       status: cards.length ? "success" : "no_qualified_candidates",
       stocks: cards,
       note: "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis."
