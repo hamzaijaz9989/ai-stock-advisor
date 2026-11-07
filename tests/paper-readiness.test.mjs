@@ -5,7 +5,8 @@ import vm from "node:vm";
 
 const source = readFileSync(new URL("../web/functions/api/paper/readiness.js", import.meta.url), "utf8");
 const sandbox = { Response, Date, Number, module: { exports: {} } };
-vm.runInNewContext(source + "\nmodule.exports = { onRequestGet };", sandbox);
+const scriptSource = source.replace("export async function onRequestGet", "async function onRequestGet");
+vm.runInNewContext(scriptSource + "\nmodule.exports = { onRequestGet };", sandbox);
 const { onRequestGet } = sandbox.module.exports;
 
 const policy = {
