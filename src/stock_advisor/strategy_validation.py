@@ -309,7 +309,7 @@ def _evaluate_fold(fold: Any, rows: list[Mapping[str, Any]],
         source_bars = bars_by_symbol.get(signal.symbol)
         if source_bars is None:
             continue
-        bounded_bars = [bar for bar in source_bars if _day(bar.date) <= fold.test_end]
+        bounded_bars = [bar for bar in source_bars if _day(bar.date, "bar.date") <= fold.test_end]
         outcomes.append(simulate_signal(signal, bounded_bars, config))
     completed = [item for item in outcomes if item.status == "closed" and item.net_return_pct is not None]
     summary = summarize_outcomes(outcomes)
