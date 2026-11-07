@@ -1,6 +1,6 @@
 # AI Stock Advisor
 
-A research-first prototype for US equities configured for a $500 portfolio, a holding window of several weeks to six months, and moderate risk tolerance. It does not place orders or guarantee returns.
+A research-first prototype for US equities. The Trading Lab specification defines a separate $1,000 paper-simulation allocation and conservative risk controls; it does not represent the user's real holdings, place live orders, or guarantee returns.
 
 ## Project principles
 
@@ -9,6 +9,10 @@ A research-first prototype for US equities configured for a $500 portfolio, a ho
 - Every material figure should be traceable to a source and timestamp.
 - Missing or inconsistent data means an explicit warning, not an invented value.
 - No automatic brokerage execution, leverage, options, or short selling.
+
+## Trading Lab (planned, paper-only)
+
+See [Northstar Trading Lab — Risk-First Specification](docs/TRADING_LAB_SPEC.md) for the proposed equity scanner, deterministic risk gates, position sizing, audit trail, paper-execution safety requirements, $1,000 simulation profile, and validation/promotion criteria. This is a design specification, not a claim that automated paper order placement is already implemented. The current Alpaca endpoint remains read-only, and live execution is not supported.
 
 ## SEC point-in-time source ingestion
 
