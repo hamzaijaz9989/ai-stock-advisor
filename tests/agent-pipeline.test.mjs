@@ -13,7 +13,7 @@ const good=()=>({
   {source:"Company earnings",publishedAt:"2026-11-07T13:00:00Z",summary:"Management raised its outlook and discussed demand resilience."}
  ],
  risks:["Valuation remains elevated","Broad market volatility may invalidate the setup"],
- stopPrice:190,account:{equityUsd:1000},limits:{riskFraction:.005,maxPositionFraction:.25}
+ stopPrice:198,account:{equityUsd:1000},limits:{riskFraction:.005,maxPositionFraction:.25}
 });
 
 test("valid candidate passes evidence gates but never submits an order",()=>{
