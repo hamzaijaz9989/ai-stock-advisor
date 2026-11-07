@@ -18,7 +18,17 @@ async function alpaca(path,key,secret) {
   if(!response.ok) throw new Error("BROKER_HTTP_"+response.status);
   return response.json();
 }
-const num = value => Number.isFinite(Number(value)) ? Number(value) : null;
+const num = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
+const statusOf = value => String(value || "").trim().toUpperCase();
+function storedFill(row) {
+  try {
+    const data=JSON.parse(row.response_json || "{}");
+    return {
+      qty:num(data.filled_qty ?? data.filledQty ?? data.filled_quantity),
+      avg:num(data.filled_avg_price ?? data.filledAvgPrice ?? data.average_fill_price)
+    };
+  } catch { return {qty:null,avg:null}; }
+}
 const close = (a,b,tol=0.0001) => Math.abs(Number(a)-Number(b))<=tol;
 export async function onRequestPost({request,env}) {
   if(!authorized(request,env)) return fail("Unauthorized.",401);
@@ -65,9 +75,17 @@ export async function onRequestPost({request,env}) {
       positionMismatches.push({symbol,broker:b||null,ledger:l||null});
     }
   }
-  const brokerById=new Map(brokerOrders.map(o=>[String(o.id),o]));
-  const ledgerByBrokerId=new Map();
+  const brokerById=new Map();
   const orderMismatches=[];
+  for(const order of brokerOrders) {
+    const id=String(order?.id || "");
+    if(!id || brokerById.has(id)) {
+      orderMismatches.push({brokerOrderId:id||null,reason:"MISSING_OR_DUPLICATE_BROKER_ORDER_ID"});
+      continue;
+    }
+    brokerById.set(id,order);
+  }
+  const ledgerByBrokerId=new Map();
   for(const l of orderRows) {
     const id=l.broker_order_id?String(l.broker_order_id):"";
     if(!id) { orderMismatches.push({ledgerOrderId:l.id,reason:"LEDGER_ORDER_MISSING_BROKER_ID"}); continue; }
@@ -76,10 +94,22 @@ export async function onRequestPost({request,env}) {
     const b=brokerById.get(id);
     if(!b) { orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"LEDGER_ORDER_NOT_FOUND_AT_BROKER"}); continue; }
     const lqty=num(l.qty), bqty=num(b.qty);
-    if(String(l.symbol||"").toUpperCase()!==String(b.symbol||"").toUpperCase() ||
-       String(l.side||"").toLowerCase()!==String(b.side||"").toLowerCase() ||
-       lqty===null||bqty===null||!close(lqty,bqty)) {
-      orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"ORDER_FIELDS_DIFFER",ledger:{symbol:l.symbol,side:l.side,qty:l.qty},broker:{symbol:b.symbol,side:b.side,qty:b.qty}});
+    const fieldDiff=String(l.symbol||"").toUpperCase()!==String(b.symbol||"").toUpperCase() ||
+      String(l.side||"").toLowerCase()!==String(b.side||"").toLowerCase() ||
+      lqty===null||bqty===null||!close(lqty,bqty);
+    if(fieldDiff) orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"ORDER_FIELDS_DIFFER",ledger:{symbol:l.symbol,side:l.side,qty:l.qty},broker:{symbol:b.symbol,side:b.side,qty:b.qty}});
+    const ledgerStatus=statusOf(l.status), brokerStatus=statusOf(b.status);
+    if(!ledgerStatus || !brokerStatus || ledgerStatus!==brokerStatus) {
+      orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"ORDER_STATUS_DIFFER",ledgerStatus:ledgerStatus||null,brokerStatus:brokerStatus||null});
+    }
+    const brokerFilledQty=num(b.filled_qty);
+    const brokerFilledAvg=num(b.filled_avg_price);
+    const ledgerFill=storedFill(l);
+    if(brokerFilledQty===null || ledgerFill.qty===null || !close(brokerFilledQty,ledgerFill.qty)) {
+      orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"FILLED_QUANTITY_NOT_RECONCILED",ledgerFilledQty:ledgerFill.qty,brokerFilledQty});
+    }
+    if(brokerFilledQty>0 && (brokerFilledAvg===null || ledgerFill.avg===null || !close(brokerFilledAvg,ledgerFill.avg,0.01))) {
+      orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"AVERAGE_FILL_PRICE_NOT_RECONCILED",ledgerFilledAvgPrice:ledgerFill.avg,brokerFilledAvgPrice:brokerFilledAvg});
     }
   }
   for(const b of brokerOrders) {
@@ -92,7 +122,7 @@ export async function onRequestPost({request,env}) {
     account:{status:account.status,currency:account.currency},
     counts:{brokerPositions:bp.length,ledgerPositions:lp.length,brokerOrders:brokerOrders.length,ledgerOrders:orderRows.length,orderHistoryPages:pages},
     mismatches:{positions:positionMismatches,orders:orderMismatches},
-    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","Execution remains disabled and the kill switch remains engaged."],
+    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Order status, cumulative filled quantity, and average fill price are compared; missing fill snapshots are treated as mismatches.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","Execution remains disabled and the kill switch remains engaged."],
     checkedAt:new Date().toISOString()
   },{status:mismatches===0?200:409,headers:H});
 }
