@@ -3,10 +3,10 @@ from datetime import date, timedelta
 from stock_advisor.backtest import DailyBar, TradeSignal, WalkForwardFold
 from stock_advisor.portfolio import simulate_cash_only_portfolio
 from stock_advisor.strategy_validation import (
+    _evaluate_fold,
     build_validation_report,
     evaluate_snapshot,
     generate_signals,
-    _evaluate_fold,
 )
 
 
