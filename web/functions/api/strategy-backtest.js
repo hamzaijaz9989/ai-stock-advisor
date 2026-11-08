@@ -66,8 +66,10 @@ async function fetchYahooSeries(ticker) {
   const rows=[];
   for(let i=0;i<result.timestamp.length;i++) {
     const row={date:new Date(result.timestamp[i]*1000).toISOString().slice(0,10),open:q.open?.[i],high:q.high?.[i],low:q.low?.[i],close:q.close?.[i],adjustedClose:adj[i]};
-    if([row.open,row.high,row.low,row.close,row.adjustedClose].every(v=>typeof v==="number"&&Number.isFinite(v)&&v>0)) row.adjustedOpen=row.open*(row.adjustedClose/row.close);
-    rows.push(row);
+    if([row.open,row.high,row.low,row.close,row.adjustedClose].every(v=>typeof v==="number"&&Number.isFinite(v)&&v>0)) {
+      row.adjustedOpen=row.open*(row.adjustedClose/row.close);
+      rows.push(row);
+    }
   }
   if(rows.length<SLOW+100) throw new Error("Yahoo fallback returned insufficient daily history");
   return rows.slice(-MAX_BARS);
@@ -135,7 +137,7 @@ export function evaluate(rows) {
         entryDate=current.date;
         entryIndex=i;
         invested=true;
-        dailyReturn=(1-cost)*(current.adjustedClose/current.adjustedOpen)-1;
+        dailyReturn=(current.adjustedClose/current.adjustedOpen)/(1+cost)-1;
       } else if(invested&&crossDown) {
         // Existing position earns only the close-to-open gap, then exits at open.
         dailyReturn=(current.adjustedOpen/prior.adjustedClose)*(1-cost)-1;
