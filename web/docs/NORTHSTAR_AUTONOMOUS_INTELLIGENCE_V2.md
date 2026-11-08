@@ -30,5 +30,7 @@ Connect the existing 253-symbol research shortlist to a deterministic, evidence-
 5. Add unit/integration tests, chronological walk-forward validation, untouched holdout and forward paper tests.
 6. Keep paper order submission disabled until independent review and explicit safety gates pass. Live trading remains out of scope.
 
-## Endpoint
-POST /api/research/pipeline requires Authorization: Bearer NORTHSTAR_OPERATOR_TOKEN. Request JSON follows the candidate contract in web/lib/agent-pipeline.js. Response always declares execution=false, automatedOrderSubmission=false and traceDurable=false.
+## Endpoints
+- `POST /api/research/pipeline` requires `Authorization: Bearer NORTHSTAR_OPERATOR_TOKEN`. Request JSON follows the candidate contract in `web/lib/agent-pipeline.js`. It is preview-only and always declares `execution=false`, `automatedOrderSubmission=false`, and `traceDurable=false`.
+- `POST /api/research/decision` requires the same server-side token, a stable `requestId`, a candidate object, and the `NORTHSTAR_DB` D1 binding. It persists both accepted-for-review and rejected `NO_TRADE` traces to `research_decision_traces`. Reusing a request ID with the same input safely replays the stored trace; reusing it with different input returns HTTP 409. It has no broker or order side effects.
+- Apply `web/migrations/0002_research_decision_traces.sql` to the `northstar-paper-ledger` D1 database before deploying/using the durable endpoint. The migration does not enable paper execution.
