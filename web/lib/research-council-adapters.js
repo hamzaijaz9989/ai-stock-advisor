@@ -15,12 +15,24 @@ function parseJson(text) {
   const value=String(text||"").trim().replace(/^\u0060\u0060\u0060(?:json)?\s*/i,"").replace(/\s*\u0060\u0060\u0060$/,"");
   return JSON.parse(value);
 }
-function normalizeReport(raw) {
+export function normalizeCouncilModelReport(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid model report.");
-  const findings=(Array.isArray(raw.findings)?raw.findings:[]).slice(0,20).map(item=>({
+  if (raw.decision !== undefined || raw.vetoReasons !== undefined) throw new Error("Model specialists cannot emit risk-committee decision fields.");
+  if (raw.status === "UNAVAILABLE") {
+    if (!Array.isArray(raw.findings) || raw.findings.length !== 0 ||
+        !Array.isArray(raw.risks) || raw.risks.length !== 0) {
+      throw new Error("Unavailable model reports must not contain findings or risks.");
+    }
+    return {status:"UNAVAILABLE",findings:[],risks:[]};
+  }
+  if (raw.status !== "COMPLETE" || !Array.isArray(raw.findings) || !Array.isArray(raw.risks) ||
+      raw.findings.length > 30 || raw.risks.length > 30) {
+    throw new Error("Model report status or findings/risks contract is invalid.");
+  }
+  const findings=raw.findings.map(item=>({
     claim:clean(item?.claim), factIds:Array.isArray(item?.factIds)?item.factIds.filter(x=>typeof x==="string").slice(0,10):[]
   }));
-  const risks=(Array.isArray(raw.risks)?raw.risks:[]).slice(0,20).map(item=>({
+  const risks=raw.risks.map(item=>({
     claim:clean(item?.claim), factIds:Array.isArray(item?.factIds)?item.factIds.filter(x=>typeof x==="string").slice(0,10):[]
   }));
   return {status:"COMPLETE",findings,risks};
@@ -66,7 +78,7 @@ async function createGeminiGenerator(env) {
     if(!result.ok) throw new Error("Gemini specialist request failed with HTTP "+result.status+".");
     const data=await result.json();
     const output=(data.candidates||[]).flatMap(x=>x.content?.parts||[]).map(x=>x.text||"").join("\n");
-    return normalizeReport(parseJson(output));
+    return normalizeCouncilModelReport(parseJson(output));
   };
 }
 
@@ -95,7 +107,7 @@ async function createOpenAIGenerator(env) {
     if(!response.ok) throw new Error("OpenAI specialist request failed with HTTP "+response.status+".");
     const data=await response.json();
     const output=data.output_text||(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==="output_text").map(x=>x.text||"").join("\n");
-    return normalizeReport(parseJson(output));
+    return normalizeCouncilModelReport(parseJson(output));
   };
 }
 
@@ -106,7 +118,7 @@ function riskCommittee(payload) {
   const sector=Number(p.sectorExposureUsd),positions=Number(p.concurrentPositions);
   const reasons=[];
   if(![equity,openRisk,gross,daily,weekly,drawdown,sector,positions].every(Number.isFinite) || equity<=0 ||
-     openRisk<0 || gross<0 || sector<0 || drawdown<0 || !Number.isInteger(positions) || positions<0) reasons.push("Portfolio risk state is incomplete or invalid.");
+     openRisk<0 || gross<0 || daily<0 || weekly<0 || sector<0 || drawdown<0 || !Number.isInteger(positions) || positions<0) reasons.push("Portfolio risk state is incomplete or invalid.");
   else {
     if(openRisk/equity>0.02) reasons.push("Aggregate open risk exceeds 2% of equity.");
     if(gross/equity>1) reasons.push("Gross exposure exceeds 100% of equity.");
@@ -116,10 +128,10 @@ function riskCommittee(payload) {
     if(sector/equity>0.40) reasons.push("Sector exposure exceeds 40% of equity.");
     if(positions>=1) reasons.push("The initial one-position policy is already occupied.");
   }
-  const refs=payload.facts.map(x=>x.id).slice(0,2);
-  const findings=equity>0&&refs.length?[{claim:"Portfolio state was checked against Northstar's initial hard risk limits.",factIds:refs}]:[];
+  // Portfolio metrics are a separate typed input, not market fact IDs. Keep the deterministic
+  // committee's numeric vetoes in vetoReasons instead of attaching unrelated market citations.
   return {
-    status:"COMPLETE",findings,risks:reasons.length&&refs.length?[{claim:reasons.join(" "),factIds:refs}]:[],
+    status:"COMPLETE",findings:[],risks:[],
     decision:reasons.length?"REJECT":"ACCEPT_FOR_REVIEW",vetoReasons:reasons
   };
 }
