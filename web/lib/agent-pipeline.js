@@ -20,7 +20,7 @@ export function runAgentPipeline(c) {
   if (!/^[A-Z][A-Z0-9.]{0,9}$/.test(symbol)) return reject("SCANNER","INVALID_SYMBOL",events);
   const now=isoMs(c.now||new Date().toISOString()), q=c.quote||{};
   const price=Number(q.price),bid=Number(q.bid),ask=Number(q.ask),qt=isoMs(q.timestamp);
-  if(now===null||![price,bid,ask].every(Number.isFinite)||price<=0||bid<=0||ask<bid||qt===null||typeof q.source!=="string"||q.source.trim().length<3){
+  if(now===null||![price,bid,ask].every(Number.isFinite)||price<=0||bid<=0||ask<bid||price<bid||price>ask||qt===null||typeof q.source!=="string"||q.source.trim().length<3){
     log("SCANNER","BLOCKED","INVALID_OR_UNSOURCED_QUOTE");return reject("SCANNER","INVALID_OR_UNSOURCED_QUOTE",events);
   }
   const quoteAgeMs=now-qt;
@@ -40,11 +40,11 @@ export function runAgentPipeline(c) {
   log("RESEARCH","PASSED","THESIS_AND_VERIFIABLE_EVIDENCE_PRESENT",{evidenceCount:evidence.length,publisherCount:publishers.size,riskFactors:risks.length});
   const a=c.account||{},l=c.limits||{},p=c.portfolio||{};
   const stop=Number(c.stopPrice),equity=Number(a.equityUsd),riskFraction=Number(l.riskFraction),maxPositionFraction=Number(l.maxPositionFraction);
-  const openRisk=Number(p.openRiskUsd),gross=Number(p.grossExposureUsd),dailyLoss=Number(p.dailyLossFraction),drawdown=Number(p.drawdownFraction);
+  const openRisk=Number(p.openRiskUsd),gross=Number(p.grossExposureUsd),dailyLoss=Number(p.dailyLossFraction),weeklyLoss=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
   const sectorExposure=Number(p.sectorExposureUsd),concurrent=Number(p.concurrentPositions),sector=String(c.sector||"").trim();
-  if(![stop,equity,riskFraction,maxPositionFraction,openRisk,gross,dailyLoss,drawdown,sectorExposure,concurrent].every(Number.isFinite)||
+  if(![stop,equity,riskFraction,maxPositionFraction,openRisk,gross,dailyLoss,weeklyLoss,drawdown,sectorExposure,concurrent].every(Number.isFinite)||
     !sector||stop<=0||stop>=price||equity<=0||riskFraction<=0||riskFraction>0.005||maxPositionFraction<=0||maxPositionFraction>0.25||
-    openRisk<0||gross<0||dailyLoss<0||dailyLoss>=0.02||drawdown<0||drawdown>=0.08||sectorExposure<0||concurrent<0||concurrent>=1){
+    openRisk<0||openRisk>equity*0.02||gross<0||gross>equity||dailyLoss<0||dailyLoss>=0.02||weeklyLoss<0||weeklyLoss>=0.04||drawdown<0||drawdown>=0.08||sectorExposure<0||sectorExposure>equity*0.40||concurrent!==0){
     log("RISK_AUDITOR","BLOCKED","MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");return reject("RISK_AUDITOR","MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS",events);
   }
   const costBps=Number(l.estimatedRoundTripCostBps);
@@ -56,7 +56,7 @@ export function runAgentPipeline(c) {
   if(shares<1){log("SIZER","BLOCKED","NO_WHOLE_SHARE_FITS_COST_AND_PORTFOLIO_LIMITS");return reject("SIZER","NO_WHOLE_SHARE_FITS_COST_AND_PORTFOLIO_LIMITS",events);}
   const notional=shares*price,costs=notional*costBps/10000;
   const sizing={shares,referenceEntryPriceUsd:round(price),stopPriceUsd:round(stop),plannedStopRiskUsd:round(shares*riskPerShare),estimatedRoundTripCostsUsd:round(costs),riskIncludingEstimatedCostsUsd:round(shares*effectiveRisk),notionalUsd:round(notional),riskBudgetUsd:round(riskBudget),remainingAggregateRiskUsd:round(remainingAggregateRisk),maxPositionValueUsd:round(maxPosition)};
-  log("RISK_AUDITOR","PASSED","PORTFOLIO_LIMITS_AND_COST_ASSUMPTIONS_PASSED",{sector,openRiskUsd:openRisk,grossExposureUsd:gross,dailyLossFraction:dailyLoss,drawdownFraction:drawdown});
+  log("RISK_AUDITOR","PASSED","PORTFOLIO_LIMITS_AND_COST_ASSUMPTIONS_PASSED",{sector,openRiskUsd:openRisk,grossExposureUsd:gross,dailyLossFraction:dailyLoss,weeklyLossFraction:weeklyLoss,drawdownFraction:drawdown,sectorExposureUsd:sectorExposure,concurrentPositions:concurrent});
   log("SIZER","PASSED","COST_AWARE_WHOLE_SHARE_SIZE",sizing);
   log("PAPER_EXECUTOR","DISABLED","NO_ORDER_SUBMISSION_IMPLEMENTED");
   log("DECISION_TRACE","BUILT","TRACE_IS_NOT_DURABLE_PERSISTENCE",{eventCount:events.length+1});
