@@ -1,0 +1,42 @@
+name: Northstar Paper Ledger Snapshots
+
+on:
+  schedule:
+    # Collect a read-only broker equity/position snapshot every three hours.
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: northstar-paper-ledger-snapshots
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify required operator secret
+        env:
+          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
+        run: |
+          if [ -z "$OPERATOR_TOKEN" ]; then
+            echo "::error::Repository secret NORTHSTAR_OPERATOR_TOKEN is not configured."
+            exit 1
+          fi
+
+      - name: Collect read-only Alpaca Paper snapshot
+        env:
+          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error \
+            --max-time 30 \
+            --request POST \
+            --header "Authorization: Bearer $OPERATOR_TOKEN" \
+            --header "X-Request-ID: northstar-snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            "https://ai-stock-advisor.pages.dev/api/paper/sync")"
+          echo "$response" | jq -e '.ok == true and .synced == true and .execution == false' >/dev/null
+          echo "$response" | jq '{ok, synced, execution, mode, capturedAt, snapshot}'
