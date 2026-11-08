@@ -32,7 +32,7 @@ function normalizeRows(raw, source) {
 }
 
 async function fetchFmpSeries(ticker, apiKey) {
-  if(!apiKey) throw new Error("FMP_API_KEY is not configured in Cloudflare Pages environment.");
+  if(typeof apiKey !== "string" || apiKey.trim().length === 0) throw new Error("FMP_API_KEY binding is unavailable in this deployment. Confirm the Production secret is saved, then redeploy the Pages project.");
   const to = new Date();
   const from = new Date(to.getTime() - HISTORY_DAYS*86400000);
   const url = new URL(FMP_BASE + "/historical-price-eod/full");
