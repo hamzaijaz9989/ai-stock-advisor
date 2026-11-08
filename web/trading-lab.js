@@ -269,6 +269,42 @@
       positionsRoot.textContent="Open positions are unavailable until the paper account and positions are verified.";
     }
   }
+
+  async function loadDurablePerformance() {
+    const status=$("snapshot-status");
+    try {
+      const response=await fetch("/api/paper/performance",{headers:{Accept:"application/json"},cache:"no-store"});
+      const data=await response.json();
+      if(!response.ok||!data.ok)throw new Error(data.error||"Durable performance unavailable.");
+      $("snapshot-return").textContent=fmtPct(data.observedChange?.returnPct);
+      $("snapshot-drawdown").textContent=fmtPct(data.observedChange?.maxDrawdownPct);
+      $("snapshot-count").textContent=String(data.snapshotCount??0);
+      $("snapshot-realized").textContent=data.tradeStatistics?.realizedPlUsd===null?"UNAVAILABLE":money(Number(data.tradeStatistics.realizedPlUsd));
+      $("snapshot-range").textContent=data.firstSnapshotAt&&data.lastSnapshotAt?new Date(data.firstSnapshotAt).toLocaleDateString()+" → "+new Date(data.lastSnapshotAt).toLocaleDateString():"No history yet";
+      status.textContent=data.available
+        ?"Stored broker snapshots · latest "+new Date(data.lastSnapshotAt).toLocaleString()+". Observed change is not strategy performance."
+        :"No durable snapshots recorded. Save a snapshot after verifying the paper account.";
+      const curve=$("snapshot-curve");curve.replaceChildren();
+      if(!data.equityCurve?.length){curve.textContent="No historical equity curve is available yet.";return;}
+      for(const point of data.equityCurve.slice(-12)){
+        appendMetric(curve,new Date(point.capturedAt).toLocaleString(),money(point.equityUsd),"Drawdown "+fmtPct(point.drawdownPct)+" · cash "+money(point.cashUsd));
+      }
+    } catch(error) {status.textContent=error?.message||"Could not load durable paper performance.";}
+  }
+  $("sync-paper-snapshot").addEventListener("click",async()=>{
+    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved in browser storage.");
+    if(!token)return;
+    const button=$("sync-paper-snapshot");button.disabled=true;button.textContent="Saving…";
+    $("snapshot-status").textContent="Reading Alpaca Paper account and saving a verified snapshot…";
+    try{
+      const response=await fetch("/api/paper/sync",{method:"POST",headers:{Authorization:"Bearer "+token,Accept:"application/json","Content-Type":"application/json"},body:"{}"});
+      const data=await response.json();
+      if(!response.ok||!data.synced)throw new Error(data.error||"Snapshot sync failed.");
+      $("snapshot-status").textContent="Snapshot saved at "+new Date(data.capturedAt).toLocaleString()+". Broker equity "+money(data.snapshot.equityUsd)+" · "+data.snapshot.positions+" open positions. No orders were submitted.";
+      await loadDurablePerformance();
+    }catch(error){$("snapshot-status").textContent=error?.message||"Snapshot sync failed. No order action was attempted.";}
+    finally{button.disabled=false;button.textContent="＋ Save snapshot";}
+  });
   $("refresh-performance").addEventListener("click",loadPaperPerformance);
   const fmtPct = value => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? "—" : Number(value).toFixed(2) + "%";
   function appendMetric(root,label,value,detail="") {
@@ -346,6 +382,7 @@
   calculate();
   renderJournal();
   loadPaperPerformance();
+  loadDurablePerformance();
   loadCandidates();
   loadLedgerReadiness();
 })();
