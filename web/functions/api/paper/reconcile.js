@@ -19,7 +19,18 @@ async function alpaca(path,key,secret) {
   return response.json();
 }
 const num = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
-const statusOf = value => String(value || "").trim().toUpperCase();
+const statusOf = value => {
+  const raw=String(value || "").trim().toLowerCase();
+  // Alpaca's broker vocabulary is normalized to Northstar's durable ledger states.
+  // Unknown broker states remain UNKNOWN and therefore fail closed during reconciliation.
+  return ({
+    new:"ACCEPTED", pending_new:"ACCEPTED", held:"ACCEPTED",
+    accepted:"ACCEPTED", accepted_for_bidding:"ACCEPTED",
+    partially_filled:"PARTIALLY_FILLED", filled:"FILLED",
+    canceled:"CANCELED", cancelled:"CANCELED", rejected:"REJECTED",
+    unknown:"UNKNOWN"
+  })[raw] || "UNKNOWN";
+};
 function storedFill(row) {
   try {
     const data=JSON.parse(row.response_json || "{}");
