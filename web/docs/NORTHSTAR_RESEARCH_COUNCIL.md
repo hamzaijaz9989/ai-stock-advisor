@@ -39,3 +39,36 @@ The council returns only RESEARCH_REVIEW_REQUIRED or NO_TRADE. It cannot enable 
 3. Persist run events and reports with idempotent request IDs and append-only audit records.
 4. Add agent-level evaluation fixtures, adversarial prompt-injection tests, source attribution checks and cost/latency budgets.
 5. Run shadow analyses against deterministic baseline, measure disagreement and factual error before any influence on ranking.
+
+
+## Connected worker API (v1)
+
+The authenticated `POST /api/research/council` endpoint connects the orchestration contract to server-side specialist adapters. It requires `NORTHSTAR_OPERATOR_TOKEN`, `NORTHSTAR_DB`, and either `GEMINI_API_KEY` or `OPENAI_API_KEY` for model-backed specialists. Gemini is preferred; OpenAI is a fallback. Provider secrets are never sent to the browser.
+
+Request shape:
+
+```json
+{
+  "requestId": "council-run-0001",
+  "context": {
+    "ticker": "NVDA",
+    "asOf": "2026-11-08T15:00:00Z",
+    "facts": [{"id":"quote-1","type":"QUOTE","value":180}],
+    "evidence": [{"id":"filing-1","type":"SEC_FILING","url":"https://www.sec.gov/...","summary":"..."}],
+    "portfolio": {
+      "equityUsd": 10000,
+      "openRiskUsd": 0,
+      "grossExposureUsd": 0,
+      "dailyLossFraction": 0,
+      "weeklyLossFraction": 0,
+      "drawdownFraction": 0,
+      "sectorExposureUsd": 0,
+      "concurrentPositions": 0
+    }
+  }
+}
+```
+
+The endpoint accepts up to 500 fact/evidence records and a 64 KiB body. IDs must be unique across both arrays. Each model specialist receives the same immutable context and must cite exact IDs. News and filing text is treated as untrusted input. Specialist workers do not fetch data, browse the web, calculate financial metrics, or submit orders. The deterministic risk committee independently checks portfolio limits (2% aggregate open risk, 100% gross exposure, 2% daily loss stop, 4% weekly loss stop, 8% drawdown pause, 40% sector exposure, and the initial one-position limit). Missing model credentials, malformed reports, unavailable workers, or risk-limit breaches result in `NO_TRADE`.
+
+The append-only `research_council_runs` table is defined in migration `0003_research_council_runs.sql`. Apply that migration to D1 before using the endpoint in production. The endpoint is currently an authenticated API, not yet wired to the dashboard's ticker-analysis flow. Caller-supplied facts must come from trusted Northstar collectors; do not send raw browser-supplied claims as authoritative facts.
