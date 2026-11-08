@@ -59,3 +59,10 @@ The dashboard now offers an optional five-year 50/200-day simple-moving-average 
 The five-year technical baseline also reports non-overlapping chronological six-month test windows after a 200-session moving-average warm-up. The 50/200-day rule is fixed in advance; no parameter optimization is performed on the test windows. Each fold displays dates, return, drawdown, volatility, and entry/exit counts.
 
 This is a preliminary diagnostic only. The current provider series and adjusted-close daily returns do not reconstruct point-in-time fundamentals, delisted-stock membership, exact intraday fills, or verified corporate-action history. It does not validate the live recommendation engine, and it cannot enable BUY. Treat the fold results as exploratory until the underlying data and execution assumptions are independently validated.
+
+
+## Time Machine: block-bootstrap robustness diagnostic
+
+The web strategy backtest now applies a deterministic circular moving-block bootstrap to the completed trade-return sequence. The default run uses 10,000 paths and blocks of five consecutive trades, preserving limited local ordering rather than independently shuffling every trade. It reports terminal-return percentiles, resampling frequency of negative terminal outcomes, and drawdown percentiles.
+
+This is a descriptive sensitivity analysis conditional on the observed trades. It is **not** a forecast, a calibrated probability of future profit/loss, or evidence that the strategy has an edge. It inherits every limitation of the source history and trade-generation rules, including current-provider revisions, survivorship, missing point-in-time fundamentals/news, corporate-action quality, and simplified daily execution. It requires at least 20 completed trades; smaller samples display no probability estimate. Seed and assumptions are returned for reproducibility. Walk-forward diagnostics and the separate point-in-time validator remain distinct gates; this panel cannot enable BUY or paper execution.
