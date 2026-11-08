@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluate } from "../web/functions/api/strategy-backtest.js";
+import { evaluate, evaluateWalkForward } from "../web/functions/api/strategy-backtest.js";
 
 test("daily strategy equity reconciles to next-open trade ledger including costs",()=>{
   const rows=[];
@@ -30,4 +30,19 @@ test("entry-day overnight gap is not credited before next-open entry",()=>{
   assert.ok(first);
   const entryBar=rows.find(row=>row.date===first.entryDate);
   assert.equal(first.entryFillPrice,entryBar.adjustedOpen*(1+5/10000));
+});
+
+test("walk-forward folds use next-open entry and exit accounting",()=>{
+  const rows=[];
+  for(let i=0;i<700;i++) {
+    const close=i<250?100:(i<470?150:80);
+    const open=close*1.1;
+    const date=new Date(Date.UTC(2024,0,1+i)).toISOString().slice(0,10);
+    rows.push({date,open,adjustedOpen:open,high:Math.max(open,close),low:Math.min(open,close),close,adjustedClose:close});
+  }
+  const report=evaluateWalkForward(rows);
+  assert.equal(report.totalFolds,3);
+  assert.ok(report.folds.every(fold=>Number.isFinite(fold.returnPercent)));
+  assert.ok(report.folds.some(fold=>fold.entries>0));
+  assert.match(report.methodology,/execution at current adjusted open/);
 });
