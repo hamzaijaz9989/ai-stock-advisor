@@ -19,7 +19,7 @@ function stable(v){if(Array.isArray(v))return "["+v.map(stable).join(",")+"]";if
 async function sha256(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");}
 async function endpoint(handler,origin,path,env){const r=await handler({request:new Request(origin+path),env});if(!r.ok)throw new Error(path.split("?")[0]+" unavailable (HTTP "+r.status+")");return r.json();}
 async function secFacts(ticker,asOf){
- const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: support@northstarai.app"};
+ const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
  const mapResponse=await fetch("https://www.sec.gov/files/company_tickers.json",{headers,signal:AbortSignal.timeout(8000)});
  if(!mapResponse.ok)throw new Error("SEC ticker directory unavailable (HTTP "+mapResponse.status+")");
  const directory=await mapResponse.json();
