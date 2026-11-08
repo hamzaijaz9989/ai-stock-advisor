@@ -65,6 +65,7 @@ export async function onRequestGet({ env }) {
         cash: account.cash,
         buyingPower: account.buying_power,
         equity: account.equity,
+        lastEquity: account.last_equity,
         portfolioValue: account.portfolio_value,
         tradingBlocked: account.trading_blocked,
         accountBlocked: account.account_blocked
