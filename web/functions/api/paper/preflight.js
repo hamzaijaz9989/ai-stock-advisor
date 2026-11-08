@@ -1,4 +1,4 @@
-// Read-only, authenticated paper-trade preflight. This route NEVER submits orders.
+// Read-only, authenticated paper-trade preflight. This route NEVER submits orders.\nimport {evaluatePortfolioRisk,deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
 const H = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail = (error,status=400,extra={}) => Response.json({ok:false,execution:false,error,...extra},{status,headers:H});
 function safeEqual(a,b) {
@@ -33,10 +33,10 @@ export async function onRequestPost({request,env}) {
   const stop=Number(body?.stopPrice);
   if(!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) return fail("Invalid ticker symbol.");
   if(!Number.isFinite(stop)||stop<=0) return fail("stopPrice must be a positive number.");
-  let control,ledgerPositions;
+  let control,ledgerPositions,equitySnapshots;
   try {
     control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first();
-    ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all();
+    ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price,market_value FROM paper_positions ORDER BY symbol").all();\n    equitySnapshots=await db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at ASC LIMIT 1000").all();
   } catch { return fail("Could not verify ledger policy or positions; fail-closed.",503); }
   if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Paper execution controls are not in the required disabled/kill-switched state.",503);
   let account,brokerPositions,quote;
@@ -73,7 +73,7 @@ export async function onRequestPost({request,env}) {
   if(!Number.isFinite(capital)||capital<=0||!Number.isFinite(riskFraction)||riskFraction<=0||riskFraction>maxRisk||!Number.isFinite(maxPositionFraction)||maxPositionFraction<=0) return fail("Risk policy values are invalid; fail-closed.",503);
   const currentExposure=broker.reduce((sum,p)=>sum+Math.abs(Number(p.market_value)||0),0);
   const equity=Number(account.equity),buyingPower=Number(account.buying_power);
-  if(!Number.isFinite(equity)||equity<=0||!Number.isFinite(buyingPower)||buyingPower<=0) return fail("Broker equity or buying power is unavailable.",503);
+  if(!Number.isFinite(equity)||equity<=0||!Number.isFinite(buyingPower)||buyingPower<=0) return fail("Broker equity or buying power is unavailable.",503);\n  const history=deriveSnapshotRiskMetrics({snapshots:equitySnapshots?.results||[],currentEquity:equity,lastEquity:account.last_equity,virtualAllocationUsd:capital});\n  if(!history.ok) return fail("Verified recent equity history is required for daily-loss and drawdown controls; preflight blocked ("+history.reason+").",503);\n  const normalizedPositions=broker.map(p=>({symbol:String(p.symbol||"").toUpperCase(),market_value:Number(p.market_value)*(capital/equity)}));\n  const portfolioRisk=evaluatePortfolioRisk({account:{status:account.status,trading_blocked:account.trading_blocked,account_blocked:account.account_blocked,equity:capital,buying_power:buyingPower*(capital/equity)},positions:normalizedPositions,limits:{maxPortfolioUsd:capital,maxPositionFraction,maxRiskFraction:maxRisk,maxDailyLossFraction:0.02,maxDrawdownFraction:0.08},dailyLossUsd:history.dailyLossUsd,maxDrawdownUsd:history.maxDrawdownUsd});\n  if(!portfolioRisk.ok) return fail("Deterministic portfolio risk committee blocked preflight: "+portfolioRisk.reason,409,{risk:portfolioRisk,history:history.history});
   const riskBudget=capital*riskFraction, perShareRisk=ask-stop;
   const maxPositionUsd=capital*maxPositionFraction;
   const remainingPortfolio=Math.max(0,capital-currentExposure);
@@ -91,7 +91,7 @@ export async function onRequestPost({request,env}) {
     stopPrice:stop,estimatedEntryPrice:ask,estimatedNotionalUsd:Number((shares*ask).toFixed(2)),
     plannedStopRiskUsd:Number((shares*perShareRisk).toFixed(2)),riskBudgetUsd:Number(riskBudget.toFixed(2)),
     exposure:{existingUsd:Number(currentExposure.toFixed(2)),afterProposedUsd:Number((currentExposure+shares*ask).toFixed(2)),maxPortfolioUsd:capital,maxPositionUsd},
-    broker:{accountStatus:account.status,equityUsd:equity,buyingPowerUsd:buyingPower,positionsReconciled:true},
+    broker:{accountStatus:account.status,equityUsd:equity,buyingPowerUsd:buyingPower,positionsReconciled:true},\n    risk:{status:portfolioRisk.status,dailyLossUsd:history.dailyLossUsd,maxDrawdownUsd:history.maxDrawdownUsd,history:history.history,virtualAllocationUsd:capital},
     warnings:["Read-only preflight. No order was submitted or stored.","Quote is IEX latest-quote data; this is not a guaranteed execution price.","Prices can move between preflight and any future order submission.","Execution remains disabled and kill switch remains engaged."],
     checkedAt:new Date().toISOString()
   },{headers:H});
