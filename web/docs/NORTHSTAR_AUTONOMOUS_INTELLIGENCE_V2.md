@@ -16,7 +16,9 @@ Connect the existing 253-symbol research shortlist to a deterministic, evidence-
 - Position notional <= 25% of equity.
 - Aggregate open risk <= 2% of equity.
 - Sector exposure <= 40% of equity.
-- Daily loss stop at 2%; drawdown pause at 8%.
+- Daily loss stop at 2%; weekly loss stop at 4%; drawdown pause at 8%.
+- Gross exposure cannot exceed 100% of equity; sector exposure cannot exceed 40%; the initial one-position limit requires zero existing concurrent positions before sizing.
+- Weekly loss fraction is a mandatory portfolio input; missing portfolio state rejects the candidate.
 - One concurrent position in the initial configuration.
 - Transaction-cost assumption is mandatory; missing inputs reject the candidate.
 
