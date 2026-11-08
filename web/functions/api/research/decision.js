@@ -71,7 +71,7 @@ export async function onRequestPost({request, env}) {
       automatedOrderSubmission: false
     };
     const traceJson = JSON.stringify(trace);
-    await env.NORTHSTAR_DB.prepare(
+    const write = await env.NORTHSTAR_DB.prepare(
       "INSERT INTO research_decision_traces (request_id, input_sha256, symbol, status, decision, failed_stage, reason, trace_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(request_id) DO NOTHING"
     ).bind(requestId, inputHash, symbol, result.status, result.decision, result.failedStage || null, result.reason || null, traceJson).run();
 
@@ -91,7 +91,7 @@ export async function onRequestPost({request, env}) {
       execution:false,
       automatedOrderSubmission:false,
       traceDurable:true,
-      replayed: persistedTrace.requestId === requestId && persistedTrace !== trace,
+      replayed: !(Number(write?.meta?.changes) > 0),
       createdAt: stored.created_at,
       trace: persistedTrace
     });
