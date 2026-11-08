@@ -32,7 +32,7 @@ export async function onRequestPost({request,env}){
    db.prepare("SELECT id,idempotency_key,client_request_hash,status,broker_order_id,response_json FROM paper_orders WHERE idempotency_key=?").bind("intent:"+intentId).first(),
    db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all(),
    db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all(),
-   db.prepare("SELECT id,status FROM paper_orders WHERE status IN ('SUBMITTING','ACCEPTED','PARTIALLY_FILLED','UNKNOWN') ORDER BY updated_at DESC LIMIT 50").all()
+   db.prepare("SELECT id,status FROM paper_orders ORDER BY updated_at DESC LIMIT 500").all()
   ]);
  }catch{return fail("Could not verify complete paper ledger; fail-closed.",503);}
  if(existing){
@@ -55,15 +55,13 @@ export async function onRequestPost({request,env}){
  if(!history.ok)return fail("Verified recent equity history is required: "+history.reason,503);
  // Require a fully flat broker and ledger before enabling this first, deliberately narrow executor.
  let brokerPositions,brokerOrders;
- try{[brokerPositions,brokerOrders]=await Promise.all([broker("/v2/positions",key,secret),broker("/v2/orders?status=open&limit=500",key,secret)]);}
+ try{[brokerPositions,brokerOrders]=await Promise.all([broker("/v2/positions",key,secret),broker("/v2/orders?status=all&limit=500",key,secret)]);}
  catch{return fail("Could not verify broker positions and open orders.",503);}
- if(!Array.isArray(brokerPositions)||!Array.isArray(brokerOrders)||brokerPositions.length||brokerOrders.length)return fail("Broker must be flat with no open orders for this initial executor.",409);
+ if(!Array.isArray(brokerPositions)||!Array.isArray(brokerOrders)||brokerPositions.length||brokerOrders.length||(orders.results||[]).length)return fail("Initial executor requires a completely flat, order-free broker and ledger; reconcile first.",409);
  if(intent.qty>Math.floor(250/(ask||Infinity)))return fail("Approved quantity exceeds the $250 virtual position ceiling at the current ask.",409);
  const gate=validatePaperExecutionGate({control,account,reconciliation:{ok:true,reconciled:true,execution:false},equityHistory:history,quote:{bid,ask,timestamp},order:{symbol:intent.symbol,side:"buy",qty:intent.qty,stopPrice:intent.stop_price},virtualAllocationUsd:1000});
  if(!gate.ok)return fail("Deterministic paper execution policy blocked the order: "+gate.reason,409,{policy:gate});
  if(!Number.isFinite(bid)||!Number.isFinite(ask)||ask<bid)return fail("Invalid current quote.",503);
- const intentHash=await digest({intentId,symbol:intent.symbol,qty:intent.qty,stop:intent.stop_price,reference:intent.reference_price});
- if(intent.request_hash!==intentHash && intent.request_hash!==null){/* intent hash is its original proposal hash; order payload gets its own immutable hash below */}
  const id=crypto.randomUUID(),now=new Date().toISOString(),idem="intent:"+intentId;
  const payload={symbol:intent.symbol,qty:intent.qty,side:"buy",type:"market",time_in_force:"day",order_class:"oto",stop_loss:{stop_price:Number(intent.stop_price).toFixed(2)},client_order_id:id};
  const requestHash=await digest(payload);
