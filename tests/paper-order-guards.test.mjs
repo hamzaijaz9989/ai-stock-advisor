@@ -50,3 +50,14 @@ test("risk evaluator includes pending order exposure and rejects invalid marks",
  const invalid=evaluatePortfolioRisk({account:{status:"ACTIVE",equity:1000,buying_power:1000},positions:[{symbol:"AAPL",market_value:"unknown"}],limits,dailyLossUsd:0,maxDrawdownUsd:0});
  assert.equal(invalid.reason,"INVALID_POSITION_MARKS");
 });
+
+import {deriveSnapshotRiskMetrics} from "../web/lib/paper-order-guards.js";
+test("snapshot risk metrics normalize broker equity to virtual allocation and require fresh history",()=>{
+ const now=Date.parse("2026-11-09T12:00:00Z");
+ const snapshots=[{captured_at:"2026-11-08T12:00:00Z",equity_usd:100000},{captured_at:"2026-11-09T11:00:00Z",equity_usd:99000}];
+ const r=deriveSnapshotRiskMetrics({snapshots,currentEquity:98000,lastEquity:100000,virtualAllocationUsd:1000,now});
+ assert.equal(r.ok,true); assert.equal(r.dailyLossUsd,20); assert.equal(r.maxDrawdownUsd,20);
+ assert.equal(deriveSnapshotRiskMetrics({snapshots:[],currentEquity:1000,lastEquity:1000,virtualAllocationUsd:1000,now}).reason,"EQUITY_HISTORY_UNAVAILABLE");
+ assert.equal(deriveSnapshotRiskMetrics({snapshots:[{captured_at:"2026-11-07T00:00:00Z",equity_usd:100000}],currentEquity:100000,lastEquity:100000,virtualAllocationUsd:1000,now}).reason,"EQUITY_HISTORY_STALE_OR_FUTURE");
+ assert.equal(deriveSnapshotRiskMetrics({snapshots:[{captured_at:"2026-11-09T13:00:00Z",equity_usd:100000}],currentEquity:100000,lastEquity:100000,virtualAllocationUsd:1000,now}).reason,"EQUITY_HISTORY_STALE_OR_FUTURE");
+});
