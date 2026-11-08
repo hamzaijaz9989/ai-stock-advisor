@@ -17,3 +17,16 @@ test("rejects UNAVAILABLE reports containing hidden risk claims",async()=>{const
 test("rejects duplicate IDs across facts and evidence",async()=>{const duplicate={...context,evidence:[{id:"price-1",type:"SEC_FILING"}]};await assert.rejects(()=>runResearchCouncil({requestId:"request-0010",context:duplicate,workers:workers()}),/unique/);});
 test("rejects an ordinary analyst attempting to set the risk decision",async()=>{const w=workers();w.bull_researcher=async()=>({...report(),decision:"ACCEPT_FOR_REVIEW",vetoReasons:[]});const r=await runResearchCouncil({requestId:"request-0011",context,workers:w});assert.equal(r.status,"NO_TRADE");});
 test("rejects oversized fact/evidence context before invoking workers",async()=>{const oversized={...context,facts:Array.from({length:501},(_,i)=>({id:"f-"+i}))};await assert.rejects(()=>runResearchCouncil({requestId:"request-0012",context:oversized,workers:workers()}),/maximum 500/);});
+
+test("rejects overlong model claims and excessive fact references without truncating them", async()=>{
+ const w=workers();
+ w.technical_analyst=async()=>({status:"COMPLETE",findings:[{claim:"x".repeat(2001),factIds:["price-1"]}],risks:[]});
+ const longClaim=await runResearchCouncil({requestId:"request-0013",context,workers:w});
+ assert.equal(longClaim.status,"NO_TRADE");
+ assert.ok(longClaim.agents.some(x=>x.role==="technical_analyst"&&x.status==="BLOCKED"));
+ const w2=workers();
+ w2.technical_analyst=async()=>({status:"COMPLETE",findings:[{claim:"This claim cites too many facts and should be rejected.",factIds:Array(11).fill("price-1")}],risks:[]});
+ const tooManyRefs=await runResearchCouncil({requestId:"request-0014",context,workers:w2});
+ assert.equal(tooManyRefs.status,"NO_TRADE");
+ assert.ok(tooManyRefs.agents.some(x=>x.role==="technical_analyst"&&x.status==="BLOCKED"));
+});
