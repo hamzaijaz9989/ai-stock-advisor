@@ -10,6 +10,7 @@ import {buildResearchCouncilContext} from "../../../lib/research-council-facts.j
 import {runResearchCouncil} from "../../../lib/research-council.js";
 import {createResearchCouncilWorkers} from "../../../lib/research-council-adapters.js";
 import {deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
+import {onRequestPost as syncPaperAccount} from "../paper/sync.js";
 
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const reply=(body,status=200)=>Response.json(body,{status,headers:H});
@@ -83,6 +84,9 @@ export async function onRequestPost({request,env}){
  if(!/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker)||!/^[A-Za-z0-9._:-]{8,100}$/.test(requestId))return reply({ok:false,error:"A valid US ticker and stable requestId are required."},400);
  const asOf=new Date().toISOString(),origin=new URL(request.url).origin;
  try{
+  // Refresh the read-only broker snapshot before using portfolio values.
+  const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
+  if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
   const portfolio=await portfolioSnapshot(env);
   const [quote,fundamentals,history,news,earnings,sec]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
