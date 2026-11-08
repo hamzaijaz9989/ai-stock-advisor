@@ -111,7 +111,7 @@ function statsFromReturns(returns) {
     volatilityPercent:Math.sqrt(variance*252)*100
   };
 }
-function evaluate(rows) {
+export function evaluate(rows) {
   const strategyDaily=[], trades=[], benchmark=[];
   const cost=COST_PER_SIDE/10000;
   let invested=false, entryFill=null, entryDate=null, entryIndex=null;
