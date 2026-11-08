@@ -73,13 +73,14 @@ export async function onRequestPost({request,env}) {
   const maxRisk=Number(control.max_risk_fraction);
   const maxPositionFraction=Number(control.max_position_fraction);
   if(!Number.isFinite(capital)||capital<=0||!Number.isFinite(riskFraction)||riskFraction<=0||riskFraction>maxRisk||!Number.isFinite(maxPositionFraction)||maxPositionFraction<=0) return fail("Risk policy values are invalid; fail-closed.",503);
-  const currentExposure=broker.reduce((sum,p)=>sum+Math.abs(Number(p.market_value)||0),0);
   const equity=Number(account.equity),buyingPower=Number(account.buying_power);
   if(!Number.isFinite(equity)||equity<=0||!Number.isFinite(buyingPower)||buyingPower<=0) return fail("Broker equity or buying power is unavailable.",503);
   const history=deriveSnapshotRiskMetrics({snapshots:equitySnapshots?.results||[],currentEquity:equity,lastEquity:account.last_equity,virtualAllocationUsd:capital});
   if(!history.ok) return fail("Verified recent equity history is required for daily-loss and drawdown controls; preflight blocked ("+history.reason+").",503);
   if(broker.some(p=>p.market_value===null||p.market_value===undefined||!Number.isFinite(Number(p.market_value)))) return fail("Broker position market values are missing or invalid; risk preflight blocked.",503);
   const normalizedPositions=broker.map(p=>({symbol:String(p.symbol||"").toUpperCase(),market_value:Number(p.market_value)*(capital/equity)}));
+  // All portfolio exposure calculations below use the separate virtual-allocation units.
+  const currentExposure=normalizedPositions.reduce((sum,p)=>sum+Math.abs(p.market_value),0);
   const portfolioRisk=evaluatePortfolioRisk({account:{status:account.status,trading_blocked:account.trading_blocked,account_blocked:account.account_blocked,equity:capital,buying_power:buyingPower*(capital/equity)},positions:normalizedPositions,limits:{maxPortfolioUsd:capital,maxPositionFraction,maxRiskFraction:maxRisk,maxDailyLossFraction:0.02,maxDrawdownFraction:0.08},dailyLossUsd:history.dailyLossUsd,maxDrawdownUsd:history.maxDrawdownUsd});
   if(!portfolioRisk.ok) return fail("Deterministic portfolio risk committee blocked preflight: "+portfolioRisk.reason,409,{risk:portfolioRisk,history:history.history});
   const riskBudget=capital*riskFraction, perShareRisk=ask-stop;
