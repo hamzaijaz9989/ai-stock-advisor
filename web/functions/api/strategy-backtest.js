@@ -22,7 +22,7 @@ function normalizeRows(raw, source) {
     const low = Number(item?.low);
     const close = Number(item?.close);
     const adjusted = Number(item?.adjClose ?? item?.adj_close ?? item?.adjustedClose ?? item?.adjusted_close ?? item?.close);
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) continue;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
     if (![open,high,low,close,adjusted].every(v=>Number.isFinite(v)&&v>0)) continue;
     byDate.set(date,{date,open,high,low,close,adjustedClose:adjusted});
   }
