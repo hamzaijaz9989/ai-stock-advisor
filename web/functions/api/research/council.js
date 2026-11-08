@@ -32,6 +32,22 @@ export async function onRequestPost({request,env}){
   const context=body.context;
   if(!context||typeof context!=="object"||!Array.isArray(context.facts)||!Array.isArray(context.evidence)||!context.portfolio)return respond({ok:false,error:"Facts, evidence and portfolio context are required."},400);
   if(context.facts.length+context.evidence.length>500)return respond({ok:false,error:"Maximum 500 fact/evidence items."},413);
+
+  // A Council run is not eligible for review unless its portfolio risk snapshot
+  // carries explicit provenance and complete, internally consistent fields.
+  // This is a fail-closed shape/freshness gate, not cryptographic source attestation:
+  // only a future server-side collector can establish the snapshot's provenance.
+  const portfolio=context.portfolio;
+  const asOfMs=Date.parse(context.asOf||"");
+  const portfolioAsOfMs=Date.parse(portfolio.asOf||"");
+  const portfolioFields=["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"];
+  const portfolioValues=Object.fromEntries(portfolioFields.map(key=>[key,Number(portfolio[key])]));
+  const validPortfolio=portfolio.verified===true&&typeof portfolio.source==="string"&&portfolio.source.trim().length>0&&
+    Number.isFinite(asOfMs)&&Number.isFinite(portfolioAsOfMs)&&portfolioAsOfMs<=asOfMs&&
+    portfolioFields.every(key=>portfolio[key]!==null&&portfolio[key]!==undefined&&portfolio[key]!==""&&Number.isFinite(portfolioValues[key]))&&
+    portfolioValues.equityUsd>0&&portfolioFields.filter(key=>key!=="equityUsd"&&key!=="concurrentPositions").every(key=>portfolioValues[key]>=0)&&
+    Number.isInteger(portfolioValues.concurrentPositions);
+  if(!validPortfolio)return respond({ok:false,error:"A complete, explicitly verified portfolio snapshot with source and timestamp is required; missing risk data must never be replaced with zeroes.",execution:false,traceDurable:false},422);
   try{
     const input=stable(context),hash=await digest(input);
     const existing=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(body.requestId).first();
