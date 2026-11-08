@@ -28,7 +28,7 @@ const context = {
   ticker:"NVDA", asOf:"2026-11-08T15:00:00Z",
   facts:[{id:"quote-1",type:"QUOTE",value:180},{id:"risk-1",type:"PORTFOLIO",value:"zero open risk"}],
   evidence:[{id:"filing-1",type:"SEC_FILING",url:"https://www.sec.gov/Archives/example",summary:"Official filing excerpt supplied by the upstream research collector."}],
-  portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
+  portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0,verified:true,source:"test-reconciled-snapshot",asOf:"2026-11-08T15:00:00Z"}
 };
 const env = db => ({NORTHSTAR_OPERATOR_TOKEN:"operator-secret",NORTHSTAR_DB:db});
 function request(body, token="operator-secret") {
@@ -53,6 +53,26 @@ test("council endpoint authenticates and requires persistent audit storage", asy
   assert.equal(denied.status,401);
   const missing = await onRequestPost({request:request({requestId:"council-0002",context}),env:{NORTHSTAR_OPERATOR_TOKEN:"operator-secret"}});
   assert.equal(missing.status,503);
+});
+
+test("council endpoint rejects portfolio snapshots without explicit provenance", async () => {
+  const db=makeDb();
+  const missing={...context,portfolio:{...context.portfolio,verified:false}};
+  const response=await onRequestPost({request:request({requestId:"council-portfolio-1",context:missing}),env:env(db)});
+  assert.equal(response.status,422);
+  assert.equal((await response.json()).execution,false);
+  assert.equal(db.rows.size,0);
+});
+
+test("council endpoint rejects incomplete or future-dated portfolio risk snapshots", async () => {
+  const db=makeDb();
+  const incomplete={...context,portfolio:{...context.portfolio,weeklyLossFraction:null}};
+  const first=await onRequestPost({request:request({requestId:"council-portfolio-2",context:incomplete}),env:env(db)});
+  assert.equal(first.status,422);
+  const future={...context,portfolio:{...context.portfolio,asOf:"2026-11-08T16:00:00Z"}};
+  const second=await onRequestPost({request:request({requestId:"council-portfolio-3",context:future}),env:env(db)});
+  assert.equal(second.status,422);
+  assert.equal(db.rows.size,0);
 });
 
 test("council endpoint stores a fail-closed result and replays idempotently without AI credentials", async () => {
