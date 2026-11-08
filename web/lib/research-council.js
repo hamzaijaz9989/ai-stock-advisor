@@ -35,14 +35,14 @@ function validateReport(report, validFactIds, role) {
   return {ok:true};
 }
 async function invoke(role, worker, payload, factIds) {
-  if (typeof worker !== "function") return {role, status:"UNAVAILABLE", reason:"No worker configured."};
+  if (typeof worker !== "function") return {role, status:"UNAVAILABLE", reason:role+" worker not configured."};
   try {
     const report = await worker(freezeDeep(structuredClone(payload)));
     const checked = validateReport(report, factIds, role);
     if (!checked.ok) return {role, status:"BLOCKED", reason:checked.reason};
     return {role, status:report.status, report};
   } catch {
-    return {role, status:"UNAVAILABLE", reason:"Worker failed; details withheld from the public decision."};
+    return {role, status:"UNAVAILABLE", reason:role+" worker failed; details withheld from the public decision."};
   }
 }
 export async function runResearchCouncil({requestId, context, workers}) {
