@@ -35,8 +35,8 @@ function independentEvidence(items, now) {
     for (const key of [...url.searchParams.keys()]) {
       if (/^(utm_|fbclid$|gclid$|mc_cid$|mc_eid$)/i.test(key)) url.searchParams.delete(key);
     }
-    const urlKey = url.toString().replace(/\\/$/, "");
-    const summaryKey = item.summary.trim().toLowerCase().replace(/\\s+/g, " ");
+    const urlKey = url.toString();
+    const summaryKey = item.summary.trim().toLowerCase().split(" ").filter(Boolean).join(" ");
     if (seenUrls.has(urlKey) || seenSummaries.has(summaryKey)) continue;
     seenUrls.add(urlKey);
     seenSummaries.add(summaryKey);
