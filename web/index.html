@@ -49,6 +49,17 @@
         <div class="lock-track"><span></span></div><p>Kill switch engaged · no live orders</p>
       </article>
     </div>
+    <section class="profit-deck" aria-label="Paper portfolio profit and loss">
+      <div class="profit-heading"><div><span class="command-eyebrow">05 / PORTFOLIO PERFORMANCE</span><h2>Profit &amp; loss cockpit</h2><p>Paper account telemetry · read-only · no orders</p></div><span id="profit-connection" class="profit-state">AWAITING ACCOUNT</span></div>
+      <div class="profit-grid">
+        <article class="profit-metric featured"><span>ACCOUNT EQUITY</span><strong id="profit-equity">—</strong><small id="profit-equity-note">Connect paper account to load</small></article>
+        <article class="profit-metric"><span>DAY P&amp;L</span><strong id="profit-day">—</strong><small>Change vs prior close</small></article>
+        <article class="profit-metric"><span>UNREALIZED P&amp;L</span><strong id="profit-unrealized">—</strong><small>Open paper positions</small></article>
+        <article class="profit-metric"><span>BUYING POWER</span><strong id="profit-buying-power">—</strong><small>Broker-reported</small></article>
+      </div>
+      <div class="profit-bottom"><span id="profit-position-count">Positions: not loaded</span><span id="profit-updated">Not yet synchronized</span></div>
+      <p class="profit-disclaimer">Profit is shown only when Northstar can verify a connected paper account. Day P&amp;L is not lifetime profit; unrealized P&amp;L excludes closed trades. This panel never reads your real-money account.</p>
+    </section>
     <div class="command-lower">
       <div class="command-lower-heading"><div><span class="command-eyebrow">RESEARCH COUNCIL / ARCHITECTURE</span><h2>Eight perspectives. One risk gate.</h2></div><span class="architecture-tag">ON-DEMAND ANALYSIS</span></div>
       <div class="agent-rail">
