@@ -13,7 +13,7 @@ const candidate=()=>({
     {type:"NEWS_REPORT",publisherId:"reuters.com",url:"https://www.reuters.com/markets/example",publishedAt:"2026-11-07T13:00:00Z",summary:"Independent reporting discusses demand trends, competitive pressures and the company outlook."}
   ],
   risks:["Valuation multiple remains elevated.","Semiconductor demand is cyclical."],
-  stopPrice:175,account:{equityUsd:1000},
+  stopPrice:176,account:{equityUsd:1000},
   limits:{riskFraction:0.005,maxPositionFraction:0.25,estimatedRoundTripCostBps:20},
   portfolio:{openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
 });
