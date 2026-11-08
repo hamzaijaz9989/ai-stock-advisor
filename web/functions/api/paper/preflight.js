@@ -38,7 +38,7 @@ export async function onRequestPost({request,env}) {
   try {
     control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first();
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price,market_value FROM paper_positions ORDER BY symbol").all();
-    equitySnapshots=await db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at ASC LIMIT 1000").all();
+    equitySnapshots=await db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all();
   } catch { return fail("Could not verify ledger policy or positions; fail-closed.",503); }
   if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Paper execution controls are not in the required disabled/kill-switched state.",503);
   let account,brokerPositions,quote;
@@ -78,7 +78,7 @@ export async function onRequestPost({request,env}) {
   if(!Number.isFinite(equity)||equity<=0||!Number.isFinite(buyingPower)||buyingPower<=0) return fail("Broker equity or buying power is unavailable.",503);
   const history=deriveSnapshotRiskMetrics({snapshots:equitySnapshots?.results||[],currentEquity:equity,lastEquity:account.last_equity,virtualAllocationUsd:capital});
   if(!history.ok) return fail("Verified recent equity history is required for daily-loss and drawdown controls; preflight blocked ("+history.reason+").",503);
-  const normalizedPositions=broker.map(p=>({symbol:String(p.symbol||"").toUpperCase(),market_value:Number(p.market_value)*(capital/equity)}));
+  if(broker.some(p=>p.market_value===null||p.market_value===undefined||!Number.isFinite(Number(p.market_value)))) return fail("Broker position market values are missing or invalid; risk preflight blocked.",503);\n  const normalizedPositions=broker.map(p=>({symbol:String(p.symbol||"").toUpperCase(),market_value:Number(p.market_value)*(capital/equity)}));
   const portfolioRisk=evaluatePortfolioRisk({account:{status:account.status,trading_blocked:account.trading_blocked,account_blocked:account.account_blocked,equity:capital,buying_power:buyingPower*(capital/equity)},positions:normalizedPositions,limits:{maxPortfolioUsd:capital,maxPositionFraction,maxRiskFraction:maxRisk,maxDailyLossFraction:0.02,maxDrawdownFraction:0.08},dailyLossUsd:history.dailyLossUsd,maxDrawdownUsd:history.maxDrawdownUsd});
   if(!portfolioRisk.ok) return fail("Deterministic portfolio risk committee blocked preflight: "+portfolioRisk.reason,409,{risk:portfolioRisk,history:history.history});
   const riskBudget=capital*riskFraction, perShareRisk=ask-stop;
