@@ -1,3 +1,4 @@
+import {runBlockBootstrap} from "../../lib/time-machine.js";
 const ALLOWED = /^[A-Z0-9.^=-]{1,12}$/;
 const COST_PER_SIDE = 5; // basis points; assumed cost, not broker-specific quote
 const FAST = 50;
@@ -95,6 +96,7 @@ function evaluate(rows) {
   const strategy=statsFromReturns(strategyDaily);
   const benchmarkAll=statsFromReturns(rows.slice(1).map((r,i)=>r.adjustedClose/rows[i].adjustedClose-1));
   const completed=trades.filter(t=>t.status!=="open_at_end");
+  const monteCarlo=runBlockBootstrap(completed.map(t=>t.netReturnPercent));
   const wins=completed.filter(t=>t.netReturnPercent>0).length;
   const grossWins=completed.filter(t=>t.netReturnPercent>0).reduce((s,t)=>s+t.netReturnPercent,0);
   const grossLosses=Math.abs(completed.filter(t=>t.netReturnPercent<=0).reduce((s,t)=>s+t.netReturnPercent,0));
@@ -103,6 +105,7 @@ function evaluate(rows) {
     costAssumption:"5 basis points per side (10 bps round trip), fixed assumption; excludes tax and may understate spreads/market impact.",
     strategy,benchmarkBuyHold:benchmarkAll,
     trades:trades.length,completedTrades:completed.length,openAtEnd:trades.length-completed.length,
+    monteCarlo,
     winRatePercent:completed.length?wins/completed.length*100:null,
     profitFactor:grossLosses>0?grossWins/grossLosses:(grossWins>0?null:0),
     averageTradeReturnPercent:completed.length?completed.reduce((s,t)=>s+t.netReturnPercent,0)/completed.length:null,
@@ -188,6 +191,7 @@ export async function onRequestGet({request}) {
       averageTradeReturnPercent:report.averageTradeReturnPercent,
       averageBenchmarkDuringTradesPercent:report.averageBenchmarkDuringTradesPercent,
       tradeLog:report.tradeLog,
+      monteCarlo:report.monteCarlo,
       walkForward,
       warning:"EXPERIMENTAL TECHNICAL STRATEGY ONLY — not the live recommendation engine. This uses current provider history, not point-in-time fundamentals, delisted-stock universe, or verified corporate-action history. It is not an out-of-sample validated signal and must not enable BUY. Provider history may be revised. SPY comparison is buy-and-hold total-return proxy using adjusted closes."
     },{headers:{"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"}});
