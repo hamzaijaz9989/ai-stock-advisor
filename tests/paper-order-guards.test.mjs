@@ -35,21 +35,14 @@ test("risk evaluator blocks excess exposure and restricted accounts",()=>{
  const b=evaluatePortfolioRisk({account:{status:"ACTIVE",trading_blocked:true,equity:1000,buying_power:500},positions:[],limits,dailyLossUsd:0,maxDrawdownUsd:0});
  assert.ok(b.breaches.includes("BROKER_ACCOUNT_RESTRICTED"));
 });
-
-
-test("risk evaluator enforces exact daily loss and drawdown boundaries",()=>{
+test("risk evaluator enforces the documented $20 daily and $80 drawdown boundaries",()=>{
  const limits={maxPortfolioUsd:1000,maxPositionFraction:.25,maxRiskFraction:.01};
- const base={account:{status:"ACTIVE",equity:1000,buying_power:1000},positions:[],limits, maxDrawdownUsd:0};
- const atDailyLimit=evaluatePortfolioRisk({...base,dailyLossUsd:10});
- assert.equal(atDailyLimit.ok,true);
- const overDailyLimit=evaluatePortfolioRisk({...base,dailyLossUsd:10.01});
- assert.ok(overDailyLimit.breaches.includes("DAILY_LOSS_LIMIT"));
- const atDrawdownLimit=evaluatePortfolioRisk({...base,dailyLossUsd:0,maxDrawdownUsd:20});
- assert.equal(atDrawdownLimit.ok,true);
- const overDrawdownLimit=evaluatePortfolioRisk({...base,dailyLossUsd:0,maxDrawdownUsd:20.01});
- assert.ok(overDrawdownLimit.breaches.includes("DRAWDOWN_LIMIT"));
+ const base={account:{status:"ACTIVE",equity:1000,buying_power:1000},positions:[],limits,maxDrawdownUsd:0};
+ assert.equal(evaluatePortfolioRisk({...base,dailyLossUsd:20}).ok,true);
+ assert.ok(evaluatePortfolioRisk({...base,dailyLossUsd:20.01}).breaches.includes("DAILY_LOSS_LIMIT"));
+ assert.equal(evaluatePortfolioRisk({...base,dailyLossUsd:0,maxDrawdownUsd:80}).ok,true);
+ assert.ok(evaluatePortfolioRisk({...base,dailyLossUsd:0,maxDrawdownUsd:80.01}).breaches.includes("DRAWDOWN_LIMIT"));
 });
-
 test("risk evaluator includes pending order exposure and rejects invalid marks",()=>{
  const limits={maxPortfolioUsd:1000,maxPositionFraction:.25,maxRiskFraction:.01};
  const r=evaluatePortfolioRisk({account:{status:"ACTIVE",equity:1000,buying_power:1000},positions:[{symbol:"AAPL",market_value:800}],limits,dailyLossUsd:0,maxDrawdownUsd:0,openOrderExposureUsd:250});
