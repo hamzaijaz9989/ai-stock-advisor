@@ -48,3 +48,24 @@ export function evaluatePortfolioRisk({account,positions,limits,dailyLossUsd,max
   if(account.trading_blocked||account.account_blocked||account.status!=="ACTIVE") breaches.push("BROKER_ACCOUNT_RESTRICTED");
   return {ok:breaches.length===0,status:breaches.length?"RISK_BLOCKED_FAIL_CLOSED":"RISK_CHECK_PASSED_READ_ONLY",reason:breaches.length?breaches.join(","):"WITHIN_CONFIGURED_LIMITS",execution:false,metrics:{equityUsd:equity,buyingPowerUsd:buyingPower,grossExposureUsd:Number(gross.toFixed(2)),dailyLossUsd:Number(dailyLossUsd),maxDrawdownUsd:Number(maxDrawdownUsd),concentration},breaches};
 }
+
+ // Convert broker equity history into the independent virtual-allocation risk units.
+ // Missing or stale history is never treated as zero drawdown.
+export function deriveSnapshotRiskMetrics({snapshots,currentEquity,lastEquity,virtualAllocationUsd,now=Date.now(),maxAgeMs=26*60*60*1000}) {
+  const block=reason=>({ok:false,reason});
+  if(!Array.isArray(snapshots)||snapshots.length===0) return block("EQUITY_HISTORY_UNAVAILABLE");
+  const equity=Number(currentEquity),baseline=Number(lastEquity),allocation=Number(virtualAllocationUsd);
+  if(![equity,baseline,allocation,now,maxAgeMs].every(Number.isFinite)||equity<=0||baseline<=0||allocation<=0||maxAgeMs<=0) return block("INVALID_EQUITY_HISTORY_INPUT");
+  const points=snapshots.map(s=>({time:Date.parse(s.captured_at),equity:Number(s.equity_usd)}));
+  if(points.some(p=>!Number.isFinite(p.time)||!Number.isFinite(p.equity)||p.equity<=0)) return block("INVALID_EQUITY_HISTORY_POINT");
+  points.sort((a,b)=>a.time-b.time);
+  const latest=points[points.length-1];
+  if(latest.time>now||now-latest.time>maxAgeMs) return block("EQUITY_HISTORY_STALE_OR_FUTURE");
+  let peak=0,maxDrawdownFraction=0;
+  for(const point of [...points,{time:now,equity}]) {
+    peak=Math.max(peak,point.equity);
+    maxDrawdownFraction=Math.max(maxDrawdownFraction,(peak-point.equity)/peak);
+  }
+  const dailyLossFraction=Math.max(0,(baseline-equity)/baseline);
+  return {ok:true,dailyLossUsd:Number((dailyLossFraction*allocation).toFixed(4)),maxDrawdownUsd:Number((maxDrawdownFraction*allocation).toFixed(4)),history:{latestSnapshotAt:new Date(latest.time).toISOString(),snapshotCount:points.length,dailyLossFraction:Number(dailyLossFraction.toFixed(6)),maxDrawdownFraction:Number(maxDrawdownFraction.toFixed(6)),virtualAllocationUsd:allocation}};
+}

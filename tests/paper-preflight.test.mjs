@@ -3,14 +3,17 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 async function loadFunction() {
-  const source = await readFile(new URL("../web/functions/api/paper/preflight.js", import.meta.url), "utf8");
+  const helper = await readFile(new URL("../web/lib/paper-order-guards.js", import.meta.url), "utf8");
+  const helperUrl = "data:text/javascript;base64," + Buffer.from(helper).toString("base64");
+  let source = await readFile(new URL("../web/functions/api/paper/preflight.js", import.meta.url), "utf8");
+  source = source.replace('from "../../../lib/paper-order-guards.js"', 'from "' + helperUrl + '"');
   return import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
 }
 function mockDb(control, ledgerRows=[]) {
   return { prepare(sql) {
     return {
       async first() { assert.match(sql,/execution_control/); return control; },
-      async all() { assert.match(sql,/paper_positions/); return {results:ledgerRows}; }
+      async all() { if(/paper_positions/.test(sql)) return {results:ledgerRows}; if(/paper_equity_snapshots/.test(sql)) return {results:[{captured_at:new Date().toISOString(),equity_usd:100000}]}; throw new Error("unexpected SQL "+sql); }
     };
   }};
 }
@@ -20,7 +23,7 @@ function makeRequest(body, token="secret") {
 }
 function fakeFetch({quoteTime=new Date().toISOString(),bid=99.9,ask=100,positions=[]}={}) {
   return async url => {
-    if(String(url).includes("/v2/account")) return Response.json({status:"ACTIVE",trading_blocked:false,account_blocked:false,equity:"100000",buying_power:"400000"});
+    if(String(url).includes("/v2/account")) return Response.json({status:"ACTIVE",trading_blocked:false,account_blocked:false,equity:"100000",last_equity:"100000",buying_power:"400000"});
     if(String(url).includes("/v2/positions")) return Response.json(positions);
     if(String(url).includes("/quotes/latest")) return Response.json({quote:{bp:bid,ap:ask,t:quoteTime}});
     throw new Error("unexpected URL "+url);
@@ -42,6 +45,21 @@ test("preflight sizes from fresh quote and reconciled paper ledger without submi
     assert.equal(body.execution,false);
     assert.equal(body.shares,1);
     assert.equal(body.broker.positionsReconciled,true);
+  } finally { globalThis.fetch=oldFetch; }
+});
+test("preflight normalizes existing broker exposure to the virtual allocation before sizing",async()=>{
+  const {onRequestPost}=await loadFunction();
+  const oldFetch=globalThis.fetch;
+  globalThis.fetch=fakeFetch({positions:[{symbol:"AAPL",qty:"1",avg_entry_price:"100",market_value:"10000"}]});
+  try {
+    const ledger=[{symbol:"AAPL",qty:"1",avg_entry_price:"100",market_value:"10000"}];
+    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control,ledger),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+    const body=await response.json();
+    assert.equal(response.status,200);
+    assert.equal(body.shares,1);
+    assert.equal(body.exposure.existingUsd,100);
+    assert.equal(body.exposure.afterProposedUsd,200);
+    assert.equal(body.exposure.maxPortfolioUsd,1000);
   } finally { globalThis.fetch=oldFetch; }
 });
 test("preflight rejects stale quotes",async()=>{
