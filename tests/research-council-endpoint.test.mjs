@@ -28,7 +28,7 @@ const context = {
   ticker:"NVDA", asOf:"2026-11-08T15:00:00Z",
   facts:[{id:"quote-1",type:"QUOTE",value:180},{id:"risk-1",type:"PORTFOLIO",value:"zero open risk"}],
   evidence:[{id:"filing-1",type:"SEC_FILING",url:"https://www.sec.gov/Archives/example",summary:"Official filing excerpt supplied by the upstream research collector."}],
-  portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
+  portfolio:{verified:true,source:"test-reconciled-snapshot",asOf:"2026-11-08T15:00:00Z",equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
 };
 const env = db => ({NORTHSTAR_OPERATOR_TOKEN:"operator-secret",NORTHSTAR_DB:db});
 function request(body, token="operator-secret") {
@@ -116,4 +116,20 @@ test("risk committee does not attach unrelated market fact IDs to portfolio asse
   assert.deepEqual(result.findings,[]);
   assert.deepEqual(result.risks,[]);
   assert.deepEqual(result.vetoReasons,[]);
+});
+
+test("council endpoint rejects missing portfolio provenance and incomplete risk metrics", async () => {
+  const db=makeDb();
+  const missing={...context,portfolio:{...context.portfolio,verified:false}};
+  const missingResponse=await onRequestPost({request:request({requestId:"council-0010",context:missing}),env:env(db)});
+  assert.equal(missingResponse.status,422);
+  const incomplete={...context,portfolio:{...context.portfolio,weeklyLossFraction:undefined}};
+  const incompleteResponse=await onRequestPost({request:request({requestId:"council-0011",context:incomplete}),env:env(db)});
+  assert.equal(incompleteResponse.status,422);
+  assert.equal(db.rows.size,0);
+});
+test("council endpoint rejects future-dated portfolio snapshots", async () => {
+  const future={...context,portfolio:{...context.portfolio,asOf:"2099-01-01T00:00:00Z"}};
+  const response=await onRequestPost({request:request({requestId:"council-0012",context:future}),env:env(makeDb())});
+  assert.equal(response.status,422);
 });
