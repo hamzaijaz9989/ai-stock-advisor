@@ -62,7 +62,7 @@ function evaluate(rows) {
       const next=rows[i+1];
       const exitFill=next.open*(1-cost);
       const ret=exitFill/entryFill-1;
-      trades.push({entryDate,exitDate:next.date,netReturnPercent:ret*100,holdingSessions:i+1-entryIndex});
+      trades.push({entryDate,exitDate:next.date,entryFillPrice:entryFill,exitFillPrice:exitFill,exitReason:"SMA_CROSS_DOWN",netReturnPercent:ret*100,holdingSessions:i+1-entryIndex});
       returns.push(ret);
       // Benchmark uses adjusted-close total-return factor over the same trade window.
       const bench=(next.adjustedClose/rows[entryIndex].adjustedClose)-1;
@@ -73,7 +73,7 @@ function evaluate(rows) {
   if (invested) {
     const last=rows[rows.length-1];
     const ret=last.adjustedClose/rows[entryIndex].adjustedClose/(1+cost)-1;
-    trades.push({entryDate,exitDate:last.date,netReturnPercent:ret*100,holdingSessions:rows.length-entryIndex,status:"open_at_end"});
+    trades.push({entryDate,exitDate:last.date,entryFillPrice:entryFill,exitFillPrice:last.adjustedClose/(1+cost),exitReason:"END_OF_TEST",netReturnPercent:ret*100,holdingSessions:rows.length-entryIndex,status:"open_at_end"});
     returns.push(ret);
     benchmark.push(last.adjustedClose/rows[entryIndex].adjustedClose-1);
   }
