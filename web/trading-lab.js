@@ -270,6 +270,15 @@
     }
   }
   $("refresh-performance").addEventListener("click",loadPaperPerformance);
+  const fmtPct = value => Number.isFinite(Number(value)) ? Number(value).toFixed(2) + "%" : "—";
+  function appendMetric(root,label,value,detail="") {
+    const row=document.createElement("div"); row.className="journal-row";
+    const left=document.createElement("div");
+    const name=document.createElement("span"); name.textContent=label; left.appendChild(name);
+    if(detail){const sub=document.createElement("div");sub.className="muted tiny";sub.textContent=detail;left.appendChild(sub);}
+    const val=document.createElement("strong");val.textContent=value;
+    row.append(left,val);root.appendChild(row);
+  }
   async function runTimeMachine() {
     const button=$("run-backtest"), status=$("backtest-status"), root=$("backtest-results");
     const ticker=String($("backtest-symbol").value||"").trim().toUpperCase();
@@ -279,23 +288,54 @@
       const response=await fetch("/api/strategy-backtest?ticker="+encodeURIComponent(ticker),{headers:{Accept:"application/json"},cache:"no-store"});
       const data=await response.json();
       if(!response.ok) throw new Error(data.error||"Historical test unavailable.");
+      const provider=document.createElement("div");provider.className="warning";
+      provider.textContent="DATA SOURCE · "+(data.source||"Unknown")+" · "+(data.sourceStatus||"STATUS UNKNOWN")+" · SPY: "+(data.benchmarkSource||"Unknown");
+      root.appendChild(provider);
       const metrics=[
-        ["Strategy total return",data.strategy?.totalReturnPercent],
-        ["Strategy max drawdown",data.strategy?.maxDrawdownPercent],
-        ["SPY buy-and-hold",data.spyBuyHold?.totalReturnPercent],
-        ["Completed trades",data.completedTrades],
-        ["Win rate",data.winRatePercent],
-        ["Profit factor",data.profitFactor],
-        ["Walk-forward folds",data.walkForward?.totalFolds]
+        ["Strategy total return",fmtPct(data.strategy?.totalReturnPercent),"Daily mark-to-market diagnostic; reconcile with trade log before interpretation"],
+        ["Strategy annualized return",fmtPct(data.strategy?.annualizedReturnPercent)],
+        ["Strategy maximum drawdown",fmtPct(data.strategy?.maxDrawdownPercent)],
+        ["Strategy annualized volatility",fmtPct(data.strategy?.volatilityPercent)],
+        ["SPY buy-and-hold return",fmtPct(data.spyBuyHold?.totalReturnPercent)],
+        ["SPY maximum drawdown",fmtPct(data.spyBuyHold?.maxDrawdownPercent)],
+        ["Completed trades",data.completedTrades??"—","Open-at-end positions are excluded"],
+        ["Open at test end",data.openAtEnd??"—"],
+        ["Win rate",fmtPct(data.winRatePercent),"Completed trades only"],
+        ["Profit factor",Number.isFinite(Number(data.profitFactor))?Number(data.profitFactor).toFixed(2):"INSUFFICIENT DATA"],
+        ["Walk-forward positive folds",String(data.walkForward?.positiveFolds??"—")+"/"+String(data.walkForward?.totalFolds??"—")]
       ];
-      for(const [label,value] of metrics){
-        const row=document.createElement("div"); row.className="journal-row";
-        const name=document.createElement("span"); name.textContent=label;
-        const val=document.createElement("strong"); val.textContent=value===null||value===undefined?"INSUFFICIENT DATA":label==="Completed trades"||label==="Walk-forward folds"?String(value):label==="Profit factor"?Number(value).toFixed(2):Number(value).toFixed(2)+"%";
-        row.append(name,val); root.appendChild(row);
+      const grid=document.createElement("div");grid.className="stat-grid";
+      for(const [label,value,detail] of metrics){
+        const tile=document.createElement("div");tile.className="stat";
+        const lab=document.createElement("label");lab.textContent=label;
+        const val=document.createElement("strong");val.textContent=value;
+        const sub=document.createElement("small");sub.textContent=detail||"Historical diagnostic";
+        tile.append(lab,val,sub);grid.appendChild(tile);
       }
-      status.textContent=ticker+" · "+data.startDate+" to "+data.endDate+" · "+data.observations+" daily observations · "+data.source;
-      const warning=document.createElement("p"); warning.className="muted small"; warning.textContent=data.warning||"Experimental historical diagnostic."; root.appendChild(warning);
+      root.appendChild(grid);
+      appendMetric(root,"Historical coverage",String(data.observations??"—")+" daily bars",String(data.startDate||"")+" → "+String(data.endDate||""));
+      appendMetric(root,"Benchmark coverage",String(data.benchmarkStartDate||"—")+" → "+String(data.benchmarkEndDate||"—"),"SPY aligned to the same calendar window");
+      const trades=document.createElement("div");trades.className="card";trades.style.marginTop="14px";
+      const th=document.createElement("div");th.className="card-head";const title=document.createElement("h2");title.textContent="Trade log · last recorded positions";th.appendChild(title);trades.appendChild(th);
+      const tradeRows=Array.isArray(data.tradeLog)?data.tradeLog:[];
+      if(!tradeRows.length){const empty=document.createElement("p");empty.className="muted small";empty.textContent="No strategy trades were generated in this history.";trades.appendChild(empty);}
+      for(const trade of tradeRows.slice(-10).reverse()){
+        const detail=[trade.entryDate||"—","→",trade.exitDate||"—","·",trade.holdingSessions??"—","sessions","·",trade.exitReason||trade.status||"—"].join(" ");
+        appendMetric(trades,String(trade.status||"COMPLETED").replaceAll("_"," "),fmtPct(trade.netReturnPercent),detail);
+      }
+      root.appendChild(trades);
+      const folds=Array.isArray(data.walkForward?.folds)?data.walkForward.folds:[];
+      if(folds.length){
+        const foldBox=document.createElement("div");foldBox.className="card";foldBox.style.marginTop="14px";
+        const head=document.createElement("div");head.className="card-head";const h=document.createElement("h2");h.textContent="Chronological walk-forward windows";head.appendChild(h);foldBox.appendChild(head);
+        for(const fold of folds){
+          appendMetric(foldBox,(fold.testStart||"")+" → "+(fold.testEnd||""),fmtPct(fold.returnPercent),String(fold.entries??0)+" entries · "+String(fold.exits??0)+" exits · "+String(fold.observations??0)+" sessions");
+        }
+        root.appendChild(foldBox);
+      }
+      const warning=document.createElement("p");warning.className="warning";warning.textContent=data.warning||"Experimental historical diagnostic. Not validated for live or paper execution.";root.appendChild(warning);
+      if(data.walkForward?.warning){const w=document.createElement("p");w.className="muted small";w.textContent=data.walkForward.warning;root.appendChild(w);}
+      status.textContent=ticker+" · "+data.startDate+" to "+data.endDate+" · "+data.observations+" daily observations · refreshed "+new Date().toLocaleString();
     } catch(error) { status.textContent=error&&error.message?error.message:"Backtest unavailable."; }
     finally {button.disabled=false;button.textContent="Run historical test";}
   }
