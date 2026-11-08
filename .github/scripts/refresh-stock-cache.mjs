@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-const url = process.env.NORTHSTAR_URL || "https://ai-stock-advisor.pages.dev";
+const url = process.env.NORTHSTAR_URL || "https://ai-stock-advisor.pages.dev/research.html";
 const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
