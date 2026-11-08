@@ -10,7 +10,6 @@ const ROLE_GUIDANCE = {
   bear_researcher: "Build the strongest evidence-supported downside thesis, focusing on invalidation, catalysts, valuation and portfolio risks."
 };
 
-const clean = (value, max=2000) => typeof value === "string" ? value.trim().slice(0,max) : "";
 function parseJson(text) {
   const value=String(text||"").trim().replace(/^\u0060\u0060\u0060(?:json)?\s*/i,"").replace(/\s*\u0060\u0060\u0060$/,"");
   return JSON.parse(value);
@@ -30,10 +29,10 @@ export function normalizeCouncilModelReport(raw) {
     throw new Error("Model report status or findings/risks contract is invalid.");
   }
   const findings=raw.findings.map(item=>({
-    claim:clean(item?.claim), factIds:Array.isArray(item?.factIds)?item.factIds.filter(x=>typeof x==="string").slice(0,10):[]
+    claim:typeof item?.claim === "string" ? item.claim.trim() : "", factIds:Array.isArray(item?.factIds)?item.factIds:[]
   }));
   const risks=raw.risks.map(item=>({
-    claim:clean(item?.claim), factIds:Array.isArray(item?.factIds)?item.factIds.filter(x=>typeof x==="string").slice(0,10):[]
+    claim:typeof item?.claim === "string" ? item.claim.trim() : "", factIds:Array.isArray(item?.factIds)?item.factIds:[]
   }));
   return {status:"COMPLETE",findings,risks};
 }
