@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 async function loadFunction() {
-  const source = await readFile(new URL("../web/functions/api/paper/preflight.js", import.meta.url), "utf8");
+  const helper = await readFile(new URL("../web/lib/paper-order-guards.js", import.meta.url), "utf8");
+  const helperUrl = "data:text/javascript;base64," + Buffer.from(helper).toString("base64");
+  let source = await readFile(new URL("../web/functions/api/paper/preflight.js", import.meta.url), "utf8");
+  source = source.replace('from "../../../lib/paper-order-guards.js"', 'from "' + helperUrl + '"');
   return import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
 }
 function mockDb(control, ledgerRows=[]) {
