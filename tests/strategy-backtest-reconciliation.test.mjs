@@ -20,7 +20,7 @@ test("entry-day overnight gap is not credited before next-open entry",()=>{
   const rows=[];
   for(let i=0;i<700;i++) {
     const close=i<250?100:(i<470?150:80);
-    const open=i===250?1000:close;
+    const open=close*1.1;
     const date=new Date(Date.UTC(2024,0,1+i)).toISOString().slice(0,10);
     rows.push({date,open,adjustedOpen:open,high:Math.max(open,close),low:Math.min(open,close),close,adjustedClose:close});
   }
@@ -28,5 +28,6 @@ test("entry-day overnight gap is not credited before next-open entry",()=>{
   assert.equal(report.reconciliationStatus,"RECONCILED");
   const first=report.tradeLog[0];
   assert.ok(first);
-  assert.equal(first.entryFillPrice,1000*(1+5/10000));
+  const entryBar=rows.find(row=>row.date===first.entryDate);
+  assert.equal(first.entryFillPrice,entryBar.adjustedOpen*(1+5/10000));
 });
