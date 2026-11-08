@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Northstar AI provides transparent US stock research with SEC-sourced fundamentals, market data, earnings risk and explicit data-quality limits.">
+  <title>Northstar AI — AI Research</title>
+  <link rel="stylesheet" href="./styles.css?v=signal-self-test1">
+  <link rel="stylesheet" href="./command-center.css?v=command-center1">
+
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./trading-lab.html"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 17.5 9 12l3.2 3.2L20 6.5M14.5 6.5H20v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="brand-name">NORTHSTAR <span>AI</span></span></a>
+    <div class="topbar-right"><a href="./trading-lab.html" class="nav-link" style="display:inline-flex!important;color:var(--accent);font-weight:750">Trading Lab ↗</a><a href="#ranking-disclosure" class="nav-link" id="market-scan-link">Market scan</a><span class="status"><i></i> AI RESEARCH · ANALYSIS ONLY</span></div>
+  </header>
+  <section class="northstar-command" aria-label="Northstar command centre">
+    <div class="command-topline">
+      <div><div class="command-eyebrow"><span class="command-pulse"></span> NORTHSTAR / MISSION CONTROL</div><div class="command-title">Market intelligence <span>at a glance.</span></div></div>
+      <div class="command-clock"><span>LOCAL SYSTEM TIME</span><strong id="northstar-clock">--:--:--</strong><small id="northstar-date">Synchronizing clock</small></div>
+    </div>
+    <div class="command-statusbar">
+      <span class="command-status"><i></i> RESEARCH ENGINE</span>
+      <span class="command-status locked"><i></i> EXECUTION LOCKED</span>
+      <span class="command-status"><i></i> PAPER MODE ONLY</span>
+      <span class="command-status muted-status">LIVE MARKET DATA · CHECKED PER REQUEST</span>
+    </div>
+    <div class="command-grid">
+      <article class="command-card universe-card">
+        <div class="command-card-head"><span>01 / SCANNER UNIVERSE</span><span class="command-icon">⌁</span></div>
+        <strong class="command-number">253</strong><span class="command-unit">CURATED US EQUITIES</span>
+        <div class="command-meter"><i style="width:100%"></i></div><p>Focused coverage · not a full-market scan</p>
+      </article>
+      <article class="command-card council-card">
+        <div class="command-card-head"><span>02 / RESEARCH COUNCIL</span><span class="command-icon">✳</span></div>
+        <strong class="command-number">08</strong><span class="command-unit">MODEL WORKER ROLES</span>
+        <div class="council-orbit" aria-label="Eight configured research roles"><span>SCAN</span><span>TECH</span><span>FUND</span><span>NEWS</span><span>SENT</span><span>BULL</span><span>BEAR</span><span>SYNTH</span></div>
+        <p>Configured specialists · run on authenticated request</p>
+      </article>
+      <article class="command-card risk-card">
+        <div class="command-card-head"><span>03 / RISK AUTHORITY</span><span class="command-icon">⛨</span></div>
+        <strong class="risk-word">VETO ENABLED</strong><span class="command-unit">DETERMINISTIC RISK COMMITTEE</span>
+        <div class="risk-rule"><i></i> Missing or breached limits → NO TRADE</div><p>Independent gate · no model can override</p>
+      </article>
+      <article class="command-card execution-card">
+        <div class="command-card-head"><span>04 / EXECUTION CONTROL</span><span class="command-icon">◈</span></div>
+        <strong class="lock-word">DISABLED</strong><span class="command-unit">AUTOMATED ORDER SUBMISSION</span>
+        <div class="lock-track"><span></span></div><p>Kill switch engaged · no live orders</p>
+      </article>
+    </div>
+    <section class="profit-deck" aria-label="Paper portfolio profit and loss">
+      <div class="profit-heading"><div><span class="command-eyebrow">05 / PORTFOLIO PERFORMANCE</span><h2>Profit &amp; loss cockpit</h2><p>Paper account telemetry · read-only · no orders</p></div><span id="profit-connection" class="profit-state">AWAITING ACCOUNT</span></div>
+      <div class="profit-grid">
+        <article class="profit-metric featured"><span>ACCOUNT EQUITY</span><strong id="profit-equity">—</strong><small id="profit-equity-note">Connect paper account to load</small></article>
+        <article class="profit-metric"><span>DAY P&amp;L</span><strong id="profit-day">—</strong><small>Change vs prior close</small></article>
+        <article class="profit-metric"><span>UNREALIZED P&amp;L</span><strong id="profit-unrealized">—</strong><small>Open paper positions</small></article>
+        <article class="profit-metric"><span>BUYING POWER</span><strong id="profit-buying-power">—</strong><small>Broker-reported</small></article>
+      </div>
+      <div class="profit-bottom"><span id="profit-position-count">Positions: not loaded</span><span id="profit-updated">Not yet synchronized</span></div>
+      <p class="profit-disclaimer">Profit is shown only when Northstar can verify a connected paper account. Day P&amp;L is not lifetime profit; unrealized P&amp;L excludes closed trades. This panel never reads your real-money account.</p>
+    </section>
+    <div class="command-lower">
+      <div class="command-lower-heading"><div><span class="command-eyebrow">RESEARCH COUNCIL / ARCHITECTURE</span><h2>Eight perspectives. One risk gate.</h2></div><span class="architecture-tag">ON-DEMAND ANALYSIS</span></div>
+      <div class="agent-rail">
+        <div class="agent-node"><b>01</b><strong>Market scanner</strong><small>Opportunity discovery</small></div>
+        <div class="agent-node"><b>02</b><strong>Technical analyst</strong><small>Price & trend context</small></div>
+        <div class="agent-node"><b>03</b><strong>Fundamental analyst</strong><small>Business quality</small></div>
+        <div class="agent-node"><b>04</b><strong>News analyst</strong><small>Catalyst evidence</small></div>
+        <div class="agent-node"><b>05</b><strong>Sentiment analyst</strong><small>Market narrative</small></div>
+        <div class="agent-node debate-node"><b>06</b><strong>Bull researcher</strong><small>Upside thesis</small></div>
+        <div class="agent-node debate-node"><b>07</b><strong>Bear researcher</strong><small>Counter-thesis</small></div>
+        <div class="agent-node"><b>08</b><strong>Portfolio analyst</strong><small>Decision synthesis</small></div>
+        <div class="agent-node risk-node"><b>09</b><strong>Risk committee</strong><small>Deterministic veto</small></div>
+      </div>
+      <div class="command-footnote"><span class="footnote-led"></span> This panel describes configured architecture, not live agent activity. Council execution and dashboard streaming are not yet connected.</div>
+    </div>
+  </section>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-kicker"><span class="live-dot"></span> EQUITY INTELLIGENCE <span class="kicker-divider"></span> US MARKETS</div>
+      <h1>Clarity before<br><span class="hero-accent">conviction.</span></h1>
+      <p class="intro">Research a ticker. See the signal, the evidence, and the risks — without the noise.</p>
+      <form id="analyze-form" class="search-panel">
+        <label for="ticker">TICKER SYMBOL</label>
+        <div class="search-row"><input id="ticker" name="ticker" maxlength="12" value="NVDA" placeholder="e.g. NVDA" autocomplete="off" required></div>
+        <button id="analyze-button" class="analyze-button" type="submit">Analyze stock <span aria-hidden="true">↗</span></button>
+        <div class="quick-tickers-wrap">
+          <div class="quick-tickers-label">QUICK ACCESS · SWIPE TO EXPLORE</div>
+          <div class="quick-tickers" aria-label="Popular stocks; swipe horizontally to browse"><button type="button" data-ticker="AAPL">AAPL</button>
+          <button type="button" data-ticker="MSFT">MSFT</button>
+          <button type="button" data-ticker="NVDA">NVDA</button>
+          <button type="button" data-ticker="AMZN">AMZN</button>
+          <button type="button" data-ticker="GOOGL">GOOGL</button>
+          <button type="button" data-ticker="META">META</button>
+          <button type="button" data-ticker="TSLA">TSLA</button>
+          <button type="button" data-ticker="NFLX">NFLX</button>
+          <button type="button" data-ticker="AVGO">AVGO</button>
+          <button type="button" data-ticker="ORCL">ORCL</button>
+          <button type="button" data-ticker="AMD">AMD</button>
+          <button type="button" data-ticker="INTC">INTC</button>
+          <button type="button" data-ticker="CRM">CRM</button>
+          <button type="button" data-ticker="PLTR">PLTR</button>
+          <button type="button" data-ticker="JPM">JPM</button>
+          <button type="button" data-ticker="V">V</button>
+          <button type="button" data-ticker="MA">MA</button>
+          <button type="button" data-ticker="COST">COST</button>
+          <button type="button" data-ticker="WMT">WMT</button>
+          <button type="button" data-ticker="DIS">DIS</button>
+          <button type="button" data-ticker="QCOM">QCOM</button>
+          <button type="button" data-ticker="MU">MU</button>
+          <button type="button" data-ticker="MRVL">MRVL</button>
+          <button type="button" data-ticker="NVTS">NVTS</button></div>
+        </div>
+        <div id="activity-progress" class="activity-progress hidden" role="status" aria-live="polite">
+          <div class="activity-top"><span class="activity-spinner" aria-hidden="true"></span><div class="activity-copy"><strong id="activity-title">Analyzing stock</strong><span id="activity-stage">Preparing reliable data sources…</span></div><span id="activity-elapsed" class="activity-elapsed">0s</span></div>
+          <div class="activity-track"><span id="activity-bar"></span></div>
+          <ol id="activity-steps" class="activity-steps"></ol>
+          <p class="activity-note">Elapsed time is shown honestly; progress steps update as checks finish.</p>
+        </div>
+      </form>
+      <div class="stock-suggestions-cta">
+        <button id="suggest-stocks-button" type="button" class="suggest-stocks-button"><span class="suggest-icon" aria-hidden="true">✦</span><span><strong>Suggest me stocks</strong><small>Find up to 10 data-screened research candidates</small></span><span class="suggest-arrow" aria-hidden="true">↗</span></button>
+      </div>
+    </section>
+
+    <section id="market-regime-panel" class="news-section hidden" aria-live="polite" style="margin:22px 0;padding:18px;border:1px solid #30352a;border-radius:16px;background:#0c0f0a"><div class="section-heading"><div><p class="eyebrow">MARKET REGIME INTELLIGENCE</p><h2 id="market-regime-state">Market regime: UNKNOWN</h2></div><span id="market-regime-date" class="count">Not checked</span></div><p id="market-regime-summary" class="table-note">SPY and QQQ market conditions will be checked during stock analysis.</p><div id="market-regime-reasons" class="table-note"></div><p class="table-note">Context and risk gate only—not a stock signal, forecast, or trade authorization. UNKNOWN blocks new entries in this module.</p></section>
+    <div id="stock-results" class="stock-results hidden" aria-label="Analysis results for the selected stock">
+    <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
+    <section id="beginner-overview" class="beginner-overview hidden" aria-live="polite">
+      <div class="answer-card">
+        <div class="answer-topline"><span class="eyebrow">NORTHSTAR'S PLAIN-ENGLISH ANSWER</span><span id="beginner-confidence" class="confidence-badge confidence-low">Confidence: Low</span></div>
+        <h2 id="beginner-company-name">Company analysis</h2>
+        <div class="company-purpose"><p class="company-purpose-label">WHAT DOES THIS COMPANY DO?</p><p id="beginner-company-description" class="answer-description">“A plain-English description of the company’s products and services will appear here.”</p></div>
+        <div class="answer-price-row"><strong id="beginner-price">Price unavailable</strong><span id="beginner-market-state" class="market-state">Market status unknown</span></div>
+        <div id="beginner-verdict" class="beginner-verdict verdict-unknown"><span id="beginner-verdict-dot" class="meaning-dot unknown"></span><div><strong id="beginner-verdict-title">Not enough reliable data</strong><p id="beginner-verdict-reason">Analyze a stock to see the reason.</p></div></div>
+      </div>
+      <div class="beginner-scorecards">
+        <article class="beginner-score"><p class="eyebrow">BUSINESS HEALTH</p><strong id="score-business">Unknown</strong><p id="score-business-detail">Financial checks not available.</p></article>
+        <article class="beginner-score"><p class="eyebrow">RISK</p><strong id="score-risk">Unknown</strong><p id="score-risk-detail">Risk review not complete.</p></article>
+      </div>
+      <div class="beginner-lists">
+        <section class="beginner-subpanel"><div class="beginner-subhead"><h3>Top risks to know</h3></div><div id="beginner-risks" class="beginner-list"><p class="muted">Risks will appear after analysis.</p></div></section>
+        <section class="beginner-subpanel"><div class="beginner-subhead"><h3>Latest headlines</h3></div><div id="beginner-headlines" class="beginner-list"><p class="muted">Headlines will appear after analysis.</p></div></section>
+      </div>
+      <section id="ai-research-panel" class="beginner-subpanel hidden" aria-live="polite"><div class="beginner-subhead"><h3>AI-assisted research</h3><span id="ai-research-status" class="count">Supplemental sources</span></div><p id="ai-research-intro" class="muted">Northstar can supplement native analysis with source-linked research when data gaps are detected.</p><div id="ai-research-findings" class="beginner-list"></div></section>
+    </section>
+    <div class="full-details-content">
+    <section id="company-panel" class="company-panel hidden">
+      <div><p class="eyebrow">COMPANY</p><h2 id="company-name">—</h2><p id="company-meta" class="muted">—</p></div>
+      <div class="source-pill"><span class="source-dot"></span> SEC EDGAR</div>
+    </section>
+    <section id="earnings-panel" class="news-section hidden" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">EARNINGS & EVENT RISK</p><h2>Next earnings check</h2></div><span id="earnings-status" class="count">Not checked</span></div>
+      <div id="earnings-content"><p class="empty">Analyze a stock to check the public earnings calendar.</p></div>
+    </section>
+    <details id="earnings-reconciliation-details" class="developer-panel"><summary><span><strong>Detailed earnings reconciliation</strong><small>Reported results and third-party estimates, when available</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
+    <section id="earnings-results-panel" class="news-section hidden" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">RESULTS VS EXPECTATIONS</p><h2>Latest reported quarter</h2></div><span id="earnings-results-status" class="count">Not checked</span></div>
+      <div id="earnings-results-content"><p class="empty">Analyze a stock to compare SEC-reported results with available consensus estimates.</p></div>
+    </section>
+    </div></details>
+    <section id="recommendation-panel" class="news-section hidden" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">NORTHSTAR STOCK ADVISOR</p><h2>Stock Advisor</h2></div><span id="decision-status" class="count">Waiting for evidence</span></div>
+      <div id="decision-hero" class="decision-hero state-unknown" aria-live="polite">
+        <div id="decision-symbol" class="decision-symbol" aria-hidden="true">?</div>
+        <div class="decision-hero-copy">
+          <p id="decision-plain-label" class="eyebrow">YOUR NEXT STEP</p>
+          <h3 id="decision-title">Analyze a stock to get a decision</h3>
+          <p id="decision-plain-summary" class="decision-plain-summary">Northstar will explain whether the evidence supports waiting, avoiding the stock, or further review.</p>
+          <p id="decision-action" class="decision-action">No action until the analysis finishes.</p>
+        </div>
+      </div>
+      <div class="signal-self-test-control">
+        <button id="signal-self-test-button" type="button" class="secondary-button" aria-expanded="false">Preview BUY / WAIT / SELL indicators</button>
+        <p class="muted">Display-only self-test. Preview states are simulated and do not change this stock's analysis.</p>
+      </div>
+      <section id="signal-self-test-panel" class="signal-self-test-panel hidden" aria-live="polite" aria-label="Signal indicator display test">
+        <p class="eyebrow">INDICATOR DISPLAY TEST · SIMULATED</p>
+        <div class="signal-self-test-grid">
+          <article class="signal-self-test-card state-buy"><strong>BUY</strong><span>Validated setup preview</span></article>
+          <article class="signal-self-test-card state-wait"><strong>WAIT</strong><span>More evidence needed preview</span></article>
+          <article class="signal-self-test-card state-sell"><strong>SELL REVIEW</strong><span>Risk review preview</span></article>
+        </div>
+        <p class="muted">This confirms the status styles can render. It does not validate a live stock signal or prove the strategy has an edge.</p>
+      </section>
+      <div class="decision-bottom-line"><p class="eyebrow">WHY THIS DECISION?</p><p id="decision-bottom-line">Analyze a ticker to get a plain-language assessment.</p><p class="eyebrow">WHAT TO DO NEXT</p><p id="decision-next-step">Required checks will appear here.</p></div>
+      <details id="developer-diagnostics-details" class="developer-panel"><summary><span><strong>Developer diagnostics</strong><small>Technical checks, raw risk rules and provisional valuation calculations</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
+      <p id="decision-explanation" class="table-note">Analyze a ticker to receive a data-quality and risk assessment.</p>
+      <p class="table-note">Technical error detail (developer only): <span id="developer-error">No error reported.</span></p>
+      <div class="holding-review">
+        <div><p class="eyebrow">IF YOU ALREADY OWN THIS STOCK</p><h3>Position review</h3><p class="table-note">Enter your position to get a rule-based HOLD / SELL REVIEW. This does not place an order.</p></div>
+        <div class="holding-fields">
+          <label for="holding-shares">Shares owned</label><input id="holding-shares" type="number" min="0" step="any" placeholder="e.g. 5">
+          <label for="holding-cost">Average cost per share (USD)</label><input id="holding-cost" type="number" min="0" step="any" placeholder="e.g. 120">
+          <button id="review-holding" type="button" class="secondary-button">Review my position</button>
+        </div>
+        <div id="holding-result" class="holding-result" role="status">Analyze a stock and enter your position to review it.</div>
+      </div>
+      <div id="decision-metrics" class="metrics-grid"></div>
+      <div class="meaning-legend" aria-label="Indicator legend"><span><i class="meaning-dot good"></i> Positive</span><span><i class="meaning-dot bad"></i> Negative / risk</span><span><i class="meaning-dot caution"></i> Needs attention</span><span><i class="meaning-dot unknown"></i> Not enough data</span></div>
+      <div id="decision-checks" class="decision-checks"></div>
+      <p id="decision-caveat" class="table-note">Any preliminary valuation is assumption-driven and is not a validated forecast or instruction to trade.</p>
+      </div></details>
+      <div class="ranking-actions"><button id="save-research-snapshot" type="button" class="secondary-button">Save research snapshot</button><button id="export-research-csv" type="button" class="secondary-button">Export snapshots CSV</button><span id="research-log-status" class="count">0 saved snapshot(s)</span></div>
+      <div id="research-log-list" class="news-list"><p class="empty">Saved snapshots stay in this browser on this device. They are not synced to a server.</p></div>
+    </section>
+    <details id="technical-validation-details" class="developer-panel"><summary><span><strong>Technical validation details</strong><small>Price-history diagnostics and experimental strategy tests</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary><div class="developer-panel-content">
+    <section id="history-panel" class="news-section hidden"><div class="section-heading"><div><p class="eyebrow">PRICE HISTORY · 1 YEAR</p><h2>Historical performance and risk</h2></div><span id="history-status" class="count">Loads with analysis</span></div><div id="history-metrics" class="metrics-grid"></div><div id="history-chart-wrap" class="history-chart-wrap"><p class="empty">Analyze a ticker to load historical prices.</p></div><div class="history-labels"><span id="history-start-label">Start</span><span id="history-end-label">End</span></div><p id="history-meta" class="table-note">Daily price history is requested when you analyze a company.</p><p id="history-warning" class="table-note">Historical performance is not a forecast.</p></section>
+    <section id="strategy-backtest-panel" class="news-section hidden" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">HISTORICAL STRATEGY TEST · 5 YEARS</p><h2>Technical strategy reality check</h2></div><span id="strategy-backtest-status" class="count">Loads with analysis</span></div>
+      <p id="strategy-backtest-warning" class="table-note">This experimental 50/200-day moving-average strategy is separate from the live recommendation rules. It cannot enable BUY signals.</p>
+      <div id="strategy-backtest-metrics" class="metrics-grid"></div>
+      <div class="section-heading" style="margin-top:18px"><div><p class="eyebrow">TIME MACHINE · RESAMPLING</p><h3>Monte Carlo robustness diagnostic</h3></div><span id="strategy-monte-carlo-status" class="count">Requires 20+ completed trades</span></div>
+      <div id="strategy-monte-carlo" class="metrics-grid"><p class="empty">The Time Machine will resample completed historical trade sequences when the sample is large enough.</p></div>
+      <p id="strategy-monte-carlo-warning" class="table-note">Resampling frequencies are conditional on the observed historical sample. They are not probabilities of future profit or loss.</p>
+      <div class="section-heading" style="margin-top:18px"><div><p class="eyebrow">TIME MACHINE · HISTORICAL REPLAY</p><h3>Trade-by-trade session replay</h3></div><span id="strategy-replay-status" class="count">Loads with analysis</span></div>
+      <div id="strategy-replay-log" class="table-wrap"><p class="empty">Historical entries and exits will appear when the strategy test completes.</p></div>
+      <p class="table-note">Shows the most recent trade events from this experimental 50/200-day strategy. These are reconstructed from current-provider daily history—not a point-in-time replay of all historical news, filings, or scanner decisions.</p>
+      <div id="strategy-backtest-details" class="table-note"></div><div id="strategy-walk-forward" class="table-note"></div>
+    </section>
+    </div></details>
+    <section id="annual-trends-panel" class="news-section"><div class="section-heading"><div><p class="eyebrow">FUNDAMENTAL SNAPSHOT</p><h2>Annual financial trends</h2></div><span id="fundamental-status" class="count">Loads with analysis</span></div><p class="table-note">Calculated only from unambiguous annual 10-K observations. Free cash flow is an approximation: operating cash flow minus absolute capital expenditures. Not a recommendation.</p><div id="fundamental-snapshot" class="metrics-grid"><p class="empty">Analyze a company to calculate annual trends.</p></div></section>
+    <section id="fmp-fundamentals-panel" class="news-section"><div class="section-heading"><div><p class="eyebrow">INDEPENDENT DATA CROSS-CHECK</p><h2>Financial Modeling Prep fundamentals</h2></div><span id="fmp-fundamentals-status" class="count">Loads with analysis</span></div><p class="table-note">Secondary-source annual statements, financial ratios, valuation multiples and analyst estimates. Figures remain separate from SEC-reported data; period, currency and restatement differences must be reconciled. Analyst estimates are forecasts, not facts.</p><div id="fmp-fundamentals" class="metrics-grid"><p class="empty">Analyze a company to load the FMP cross-check.</p></div></section>
+    <section id="quarterly-trends-panel" class="news-section" aria-labelledby="quarterly-heading">
+      <div class="section-heading"><div><p class="eyebrow">LATEST REPORTED QUARTER</p><h2 id="quarterly-heading">Quarterly performance snapshot</h2></div><span id="quarterly-status" class="count">Loads with analysis</span></div>
+      <p class="table-note">Uses quarterly-period facts disclosed in SEC filings, compares with the closest same-period prior-year figure where available, and shows the filing date. This is not an analyst-consensus beat/miss calculation.</p>
+      <div id="quarterly-snapshot" class="metrics-grid"><p class="empty">Analyze a ticker to compare the latest reported quarter with the prior year.</p></div>
+    </section>
+    <section id="all-metrics-panel" class="news-section metrics-disclosure"><div class="section-heading"><div><p class="eyebrow">SEC REPORTED DATA</p><h2>All reported financial metrics</h2></div></div><p class="table-note">Raw reported figures with filing periods.</p><section id="metrics-grid" class="metrics-grid" aria-label="Latest reported financial metrics"></section></section>
+    <details class="news-section disclosure-section" id="filings-disclosure">
+      <summary class="section-heading disclosure-summary"><div><p class="eyebrow">PRIMARY SOURCE</p><h2>Official SEC filings</h2></div><span id="filings-status" class="count">Loads with analysis</span></summary>
+      <div class="disclosure-content">
+        <p class="table-note">Company filings are primary-source disclosures. Open the original filing to verify material information before making an investment decision.</p>
+        <div id="filings-list" class="news-list"><p class="empty">Analyze a ticker to load recent SEC filings.</p></div>
+      </div>
+    </details>
+
+
+
+    <section id="stock-news-impact" class="news-section hidden" aria-live="polite">
+      <div class="section-heading"><div><p class="eyebrow">COMPANY-SPECIFIC COVERAGE</p><h2>Latest Stock News</h2></div><span id="stock-news-impact-status" class="count">Loads with analysis</span></div>
+      <div id="stock-news-impact-list" class="stock-news-impact-list"><p class="empty">Analyze a ticker to load its latest news.</p></div>
+    </section>
+    </div>
+    </div>
+    <details id="ranking-disclosure" class="ranking-disclosure">
+      <summary class="ranking-disclosure-summary"><span><span class="eyebrow">EXPERIMENTAL TOOL</span><strong>Stock research shortlist</strong><small>Provisional screening only · validation is incomplete</small></span><span class="disclosure-chevron" aria-hidden="true">+</span></summary>
+            <section id="ranking" class="ranking-section suggestion-results-section">
+            <div class="section-heading"><div><p class="eyebrow">DATA-DRIVEN STOCK SUGGESTIONS</p><h2>Top 10 research candidates</h2></div><span class="count">Provisional signals · not validated</span></div>
+            <p class="table-note">The experimental watchlist score ranks research priorities only. Preliminary valuation-based watch zones may appear in the analysis panel when inputs pass quality checks, but they are provisional research signals only; full historical validation remains incomplete.</p>
+            <p class="table-note">The system screens a curated universe of 253 US stocks and displays up to ten ranked research candidates. Latest quote and valuation checks may provide a provisional model entry watch zone, fair-value reference, risk reference, and a 1–6 month review horizon. These are research references only, not guaranteed buy/exit instructions. The strategy has not passed walk-forward and untouched holdout validation.</p><div class="stock-suggestions-hero"><div class="suggestions-heading"><span class="eyebrow">YOUR MARKET SNAPSHOT</span><h2>Top 10 stocks to research</h2><p>Fast, precomputed shortlist from the latest 253-stock scan. Refreshes every three hours; open any stock for live checks.</p></div><div class="suggestions-actions"><button id="run-screen" type="button" class="primary-suggestions-button">Show latest top 10</button><button id="run-live-screen" type="button" class="secondary-button">Run live 253-stock scan</button></div><span id="screen-status" class="count">Loading latest snapshot when opened</span></div><div id="screen-results" class="screen-results"><p class="empty">Your latest shortlist will appear here. Select “Show latest top 10” to load the cached scan.</p></div><details class="diagnostics"><summary>Scoring method</summary><div class="diagnostic-content"><p>Revenue growth: 25 points. Net profit margin: 15 points. Approximate free-cash-flow margin: 20 points. One-year price return: 20 points. Maximum drawdown: 20 points. A candidate is excluded if any component is missing or ambiguous. Scores rank research priorities only; valuation, event risk, and walk-forward validation are not yet part of this score.</p></div></details>
+          </section>
+    </details>
+    <details class="diagnostics">
+      <summary>Data connection details</summary>
+      <div class="diagnostic-content">
+        <p><strong>Page:</strong> <span id="ui-health">Loaded</span></p>
+        <p><strong>SEC connection:</strong> <span id="sec-health">Not tested yet</span></p>
+        <div class="alpaca-connection" style="margin:18px 0;padding:16px;border:1px solid #343a2b;border-radius:14px;background:#0d100b">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <strong>Alpaca Paper Trading</strong>
+            <span id="alpaca-status" aria-live="polite" class="muted">Not checked yet</span>
+          </div>
+          <p class="muted" style="margin:8px 0 12px">Secure server-side connection. Read-only: Northstar will not place trades.</p>
+          <button id="alpaca-connect-button" type="button" style="width:auto;min-height:42px;padding:10px 16px;border:1px solid #c7ff4f;border-radius:10px;background:#c7ff4f;color:#10130b;font-weight:750">Test Alpaca connection</button>
+          <div id="alpaca-account" class="hidden" style="margin-top:14px"></div>
+          <div id="alpaca-positions" class="hidden" style="margin-top:12px"></div>
+        </div>
+        <p><strong>Last request:</strong> <span id="last-request">—</span></p>
+        <p class="muted">Financial facts come from SEC EDGAR. This is a research prototype, not a valuation model or trade recommendation.</p>
+        <p><a href="https://www.sec.gov/edgar/sec-api-documentation" target="_blank" rel="noreferrer">SEC API documentation ↗</a></p>
+      </div>
+    </details>
+    <div class="hidden" aria-hidden="true"><span id="news-status">Loads with analysis</span><div id="news-list"></div></div>
+  <footer><span>Northstar AI <span class="footer-sep">/</span> Market intelligence</span><span>SEC EDGAR · Research only · No automated trading</span></footer>
+  </main>
+  <script>
+    window.addEventListener("error", function (event) {
+      var box = document.getElementById("northstar-runtime-error");
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "northstar-runtime-error";
+        box.style.cssText = "position:fixed;bottom:12px;left:12px;right:12px;z-index:99999;padding:14px 16px;background:#3b1515;color:#fff;border:1px solid #ff7777;border-radius:10px;font:13px/1.5 system-ui,sans-serif";
+        box.textContent = "Northstar JavaScript error: " + (event.message || "unknown error") + (event.filename ? " (" + event.filename.split("/").pop() + ":" + event.lineno + ")" : "") + ". Share this exact message if it persists.";
+        document.body.appendChild(box);
+      }
+    });
+    window.addEventListener("unhandledrejection", function (event) {
+      var box = document.getElementById("northstar-runtime-error");
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "northstar-runtime-error";
+        box.style.cssText = "position:fixed;bottom:12px;left:12px;right:12px;z-index:99999;padding:14px 16px;background:#3b1515;color:#fff;border:1px solid #ff7777;border-radius:10px;font:13px/1.5 system-ui,sans-serif";
+        box.textContent = "Northstar request error: " + (event.reason && event.reason.message ? event.reason.message : String(event.reason || "unknown error")) + ". Share this exact message if it persists.";
+        document.body.appendChild(box);
+      }
+    });
+  </script>
+  <script src="./command-center.js?v=commandcenter1" defer></script>
+  <script src="./evidence-score.js?v=evidenceaudit1" defer></script>
+  <script src="./news-catalyst.js?v=newscatalyst1" defer></script>
+  <script src="./market-regime.js?v=regime1" defer></script>
+  <script src="./app.js?v=tickerpersist1" defer></script>
+</body>
+</html>
