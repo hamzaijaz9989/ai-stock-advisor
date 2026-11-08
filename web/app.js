@@ -490,6 +490,40 @@ async function loadStrategyBacktest(ticker) {
       mcRoot.append(note);
       mcWarning.textContent="No probability estimate is shown for a small sample. This does not imply that the strategy is safe or profitable.";
     }
+    const replayRoot=$("strategy-replay-log");
+    const replayStatus=$("strategy-replay-status");
+    const replay=Array.isArray(result.tradeLog)?result.tradeLog:[];
+    replayRoot.replaceChildren();
+    replayStatus.textContent=replay.length+" recent event(s) · "+result.completedTrades+" completed total";
+    if(replay.length) {
+      const table=document.createElement("table");
+      const head=document.createElement("thead"), headRow=document.createElement("tr");
+      for(const label of ["Ticker","Entry date","Exit date","Entry / exit","Exit reason","Net return","Sessions"]) {
+        const th=document.createElement("th"); th.textContent=label; headRow.append(th);
+      }
+      head.append(headRow); table.append(head);
+      const body=document.createElement("tbody");
+      for(const trade of replay) {
+        const row=document.createElement("tr");
+        const values=[
+          String(trade.symbol||ticker),
+          String(trade.entryDate||"—"),
+          String(trade.exitDate||"Open"),
+          (Number.isFinite(trade.entryFillPrice)?"$"+trade.entryFillPrice.toFixed(2):"—")+" / "+
+            (Number.isFinite(trade.exitFillPrice)?"$"+trade.exitFillPrice.toFixed(2):"—"),
+          trade.status==="open_at_end"?"Open at end":String(trade.exitReason||"Closed"),
+          fmtPct(trade.netReturnPercent),
+          Number.isFinite(trade.holdingSessions)?String(trade.holdingSessions):"—"
+        ];
+        for(const value of values) {const cell=document.createElement("td");cell.textContent=value;row.append(cell);}
+        body.append(row);
+      }
+      table.append(body); replayRoot.append(table);
+    } else {
+      const empty=document.createElement("p"); empty.className="empty";
+      empty.textContent="No historical entries or exits were generated for this ticker and test window.";
+      replayRoot.append(empty);
+    }
     $("strategy-backtest-status").textContent=result.observations+" sessions · "+result.startDate+" to "+result.endDate;
     $("strategy-backtest-warning").textContent=result.warning+" Data source: "+result.source+". Cost assumption: "+result.slippageAndCostBpsPerSide+" bps per side.";
     const wf=result.walkForward||{};
