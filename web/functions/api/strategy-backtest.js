@@ -24,7 +24,8 @@ function normalizeRows(raw, source) {
     const adjusted = Number(item?.adjClose ?? item?.adj_close ?? item?.adjustedClose ?? item?.adjusted_close ?? item?.close);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
     if (![open,high,low,close,adjusted].every(v=>Number.isFinite(v)&&v>0)) continue;
-    byDate.set(date,{date,open,high,low,close,adjustedClose:adjusted});
+    const adjustmentFactor=adjusted/close;
+    byDate.set(date,{date,open,adjustedOpen:open*adjustmentFactor,high,low,close,adjustedClose:adjusted});
   }
   const rows=[...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
   if(rows.length < SLOW + 100) throw new Error(source + " returned only " + rows.length + " valid daily observations; at least " + (SLOW+100) + " are required.");
@@ -65,7 +66,8 @@ async function fetchYahooSeries(ticker) {
   const rows=[];
   for(let i=0;i<result.timestamp.length;i++) {
     const row={date:new Date(result.timestamp[i]*1000).toISOString().slice(0,10),open:q.open?.[i],high:q.high?.[i],low:q.low?.[i],close:q.close?.[i],adjustedClose:adj[i]};
-    if([row.open,row.high,row.low,row.close,row.adjustedClose].every(v=>typeof v==="number"&&Number.isFinite(v)&&v>0)) rows.push(row);
+    if([row.open,row.high,row.low,row.close,row.adjustedClose].every(v=>typeof v==="number"&&Number.isFinite(v)&&v>0)) row.adjustedOpen=row.open*(row.adjustedClose/row.close);
+    rows.push(row);
   }
   if(rows.length<SLOW+100) throw new Error("Yahoo fallback returned insufficient daily history");
   return rows.slice(-MAX_BARS);
@@ -110,64 +112,83 @@ function statsFromReturns(returns) {
   };
 }
 function evaluate(rows) {
-  const returns=[], benchmark=[], trades=[];
-  let invested=false, entryFill=null, entryDate=null, entryIndex=null, equity=1;
+  const strategyDaily=[], trades=[], benchmark=[];
   const cost=COST_PER_SIDE/10000;
-  for (let i=SLOW; i<rows.length-1; i++) {
-    const prevFast=sma(rows,i-1,FAST), prevSlow=sma(rows,i-1,SLOW);
-    const fast=sma(rows,i,FAST), slow=sma(rows,i,SLOW);
-    if (![prevFast,prevSlow,fast,slow].every(Number.isFinite)) continue;
-    const crossUp=prevFast<=prevSlow&&fast>slow;
-    const crossDown=prevFast>=prevSlow&&fast<slow;
-    if (!invested&&crossUp) {
-      const next=rows[i+1];
-      entryFill=next.open*(1+cost); entryDate=next.date; entryIndex=i+1; invested=true;
-    } else if (invested&&crossDown) {
-      const next=rows[i+1];
-      const exitFill=next.open*(1-cost);
-      const ret=exitFill/entryFill-1;
-      trades.push({entryDate,exitDate:next.date,entryFillPrice:entryFill,exitFillPrice:exitFill,exitReason:"SMA_CROSS_DOWN",netReturnPercent:ret*100,holdingSessions:i+1-entryIndex});
-      returns.push(ret);
-      // Benchmark uses adjusted-close total-return factor over the same trade window.
-      const bench=(next.adjustedClose/rows[entryIndex].adjustedClose)-1;
-      benchmark.push(bench);
-      invested=false; entryFill=null; entryDate=null; entryIndex=null;
+  let invested=false, entryFill=null, entryDate=null, entryIndex=null;
+  let equity=1, peak=1, maxDrawdown=0;
+  // Each session is marked from prior adjusted close to today's adjusted open,
+  // then (only while invested after the open) from today's adjusted open to close.
+  // Signals are calculated using yesterday's close and execute at today's open.
+  for(let i=1;i<rows.length;i++) {
+    const prior=rows[i-1], current=rows[i];
+    let dailyReturn=0;
+    const signalIndex=i-1;
+    if(signalIndex>=SLOW) {
+      const pf=sma(rows,signalIndex-1,FAST), ps=sma(rows,signalIndex-1,SLOW);
+      const f=sma(rows,signalIndex,FAST), sl=sma(rows,signalIndex,SLOW);
+      const valid=[pf,ps,f,sl].every(Number.isFinite);
+      const crossUp=valid&&pf<=ps&&f>sl;
+      const crossDown=valid&&pf>=ps&&f<sl;
+      if(!invested&&crossUp) {
+        // Buy at adjusted next-session open; do not credit the overnight gap.
+        entryFill=current.adjustedOpen*(1+cost);
+        entryDate=current.date;
+        entryIndex=i;
+        invested=true;
+        dailyReturn-=cost;
+        dailyReturn+=current.adjustedClose/current.adjustedOpen-1;
+      } else if(invested&&crossDown) {
+        // Existing position earns only the close-to-open gap, then exits at open.
+        dailyReturn+=current.adjustedOpen/prior.adjustedClose-1;
+        const exitFill=current.adjustedOpen*(1-cost);
+        const ret=exitFill/entryFill-1;
+        trades.push({
+          entryDate,exitDate:current.date,entryFillPrice:entryFill,exitFillPrice:exitFill,
+          exitReason:"SMA_CROSS_DOWN",netReturnPercent:ret*100,
+          holdingSessions:i-entryIndex,status:"closed"
+        });
+        benchmark.push(current.adjustedOpen/rows[entryIndex-1].adjustedClose-1);
+        dailyReturn-=cost;
+        invested=false; entryFill=null; entryDate=null; entryIndex=null;
+      } else if(invested) {
+        dailyReturn+=current.adjustedClose/prior.adjustedClose-1;
+      }
+    } else if(invested) {
+      dailyReturn+=current.adjustedClose/prior.adjustedClose-1;
     }
+    strategyDaily.push(dailyReturn);
+    equity*=1+dailyReturn;
+    peak=Math.max(peak,equity);
+    maxDrawdown=Math.min(maxDrawdown,equity/peak-1);
   }
-  if (invested) {
+  if(invested) {
     const last=rows[rows.length-1];
-    const ret=last.adjustedClose/rows[entryIndex].adjustedClose/(1+cost)-1;
-    trades.push({entryDate,exitDate:last.date,entryFillPrice:entryFill,exitFillPrice:last.adjustedClose/(1+cost),exitReason:"END_OF_TEST",netReturnPercent:ret*100,holdingSessions:rows.length-entryIndex,status:"open_at_end"});
-    returns.push(ret);
-    benchmark.push(last.adjustedClose/rows[entryIndex].adjustedClose-1);
-  }
-  // Daily equity curve: a close signal is executed at the next session open.
-  // Apply assumed transaction costs on entry/exit dates, in addition to the trade log.
-  const strategyDaily=[];
-  let position=false;
-  for (let i=1;i<rows.length;i++) {
-    let tradeCost=0;
-    if (i-1>=SLOW) {
-      const pf=sma(rows,i-2,FAST),ps=sma(rows,i-2,SLOW),f=sma(rows,i-1,FAST),s=sma(rows,i-1,SLOW);
-      const crossUp=[pf,ps,f,s].every(Number.isFinite)&&pf<=ps&&f>s;
-      const crossDown=[pf,ps,f,s].every(Number.isFinite)&&pf>=ps&&f<s;
-      if (!position&&crossUp) { position=true; tradeCost=cost; }
-      else if (position&&crossDown) { position=false; tradeCost=cost; }
-    }
-    const raw=rows[i].adjustedClose/rows[i-1].adjustedClose-1;
-    strategyDaily.push((position?raw:0)-tradeCost);
+    const exitMark=last.adjustedClose*(1-cost);
+    const ret=exitMark/entryFill-1;
+    trades.push({
+      entryDate,exitDate:last.date,entryFillPrice:entryFill,exitFillPrice:exitMark,
+      exitReason:"END_OF_TEST",netReturnPercent:ret*100,
+      holdingSessions:rows.length-entryIndex,status:"open_at_end"
+    });
+    benchmark.push(last.adjustedClose/rows[entryIndex-1].adjustedClose-1);
   }
   const strategy=statsFromReturns(strategyDaily);
   const benchmarkAll=statsFromReturns(rows.slice(1).map((r,i)=>r.adjustedClose/rows[i].adjustedClose-1));
-  const completed=trades.filter(t=>t.status!=="open_at_end");
+  const completed=trades.filter(t=>t.status==="closed");
   const monteCarlo=runBlockBootstrap(completed.map(t=>t.netReturnPercent));
   const wins=completed.filter(t=>t.netReturnPercent>0).length;
   const grossWins=completed.filter(t=>t.netReturnPercent>0).reduce((s,t)=>s+t.netReturnPercent,0);
   const grossLosses=Math.abs(completed.filter(t=>t.netReturnPercent<=0).reduce((s,t)=>s+t.netReturnPercent,0));
+  // Reconcile the daily equity curve against the same sequential trade ledger.
+  const ledgerEquity=trades.reduce((value,t)=>value*(1+t.netReturnPercent/100),1);
+  const reconciliationDifferencePercent=(equity-ledgerEquity)*100;
   return {
-    rules:"Long-only 50-day / 200-day SMA crossover, signals at adjusted-close SMA, execution next session open; no leverage, no shorting.",
+    rules:"Long-only 50-day / 200-day SMA crossover; signal after adjusted close, execute at next session adjusted open; no leverage, no shorting.",
     costAssumption:"5 basis points per side (10 bps round trip), fixed assumption; excludes tax and may understate spreads/market impact.",
     strategy,benchmarkBuyHold:benchmarkAll,
+    ledgerTotalReturnPercent:(ledgerEquity-1)*100,
+    reconciliationDifferencePercent,
+    reconciliationStatus:Math.abs(reconciliationDifferencePercent)<0.000001?"RECONCILED":"MISMATCH",
     trades:trades.length,completedTrades:completed.length,openAtEnd:trades.length-completed.length,
     monteCarlo,
     winRatePercent:completed.length?wins/completed.length*100:null,
