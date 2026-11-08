@@ -105,7 +105,8 @@ function riskCommittee(payload) {
   const daily=Number(p.dailyLossFraction),weekly=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
   const sector=Number(p.sectorExposureUsd),positions=Number(p.concurrentPositions);
   const reasons=[];
-  if(![equity,openRisk,gross,daily,weekly,drawdown,sector,positions].every(Number.isFinite) || equity<=0) reasons.push("Portfolio risk state is incomplete or invalid.");
+  if(![equity,openRisk,gross,daily,weekly,drawdown,sector,positions].every(Number.isFinite) || equity<=0 ||
+     openRisk<0 || gross<0 || sector<0 || drawdown<0 || !Number.isInteger(positions) || positions<0) reasons.push("Portfolio risk state is incomplete or invalid.");
   else {
     if(openRisk/equity>0.02) reasons.push("Aggregate open risk exceeds 2% of equity.");
     if(gross/equity>1) reasons.push("Gross exposure exceeds 100% of equity.");
@@ -125,8 +126,12 @@ function riskCommittee(payload) {
 
 export async function createResearchCouncilWorkers(env) {
   let generate=null;
-  try { generate=await createGeminiGenerator(env)||await createOpenAIGenerator(env); }
-  catch { generate=null; }
+  if(env?.GEMINI_API_KEY) {
+    try { generate=await createGeminiGenerator(env); } catch { generate=null; }
+  }
+  if(!generate && env?.OPENAI_API_KEY) {
+    try { generate=await createOpenAIGenerator(env); } catch { generate=null; }
+  }
   const workers={};
   for(const role of [...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"]) {
     workers[role]=async payload=>{
