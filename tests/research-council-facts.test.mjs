@@ -18,7 +18,7 @@ test("builds canonical quote, history, SEC, FMP, news and earnings context with 
  assert.ok(result.facts.some(x=>x.type==="QUOTE"));
  assert.ok(result.facts.some(x=>x.type==="DAILY_OHLCV_HISTORY"));
  assert.ok(result.facts.some(x=>x.type==="SEC_REPORTED_FACT"&&x.value.availabilityTimestampVerified===false));
- assert.ok(result.facts.some(x=>x.type==="FMP_ANALYST_ESTIMATE"));
+ assert.ok(result.facts.some(x=>x.type==="FMP_ANALYST_ESTIMATE" && x.value.section==="estimates"));
  assert.ok(result.evidence.some(x=>x.type==="NEWS_DISCOVERY"));
  assert.ok(result.evidence.some(x=>x.type==="EARNINGS_CALENDAR_EVENT"));
  const ids=[...result.facts,...result.evidence].map(x=>x.id);
@@ -49,4 +49,9 @@ test("preserves news text as discovery evidence rather than trusted instructions
 test("rejects missing timestamps for portfolio and malformed tickers",()=>{
  assert.throws(()=>buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio:{...portfolio,asOf:null}}),/timestamp/);
  assert.throws(()=>buildResearchCouncilContext({ticker:"",asOf:"2026-11-08T20:00:00Z",portfolio}),/ticker/);
+});
+
+test("rejects null portfolio risk fields instead of silently converting them to zero",()=>{
+ const incomplete={...portfolio,weeklyLossFraction:null};
+ assert.throws(()=>buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio:incomplete}),/missing numeric fields/);
 });
