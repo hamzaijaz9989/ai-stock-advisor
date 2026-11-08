@@ -464,6 +464,32 @@ async function loadStrategyBacktest(ticker) {
       metricCard("Profit factor",typeof result.profitFactor==="number"?result.profitFactor.toFixed(2):"Unavailable","Gross positive trade returns divided by absolute negative trade returns")
     ];
     for(const card of metrics) grid.append(card);
+    const mc=result.monteCarlo||{};
+    const mcRoot=$("strategy-monte-carlo");
+    const mcStatus=$("strategy-monte-carlo-status");
+    const mcWarning=$("strategy-monte-carlo-warning");
+    mcRoot.replaceChildren();
+    if(mc.status==="DESCRIPTIVE_RESAMPLING_ONLY" && mc.terminalReturnPercent && mc.maxDrawdownPercent) {
+      const mcPct=fmtPct;
+      const mcMetrics=[
+        metricCard("Resampled paths",mc.simulations.toLocaleString("en-US"),mc.sampleTrades+" completed historical trades · block length "+mc.blockLength),
+        metricCard("Paths ending below zero",mcPct(mc.probabilityOfLossPercent),"Conditional resampling frequency; not a future loss probability"),
+        metricCard("5th percentile outcome",mcPct(mc.terminalReturnPercent.p05),"Lower-tail terminal return across resampled sequences"),
+        metricCard("Median outcome",mcPct(mc.terminalReturnPercent.median),"Median terminal return across resampled sequences"),
+        metricCard("95th percentile outcome",mcPct(mc.terminalReturnPercent.p95),"Upper-tail terminal return; not a target or forecast"),
+        metricCard("90th percentile drawdown",mcPct(mc.maxDrawdownPercent.p90),"Resampled peak-to-trough drawdown")
+      ];
+      for(const card of mcMetrics) mcRoot.append(card);
+      mcStatus.textContent=mc.simulations.toLocaleString("en-US")+" deterministic paths · "+mc.sampleTrades+" trades";
+      mcWarning.textContent=mc.methodology+" "+mc.warning;
+    } else {
+      mcStatus.textContent="Insufficient sample";
+      const note=document.createElement("p");
+      note.className="empty";
+      note.textContent=mc.warning||"At least 20 completed trades are required. No resampling probability is reported.";
+      mcRoot.append(note);
+      mcWarning.textContent="No probability estimate is shown for a small sample. This does not imply that the strategy is safe or profitable.";
+    }
     $("strategy-backtest-status").textContent=result.observations+" sessions · "+result.startDate+" to "+result.endDate;
     $("strategy-backtest-warning").textContent=result.warning+" Data source: "+result.source+". Cost assumption: "+result.slippageAndCostBpsPerSide+" bps per side.";
     const wf=result.walkForward||{};
