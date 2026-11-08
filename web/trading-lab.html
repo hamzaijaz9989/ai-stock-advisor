@@ -53,6 +53,15 @@ button{border:1px solid transparent;border-radius:10px;padding:11px 14px;font-si
 <div class="stat"><label>Buying power</label><strong id="paper-buying-power">—</strong><small>Broker reported · paper only</small></div>
 </div>
 <p id="performance-status" class="muted small" style="margin:13px 0 6px">P&amp;L not verified yet. Refresh to check the connected paper account.</p>
+<div class="card-head" style="margin:18px 0 8px"><div><h2>Durable equity history</h2><p>Stored D1 snapshots · not strategy returns</p></div><button id="sync-paper-snapshot" class="secondary" type="button">＋ Save snapshot</button></div>
+<div class="stat-grid">
+<div class="stat"><label>Observed return</label><strong id="snapshot-return">—</strong><small>First to latest saved equity</small></div>
+<div class="stat"><label>Maximum drawdown</label><strong id="snapshot-drawdown">—</strong><small>From saved account snapshots</small></div>
+<div class="stat"><label>Saved snapshots</label><strong id="snapshot-count">0</strong><small id="snapshot-range">No history yet</small></div>
+<div class="stat"><label>Realized P&amp;L</label><strong id="snapshot-realized">—</strong><small>Unavailable until fills are journaled</small></div>
+</div>
+<p id="snapshot-status" class="muted small" style="margin:10px 0 0">No durable equity snapshots have been recorded yet.</p>
+<div id="snapshot-curve" class="small muted" style="margin-top:8px">The historical equity curve will appear after snapshots are saved.</div>
 <div class="card-head" style="margin:18px 0 5px"><h2>Open positions</h2><span id="paper-position-count" class="state">NOT LOADED</span></div><div id="paper-positions" class="small muted">No broker data loaded.</div>
 <p class="muted small">Lifetime realized P&amp;L, win rate and profit factor remain unavailable until a verified closed-trade ledger exists. This panel never reads your real-money holdings.</p>
 </article>
