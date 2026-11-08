@@ -292,7 +292,10 @@
       provider.textContent="DATA SOURCE · "+(data.source||"Unknown")+" · "+(data.sourceStatus||"STATUS UNKNOWN")+" · SPY: "+(data.benchmarkSource||"Unknown");
       root.appendChild(provider);
       const metrics=[
-        ["Strategy total return",fmtPct(data.strategy?.totalReturnPercent),"Daily mark-to-market diagnostic; reconcile with trade log before interpretation"],
+        ["Strategy total return",fmtPct(data.strategy?.totalReturnPercent),"Daily equity curve; compare with the compounded trade ledger below"],
+        ["Trade-ledger compounded return",fmtPct(data.ledgerTotalReturnPercent),"Same entries, exits and assumed costs as the daily equity curve"],
+        ["Equity / ledger difference",data.reconciliationDifferencePercent===null||data.reconciliationDifferencePercent===undefined?"—":Number(data.reconciliationDifferencePercent).toFixed(6)+" pp","Expected to be approximately zero"],
+        ["Reconciliation status",String(data.reconciliationStatus||"NOT REPORTED"),"A mismatch means do not interpret headline performance"],
         ["Strategy annualized return",fmtPct(data.strategy?.annualizedReturnPercent)],
         ["Strategy maximum drawdown",fmtPct(data.strategy?.maxDrawdownPercent)],
         ["Strategy annualized volatility",fmtPct(data.strategy?.volatilityPercent)],
@@ -335,7 +338,7 @@
       }
       const warning=document.createElement("p");warning.className="warning";warning.textContent=data.warning||"Experimental historical diagnostic. Not validated for live or paper execution.";root.appendChild(warning);
       if(data.walkForward?.warning){const w=document.createElement("p");w.className="muted small";w.textContent=data.walkForward.warning;root.appendChild(w);}
-      status.textContent=ticker+" · "+data.startDate+" to "+data.endDate+" · "+data.observations+" daily observations · refreshed "+new Date().toLocaleString();
+      status.textContent=ticker+" · "+data.startDate+" to "+data.endDate+" · "+data.observations+" daily observations · "+String(data.reconciliationStatus||"RECONCILIATION UNKNOWN")+" · refreshed "+new Date().toLocaleString();
     } catch(error) { status.textContent=error&&error.message?error.message:"Backtest unavailable."; }
     finally {button.disabled=false;button.textContent="Run historical test";}
   }
