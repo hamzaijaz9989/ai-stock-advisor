@@ -100,3 +100,20 @@ test("reconciliation fails closed when broker data is unavailable",async()=>{
     assert.equal(response.status,503);
   }finally{globalThis.fetch=oldFetch;}
 });
+
+
+test("reconciliation normalizes Alpaca new status to Northstar ACCEPTED",async()=>{
+  const db=mockDb({orders:[{id:"ledger-new",broker_order_id:"broker-new",symbol:"AAPL",side:"buy",qty:1,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})}]});
+  const response=await run({db,broker:{orders:[{id:"broker-new",symbol:"AAPL",side:"buy",qty:"1",status:"new",filled_qty:"0"}]}});
+  const body=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(body.reconciled,true);
+});
+
+test("reconciliation keeps unknown broker order states fail-closed",async()=>{
+  const db=mockDb({orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:1,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})}]});
+  const response=await run({db,broker:{orders:[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"1",status:"done_for_day",filled_qty:"0"}]}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="ORDER_STATUS_DIFFER" && x.brokerStatus==="UNKNOWN"));
+});
