@@ -156,6 +156,7 @@ function evaluate(rows) {
     } else if(invested) {
       dailyReturn+=current.adjustedClose/prior.adjustedClose-1;
     }
+    if(i===rows.length-1&&invested) dailyReturn-=cost; // mark the open position net of estimated liquidation cost
     strategyDaily.push(dailyReturn);
     equity*=1+dailyReturn;
     peak=Math.max(peak,equity);
@@ -274,6 +275,9 @@ export async function onRequestGet({request,env}) {
       benchmarkTicker:"SPY",benchmarkStartDate:alignedSpy[0]?.date||null,benchmarkEndDate:alignedSpy[alignedSpy.length-1]?.date||null,
       observations:rows.length,fastSma:FAST,slowSma:SLOW,slippageAndCostBpsPerSide:COST_PER_SIDE,
       strategy:report.strategy,spyBuyHold:benchmark,
+      ledgerTotalReturnPercent:report.ledgerTotalReturnPercent,
+      reconciliationDifferencePercent:report.reconciliationDifferencePercent,
+      reconciliationStatus:report.reconciliationStatus,
       trades:report.trades,completedTrades:report.completedTrades,openAtEnd:report.openAtEnd,
       winRatePercent:report.winRatePercent,profitFactor:report.profitFactor,
       averageTradeReturnPercent:report.averageTradeReturnPercent,
