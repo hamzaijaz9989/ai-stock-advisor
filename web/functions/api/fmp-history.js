@@ -20,7 +20,8 @@ export async function onRequestGet({request,env}){
  if(!TICKER_RE.test(ticker)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(from)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(to)||from>to)
   return Response.json({available:false,error:"Provide a valid ticker and ISO from/to dates."},{status:400});
  if((Date.parse(to)-Date.parse(from))/86400000>3653)return Response.json({available:false,error:"Maximum requested window is 10 years."},{status:400});
- if(!env?.FMP_API_KEY)return Response.json({available:false,configured:false,error:"FMP_API_KEY is not configured."},{status:503,headers:{"Cache-Control":"no-store"}});
+ const fmpKey=env?.FMP_API_KEY2||env?.FMP_API_KEY;
+ if(!fmpKey)return Response.json({available:false,configured:false,error:"FMP_API_KEY is not configured."},{status:503,headers:{"Cache-Control":"no-store"}});
  const tasks=[
   ["prices",`historical-price-eod/full?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}`],
   ["annualIncome",`income-statement?symbol=${ticker}&period=annual&limit=5`],
@@ -31,7 +32,7 @@ export async function onRequestGet({request,env}){
   ["quarterCashflow",`cash-flow-statement?symbol=${ticker}&period=quarter&limit=5`],
   ["news",`news/stock?symbols=${ticker}&from=${from}&to=${to}&limit=5&page=0`]
  ];
- const settled=await Promise.allSettled(tasks.map(([,path])=>get(path,env.FMP_API_KEY)));
+ const settled=await Promise.allSettled(tasks.map(([,path])=>get(path,fmpKey)));
  const raw={},errors=[];
  settled.forEach((v,i)=>{const name=tasks[i][0];if(v.status==="fulfilled")raw[name]=v.value;else errors.push({dataset:name,error:String(v.reason?.message||"FMP request failed").slice(0,160)});});
  const prices=(raw.prices||[]).filter(x=>x.date>=from&&x.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
