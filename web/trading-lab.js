@@ -279,7 +279,9 @@
       $("snapshot-return").textContent=fmtPct(data.observedChange?.returnPct);
       $("snapshot-drawdown").textContent=fmtPct(data.observedChange?.maxDrawdownPct);
       $("snapshot-count").textContent=String(data.snapshotCount??0);
-      $("snapshot-realized").textContent=data.tradeStatistics?.realizedPlUsd===null?"UNAVAILABLE":money(Number(data.tradeStatistics.realizedPlUsd));
+      $("snapshot-realized").textContent=data.tradeStatistics?.grossRealizedPlUsd===null||data.tradeStatistics?.grossRealizedPlUsd===undefined?"—":fmtSigned(Number(data.tradeStatistics.grossRealizedPlUsd));
+      $("snapshot-win-rate").textContent=fmtPct(data.tradeStatistics?.winRatePct);
+      $("snapshot-profit-factor").textContent="Profit factor "+(typeof data.tradeStatistics?.profitFactor==="number"?data.tradeStatistics.profitFactor.toFixed(2):String(data.tradeStatistics?.profitFactor??"—"));
       $("snapshot-range").textContent=data.firstSnapshotAt&&data.lastSnapshotAt?new Date(data.firstSnapshotAt).toLocaleDateString()+" → "+new Date(data.lastSnapshotAt).toLocaleDateString():"No history yet";
       status.textContent=data.available
         ?"Stored broker snapshots · latest "+new Date(data.lastSnapshotAt).toLocaleString()+". Observed change is not strategy performance."
@@ -304,6 +306,21 @@
       await loadDurablePerformance();
     }catch(error){$("snapshot-status").textContent=error?.message||"Snapshot sync failed. No order action was attempted.";}
     finally{button.disabled=false;button.textContent="＋ Save snapshot";}
+  });
+
+  $("sync-paper-fills").addEventListener("click",async()=>{
+    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved.");
+    if(!token)return;
+    const button=$("sync-paper-fills");button.disabled=true;button.textContent="Importing…";
+    $("snapshot-status").textContent="Fetching broker-reported fill activities and importing idempotently…";
+    try{
+      const response=await fetch("/api/paper/fills-sync",{method:"POST",headers:{Authorization:"Bearer "+token,Accept:"application/json","Content-Type":"application/json"},body:"{}"});
+      const data=await response.json();
+      if(!response.ok||!data.imported)throw new Error(data.error||"Fill import failed.");
+      $("snapshot-status").textContent="Fill history checked: "+data.brokerRecords+" broker records · "+data.newRecords+" new · "+data.alreadyKnown+" already imported. No orders submitted.";
+      await loadDurablePerformance();
+    }catch(error){$("snapshot-status").textContent=error?.message||"Fill import failed; no order action was attempted.";}
+    finally{button.disabled=false;button.textContent="Import fill history";}
   });
   $("refresh-performance").addEventListener("click",loadPaperPerformance);
   const fmtPct = value => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? "—" : Number(value).toFixed(2) + "%";
