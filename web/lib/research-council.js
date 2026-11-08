@@ -4,14 +4,14 @@
  * No LLM calls, data fetching, persistence, broker access, or order execution here.
  * Every factual claim must cite supplied fact IDs.
  */
-export const COUNCIL_VERSION = "1.0.0";
+export const COUNCIL_VERSION = "1.0.1";
 export const COUNCIL_ROLES = Object.freeze({
   independent: ["market_scanner", "technical_analyst", "fundamental_analyst", "news_analyst", "sentiment_analyst"],
   debate: ["bull_researcher", "bear_researcher"],
   synthesis: ["portfolio_analyst"],
   veto: ["risk_committee"]
 });
-const validText = value => typeof value === "string" && value.trim().length >= 12;
+const validText = value => typeof value === "string" && value.trim().length >= 12 && value.length <= 2000;
 function freezeDeep(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
   Object.freeze(value);
@@ -20,17 +20,32 @@ function freezeDeep(value) {
 }
 function validateReport(report, validFactIds, role) {
   if (!report || !["COMPLETE", "UNAVAILABLE"].includes(report.status) ||
-      !Array.isArray(report.findings) || !Array.isArray(report.risks)) {
+      !Array.isArray(report.findings) || !Array.isArray(report.risks) ||
+      report.findings.length > 30 || report.risks.length > 30) {
     return {ok:false, reason:role+" returned an invalid report contract."};
   }
   if (report.status === "UNAVAILABLE") {
-    return {ok:report.findings.length===0, reason:role+" is unavailable."};
+    const clean = report.findings.length === 0 && report.risks.length === 0 &&
+      report.decision === undefined && report.vetoReasons === undefined;
+    return {ok:clean, reason:role+" is unavailable or returned data with an unavailable status."};
   }
   for (const item of [...report.findings, ...report.risks]) {
     if (!validText(item?.claim) || !Array.isArray(item.factIds) || item.factIds.length===0 ||
+        item.factIds.length > 10 ||
         item.factIds.some(id => typeof id!=="string" || !validFactIds.has(id))) {
       return {ok:false, reason:role+" emitted an unsupported claim or invalid fact reference."};
     }
+  }
+  if (role === "risk_committee") {
+    if (!["ACCEPT_FOR_REVIEW", "REJECT"].includes(report.decision) ||
+        !Array.isArray(report.vetoReasons) || report.vetoReasons.length > 20 ||
+        report.vetoReasons.some(reason => typeof reason !== "string" || reason.trim().length < 5 || reason.length > 500) ||
+        (report.decision === "ACCEPT_FOR_REVIEW" && report.vetoReasons.length !== 0) ||
+        (report.decision === "REJECT" && report.vetoReasons.length === 0)) {
+      return {ok:false, reason:"risk_committee returned an invalid decision or veto-reason contract."};
+    }
+  } else if (report.decision !== undefined || report.vetoReasons !== undefined) {
+    return {ok:false, reason:role+" attempted to emit risk-committee-only decision fields."};
   }
   return {ok:true};
 }
@@ -53,10 +68,15 @@ export async function runResearchCouncil({requestId, context, workers}) {
       !Array.isArray(context.evidence) || !context.portfolio || typeof context.portfolio!=="object") {
     throw new TypeError("Facts, evidence, and portfolio context are mandatory.");
   }
-  const factIds = new Set([...context.facts.map(x=>x?.id), ...context.evidence.map(x=>x?.id)]
-    .filter(x=>typeof x==="string" && x.length>0));
-  if (!factIds.size || context.facts.some(x=>!x?.id) || context.evidence.some(x=>!x?.id)) {
-    throw new TypeError("Every supplied fact and evidence item requires a stable ID.");
+  if (context.facts.length + context.evidence.length > 500 ||
+      context.facts.some(x=>!x || typeof x!=="object" || typeof x.id!=="string" || !x.id.trim()) ||
+      context.evidence.some(x=>!x || typeof x!=="object" || typeof x.id!=="string" || !x.id.trim())) {
+    throw new TypeError("Every supplied fact and evidence item requires a stable ID; maximum 500 items.");
+  }
+  const ids = [...context.facts,...context.evidence].map(x=>x.id);
+  const factIds = new Set(ids);
+  if (!factIds.size || factIds.size !== ids.length) {
+    throw new TypeError("Fact and evidence IDs must be non-empty and globally unique.");
   }
   const safeWorkers = workers || {};
   const base = {requestId, ticker:context.ticker, asOf:context.asOf, facts:context.facts,
