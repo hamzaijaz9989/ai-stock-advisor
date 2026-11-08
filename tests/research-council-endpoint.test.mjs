@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createResearchCouncilWorkers} from "../web/lib/research-council-adapters.js";
+import {createResearchCouncilWorkers,normalizeCouncilModelReport} from "../web/lib/research-council-adapters.js";
 import {onRequestPost} from "../web/functions/api/research/council.js";
 
 function makeDb() {
@@ -87,4 +87,33 @@ test("council endpoint rejects oversized contexts and malformed IDs", async () =
   const huge={...context,facts:Array.from({length:501},(_,i)=>({id:"f-"+i}))};
   const large=await onRequestPost({request:request({requestId:"council-0005",context:huge}),env:env(db)});
   assert.equal(large.status,413);
+});
+
+test("model report normalization preserves UNAVAILABLE and rejects false completion", () => {
+  const unavailable=normalizeCouncilModelReport({status:"UNAVAILABLE",findings:[],risks:[]});
+  assert.equal(unavailable.status,"UNAVAILABLE");
+  assert.throws(()=>normalizeCouncilModelReport({status:"UNAVAILABLE",findings:[{claim:"A claim that must not be kept.",factIds:["quote-1"]}],risks:[]}),/Unavailable/);
+  assert.throws(()=>normalizeCouncilModelReport({status:"PARTIAL",findings:[],risks:[]}),/contract/);
+  assert.throws(()=>normalizeCouncilModelReport({status:"COMPLETE",findings:[],risks:[],decision:"ACCEPT_FOR_REVIEW"}),/decision fields/);
+  assert.throws(()=>normalizeCouncilModelReport({status:"COMPLETE",findings:{},risks:[]}),/contract/);
+});
+
+test("deterministic risk committee rejects negative daily or weekly loss inputs", async () => {
+  const workers=await createResearchCouncilWorkers({});
+  const base={facts:[{id:"portfolio-state-1"}],portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}};
+  for (const field of ["dailyLossFraction","weeklyLossFraction"]) {
+    const portfolio={...base.portfolio,[field]:-0.01};
+    const result=await workers.risk_committee({...base,portfolio});
+    assert.equal(result.decision,"REJECT");
+    assert.ok(result.vetoReasons.some(x=>x.includes("incomplete or invalid")));
+  }
+});
+
+test("risk committee does not attach unrelated market fact IDs to portfolio assertions", async () => {
+  const workers=await createResearchCouncilWorkers({});
+  const result=await workers.risk_committee({facts:[{id:"quote-1",type:"QUOTE"}],portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}});
+  assert.equal(result.decision,"ACCEPT_FOR_REVIEW");
+  assert.deepEqual(result.findings,[]);
+  assert.deepEqual(result.risks,[]);
+  assert.deepEqual(result.vetoReasons,[]);
 });
