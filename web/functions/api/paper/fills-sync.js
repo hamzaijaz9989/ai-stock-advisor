@@ -1,0 +1,44 @@
+// Authenticated, read-only import of Alpaca Paper fill activities into an idempotent D1 ledger.
+// Does not submit, amend, or cancel broker orders.
+const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
+const fail=(error,status=400)=>Response.json({ok:false,imported:false,execution:false,error},{status,headers:H});
+function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)return false;let d=a.length^b.length;for(let i=0;i<Math.max(a.length,b.length);i++)d|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return d===0;}
+function authorized(req,env){return !!env?.NORTHSTAR_OPERATOR_TOKEN&&safeEqual(req.headers.get("Authorization")||"","Bearer "+env.NORTHSTAR_OPERATOR_TOKEN);}
+async function alpaca(path,key,secret){const r=await fetch("https://paper-api.alpaca.markets"+path,{headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,"Accept":"application/json"},signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error("BROKER_HTTP_"+r.status);return r.json();}
+const num=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v):null;
+export async function onRequestPost({request,env}){
+ if(!authorized(request,env))return fail("Unauthorized.",401);
+ const db=env?.NORTHSTAR_DB,key=env?.ALPACA_API_KEY_ID,secret=env?.ALPACA_API_SECRET_KEY;
+ if(!db||!key||!secret)return fail("Ledger or Alpaca Paper credentials unavailable; fill import blocked.",503);
+ let control,account;
+ try{control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();}
+ catch{return fail("Could not verify execution controls; fail-closed.",503);}
+ if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1)return fail("Execution controls are not in the required disabled/kill-switched state.",503);
+ try{account=await alpaca("/v2/account",key,secret);}catch(e){const m=String(e?.message||"");return fail(m.startsWith("BROKER_HTTP_")?"Alpaca Paper account check failed ("+m.slice(12)+").":"Alpaca Paper account unavailable.",503);}
+ if(account?.status!=="ACTIVE"||account?.trading_blocked||account?.account_blocked)return fail("Alpaca Paper account is not active or is blocked.",503);
+ let rows=[],token=null,pages=0;
+ try{
+  do{
+   const q=new URLSearchParams({activity_types:"FILL",direction:"asc",page_size:"100"});
+   if(token)q.set("page_token",token);
+   const batch=await alpaca("/v2/account/activities?"+q.toString(),key,secret);
+   if(!Array.isArray(batch))return fail("Alpaca returned a malformed fill activity response; nothing imported.",503);
+   rows.push(...batch);pages++;
+   token=batch.length===100?(batch[batch.length-1]?.id||null):null;
+   if(pages>=5&&token)return fail("Fill history exceeds the 500-record safe import limit. No partial import was written; contact support to extend pagination.",503);
+  }while(token);
+ }catch(e){const m=String(e?.message||"");return fail(m.startsWith("BROKER_HTTP_")?"Alpaca fill activity request failed ("+m.slice(12)+").":"Alpaca fill activity history unavailable; nothing imported.",503);}
+ const clean=[];
+ for(const a of rows){
+  const id=String(a?.id||""),order=String(a?.order_id||""),symbol=String(a?.symbol||"").toUpperCase(),side=String(a?.side||"").toLowerCase(),qty=num(a?.qty),price=num(a?.price),time=String(a?.transaction_time||"");
+  if(!id||!order||!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)||!["buy","sell"].includes(side)||qty===null||qty<=0||price===null||price<=0||!Number.isFinite(Date.parse(time)))return fail("Fill activity contains missing or invalid identifiers, side, quantity, price or timestamp; no records imported.",503);
+  clean.push({id,order,symbol,side,qty,price,cum:num(a.cum_qty),leaves:num(a.leaves_qty),status:String(a.order_status||""),time,raw:JSON.stringify(a)});
+ }
+ try{
+  const statements=clean.map(a=>db.prepare("INSERT INTO broker_fill_activities(activity_id,broker_order_id,symbol,side,qty,price,cum_qty,leaves_qty,order_status,transaction_time,raw_json) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(activity_id) DO NOTHING").bind(a.id,a.order,a.symbol,a.side,a.qty,a.price,a.cum,a.leaves,a.status,a.time,a.raw));
+  statements.push(db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","READ_ONLY_FILL_IMPORT","SUCCESS",request.headers.get("X-Request-ID")||null,JSON.stringify({brokerRecords:clean.length,pages,source:"alpaca_paper_account_activities"})));
+  const result=await db.batch(statements);
+  const inserted=result.slice(0,clean.length).reduce((s,x)=>s+(Number(x?.meta?.changes)||0),0);
+  return Response.json({ok:true,imported:true,execution:false,brokerRecords:clean.length,newRecords:inserted,alreadyKnown:clean.length-inserted,pages,checkedAt:new Date().toISOString(),warnings:["Imported broker-reported fill activities only; no orders were submitted or modified.","Fill records are idempotent by Alpaca activity ID.","Realized P&L is gross FIFO matching and excludes fees, dividends, transfers, taxes and corporate actions unless separately modeled.","Execution remains disabled and the kill switch remains engaged."]},{headers:H});
+ }catch{return fail("D1 fill import failed. No successful import is claimed; verify schema and database before retrying.",503);}
+}
