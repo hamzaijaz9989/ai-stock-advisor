@@ -60,3 +60,20 @@ test("rejects candidates when aggregate risk or daily loss gates are breached",(
 
 test("rejects quote when last price falls outside the bid-ask market",()=>{ const q=candidate(); q.quote.price=181; assert.equal(runAgentPipeline(q).reason,"INVALID_OR_UNSOURCED_QUOTE"); });
 test("requires weekly loss state and rejects missing weekly loss input",()=>{ const p=candidate(); delete p.portfolio.weeklyLossFraction; assert.equal(runAgentPipeline(p).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS"); });
+
+test("rejects publisher identity that does not match the source URL host",()=>{
+ const mismatch=candidate(); mismatch.evidence[1].publisherId="reuters.com"; mismatch.evidence[1].url="https://example.com/story";
+ assert.equal(runAgentPipeline(mismatch).reason,"INSUFFICIENT_VERIFIABLE_INDEPENDENT_EVIDENCE");
+});
+test("rejects unregistered publisher domains even when the supplied ID looks canonical",()=>{
+ const unknown=candidate(); unknown.evidence[1].publisherId="unknownnews.com"; unknown.evidence[1].url="https://unknownnews.com/story";
+ assert.equal(runAgentPipeline(unknown).reason,"INSUFFICIENT_VERIFIABLE_INDEPENDENT_EVIDENCE");
+});
+test("does not count the same canonical article URL twice as independent evidence",()=>{
+ const duplicate=candidate(); duplicate.evidence[1].url=duplicate.evidence[0].url; duplicate.evidence[1].publisherId="sec.gov";
+ assert.equal(runAgentPipeline(duplicate).reason,"INSUFFICIENT_VERIFIABLE_INDEPENDENT_EVIDENCE");
+});
+test("does not count identical syndicated summaries twice as independent evidence",()=>{
+ const duplicate=candidate(); duplicate.evidence[1].summary=duplicate.evidence[0].summary;
+ assert.equal(runAgentPipeline(duplicate).reason,"INSUFFICIENT_VERIFIABLE_INDEPENDENT_EVIDENCE");
+});
