@@ -45,7 +45,7 @@ try {
         financialPeriod,
         fundamentalAgeDays: ageDays,
         fundamentalFreshness: fundamentalsFresh ? "CURRENT_WITHIN_18_MONTHS" : "STALE_OR_UNVERIFIED",
-        historyPeriod: (period.match(/Price data:\\s*([^·]+)/)||[])[1]?.trim() || null,
+        historyPeriod: (period.match(/Price data:\s*([^·]+)/)||[])[1]?.trim() || null,
         components,
         entryStatus: fundamentalsFresh ? entryStatus : "BLOCKED: annual fundamentals are stale or unverified; refresh and reconcile the latest reported period before any entry decision."
       };
