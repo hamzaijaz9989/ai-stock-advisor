@@ -17,6 +17,7 @@ function validatePortfolio(portfolio, asOfMs) {
   const capturedAt = dateMs(portfolio.asOf);
   if (capturedAt === null || capturedAt > asOfMs) throw new TypeError("Portfolio snapshot timestamp is missing or after the research as-of time.");
   const fields = ["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"];
+  if (fields.some(key => portfolio[key] === null || portfolio[key] === undefined || portfolio[key] === "")) throw new TypeError("Portfolio risk snapshot contains missing numeric fields.");
   const values = Object.fromEntries(fields.map(key => [key, Number(portfolio[key])]));
   if (!fields.every(key => Number.isFinite(values[key])) || values.equityUsd <= 0 ||
       fields.filter(key => key !== "equityUsd" && key !== "concurrentPositions").some(key => values[key] < 0) ||
@@ -84,16 +85,25 @@ export function buildResearchCouncilContext(input) {
 
   const fmp = input.fmpFundamentals;
   if (fmp?.available === true) {
-    if (fmp.latest && typeof fmp.latest === "object") add(facts, makeId("fmp-latest",ticker,fmp.latest.fiscalDate || fmp.retrievedAt),
-      "FMP_REPORTED_FUNDAMENTALS_CROSSCHECK", {fiscalDate:fmp.latest.fiscalDate || null,currency:fmp.latest.currency || null,metrics:fmp.latest},
-      fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+    if (fmp.latest && typeof fmp.latest === "object") {
+      const latest = {...fmp.latest};
+      const estimateKeys = ["analystEpsAverage","analystRevenueAverage","analystCountEps","analystCountRevenue"];
+      const estimateMetrics = Object.fromEntries(estimateKeys.filter(key => latest[key] !== null && latest[key] !== undefined).map(key => [key,latest[key]]));
+      for (const key of estimateKeys) delete latest[key];
+      add(facts, makeId("fmp-latest",ticker,latest.fiscalDate || fmp.retrievedAt),
+        "FMP_REPORTED_FUNDAMENTALS_CROSSCHECK", {fiscalDate:latest.fiscalDate || null,currency:latest.currency || null,metrics:latest},
+        fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+      if (Object.keys(estimateMetrics).length) add(facts, makeId("fmp-latest-estimates",ticker,latest.fiscalDate || fmp.retrievedAt),
+        "FMP_ANALYST_ESTIMATE", {period:latest.fiscalDate || null,metrics:estimateMetrics},
+        fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+    }
     const sections = ["income","balance","cashflow","metrics","ratios","estimates"];
     for (const section of sections) {
       const rows = Array.isArray(fmp.history?.[section]) ? fmp.history[section] : [];
       for (const row of rows.slice(0, 10)) {
         const period = row?.date || row?.fiscalDate || fmp.retrievedAt || "undated";
-        if (typeof period === "string" && /^20\\d{2}-\\d{2}-\\d{2}$/.test(period) && period > asOfDate) continue;
-        add(facts, makeId("fmp",ticker,section,period,row?.period), section === "estimates" ? "FMP_ANALYST_ESTIMATE" : "FMP_REPORTED_PERIOD",
+        if (typeof period === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(period) && period > asOfDate) continue;
+        add(facts, makeId("fmp",ticker,section,period,row?.period), section === "estimates" ? "FMP_ANALYST_ESTIMATE" : ["income","balance","cashflow"].includes(section) ? "FMP_STATEMENT_PERIOD" : "FMP_PROVIDER_METRIC",
           {section,period:row?.period || null,reportedCurrency:row?.reportedCurrency || null,values:row},
           fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
       }
@@ -102,7 +112,7 @@ export function buildResearchCouncilContext(input) {
 
   const news = input.news;
   if (Array.isArray(news?.items)) for (const item of news.items.slice(0, 50)) {
-    if (!item || typeof item.title !== "string" || typeof item.url !== "string" || !/^https?:\\/\\//i.test(item.url)) continue;
+    if (!item || typeof item.title !== "string" || typeof item.url !== "string" || !/^https?:\/\//i.test(item.url)) continue;
     const published = dateMs(item.publishedAt);
     add(evidence, makeId("news",ticker,item.url,item.publishedAt || item.title), "NEWS_DISCOVERY", {
       title:item.title, description:item.description || "", url:item.url, publishedAt:item.publishedAt || null,
