@@ -15,6 +15,7 @@ async function broker(path,key,secret,options={}){
 }
 const num=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v):null;
 const close=(a,b,t=.0001)=>Math.abs(Number(a)-Number(b))<=t;
+const normalizeStatus=value=>{const s=String(value||"UNKNOWN").toUpperCase();if(["NEW","PENDING_NEW","HELD","ACCEPTED"].includes(s))return "ACCEPTED";return ["PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"].includes(s)?s:"UNKNOWN";};
 const safeJson=v=>JSON.stringify(v??{});
 async function digest(v){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(v)));return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 export async function onRequestPost({request,env}){
@@ -39,7 +40,7 @@ export async function onRequestPost({request,env}){
   // Never blindly retry. First ask Alpaca whether the stable client_order_id already exists.
   try{
    const found=await broker("/v2/orders:by_client_order_id?client_order_id="+encodeURIComponent(existing.id),key,secret);
-   if(found?.id){await db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=?").bind(found.id,String(found.status||"UNKNOWN").toUpperCase(),safeJson(found),new Date().toISOString(),existing.id).run();return Response.json({ok:true,execution:false,replayed:true,status:String(found.status||"UNKNOWN").toUpperCase(),brokerOrderId:found.id,message:"Existing client order recovered; no second order was submitted."},{headers:H});}
+   if(found?.id){const recoveredStatus=normalizeStatus(found.status);await db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=?").bind(found.id,recoveredStatus,safeJson(found),new Date().toISOString(),existing.id).run();return Response.json({ok:true,execution:false,replayed:true,status:recoveredStatus,brokerOrderId:found.id,message:"Existing client order recovered; no second order was submitted."},{headers:H});}
   }catch(e){if(e?.status!==404)return fail("Existing submission outcome is uncertain. No retry was attempted; reconcile by client_order_id.",503,{orderId:existing.id,status:existing.status});}
   return fail("An order record already exists. No automatic resubmission is permitted.",409,{orderId:existing.id,status:existing.status});
  }
@@ -84,9 +85,7 @@ export async function onRequestPost({request,env}){
    return fail("Submission outcome is uncertain. Order marked UNKNOWN; no retry was attempted. Reconcile this client_order_id before any further action.",503,{orderId:id,status:"UNKNOWN"});
   }
  }
- const status=String(result?.status||"UNKNOWN").toUpperCase();
- const allowed=["ACCEPTED","NEW","PENDING_NEW","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","HELD"];
- const normalized=status==="NEW"||status==="PENDING_NEW"||status==="HELD"?"ACCEPTED":allowed.includes(status)?status:"UNKNOWN";
+ const normalized=normalizeStatus(result?.status);
  try{
   await db.batch([
    db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=? AND status IN ('SUBMITTING','UNKNOWN')").bind(result?.id||null,normalized,safeJson(result),new Date().toISOString(),id),
