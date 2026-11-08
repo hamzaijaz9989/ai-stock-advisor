@@ -270,7 +270,7 @@
     }
   }
   $("refresh-performance").addEventListener("click",loadPaperPerformance);
-  const fmtPct = value => Number.isFinite(Number(value)) ? Number(value).toFixed(2) + "%" : "—";
+  const fmtPct = value => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? "—" : Number(value).toFixed(2) + "%";
   function appendMetric(root,label,value,detail="") {
     const row=document.createElement("div"); row.className="journal-row";
     const left=document.createElement("div");
