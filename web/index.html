@@ -7,12 +7,64 @@
   <meta name="description" content="Northstar AI provides transparent US stock research with SEC-sourced fundamentals, market data, earnings risk and explicit data-quality limits.">
   <title>Northstar AI — Stock Research</title>
   <link rel="stylesheet" href="./styles.css?v=signal-self-test1">
+  <link rel="stylesheet" href="./command-center.css?v=command-center1">
+
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="./"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 17.5 9 12l3.2 3.2L20 6.5M14.5 6.5H20v5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="brand-name">NORTHSTAR <span>AI</span></span></a>
     <div class="topbar-right"><a href="./trading-lab.html" class="nav-link" style="display:inline-flex!important;color:var(--accent);font-weight:750">Trading Lab ↗</a><a href="#ranking-disclosure" class="nav-link" id="market-scan-link">Market scan</a><span class="status"><i></i> RESEARCH MODE</span></div>
   </header>
+  <section class="northstar-command" aria-label="Northstar command centre">
+    <div class="command-topline">
+      <div><div class="command-eyebrow"><span class="command-pulse"></span> NORTHSTAR / MISSION CONTROL</div><div class="command-title">Market intelligence <span>at a glance.</span></div></div>
+      <div class="command-clock"><span>LOCAL SYSTEM TIME</span><strong id="northstar-clock">--:--:--</strong><small id="northstar-date">Synchronizing clock</small></div>
+    </div>
+    <div class="command-statusbar">
+      <span class="command-status"><i></i> RESEARCH ENGINE</span>
+      <span class="command-status locked"><i></i> EXECUTION LOCKED</span>
+      <span class="command-status"><i></i> PAPER MODE ONLY</span>
+      <span class="command-status muted-status">LIVE MARKET DATA · CHECKED PER REQUEST</span>
+    </div>
+    <div class="command-grid">
+      <article class="command-card universe-card">
+        <div class="command-card-head"><span>01 / SCANNER UNIVERSE</span><span class="command-icon">⌁</span></div>
+        <strong class="command-number">253</strong><span class="command-unit">CURATED US EQUITIES</span>
+        <div class="command-meter"><i style="width:100%"></i></div><p>Focused coverage · not a full-market scan</p>
+      </article>
+      <article class="command-card council-card">
+        <div class="command-card-head"><span>02 / RESEARCH COUNCIL</span><span class="command-icon">✳</span></div>
+        <strong class="command-number">08</strong><span class="command-unit">MODEL WORKER ROLES</span>
+        <div class="council-orbit" aria-label="Eight configured research roles"><span>SCAN</span><span>TECH</span><span>FUND</span><span>NEWS</span><span>SENT</span><span>BULL</span><span>BEAR</span><span>SYNTH</span></div>
+        <p>Configured specialists · run on authenticated request</p>
+      </article>
+      <article class="command-card risk-card">
+        <div class="command-card-head"><span>03 / RISK AUTHORITY</span><span class="command-icon">⛨</span></div>
+        <strong class="risk-word">VETO ENABLED</strong><span class="command-unit">DETERMINISTIC RISK COMMITTEE</span>
+        <div class="risk-rule"><i></i> Missing or breached limits → NO TRADE</div><p>Independent gate · no model can override</p>
+      </article>
+      <article class="command-card execution-card">
+        <div class="command-card-head"><span>04 / EXECUTION CONTROL</span><span class="command-icon">◈</span></div>
+        <strong class="lock-word">DISABLED</strong><span class="command-unit">AUTOMATED ORDER SUBMISSION</span>
+        <div class="lock-track"><span></span></div><p>Kill switch engaged · no live orders</p>
+      </article>
+    </div>
+    <div class="command-lower">
+      <div class="command-lower-heading"><div><span class="command-eyebrow">RESEARCH COUNCIL / ARCHITECTURE</span><h2>Eight perspectives. One risk gate.</h2></div><span class="architecture-tag">ON-DEMAND ANALYSIS</span></div>
+      <div class="agent-rail">
+        <div class="agent-node"><b>01</b><strong>Market scanner</strong><small>Opportunity discovery</small></div>
+        <div class="agent-node"><b>02</b><strong>Technical analyst</strong><small>Price & trend context</small></div>
+        <div class="agent-node"><b>03</b><strong>Fundamental analyst</strong><small>Business quality</small></div>
+        <div class="agent-node"><b>04</b><strong>News analyst</strong><small>Catalyst evidence</small></div>
+        <div class="agent-node"><b>05</b><strong>Sentiment analyst</strong><small>Market narrative</small></div>
+        <div class="agent-node debate-node"><b>06</b><strong>Bull researcher</strong><small>Upside thesis</small></div>
+        <div class="agent-node debate-node"><b>07</b><strong>Bear researcher</strong><small>Counter-thesis</small></div>
+        <div class="agent-node"><b>08</b><strong>Portfolio analyst</strong><small>Decision synthesis</small></div>
+        <div class="agent-node risk-node"><b>09</b><strong>Risk committee</strong><small>Deterministic veto</small></div>
+      </div>
+      <div class="command-footnote"><span class="footnote-led"></span> This panel describes configured architecture, not live agent activity. Council execution and dashboard streaming are not yet connected.</div>
+    </div>
+  </section>
   <main class="shell">
     <section class="hero">
       <div class="hero-kicker"><span class="live-dot"></span> EQUITY INTELLIGENCE <span class="kicker-divider"></span> US MARKETS</div>
