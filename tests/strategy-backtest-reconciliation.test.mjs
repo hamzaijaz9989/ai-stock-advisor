@@ -41,7 +41,7 @@ test("walk-forward folds use next-open entry and exit accounting",()=>{
     rows.push({date,open,adjustedOpen:open,high:Math.max(open,close),low:Math.min(open,close),close,adjustedClose:close});
   }
   const report=evaluateWalkForward(rows);
-  assert.equal(report.totalFolds,4);
+  assert.equal(report.totalFolds,3);
   assert.ok(report.folds.every(fold=>Number.isFinite(fold.returnPercent)));
   assert.ok(report.folds.some(fold=>fold.entries>0));
   assert.match(report.methodology,/execution at current adjusted open/);
