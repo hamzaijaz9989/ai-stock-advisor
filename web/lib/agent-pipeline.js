@@ -4,14 +4,45 @@ const isoMs = v => { const n = Date.parse(v); return Number.isFinite(n) ? n : nu
 const round = n => Number(n.toFixed(4));
 const reject = (stage, reason, events) => ({status:"REJECTED",decision:"NO_TRADE",execution:false,automatedOrderSubmission:false,failedStage:stage,reason,sizing:null,events});
 const TYPES = new Set(["SEC_FILING","EARNINGS_RELEASE","REGULATORY_FILING","COMPANY_RELEASE","NEWS_REPORT","ANALYST_RESEARCH","MARKET_DATA"]);
+// Publisher IDs are canonical registrable domains, not feed labels or aggregator names.
+// A source is accepted only when its article URL belongs to that publisher domain.
+const PUBLISHERS = new Set([
+  "sec.gov", "reuters.com", "bloomberg.com", "wsj.com", "cnbc.com",
+  "marketwatch.com", "apnews.com", "nasdaq.com", "yahoo.com"
+]);
 function validEvidence(e, now) {
   if (!e || typeof e !== "object") return false;
-  const published = isoMs(e.publishedAt); let url;
+  const published = isoMs(e.publishedAt);
+  let url;
   try { url = new URL(String(e.url || "")); } catch { return false; }
-  return TYPES.has(e.type) && typeof e.publisherId === "string" &&
-    /^[a-z0-9][a-z0-9._-]{2,79}$/i.test(e.publisherId) && url.protocol === "https:" &&
+  const publisherId = typeof e.publisherId === "string" ? e.publisherId.trim().toLowerCase() : "";
+  const publisherKnown = PUBLISHERS.has(publisherId);
+  const host = url.hostname.toLowerCase();
+  const hostMatchesPublisher = publisherKnown && (host === publisherId || host.endsWith("." + publisherId));
+  return TYPES.has(e.type) && publisherKnown && hostMatchesPublisher &&
+    url.protocol === "https:" && !url.username && !url.password &&
     typeof e.summary === "string" && e.summary.trim().length >= 30 &&
     published !== null && published <= now && now-published <= 7*86400000;
+}
+function independentEvidence(items, now) {
+  const accepted = [];
+  const seenUrls = new Set();
+  const seenSummaries = new Set();
+  for (const item of Array.isArray(items) ? items : []) {
+    if (!validEvidence(item, now)) continue;
+    const url = new URL(item.url);
+    url.hash = "";
+    for (const key of [...url.searchParams.keys()]) {
+      if (/^(utm_|fbclid$|gclid$|mc_cid$|mc_eid$)/i.test(key)) url.searchParams.delete(key);
+    }
+    const urlKey = url.toString().replace(/\\/$/, "");
+    const summaryKey = item.summary.trim().toLowerCase().replace(/\\s+/g, " ");
+    if (seenUrls.has(urlKey) || seenSummaries.has(summaryKey)) continue;
+    seenUrls.add(urlKey);
+    seenSummaries.add(summaryKey);
+    accepted.push({...item, publisherId:item.publisherId.trim().toLowerCase(), url:urlKey});
+  }
+  return accepted;
 }
 export function runAgentPipeline(c) {
   const events=[]; const log=(agent,status,reason,details={})=>events.push({agent,status,reason,details});
@@ -29,7 +60,7 @@ export function runAgentPipeline(c) {
   if(!Number.isFinite(dollarVolume)||dollarVolume<5000000){log("SCANNER","BLOCKED","INSUFFICIENT_OR_UNKNOWN_DOLLAR_LIQUIDITY");return reject("SCANNER","INSUFFICIENT_OR_UNKNOWN_DOLLAR_LIQUIDITY",events);}
   if(spreadPct>1){log("SCANNER","BLOCKED","SPREAD_TOO_WIDE",{spreadPct:round(spreadPct)});return reject("SCANNER","SPREAD_TOO_WIDE",events);}
   log("SCANNER","PASSED","QUOTE_FRESH_SOURCED_AND_LIQUID",{quoteAgeMs,spreadPct:round(spreadPct),avgDollarVolumeUsd:dollarVolume});
-  const evidence=(Array.isArray(c.evidence)?c.evidence:[]).filter(e=>validEvidence(e,now));
+  const evidence=independentEvidence(c.evidence,now);
   const publishers=new Set(evidence.map(e=>e.publisherId.toLowerCase()));
   if(typeof c.thesis!=="string"||c.thesis.trim().length<40||publishers.size<2){
     log("RESEARCH","BLOCKED","INSUFFICIENT_VERIFIABLE_INDEPENDENT_EVIDENCE",{validEvidence:evidence.length,independentPublishers:publishers.size});
