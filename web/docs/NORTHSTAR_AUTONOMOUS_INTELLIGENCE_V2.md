@@ -5,7 +5,7 @@ Connect the existing 253-symbol research shortlist to a deterministic, evidence-
 
 ## Implemented in this foundation branch
 - Deterministic candidate validation with sourced, fresh quotes and liquidity/spread gates.
-- Evidence validation requires an explicit evidence type, HTTPS source URL, publisher identity, recent publication timestamp and substantive summary. Publisher identity is a stable canonical ID supplied by the upstream source adapter; syndication and aliases still require a provenance registry.
+- Evidence validation requires an explicit evidence type, HTTPS source URL, publisher identity, recent publication timestamp and substantive summary. Publisher identity must be one of the explicit canonical publisher domains and match the HTTPS article URL host. Exact duplicate URLs and identical normalized summaries are deduplicated; this is a conservative first layer, not full semantic syndication detection.
 - Explicit risk disclosures.
 - Fail-closed portfolio inputs: equity, open risk, gross exposure, sector exposure, daily loss, drawdown and concurrent position count.
 - Cost-aware sizing using a configured round-trip cost assumption.
@@ -23,7 +23,7 @@ Connect the existing 253-symbol research shortlist to a deterministic, evidence-
 - Transaction-cost assumption is mandatory; missing inputs reject the candidate.
 
 ## Next integration gates
-1. Add a canonical publisher/provenance registry and syndicated-content deduplication.
+1. Expand the canonical publisher registry only after source-by-source review; add stronger semantic syndication and original-source resolution.
 2. Map existing scanner/quote/history/news/fundamental contracts into this candidate schema without fabricating missing values.
 3. Persist append-only decision traces and portfolio snapshots through a new D1 migration; authenticated, idempotent writes only.
 4. Reconcile broker paper account state against the ledger before any paper lifecycle simulation.
