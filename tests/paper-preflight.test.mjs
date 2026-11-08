@@ -47,6 +47,21 @@ test("preflight sizes from fresh quote and reconciled paper ledger without submi
     assert.equal(body.broker.positionsReconciled,true);
   } finally { globalThis.fetch=oldFetch; }
 });
+test("preflight normalizes existing broker exposure to the virtual allocation before sizing",async()=>{
+  const {onRequestPost}=await loadFunction();
+  const oldFetch=globalThis.fetch;
+  globalThis.fetch=fakeFetch({positions:[{symbol:"AAPL",qty:"1",avg_entry_price:"100",market_value:"10000"}]});
+  try {
+    const ledger=[{symbol:"AAPL",qty:"1",avg_entry_price:"100",market_value:"10000"}];
+    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control,ledger),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+    const body=await response.json();
+    assert.equal(response.status,200);
+    assert.equal(body.shares,1);
+    assert.equal(body.exposure.existingUsd,100);
+    assert.equal(body.exposure.afterProposedUsd,200);
+    assert.equal(body.exposure.maxPortfolioUsd,1000);
+  } finally { globalThis.fetch=oldFetch; }
+});
 test("preflight rejects stale quotes",async()=>{
   const {onRequestPost}=await loadFunction();
   const oldFetch=globalThis.fetch; globalThis.fetch=fakeFetch({quoteTime:new Date(Date.now()-120000).toISOString()});
