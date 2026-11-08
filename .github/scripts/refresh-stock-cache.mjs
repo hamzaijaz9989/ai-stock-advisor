@@ -34,14 +34,20 @@ try {
       }));
       const period = card.querySelector(".screen-card-header .muted")?.textContent || "";
       const entryStatus = card.querySelector(".candidate-plan p")?.textContent || "Entry eligibility not verified in cache.";
+      const financialPeriod = (period.match(/Annual financial period:\s*([^·]+)/)||[])[1]?.trim() || null;
+      const periodTime = financialPeriod ? Date.parse(financialPeriod + "T00:00:00Z") : NaN;
+      const ageDays = Number.isFinite(periodTime) ? Math.floor((Date.now() - periodTime) / 86400000) : null;
+      const fundamentalsFresh = ageDays !== null && ageDays >= 0 && ageDays <= 548;
       return {
         ticker: match?.[1] || "",
         name: match?.[2] || title,
         score: Number.isFinite(score) ? score : null,
-        financialPeriod: (period.match(/Annual financial period:\s*([^·]+)/)||[])[1]?.trim() || null,
-        historyPeriod: (period.match(/Price data:\s*([^·]+)/)||[])[1]?.trim() || null,
+        financialPeriod,
+        fundamentalAgeDays: ageDays,
+        fundamentalFreshness: fundamentalsFresh ? "CURRENT_WITHIN_18_MONTHS" : "STALE_OR_UNVERIFIED",
+        historyPeriod: (period.match(/Price data:\\s*([^·]+)/)||[])[1]?.trim() || null,
         components,
-        entryStatus
+        entryStatus: fundamentalsFresh ? entryStatus : "BLOCKED: annual fundamentals are stale or unverified; refresh and reconcile the latest reported period before any entry decision."
       };
     }).filter(x => x.ticker);
     return {
@@ -49,6 +55,7 @@ try {
       generatedAt: new Date().toISOString(),
       refreshIntervalHours: 3,
       source: "Northstar AI scheduled live 253-stock screen",
+      fundamentalFreshnessPolicy: { maxAnnualPeriodAgeDays: 548, staleOrUnknownEntryBlocked: true },
       universeSize: 253,
       rankedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/^(\d+) ranked/)?.[1]) || cards.length,
       excludedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/· (\d+) excluded/)?.[1]) || null,
