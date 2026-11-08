@@ -102,7 +102,7 @@ export function buildResearchCouncilContext(input) {
       const rows = Array.isArray(fmp.history?.[section]) ? fmp.history[section] : [];
       for (const row of rows.slice(0, 10)) {
         const period = row?.date || row?.fiscalDate || fmp.retrievedAt || "undated";
-        if (typeof period === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(period) && period > asOfDate) continue;
+        if (section !== "estimates" && typeof period === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(period) && period > asOfDate) continue;
         add(facts, makeId("fmp",ticker,section,period,row?.period), section === "estimates" ? "FMP_ANALYST_ESTIMATE" : ["income","balance","cashflow"].includes(section) ? "FMP_STATEMENT_PERIOD" : "FMP_PROVIDER_METRIC",
           {section,period:row?.period || null,reportedCurrency:row?.reportedCurrency || null,values:row},
           fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
