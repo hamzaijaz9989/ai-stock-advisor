@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-07T19:28:26.911Z",
+  "generatedAt": "2026-11-08T00:32:53.647Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "universeSize": 253,
@@ -11,9 +11,9 @@
     {
       "ticker": "TSM",
       "name": "Taiwan Semiconductor Manufacturing Co. Ltd.",
-      "score": 91.3,
+      "score": 90.2,
       "financialPeriod": "2024-12-31",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -29,7 +29,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+31.0%"
+          "display": "+27.1%"
         },
         {
           "name": "Maximum drawdown",
@@ -41,9 +41,9 @@
     {
       "ticker": "KEY",
       "name": "Keycorp /New/",
-      "score": 89.8,
+      "score": 89.7,
       "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -59,7 +59,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+15.3%"
+          "display": "+15.1%"
         },
         {
           "name": "Maximum drawdown",
@@ -71,9 +71,9 @@
     {
       "ticker": "ANET",
       "name": "Arista Networks, Inc.",
-      "score": 89.6,
+      "score": 88.6,
       "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -89,7 +89,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+26.9%"
+          "display": "+24.4%"
         },
         {
           "name": "Maximum drawdown",
@@ -101,9 +101,9 @@
     {
       "ticker": "AAPL",
       "name": "Apple Inc.",
-      "score": 87.8,
+      "score": 87.6,
       "financialPeriod": "2026-09-26",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -119,7 +119,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+27.5%"
+          "display": "+27.1%"
         },
         {
           "name": "Maximum drawdown",
@@ -133,7 +133,7 @@
       "name": "Analog Devices Inc.",
       "score": 86.5,
       "financialPeriod": "2025-11-01",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -149,7 +149,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+59.1%"
+          "display": "+56.7%"
         },
         {
           "name": "Maximum drawdown",
@@ -161,9 +161,9 @@
     {
       "ticker": "V",
       "name": "Visa Inc.",
-      "score": 85.1,
+      "score": 85.3,
       "financialPeriod": "2026-09-30",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -179,7 +179,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+25.8%"
+          "display": "+26.2%"
         },
         {
           "name": "Maximum drawdown",
@@ -193,7 +193,7 @@
       "name": "Johnson & Johnson",
       "score": 84.6,
       "financialPeriod": "2025-12-28",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -209,7 +209,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+48.0%"
+          "display": "+46.6%"
         },
         {
           "name": "Maximum drawdown",
@@ -219,41 +219,11 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
-      "ticker": "VRTX",
-      "name": "Vertex Pharmaceuticals Inc. / Ma",
-      "score": 84.2,
-      "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "8.9%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "32.9%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "26.6%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+33.6%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-15.2%"
-        }
-      ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
-    },
-    {
       "ticker": "AMGN",
       "name": "Amgen Inc.",
       "score": 84.2,
       "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -269,7 +239,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+43.8%"
+          "display": "+42.3%"
         },
         {
           "name": "Maximum drawdown",
@@ -279,11 +249,41 @@
       "entryStatus": "Checking latest quote and valuation inputs…"
     },
     {
+      "ticker": "VRTX",
+      "name": "Vertex Pharmaceuticals Inc. / Ma",
+      "score": 84.2,
+      "financialPeriod": "2025-12-31",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "8.9%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "32.9%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "26.6%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+29.9%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-15.2%"
+        }
+      ],
+      "entryStatus": "Checking latest quote and valuation inputs…"
+    },
+    {
       "ticker": "MNST",
       "name": "Monster Beverage Corp",
       "score": 84.1,
       "financialPeriod": "2025-12-31",
-      "historyPeriod": "2025-11-07 to 2026-11-06",
+      "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
           "name": "Revenue growth",
@@ -299,7 +299,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+31.1%"
+          "display": "+30.6%"
         },
         {
           "name": "Maximum drawdown",
