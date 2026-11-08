@@ -10,7 +10,7 @@ function mockDb(control, ledgerRows=[]) {
   return { prepare(sql) {
     return {
       async first() { assert.match(sql,/execution_control/); return control; },
-      async all() { assert.match(sql,/paper_positions/); return {results:ledgerRows}; }
+      async all() { if(/paper_positions/.test(sql)) return {results:ledgerRows}; if(/paper_equity_snapshots/.test(sql)) return {results:[{captured_at:new Date().toISOString(),equity_usd:100000}]}; throw new Error("unexpected SQL "+sql); }
     };
   }};
 }
@@ -20,7 +20,7 @@ function makeRequest(body, token="secret") {
 }
 function fakeFetch({quoteTime=new Date().toISOString(),bid=99.9,ask=100,positions=[]}={}) {
   return async url => {
-    if(String(url).includes("/v2/account")) return Response.json({status:"ACTIVE",trading_blocked:false,account_blocked:false,equity:"100000",buying_power:"400000"});
+    if(String(url).includes("/v2/account")) return Response.json({status:"ACTIVE",trading_blocked:false,account_blocked:false,equity:"100000",last_equity:"100000",buying_power:"400000"});
     if(String(url).includes("/v2/positions")) return Response.json(positions);
     if(String(url).includes("/quotes/latest")) return Response.json({quote:{bp:bid,ap:ask,t:quoteTime}});
     throw new Error("unexpected URL "+url);
