@@ -46,7 +46,7 @@ test("rejects missing transaction-cost assumption and portfolio risk inputs",()=
  assert.equal(runAgentPipeline(p).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
 });
 test("rejects candidates when aggregate risk or daily loss gates are breached",()=>{
- const aggregate=candidate(); aggregate.portfolio.openRiskUsd=20;
+ const aggregate=candidate(); aggregate.portfolio.openRiskUsd=20.01;
  assert.equal(runAgentPipeline(aggregate).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
  const daily=candidate(); daily.portfolio.dailyLossFraction=0.02;
  assert.equal(runAgentPipeline(daily).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
