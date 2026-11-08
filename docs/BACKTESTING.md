@@ -66,3 +66,8 @@ This is a preliminary diagnostic only. The current provider series and adjusted-
 The web strategy backtest now applies a deterministic circular moving-block bootstrap to the completed trade-return sequence. The default run uses 10,000 paths and blocks of five consecutive trades, preserving limited local ordering rather than independently shuffling every trade. It reports terminal-return percentiles, resampling frequency of negative terminal outcomes, and drawdown percentiles.
 
 This is a descriptive sensitivity analysis conditional on the observed trades. It is **not** a forecast, a calibrated probability of future profit/loss, or evidence that the strategy has an edge. It inherits every limitation of the source history and trade-generation rules, including current-provider revisions, survivorship, missing point-in-time fundamentals/news, corporate-action quality, and simplified daily execution. It requires at least 20 completed trades; smaller samples display no probability estimate. Seed and assumptions are returned for reproducibility. Walk-forward diagnostics and the separate point-in-time validator remain distinct gates; this panel cannot enable BUY or paper execution.
+
+
+## Historical session replay display
+
+The technical strategy panel displays the most recent 30 reconstructed trade events with entry/exit dates, estimated fills, exit reason, net return and holding sessions. The display is an audit aid for the experimental 50/200-day moving-average baseline; it is not a replay of historical scanner rankings, point-in-time headlines or filing availability. The response separately reports the full completed-trade count and the table is explicitly limited to the most recent events.
