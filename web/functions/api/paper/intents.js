@@ -18,6 +18,7 @@ export async function onRequestPost({request,env}){
  let body;try{body=await request.json();}catch{return fail("Send valid JSON.");}
  const key=String(body?.idempotencyKey||"").trim(),symbol=String(body?.symbol||"").trim().toUpperCase(),qty=num(body?.qty),entry=num(body?.referencePrice),stop=num(body?.stopPrice),rationale=String(body?.rationale||"").trim().slice(0,1000);
  const evidence=body?.evidence&&typeof body.evidence==="object"&&!Array.isArray(body.evidence)?body.evidence:{};
+ let evidenceJson;try{evidenceJson=JSON.stringify(evidence);if(typeof evidenceJson!=="string"||new TextEncoder().encode(evidenceJson).byteLength>10240)return fail("Evidence payload must not exceed 10 KB.");}catch{return fail("Evidence must be valid JSON data.");}
  if(!/^[A-Za-z0-9._:-]{12,128}$/.test(key))return fail("idempotencyKey must be 12–128 safe characters.");
  if(!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)||!Number.isInteger(qty)||qty<=0||entry===null||entry<=0||stop===null||stop<=0||stop>=entry)return fail("Invalid long-only proposal fields.");
  const notional=qty*entry,risk=qty*(entry-stop);
@@ -28,9 +29,11 @@ export async function onRequestPost({request,env}){
  try{
   const existing=await db.prepare("SELECT id,request_hash,status FROM paper_trade_intents WHERE idempotency_key=?").bind(key).first();
   if(existing){if(existing.request_hash!==requestHash)return fail("Idempotency key already exists with a different proposal.",409);return Response.json({ok:true,execution:false,replayed:true,id:existing.id,status:existing.status},{headers:H});}
-  await db.prepare("INSERT INTO paper_trade_intents(id,idempotency_key,request_hash,symbol,side,qty,reference_price,stop_price,estimated_notional_usd,planned_risk_usd,status,rationale,evidence_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,'PENDING_REVIEW',?,?,?,?)")
-   .bind(id,key,requestHash,symbol,"buy",qty,entry,stop,Number(notional.toFixed(2)),Number(risk.toFixed(2)),rationale,JSON.stringify(evidence),now,now).run();
-  await db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","PAPER_INTENT_CREATED","PENDING_REVIEW",id,JSON.stringify({symbol,qty,notionalUsd:notional,plannedRiskUsd:risk})).run();
+  const writes=await db.batch([
+   db.prepare("INSERT INTO paper_trade_intents(id,idempotency_key,request_hash,symbol,side,qty,reference_price,stop_price,estimated_notional_usd,planned_risk_usd,status,rationale,evidence_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,'PENDING_REVIEW',?,?,?,?)").bind(id,key,requestHash,symbol,"buy",qty,entry,stop,Number(notional.toFixed(2)),Number(risk.toFixed(2)),rationale,evidenceJson,now,now),
+   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","PAPER_INTENT_CREATED","PENDING_REVIEW",id,JSON.stringify({symbol,qty,notionalUsd:notional,plannedRiskUsd:risk}))
+  ]);
+  if(!writes||writes.length!==2||Number(writes[0]?.meta?.changes)!==1||Number(writes[1]?.meta?.changes)!==1)throw new Error("Atomic intent/audit write failed.");
   return Response.json({ok:true,execution:false,id,status:"PENDING_REVIEW",notionalUsd:Number(notional.toFixed(2)),plannedRiskUsd:Number(risk.toFixed(2)),message:"Proposal recorded for review only. No broker order was created or submitted."},{status:201,headers:H});
  }catch{return fail("Could not persist proposal; no success is claimed.",503);}
 }
