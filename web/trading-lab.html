@@ -53,12 +53,12 @@ button{border:1px solid transparent;border-radius:10px;padding:11px 14px;font-si
 <div class="stat"><label>Buying power</label><strong id="paper-buying-power">—</strong><small>Broker reported · paper only</small></div>
 </div>
 <p id="performance-status" class="muted small" style="margin:13px 0 6px">P&amp;L not verified yet. Refresh to check the connected paper account.</p>
-<div class="card-head" style="margin:18px 0 8px"><div><h2>Durable equity history</h2><p>Stored D1 snapshots · not strategy returns</p></div><button id="sync-paper-snapshot" class="secondary" type="button">＋ Save snapshot</button></div>
+<div class="card-head" style="margin:18px 0 8px"><div><h2>Durable equity history</h2><p>Stored D1 snapshots · not strategy returns</p></div><button id="sync-paper-snapshot" class="secondary" type="button">＋ Save snapshot</button><button id="sync-paper-fills" class="secondary" type="button">Import fill history</button></div>
 <div class="stat-grid">
 <div class="stat"><label>Observed return</label><strong id="snapshot-return">—</strong><small>First to latest saved equity</small></div>
 <div class="stat"><label>Maximum drawdown</label><strong id="snapshot-drawdown">—</strong><small>From saved account snapshots</small></div>
 <div class="stat"><label>Saved snapshots</label><strong id="snapshot-count">0</strong><small id="snapshot-range">No history yet</small></div>
-<div class="stat"><label>Realized P&amp;L</label><strong id="snapshot-realized">—</strong><small>Unavailable until fills are journaled</small></div>
+<div class="stat"><label>Gross realized P&amp;L</label><strong id="snapshot-realized">—</strong><small>FIFO · excludes fees</small></div><div class="stat"><label>Fill win rate</label><strong id="snapshot-win-rate">—</strong><small id="snapshot-profit-factor">Profit factor —</small></div>
 </div>
 <p id="snapshot-status" class="muted small" style="margin:10px 0 0">No durable equity snapshots have been recorded yet.</p>
 <div id="snapshot-curve" class="small muted" style="margin-top:8px">The historical equity curve will appear after snapshots are saved.</div>
