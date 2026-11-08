@@ -44,8 +44,9 @@ export async function onRequestPost({request,env}){
   }catch(e){if(e?.status!==404)return fail("Existing submission outcome is uncertain. No retry was attempted; reconcile by client_order_id.",503,{orderId:existing.id,status:existing.status});}
   return fail("An order record already exists. No automatic resubmission is permitted.",409,{orderId:existing.id,status:existing.status});
  }
- if(!intent||intent.status!=="APPROVED_REVIEW_ONLY"||intent.side!=="buy")return fail("Only a specifically approved, long-only review intent can be considered.",409);
+ // Enforce the global kill switch before considering any proposal or broker state.
  if(!control||control.mode!=="paper"||Number(control.enabled)!==1||Number(control.kill_switch)!==0||Number(control.max_portfolio_usd)!==1000)return fail("Paper execution controls are disabled or kill-switched.",503);
+ if(!intent||intent.status!=="APPROVED_REVIEW_ONLY"||intent.side!=="buy")return fail("Only a specifically approved, long-only review intent can be considered.",409);
  if((positions.results||[]).length!==0||(orders.results||[]).length!==0)return fail("Initial executor permits no existing positions or unresolved orders; reconcile first.",409);
  let account,quote;
  try{[account,quote]=await Promise.all([broker("/v2/account",key,secret),broker("/v2/stocks/"+encodeURIComponent(intent.symbol)+"/quotes/latest?feed=iex",key,secret)]);}
