@@ -34,7 +34,7 @@
 <main class="wrap">
   <section class="hero"><div class="eyebrow">Northstar intelligence suite / module 02</div><h1>Trading Lab<span style="color:var(--accent)">.</span></h1><p class="sub">A risk-first command centre for screening, sizing and auditing US equity trade ideas. It is not an autonomous money-making machine; every decision must be backed by fresh data and validated rules.</p></section>
   <div class="warning"><strong>Experimental · no live orders.</strong> This page uses a separate $1,000 virtual planning allocation. It does not read, sell or modify your real holdings. Alpaca is checked read-only. No trade is submitted from this dashboard.</div>
-  <nav class="dash-nav" aria-label="Trading Lab sections"><a href="#overview">Overview</a><a href="#pipeline">System status</a><a href="#candidates-panel">Candidates</a><a href="#risk-calculator">Risk calculator</a><a href="#ledger-panel">Ledger</a><a href="#broker-panel">Broker check</a><a href="#journal-panel">Journal</a></nav>
+  <nav class="dash-nav" aria-label="Trading Lab sections"><a href="#overview">Overview</a><a href="#performance-panel">P&amp;L</a><a href="#pipeline">System status</a><a href="#candidates-panel">Candidates</a><a href="#risk-calculator">Risk calculator</a><a href="#ledger-panel">Ledger</a><a href="#broker-panel">Broker check</a><a href="#journal-panel">Journal</a><a href="#time-machine">Time Machine</a></nav>
   <section class="guide" aria-label="How to use this dashboard"><div class="guide-item"><b>1 · Review evidence</b><p>Start with the market context and research shortlist. A high score is not a buy signal.</p></div><div class="guide-item"><b>2 · Define invalidation</b><p>Use the calculator only after you have a reasoned entry and a clear stop level.</p></div><div class="guide-item"><b>3 · Record, don’t execute</b><p>Saved plans are local notes. Paper order execution is not enabled.</p></div></section>
   <section class="grid">
     <article id="overview" class="card span-12 section-anchor">
@@ -46,6 +46,20 @@
         <div class="stat"><label>Saved plans</label><strong id="plan-count">0</strong></div>
       </div>
       <p class="muted small" style="margin:12px 0 0">The planning allocation is a fixed research budget, not your broker's buying power or current equity. Planned risk is not a guaranteed maximum loss because prices can gap through stops.</p>
+    </article>
+
+    <article id="performance-panel" class="card span-12 section-anchor">
+      <div class="card-head"><div><h2>Paper portfolio · performance cockpit</h2><p class="muted small">Read-only Alpaca Paper account telemetry · never reads real-money holdings</p></div><button id="refresh-performance" class="secondary" type="button">Refresh P&amp;L</button></div>
+      <div class="stat-grid">
+        <div class="stat"><label>Paper account equity</label><strong id="paper-equity">—</strong></div>
+        <div class="stat"><label>Day P&amp;L</label><strong id="paper-day-pl">—</strong></div>
+        <div class="stat"><label>Open unrealized P&amp;L</label><strong id="paper-unrealized">—</strong></div>
+        <div class="stat"><label>Buying power</label><strong id="paper-buying-power">—</strong></div>
+      </div>
+      <p id="performance-status" class="muted small" style="margin:12px 0 4px">P&amp;L not verified yet. Refresh to check the connected paper account.</p>
+      <div class="card-head" style="margin:18px 0 4px"><h2>Open paper positions</h2><span id="paper-position-count" class="state">NOT LOADED</span></div>
+      <div id="paper-positions" class="small muted">No broker data loaded.</div>
+      <p class="muted small">Lifetime realized P&amp;L, win rate and profit factor are not reported until a verified closed-trade ledger exists. Day P&amp;L is equity versus prior account equity, not lifetime profit. Broker positions are read-only.</p>
     </article>
     <article id="pipeline" class="card span-12 section-anchor">
       <div class="card-head"><h2>System status</h2><span class="state">READ-ONLY / PLANNING</span></div>
@@ -95,6 +109,14 @@
       <div class="card-head"><h2>Trade-plan journal</h2><span class="state">THIS DEVICE ONLY</span></div>
       <div id="journal"><p class="muted small">No saved plans yet.</p></div>
       <p class="muted small">Saved plans are not orders, fills or performance results. They are stored locally in this browser and are not synced to a server.</p>
+    </article>
+
+    <article id="time-machine" class="card span-12 section-anchor">
+      <div class="card-head"><div><h2>Time Machine · strategy validation</h2><p class="muted small">Historical diagnostic only · never creates a live or paper order</p></div><span class="state">EXPERIMENTAL</span></div>
+      <div class="form-grid"><div class="field"><label for="backtest-symbol">Ticker</label><input id="backtest-symbol" maxlength="12" value="NVDA" autocomplete="off"></div><div class="field" style="display:flex;align-items:end"><button id="run-backtest" class="primary" type="button">Run historical test</button></div></div>
+      <p id="backtest-status" class="muted small" style="margin-top:12px">No backtest run in this session.</p>
+      <div id="backtest-results" class="muted small"></div>
+      <p class="muted small">Historical provider data may be revised and does not fully reconstruct point-in-time fundamentals, delisted securities or exact fills. Results are not proof of future profitability and cannot unlock BUY or execution.</p>
     </article>
   </section>
   <div class="footer">NORTHSTAR AI · Trading Lab · Paper only · No live trading · No guaranteed returns</div>
