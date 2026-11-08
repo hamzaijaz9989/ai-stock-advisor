@@ -135,11 +135,10 @@ function evaluate(rows) {
         entryDate=current.date;
         entryIndex=i;
         invested=true;
-        dailyReturn-=cost;
-        dailyReturn+=current.adjustedClose/current.adjustedOpen-1;
+        dailyReturn=(1-cost)*(current.adjustedClose/current.adjustedOpen)-1;
       } else if(invested&&crossDown) {
         // Existing position earns only the close-to-open gap, then exits at open.
-        dailyReturn+=current.adjustedOpen/prior.adjustedClose-1;
+        dailyReturn=(current.adjustedOpen/prior.adjustedClose)*(1-cost)-1;
         const exitFill=current.adjustedOpen*(1-cost);
         const ret=exitFill/entryFill-1;
         trades.push({
@@ -148,7 +147,6 @@ function evaluate(rows) {
           holdingSessions:i-entryIndex,status:"closed"
         });
         benchmark.push(current.adjustedOpen/rows[entryIndex-1].adjustedClose-1);
-        dailyReturn-=cost;
         invested=false; entryFill=null; entryDate=null; entryIndex=null;
       } else if(invested) {
         dailyReturn+=current.adjustedClose/prior.adjustedClose-1;
@@ -156,7 +154,7 @@ function evaluate(rows) {
     } else if(invested) {
       dailyReturn+=current.adjustedClose/prior.adjustedClose-1;
     }
-    if(i===rows.length-1&&invested) dailyReturn-=cost; // mark the open position net of estimated liquidation cost
+    if(i===rows.length-1&&invested) dailyReturn=(1+dailyReturn)*(1-cost)-1; // mark open position net of estimated liquidation cost
     strategyDaily.push(dailyReturn);
     equity*=1+dailyReturn;
     peak=Math.max(peak,equity);
