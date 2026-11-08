@@ -1,8 +1,12 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-08T18:55:40.408Z",
+  "generatedAt": "2026-11-08T19:47:19.047Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
+  "fundamentalFreshnessPolicy": {
+    "maxAnnualPeriodAgeDays": 548,
+    "staleOrUnknownEntryBlocked": true
+  },
   "universeSize": 253,
   "rankedCount": 201,
   "excludedCount": 52,
@@ -13,6 +17,8 @@
       "name": "Taiwan Semiconductor Manufacturing Co. Ltd.",
       "score": 90.2,
       "financialPeriod": "2024-12-31",
+      "fundamentalAgeDays": 677,
+      "fundamentalFreshness": "STALE_OR_UNVERIFIED",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -36,13 +42,15 @@
           "display": "-27.3%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryStatus": "BLOCKED: annual fundamentals are stale or unverified; refresh and reconcile the latest reported period before any entry decision."
     },
     {
       "ticker": "KEY",
       "name": "Keycorp /New/",
       "score": 89.7,
       "financialPeriod": "2025-12-31",
+      "fundamentalAgeDays": 312,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -73,6 +81,8 @@
       "name": "Arista Networks, Inc.",
       "score": 88.6,
       "financialPeriod": "2025-12-31",
+      "fundamentalAgeDays": 312,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -103,6 +113,8 @@
       "name": "Apple Inc.",
       "score": 87.6,
       "financialPeriod": "2026-09-26",
+      "fundamentalAgeDays": 43,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -133,6 +145,8 @@
       "name": "Analog Devices Inc.",
       "score": 86.5,
       "financialPeriod": "2025-11-01",
+      "fundamentalAgeDays": 372,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -163,6 +177,8 @@
       "name": "Visa Inc.",
       "score": 85.3,
       "financialPeriod": "2026-09-30",
+      "fundamentalAgeDays": 39,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -193,6 +209,8 @@
       "name": "Johnson & Johnson",
       "score": 84.6,
       "financialPeriod": "2025-12-28",
+      "fundamentalAgeDays": 315,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -223,6 +241,8 @@
       "name": "Amgen Inc.",
       "score": 84.2,
       "financialPeriod": "2025-12-31",
+      "fundamentalAgeDays": 312,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -253,6 +273,8 @@
       "name": "Vertex Pharmaceuticals Inc. / Ma",
       "score": 84.2,
       "financialPeriod": "2025-12-31",
+      "fundamentalAgeDays": 312,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
@@ -283,6 +305,8 @@
       "name": "Monster Beverage Corp",
       "score": 84.1,
       "financialPeriod": "2025-12-31",
+      "fundamentalAgeDays": 312,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
         {
