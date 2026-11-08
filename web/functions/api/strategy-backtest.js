@@ -200,28 +200,38 @@ export function evaluate(rows) {
   };
 }
 
-function evaluateWalkForward(rows) {
+export function evaluateWalkForward(rows) {
   // Fixed, pre-declared rules; folds are chronological and each test window is six months.
   // SMA values may use earlier history, but each fold's reported return only uses its test window.
   const warmup=SLOW+1, testSessions=126, folds=[];
-  for(let start=warmup; start+testSessions<rows.length; start+=testSessions) {
+  const cost=COST_PER_SIDE/10000;
+  for(let start=warmup;start+testSessions<rows.length;start+=testSessions) {
     const end=Math.min(rows.length-1,start+testSessions-1);
     let invested=false, equity=1, peak=1, maxDrawdown=0;
     const dailyReturns=[];
     let entries=0, exits=0;
     for(let i=start;i<=end;i++) {
+      const prior=rows[i-1], current=rows[i];
       let dailyReturn=0;
-      if(i>0) {
-        const pf=sma(rows,i-2,FAST), ps=sma(rows,i-2,SLOW);
-        const f=sma(rows,i-1,FAST), sl=sma(rows,i-1,SLOW);
-        const up=[pf,ps,f,sl].every(Number.isFinite)&&pf<=ps&&f>sl;
-        const down=[pf,ps,f,sl].every(Number.isFinite)&&pf>=ps&&f<sl;
-        // Signal on session i-1 close, execute on session i open. Daily total return
-        // is approximated with adjusted closes; entry/exit cost is deducted explicitly.
-        if(!invested&&up) { invested=true; entries++; dailyReturn-=COST_PER_SIDE/10000; }
-        else if(invested&&down) { invested=false; exits++; dailyReturn-=COST_PER_SIDE/10000; }
-        if(invested) dailyReturn+=(rows[i].adjustedClose/rows[i-1].adjustedClose-1);
+      const signalIndex=i-1;
+      const pf=sma(rows,signalIndex-1,FAST), ps=sma(rows,signalIndex-1,SLOW);
+      const f=sma(rows,signalIndex,FAST), sl=sma(rows,signalIndex,SLOW);
+      const valid=[pf,ps,f,sl].every(Number.isFinite);
+      const up=valid&&pf<=ps&&f>sl;
+      const down=valid&&pf>=ps&&f<sl;
+      // Signals are known after the prior close and execute at this session's adjusted open.
+      if(!invested&&up) {
+        invested=true; entries++;
+        dailyReturn=(current.adjustedClose/current.adjustedOpen)/(1+cost)-1;
+      } else if(invested&&down) {
+        // A held position earns the overnight gap, then exits at the open with exit cost.
+        invested=false; exits++;
+        dailyReturn=(current.adjustedOpen/prior.adjustedClose)*(1-cost)-1;
+      } else if(invested) {
+        dailyReturn=current.adjustedClose/prior.adjustedClose-1;
       }
+      // Mark any position still open at the fold boundary net of estimated liquidation cost.
+      if(i===end&&invested) dailyReturn=(1+dailyReturn)*(1-cost)-1;
       dailyReturns.push(dailyReturn);
       equity*=1+dailyReturn;
       peak=Math.max(peak,equity);
@@ -235,12 +245,12 @@ function evaluateWalkForward(rows) {
       annualizedReturnPercent:(Math.pow(equity,252/dailyReturns.length)-1)*100,
       maxDrawdownPercent:maxDrawdown*100,
       volatilityPercent:Math.sqrt(variance*252)*100,
-      entries,exits
+      entries,exits,openAtEnd:invested?1:0
     });
   }
   const testReturns=folds.map(f=>f.returnPercent);
   return {
-    methodology:"Expanding historical warm-up with non-overlapping six-month chronological test windows; fixed 50/200-day rules; no parameter fitting. Daily adjusted-close returns approximate fills; not tick-level execution.",
+    methodology:"Expanding historical warm-up with non-overlapping six-month chronological test windows; fixed 50/200-day rules; signals after prior adjusted close and execution at current adjusted open; entry/exit costs compounded; open positions marked net of estimated liquidation cost at fold end.",
     folds,
     positiveFolds:folds.filter(f=>f.returnPercent>0).length,
     totalFolds:folds.length,
