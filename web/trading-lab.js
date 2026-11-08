@@ -132,7 +132,7 @@
         const symbol = String(stock.ticker || "").trim().toUpperCase();
         const openResearch = document.createElement("a");
         openResearch.className = "candidate-link";
-        openResearch.href = "./";
+        openResearch.href = "./research.html";
         openResearch.setAttribute("aria-label", "Open full Northstar research for " + symbol);
         openResearch.addEventListener("click", () => {
           try { localStorage.setItem("northstar-last-ticker-v2", symbol); } catch {}
@@ -227,8 +227,82 @@
     }
   }
 
+
+  const fmtSigned = value => (value > 0 ? "+" : "") + money(value);
+  async function loadPaperPerformance() {
+    const status = $("performance-status");
+    const positionsRoot = $("paper-positions");
+    status.textContent = "Checking read-only paper account…";
+    $("paper-position-count").textContent = "CHECKING";
+    for (const id of ["paper-equity","paper-day-pl","paper-unrealized","paper-buying-power"]) $(id).textContent = "—";
+    positionsRoot.textContent = "Loading broker positions…";
+    try {
+      const response = await fetch("/api/alpaca/status", {headers:{Accept:"application/json"},cache:"no-store"});
+      const data = await response.json();
+      if (!response.ok || !data.connected || data.environment !== "paper" || !data.account) throw new Error(data.error || "Paper account could not be verified.");
+      const equity=Number(data.account.equity), prior=Number(data.account.lastEquity), buying=Number(data.account.buyingPower);
+      if (![equity,prior,buying].every(Number.isFinite)) throw new Error("Broker returned incomplete account values; P&L withheld.");
+      const positions=Array.isArray(data.positions)?data.positions:null;
+      if (!positions || data.positionsWarning) throw new Error(data.positionsWarning || "Positions could not be reconciled; P&L withheld.");
+      const unrealized=positions.reduce((sum,p)=>sum+Number(p.unrealizedPl),0);
+      if (!Number.isFinite(unrealized) || positions.some(p=>!Number.isFinite(Number(p.unrealizedPl)))) throw new Error("Position P&L is incomplete; aggregate withheld.");
+      $("paper-equity").textContent=money(equity);
+      $("paper-day-pl").textContent=fmtSigned(equity-prior);
+      $("paper-unrealized").textContent=fmtSigned(unrealized);
+      $("paper-buying-power").textContent=money(buying);
+      $("paper-position-count").textContent=positions.length+" OPEN";
+      positionsRoot.replaceChildren();
+      if (!positions.length) {
+        const empty=document.createElement("p"); empty.textContent="No open paper positions reported by Alpaca."; positionsRoot.appendChild(empty);
+      } else {
+        for (const p of positions) {
+          const row=document.createElement("div"); row.className="journal-row";
+          const left=document.createElement("strong"); left.textContent=String(p.symbol||"—")+" · "+String(p.qty||"—")+" shares";
+          const right=document.createElement("span"); right.textContent=Number.isFinite(Number(p.unrealizedPl))?fmtSigned(Number(p.unrealizedPl)):"P&L unavailable";
+          row.append(left,right); positionsRoot.appendChild(row);
+        }
+      }
+      status.textContent="Verified Alpaca PAPER account · refreshed "+new Date(data.checkedAt||Date.now()).toLocaleString()+". Day P&L is equity minus last account equity.";
+    } catch(error) {
+      status.textContent=(error&&error.message?error.message:"Paper account unavailable")+" No substitute values shown.";
+      $("paper-position-count").textContent="NOT VERIFIED";
+      positionsRoot.textContent="Open positions are unavailable until the paper account and positions are verified.";
+    }
+  }
+  $("refresh-performance").addEventListener("click",loadPaperPerformance);
+  async function runTimeMachine() {
+    const button=$("run-backtest"), status=$("backtest-status"), root=$("backtest-results");
+    const ticker=String($("backtest-symbol").value||"").trim().toUpperCase();
+    if(!/^[A-Z0-9.^=-]{1,12}$/.test(ticker)){status.textContent="Enter a valid ticker.";return;}
+    button.disabled=true; button.textContent="Running…"; status.textContent="Fetching historical data and calculating diagnostics…"; root.replaceChildren();
+    try {
+      const response=await fetch("/api/strategy-backtest?ticker="+encodeURIComponent(ticker),{headers:{Accept:"application/json"},cache:"no-store"});
+      const data=await response.json();
+      if(!response.ok) throw new Error(data.error||"Historical test unavailable.");
+      const metrics=[
+        ["Strategy total return",data.strategy?.totalReturnPercent],
+        ["Strategy max drawdown",data.strategy?.maxDrawdownPercent],
+        ["SPY buy-and-hold",data.spyBuyHold?.totalReturnPercent],
+        ["Completed trades",data.completedTrades],
+        ["Win rate",data.winRatePercent],
+        ["Profit factor",data.profitFactor],
+        ["Walk-forward folds",data.walkForward?.totalFolds]
+      ];
+      for(const [label,value] of metrics){
+        const row=document.createElement("div"); row.className="journal-row";
+        const name=document.createElement("span"); name.textContent=label;
+        const val=document.createElement("strong"); val.textContent=value===null||value===undefined?"INSUFFICIENT DATA":label==="Completed trades"||label==="Walk-forward folds"?String(value):label==="Profit factor"?Number(value).toFixed(2):Number(value).toFixed(2)+"%";
+        row.append(name,val); root.appendChild(row);
+      }
+      status.textContent=ticker+" · "+data.startDate+" to "+data.endDate+" · "+data.observations+" daily observations · "+data.source;
+      const warning=document.createElement("p"); warning.className="muted small"; warning.textContent=data.warning||"Experimental historical diagnostic."; root.appendChild(warning);
+    } catch(error) { status.textContent=error&&error.message?error.message:"Backtest unavailable."; }
+    finally {button.disabled=false;button.textContent="Run historical test";}
+  }
+  $("run-backtest").addEventListener("click",runTimeMachine);
   calculate();
   renderJournal();
+  loadPaperPerformance();
   loadCandidates();
   loadLedgerReadiness();
 })();
