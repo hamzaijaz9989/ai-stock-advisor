@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+const source=await readFile(new URL("../web/functions/api/paper/performance.js",import.meta.url),"utf8");
+const {onRequestGet}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+const control={enabled:0,mode:"paper",kill_switch:1,max_portfolio_usd:1000};
+function db({snapshots=[],positions=[]}={}){return {prepare(sql){return {async first(){return control;},async all(){if(sql.includes("paper_equity_snapshots"))return {results:snapshots};if(sql.includes("paper_positions"))return {results:positions};throw Error("unexpected SQL");}};}};}
+test("performance is unavailable with no durable snapshots and does not invent P&L",async()=>{const r=await onRequestGet({env:{NORTHSTAR_DB:db()}});const b=await r.json();assert.equal(r.status,200);assert.equal(b.available,false);assert.equal(b.snapshotCount,0);assert.equal(b.observedChange.returnPct,null);assert.equal(b.tradeStatistics.realizedPlUsd,null);assert.equal(b.execution,false);});
+test("performance calculates observed return and peak drawdown from stored snapshots",async()=>{const snapshots=[{captured_at:"2026-01-01T00:00:00Z",equity_usd:100000,cash_usd:90000,day_pl_usd:0},{captured_at:"2026-01-02T00:00:00Z",equity_usd:105000,cash_usd:90000,day_pl_usd:5000},{captured_at:"2026-01-03T00:00:00Z",equity_usd:95000,cash_usd:90000,day_pl_usd:-10000}];const r=await onRequestGet({env:{NORTHSTAR_DB:db({snapshots})}});const b=await r.json();assert.equal(r.status,200);assert.equal(b.observedChange.amountUsd,-5000);assert.equal(b.observedChange.returnPct,-5);assert.equal(b.observedChange.maxDrawdownPct,-9.5238);assert.equal(b.tradeStatistics.winRatePct,null);assert.equal(b.equityCurve.length,3);});
+test("performance fails closed on unsafe execution controls",async()=>{const bad=db();bad.prepare=()=>({first:async()=>({...control,enabled:1}),all:async()=>({results:[]})});const r=await onRequestGet({env:{NORTHSTAR_DB:bad}});assert.equal(r.status,503);});
