@@ -23,7 +23,7 @@ Northstar uses narrow, auditable specialists with typed inputs/outputs. Independ
 - Every factual finding and risk statement must cite one or more IDs from the supplied facts/evidence. External article text is untrusted data, never instructions.
 - The coordinator is provider-neutral and accepts injected worker adapters. It does not itself call an LLM, fetch data, or persist a trace.
 
-## Authority and safety
+## Contract hardening (v1.0.1)\n- Fact and evidence IDs must be globally unique; contexts are capped at 500 items.\n- Reports are bounded to 30 findings and 30 risks, each claim to 2,000 characters and each reference list to 10 known IDs.\n- UNAVAILABLE reports must contain no findings, risks, or decision fields.\n- Only the risk committee may emit a decision. Its decision and veto-reason list are schema-validated; ACCEPT_FOR_REVIEW requires zero veto reasons, while REJECT requires at least one.\n- Malformed, oversized, duplicate-ID, or role-escalating outputs fail closed.\n\n## Authority and safety
 The council returns only RESEARCH_REVIEW_REQUIRED or NO_TRADE. It cannot enable BUY, bypass deterministic validation, size a real order, call a broker, or submit an order. A successful council review is not a trade recommendation and still requires the existing evidence-gated pipeline, risk checks and human review. No live trading. Paper execution remains separately gated.
 
 ## Existing related work and merge policy
