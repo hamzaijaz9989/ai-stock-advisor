@@ -15,7 +15,7 @@ const candidate=()=>({
   risks:["Valuation multiple remains elevated.","Semiconductor demand is cyclical."],
   stopPrice:176,account:{equityUsd:1000},
   limits:{riskFraction:0.005,maxPositionFraction:0.25,estimatedRoundTripCostBps:20},
-  portfolio:{openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
+  portfolio:{openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
 });
 
 test("valid sourced candidate returns review-only decision and cost-aware size",()=>{
@@ -50,4 +50,13 @@ test("rejects candidates when aggregate risk or daily loss gates are breached",(
  assert.equal(runAgentPipeline(aggregate).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
  const daily=candidate(); daily.portfolio.dailyLossFraction=0.02;
  assert.equal(runAgentPipeline(daily).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
+ const weekly=candidate(); weekly.portfolio.weeklyLossFraction=0.04;
+ assert.equal(runAgentPipeline(weekly).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
+ const sector=candidate(); sector.portfolio.sectorExposureUsd=401;
+ assert.equal(runAgentPipeline(sector).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
+ const gross=candidate(); gross.portfolio.grossExposureUsd=1001;
+ assert.equal(runAgentPipeline(gross).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
 });
+
+test("rejects quote when last price falls outside the bid-ask market",()=>{ const q=candidate(); q.quote.price=181; assert.equal(runAgentPipeline(q).reason,"INVALID_OR_UNSOURCED_QUOTE"); });
+test("requires weekly loss state and rejects missing weekly loss input",()=>{ const p=candidate(); delete p.portfolio.weeklyLossFraction; assert.equal(runAgentPipeline(p).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS"); });
