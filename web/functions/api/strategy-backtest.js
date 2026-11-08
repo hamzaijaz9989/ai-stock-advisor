@@ -32,7 +32,7 @@ function normalizeRows(raw, source) {
 }
 
 async function fetchFmpSeries(ticker, apiKey) {
-  if(typeof apiKey !== "string" || apiKey.trim().length === 0) throw new Error("FMP_API_KEY binding is unavailable in this deployment. Confirm the Production secret is saved, then redeploy the Pages project.");
+  if(typeof apiKey !== "string" || apiKey.trim().length === 0) throw new Error("FMP_API_KEY2/FMP_API_KEY binding is unavailable. Confirm the Production secret is saved, then redeploy.");
   const to = new Date();
   const from = new Date(to.getTime() - HISTORY_DAYS*86400000);
   const url = new URL(FMP_BASE + "/historical-price-eod/full");
@@ -74,7 +74,7 @@ async function fetchYahooSeries(ticker) {
 async function fetchSeries(ticker, env) {
   const errors=[];
   try {
-    const rows=await fetchFmpSeries(ticker,env?.FMP_API_KEY);
+    const rows=await fetchFmpSeries(ticker,(env?.FMP_API_KEY2 || env?.FMP_API_KEY));
     return {rows,source:"Financial Modeling Prep (FMP)",adjustment:"FMP adjClose when supplied; otherwise split-adjusted close"};
   } catch(error) {
     errors.push(String(error?.message||error));
