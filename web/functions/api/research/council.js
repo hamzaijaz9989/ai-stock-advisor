@@ -32,6 +32,18 @@ export async function onRequestPost({request,env}){
   const context=body.context;
   if(!context||typeof context!=="object"||!Array.isArray(context.facts)||!Array.isArray(context.evidence)||!context.portfolio)return respond({ok:false,error:"Facts, evidence and portfolio context are required."},400);
   if(context.facts.length+context.evidence.length>500)return respond({ok:false,error:"Maximum 500 fact/evidence items."},413);
+  // This endpoint accepts only an explicitly verified, timestamped portfolio snapshot.
+  // Shape/freshness checks do not prove provenance; the server-side /collect route is the
+  // trusted path because it reads Alpaca Paper and reconciles the D1 ledger itself.
+  const portfolio=context.portfolio,asOf=Date.parse(context.asOf||""),portfolioAsOf=Date.parse(portfolio.asOf||"");
+  const riskFields=["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"];
+  const values=riskFields.map(key=>Number(portfolio[key]));
+  const validPortfolio=portfolio.verified===true&&typeof portfolio.source==="string"&&portfolio.source.trim().length>0&&
+    Number.isFinite(asOf)&&Number.isFinite(portfolioAsOf)&&portfolioAsOf<=asOf&&
+    riskFields.every(key=>portfolio[key]!==null&&portfolio[key]!==undefined&&portfolio[key]!=="")&&
+    values.every(Number.isFinite)&&values[0]>0&&values.slice(1,7).every(value=>value>=0)&&
+    Number.isInteger(values[7])&&values[7]>=0;
+  if(!validPortfolio)return respond({ok:false,error:"A verified, timestamped portfolio snapshot with complete risk metrics is required. Use the server-side research collector.",execution:false,traceDurable:false},422);
   try{
     const input=stable(context),hash=await digest(input);
     const existing=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(body.requestId).first();
