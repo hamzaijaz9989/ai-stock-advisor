@@ -1,4 +1,5 @@
 // Authenticated, read-only import of Alpaca Paper fill activities into an idempotent D1 ledger.
+import {verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
 // Does not submit, amend, or cancel broker orders.
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail=(error,status=400)=>Response.json({ok:false,imported:false,execution:false,error},{status,headers:H});
@@ -29,7 +30,7 @@ export async function onRequestPost({request,env}){
   }while(token);
   // Fetch the broker's authoritative order state so existing Northstar orders can
   // advance through ACCEPTED / PARTIALLY_FILLED / FILLED / CANCELED / REJECTED.
-  brokerOrders=await alpaca("/v2/orders?status=all&limit=500&direction=desc",key,secret);
+  brokerOrders=await alpaca("/v2/orders?status=all&limit=500&direction=desc&nested=true",key,secret);
   if(!Array.isArray(brokerOrders)||brokerOrders.length>=500)return fail("Broker order history is malformed or reached the safe 500-order limit; no partial lifecycle sync was written.",503);
  }catch(e){const m=String(e?.message||"");return fail(m.startsWith("BROKER_HTTP_")?"Alpaca fill/order history request failed ("+m.slice(12)+").":"Alpaca fill/order history unavailable; nothing imported.",503);}
  const clean=[];
@@ -39,7 +40,7 @@ export async function onRequestPost({request,env}){
   clean.push({id,order,symbol,side,qty,price,cum:num(a.cum_qty),leaves:num(a.leaves_qty),status:String(a.order_status||""),time,raw:JSON.stringify(a)});
  }
  let ledgerOrders;
- try{ledgerOrders=await db.prepare("SELECT id,broker_order_id,qty,status,response_json FROM paper_orders WHERE broker_order_id IS NOT NULL").all();}
+ try{ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,qty,stop_price,status,response_json FROM paper_orders WHERE broker_order_id IS NOT NULL").all();}
  catch{return fail("Could not read existing Northstar orders; fill/order lifecycle sync blocked.",503);}
  const ledgerRows=Array.isArray(ledgerOrders?.results)?ledgerOrders.results:[];
  const byBrokerId=new Map(brokerOrders.map(o=>[String(o?.id||""),o]).filter(([id])=>!!id));
@@ -60,6 +61,12 @@ export async function onRequestPost({request,env}){
   const previousFilled=prior.qty===null&&["SUBMITTING","UNKNOWN"].includes(previousStatus)?0:prior.qty;
   if(previousFilled===null||filled<previousFilled)continue;
   if(!((allowed[previousStatus]||[]).includes(status)))continue;
+  const noExposureTerminal=status==="REJECTED"||(status==="CANCELED"&&filled===0);
+  const stopPrice=num(row.stop_price);
+  if(stopPrice!==null&&!noExposureTerminal){
+   const stopCheck=verifyOtoStopLeg(brokerOrder,{symbol:row.symbol,qty,stopPrice});
+   if(!stopCheck.ok){skippedLifecycle.push({orderId:row.id,reason:stopCheck.reason});continue;}
+  }
   const changed=status!==previousStatus||filled!==previousFilled||(filled>0&&prior.avg!==avg);
   if(changed)lifecycle.push({id:row.id,status,response:JSON.stringify(brokerOrder),eventType:status!==previousStatus?"ORDER_STATUS_UPDATED":"ORDER_FILL_UPDATED",previousStatus,previousFilled,filled,avg,brokerOrderId:String(brokerOrder.id)});
  }
@@ -70,9 +77,9 @@ export async function onRequestPost({request,env}){
    statements.push(db.prepare("UPDATE paper_orders SET status=?,response_json=?,updated_at=? WHERE id=?").bind(item.status,item.response,eventAt,item.id));
    statements.push(db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(item.id,item.eventType,eventAt,"alpaca_paper_fill_sync",JSON.stringify({brokerOrderId:item.brokerOrderId,previousStatus:item.previousStatus,status:item.status,previousFilledQty:item.previousFilled,filledQty:item.filled,averageFillPrice:item.avg,execution:false})));
   }
-  statements.push(db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","READ_ONLY_FILL_IMPORT_AND_ORDER_SYNC","SUCCESS",request.headers.get("X-Request-ID")||null,JSON.stringify({brokerRecords:clean.length,orderRowsUpdated:lifecycle.length,lifecycleEvents:lifecycle.length,unmappedBrokerStatuses:skippedLifecycle.length,pages,source:"alpaca_paper_account_activities_and_orders"})));
+  statements.push(db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","READ_ONLY_FILL_IMPORT_AND_ORDER_SYNC","SUCCESS",request.headers.get("X-Request-ID")||null,JSON.stringify({brokerRecords:clean.length,orderRowsUpdated:lifecycle.length,lifecycleEvents:lifecycle.length,skippedLifecycleCount:skippedLifecycle.length,pages,source:"alpaca_paper_account_activities_and_orders"})));
   const result=await db.batch(statements);
   const inserted=result.slice(0,clean.length).reduce((s,x)=>s+(Number(x?.meta?.changes)||0),0);
-  return Response.json({ok:true,imported:true,execution:false,brokerRecords:clean.length,newRecords:inserted,alreadyKnown:clean.length-inserted,orderRowsUpdated:lifecycle.length,lifecycleEvents:lifecycle.length,unmappedBrokerStatuses:skippedLifecycle,pages,checkedAt:new Date().toISOString(),warnings:["Imported broker fill activities idempotently and refreshed matching Northstar order lifecycle snapshots from Alpaca Paper.","Only existing Northstar ledger orders with matching broker_order_id are updated; external broker orders are not fabricated into the Northstar ledger.","Position rows remain a separate authoritative read-only account sync.","No broker orders were submitted, modified, or cancelled.","Realized P&L remains gross FIFO and excludes fees, dividends, transfers, taxes and corporate actions unless separately modeled.","Execution remains disabled and the kill switch remains engaged."]},{headers:H});
+  return Response.json({ok:true,imported:true,execution:false,brokerRecords:clean.length,newRecords:inserted,alreadyKnown:clean.length-inserted,orderRowsUpdated:lifecycle.length,lifecycleEvents:lifecycle.length,skippedLifecycle,pages,checkedAt:new Date().toISOString(),warnings:["Imported broker fill activities idempotently and refreshed matching Northstar order lifecycle snapshots from Alpaca Paper.","Only existing Northstar ledger orders with matching broker_order_id are updated; external broker orders are not fabricated into the Northstar ledger.","Position rows remain a separate authoritative read-only account sync.","Order lifecycle rows are not advanced unless the nested OTO protective stop leg is verified.","No broker orders were submitted, modified, or cancelled.","Realized P&L remains gross FIFO and excludes fees, dividends, transfers, taxes and corporate actions unless separately modeled.","Execution remains disabled and the kill switch remains engaged."]},{headers:H});
  }catch{return fail("D1 fill/order lifecycle sync failed. No successful sync is claimed; verify schema and database before retrying.",503);}
 }
