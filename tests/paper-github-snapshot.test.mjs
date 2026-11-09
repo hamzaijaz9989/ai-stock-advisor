@@ -68,6 +68,36 @@ test("stops after a failed snapshot and does not import fills or reconcile", asy
   assert.deepEqual(calls.map(x => x[0]), ["sync"]);
 });
 
+test("does not continue when account sync returns ok but synced is false", async () => {
+  const calls = [];
+  const handlers = baseHandlers(calls);
+  handlers.syncAccount = async () => { calls.push(["sync"]); return jsonResponse({ ok: true, execution: false, synced: false }); };
+  const result = await runReadOnlySnapshotChain({
+    request: request({ Authorization: "Bearer signed-oidc-token", "X-Request-ID": "northstar-equity-12345678-1" }),
+    env: { NORTHSTAR_OPERATOR_TOKEN: "server-side-operator-token", NORTHSTAR_DB: fakeDb },
+    verify: async () => validIdentity,
+    handlers
+  });
+  assert.equal(result.status, 503);
+  assert.equal((await result.json()).stage, "sync");
+  assert.deepEqual(calls.map(x => x[0]), ["sync"]);
+});
+
+test("does not continue when fill import returns ok but imported is false", async () => {
+  const calls = [];
+  const handlers = baseHandlers(calls);
+  handlers.importFills = async () => { calls.push(["fills-sync"]); return jsonResponse({ ok: true, execution: false, imported: false }); };
+  const result = await runReadOnlySnapshotChain({
+    request: request({ Authorization: "Bearer signed-oidc-token", "X-Request-ID": "northstar-equity-12345678-1" }),
+    env: { NORTHSTAR_OPERATOR_TOKEN: "server-side-operator-token", NORTHSTAR_DB: fakeDb },
+    verify: async () => validIdentity,
+    handlers
+  });
+  assert.equal(result.status, 503);
+  assert.equal((await result.json()).stage, "fills-sync");
+  assert.deepEqual(calls.map(x => x[0]), ["fills-sync"]);
+});
+
 test("does not report success when reconciliation is not clean", async () => {
   const calls = [];
   const handlers = baseHandlers(calls);
