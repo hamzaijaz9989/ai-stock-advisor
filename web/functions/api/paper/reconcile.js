@@ -134,14 +134,31 @@ export async function onRequestPost({request,env}) {
     if(brokerFilledQty>0 && (brokerFilledAvg===null || ledgerFill.avg===null || !close(brokerFilledAvg,ledgerFill.avg,0.01))) {
       orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"AVERAGE_FILL_PRICE_NOT_RECONCILED",ledgerFilledAvgPrice:ledgerFill.avg,brokerFilledAvgPrice:brokerFilledAvg});
     }
-    const noExposureTerminal=(brokerStatus==="REJECTED"&&brokerFilledQty===0)||(brokerStatus==="CANCELED"&&brokerFilledQty===0);
     const stopPrice=num(l.stop_price);
-    if(!noExposureTerminal){
-      if(stopPrice===null){
-        orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_PRICE_MISSING",brokerFilledQty});
-      }else{
-        const stopCheck=verifyOtoStopLeg(b,{symbol:l.symbol,qty:lqty,stopPrice});
-        if(!stopCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,expectedStopPrice:stopPrice});
+    if(String(l.side||"").toLowerCase()==="sell"){
+      const directStopType=String(b.type||b.order_type||"").toLowerCase();
+      const directStopTif=String(b.time_in_force||"").toLowerCase();
+      const directStopPrice=num(b.stop_price);
+      const leaves=num(b.leaves_qty)??(bqty-(brokerFilledQty??0));
+      const position=bp.find(p=>p.symbol===String(l.symbol||"").toUpperCase())||null;
+      const activeStop=["ACCEPTED","PARTIALLY_FILLED"].includes(brokerStatus);
+      const terminalNoExposure=["FILLED","CANCELED","REJECTED"].includes(brokerStatus)&&brokerFilledQty===lqty;
+      if(directStopType!=="stop"||directStopTif!=="gtc"||stopPrice===null||directStopPrice===null||!close(directStopPrice,stopPrice)){
+        orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"STANDALONE_RECOVERY_STOP_FIELDS_MISMATCH"});
+      }else if(activeStop&&(!position||position.qty===null||position.qty<=0||!close(position.qty,leaves)||String(b.side||"").toLowerCase()!=="sell")){
+        orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"STANDALONE_RECOVERY_STOP_DOES_NOT_COVER_POSITION",leaves,brokerPosition:position});
+      }else if(!activeStop&&(!terminalNoExposure||position&&position.qty>0)){
+        orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"STANDALONE_RECOVERY_STOP_TERMINAL_WITH_REMAINING_EXPOSURE",brokerStatus,brokerFilledQty,brokerPosition:position});
+      }
+    }else{
+      const noExposureTerminal=(brokerStatus==="REJECTED"&&brokerFilledQty===0)||(brokerStatus==="CANCELED"&&brokerFilledQty===0);
+      if(!noExposureTerminal){
+        if(stopPrice===null){
+          orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_PRICE_MISSING",brokerFilledQty});
+        }else{
+          const stopCheck=verifyOtoStopLeg(b,{symbol:l.symbol,qty:lqty,stopPrice});
+          if(!stopCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,expectedStopPrice:stopPrice});
+        }
       }
     }
   }
