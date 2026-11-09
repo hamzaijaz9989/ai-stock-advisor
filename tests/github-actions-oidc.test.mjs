@@ -64,7 +64,7 @@ test("accepts a valid signed token from the exact read-only main workflow", asyn
 });
 
 test("accepts the legacy subject format for older repositories with the same pinned immutable IDs", async () => {
-  const legacy = await token({ sub: `repo:${repo}:ref:refs?heads?main` });
+  const legacy = await token({ sub: `repo:${repo}:ref:refs/heads/main` });
   assert.equal((await verifyGitHubActionsOidc(legacy, { audience, now, jwks })).ok, true);
 });
 
