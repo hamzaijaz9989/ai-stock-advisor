@@ -94,10 +94,11 @@ async function verifyExistingRecovery(db,key,secret,parent,existing){
  }
  const noExposure=["FILLED","CANCELED","REJECTED"].includes(status)&&(!pos.position||pos.position.qty===0);
  const now=new Date().toISOString();
- await db.batch([
+ const writes=await db.batch([
   db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=?").bind(found.id,status,safeJson(found),now,existing.id),
   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(parent.id,"PAPER_RECOVERY_STOP_REVERIFIED",now,"alpaca_paper",safeJson({recoveryOrderId:existing.id,status,position:pos.position,execution:false}))
  ]);
+ if(writes.some(x=>Number(x?.meta?.changes)!==1))return fail("Existing recovery order was verified but its ledger update failed; reconcile before continuing.",503,{status:"UNKNOWN"});
  return Response.json({ok:true,recovered:true,execution:false,status:noExposure?"COMPLETED_NO_EXPOSURE":"PROTECTED_BY_STANDALONE_GTC_STOP",recoveryOrderId:existing.id,brokerOrderId:found.id,position:pos.position,protectiveStopVerified:!noExposure,message:"Existing recovery order was queried and reconciled; no second order was submitted."},{headers:H});
 }
 export async function onRequestPost({request,env}){
@@ -163,7 +164,10 @@ export async function onRequestPost({request,env}){
  if(decision.action!=="PLACE_STANDALONE_GTC_STOP")return fail("Recovery policy returned an unsupported action; no broker mutation was made.",409,{reason:decision.reason});
 
  const order=decision.order,clientId=crypto.randomUUID(),now=new Date().toISOString(),idempotencyKey="recovery:"+parentId;
- const payload={symbol:order.symbol,qty:String(order.qty),side:"sell",type:"stop",time_in_force:"gtc",stop_price:Number(order.stop_price).toFixed(Number(order.stop_price)>=1?2:4),client_order_id:clientId};
+ const precision=Number(order.stop_price)>=1?2:4;
+ const formattedStop=Number(order.stop_price).toFixed(precision);
+ if(!close(Number(formattedStop),Number(order.stop_price),0.0000001))return fail("The stop price does not meet Alpaca's supported price increment; no recovery order was submitted.",409,{reason:"STOP_PRICE_PRECISION_UNSUPPORTED"});
+ const payload={symbol:order.symbol,qty:String(order.qty),side:"sell",type:"stop",time_in_force:"gtc",stop_price:formattedStop,client_order_id:clientId};
  const requestHash=await digest(payload);
  try{
   const writes=await db.batch([
@@ -207,11 +211,12 @@ export async function onRequestPost({request,env}){
  }
  const storedStatus=brokerStatus;
  try{
-  await db.batch([
+  const writes=await db.batch([
    db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=? AND status='SUBMITTING'").bind(submitted.id,storedStatus,safeJson(submitted),new Date().toISOString(),clientId),
    db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(parentId,"PAPER_RECOVERY_STOP_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({recoveryOrderId:clientId,brokerOrderId:submitted.id,status:storedStatus,position:finalPosition.position,execution:false})),
    db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","PAPER_RECOVERY_STOP_VERIFIED",storedStatus,requestId,safeJson({parentOrderId:parentId,recoveryOrderId:clientId,brokerOrderId:submitted.id,position:finalPosition.position,execution:false}))
   ]);
+  if(writes.some(x=>Number(x?.meta?.changes)!==1))throw new Error("RECOVERY_STOP_LEDGER_FINALIZE_INCOMPLETE");
  }catch{
   try{await markUnknown(db,{parentId,recoveryId:clientId,reason:"RECOVERY_STOP_LEDGER_FINALIZE_FAILED",details:{brokerOrderId:submitted.id}});}catch{}
   return fail("Recovery stop exists but its ledger finalization failed. Treat as UNKNOWN and reconcile; never resubmit.",503,{recoveryOrderId:clientId,brokerOrderId:submitted.id,status:"UNKNOWN"});
