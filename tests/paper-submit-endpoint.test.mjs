@@ -175,7 +175,7 @@ async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enable
     return {results:[]};
    }
   };},
-  async batch(items){return items.map((_,i)=>({meta:{changes:claimChanges[i]??1}});}
+  async batch(items){return items.map((_,i)=>({meta:{changes:claimChanges[i]??1}}));}
  };
  const original=globalThis.fetch;
  globalThis.fetch=async(url,options={})=>{
