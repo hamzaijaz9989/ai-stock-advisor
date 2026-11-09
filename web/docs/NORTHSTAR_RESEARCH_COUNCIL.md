@@ -131,3 +131,6 @@ The current implementation is a bounded multi-stage research workflow, not a fre
 - The authenticated server-side `/api/research/collect` path now computes and persists this scorecard inside each durable Research Council result using the exact canonical fact/evidence IDs collected for that run. Runtime latency/token/cost fields remain null because the current adapter does not yet expose trustworthy per-role telemetry.
 
 - The deterministic Risk Committee is also represented in the inventory. It is marked `SUFFICIENT_FOR_DETERMINISTIC_GATES` only when the canonical adapter has validated all eight required portfolio risk inputs; the exact required field names are listed in its resource entry. This status means the gate has its required inputs, not that it approves a candidate or enables execution.
+
+### Role-specific resource packs
+Each specialist now receives a compact `roleResourcePack` containing its resource status, relevant evidence IDs, required typed inputs and known gaps. This is a prioritization aid, not an evidence filter: the complete shared dossier remains available to every role so counter-evidence and cross-checks are not hidden. The deterministic Risk Committee receives its own required-input inventory as well. Regression tests verify pack identity, coverage status and preservation of the full context.
