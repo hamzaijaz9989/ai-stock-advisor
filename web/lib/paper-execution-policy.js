@@ -58,3 +58,32 @@ export function validatePaperExecutionGate({
       notionalUsd:Number(notional.toFixed(2)), plannedRiskUsd:Number(risk.toFixed(2))}
   };
 }
+
+
+// Verify the broker's nested OTO response contains the exact protective stop
+// child for the shares currently exposed by the parent order.
+export function verifyOtoStopLeg(order,{symbol,qty,stopPrice}={}) {
+  const block=reason=>({ok:false,reason});
+  if(!order||String(order.order_class||"").toLowerCase()!=="oto") return block("OTO_ORDER_CLASS_NOT_CONFIRMED");
+  if(!Array.isArray(order.legs)) return block("NESTED_ORDER_LEGS_UNAVAILABLE");
+  const parentQty=Number(qty),filled=finite(order.filled_qty)?Number(order.filled_qty):0;
+  const expectedQty=filled>0?filled:parentQty;
+  if(!Number.isFinite(expectedQty)||expectedQty<=0) return block("PARENT_ORDER_QUANTITY_INVALID");
+  const expectedSymbol=String(symbol||"").toUpperCase();
+  const expectedStop=Number(stopPrice);
+  const leg=order.legs.find(item=>{
+    const role=String(item?.order_group_role||item?.role||"").toLowerCase();
+    const type=String(item?.type||item?.order_type||"").toLowerCase();
+    const status=String(item?.status||"").toLowerCase();
+    const legStop=Number(item?.stop_price);
+    const legQty=Number(item?.qty);
+    return (role==="stop_loss"||type==="stop"||type==="stop_limit") &&
+      String(item?.symbol||"").toUpperCase()===expectedSymbol &&
+      String(item?.side||"").toLowerCase()==="sell" &&
+      Number.isFinite(legQty)&&Math.abs(legQty-expectedQty)<=0.0001 &&
+      Number.isFinite(legStop)&&Math.abs(legStop-expectedStop)<=0.0001 &&
+      ["new","pending_new","accepted","accepted_for_bidding","held","partially_filled","filled"].includes(status);
+  });
+  if(!leg) return block("PROTECTIVE_STOP_LEG_MISSING_OR_MISMATCHED");
+  return {ok:true,reason:"PROTECTIVE_STOP_LEG_VERIFIED",legStatus:String(leg.status||"").toUpperCase(),legQty:Number(leg.qty),stopPrice:Number(leg.stop_price)};
+}
