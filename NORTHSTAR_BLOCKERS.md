@@ -916,3 +916,13 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Impact: do not claim nine-agent production dashboard acceptance, market-open monitor acceptance, seven-day portfolio readiness or paper lifecycle completion.
 - Next action: finish a safe read-only Research Council status/dashboard integration and a separately authenticated operator launch flow; collect and verify the seven-day read-only equity history before attempting the collector. Keep paper execution disabled and the kill switch engaged.
 - Governance note: GitHub API metadata reports `private=false / visibility=public`, contrary to the user's statement that the repository is private. No visibility change was attempted; verify directly in GitHub Settings.
+
+
+## 2026-11-10 03:26 PKT — Stock Brain dashboard integration checkpoint
+- The existing branch `northstar/complete-stock-brain-milestone` contained the missing Stock Brain workspace, authenticated collector launch UI, stable nine-role result matrix and durable trace corrections. Its head was 10 commits ahead and one commit behind main, so it was not merged directly.
+- Those implementation files and tests were carried onto the main-based branch `northstar/research-council-status-dashboard` and combined with the read-only status endpoint/card. PR #103 now contains the combined work.
+- Exact PR head before the final documentation refresh: `0a8c8bf4f9228f53871c076b6f0d9ff44a13b932`; code commits copied from the Stock Brain branch include the role-matrix implementation, dashboard UI, authenticated server-side collection call and traceDurable persistence fix. Latest PR head is to be rechecked after this documentation commit.
+- The dashboard asks for the operator token at run time, sends it only in the Authorization header, and does not persist it in browser storage. This is an interim operator flow; Cloudflare Access or equivalent session authentication remains preferable.
+- No production collector run was attempted because D1 still has only one stale equity snapshot and no seven-day baseline. The collector must fail closed until both freshness and history requirements are met.
+- No production D1 write/migration, broker request, order, execution-control change or production deployment was performed in this checkpoint.
+- Next: run exact-head Tests, Validate AI Stock Advisor and full-history secret scan; verify the Pages preview for the combined branch; inspect the preview UI and protected route behavior; merge only after all checks pass. Keep paper execution disabled and the kill switch engaged.
