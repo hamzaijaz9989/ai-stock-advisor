@@ -44,7 +44,7 @@ export async function onRequestPost({request,env}){
   clean.push({id,order,symbol,side,qty,price,cum:num(a.cum_qty),leaves:num(a.leaves_qty),status:String(a.order_status||""),time,raw:JSON.stringify(a)});
  }
  let ledgerOrders;
- try{ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,qty,stop_price,status,response_json FROM paper_orders WHERE broker_order_id IS NOT NULL").all();}
+ try{ledgerOrders=await db.prepare("SELECT id,idempotency_key,broker_order_id,symbol,side,qty,order_type,time_in_force,stop_price,status,response_json FROM paper_orders WHERE broker_order_id IS NOT NULL").all();}
  catch{return fail("Could not read existing Northstar orders; fill/order lifecycle sync blocked.",503);}
  const ledgerRows=Array.isArray(ledgerOrders?.results)?ledgerOrders.results:[];
  const byBrokerId=new Map(brokerOrders.map(o=>[String(o?.id||""),o]).filter(([id])=>!!id));
