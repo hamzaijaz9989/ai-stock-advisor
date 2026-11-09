@@ -1,0 +1,129 @@
+// Pure, fail-closed decision policy for recovering a partially filled Alpaca PAPER OTO entry.
+// This module performs no network requests, broker mutations, or database writes.
+const finite = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+const number = value => finite(value) ? Number(value) : null;
+const close = (a,b,tolerance=0.0001) => Math.abs(Number(a)-Number(b)) <= tolerance;
+const OPEN_PARENT = new Set(["new","accepted","pending_new","accepted_for_bidding","partially_filled","done_for_day"]);
+const TERMINAL_PARENT = new Set(["filled","canceled","cancelled","expired","rejected"]);
+const ACTIVE_STOP = new Set(["new","accepted","pending_new","partially_filled"]);
+const TERMINAL_STOP = new Set(["filled","canceled","cancelled","expired","rejected"]);
+
+function blocked(reason, details={}) {
+  return {ok:false, execution:false, action:"MANUAL_RECOVERY_REQUIRED", reason, details};
+}
+
+export function evaluatePartialFillRecovery({
+  parent,
+  stopChild=null,
+  brokerPosition=null,
+  stopPrice,
+  quote=null,
+  now=Date.now()
+}) {
+  if (!parent || typeof parent !== "object") return blocked("PARENT_ORDER_MISSING");
+  const parentStatus=String(parent.status || "").toLowerCase();
+  const symbol=String(parent.symbol || "").toUpperCase();
+  const parentQty=number(parent.qty);
+  const parentFilled=number(parent.filled_qty);
+  const stop=number(stopPrice);
+  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) || !Number.isInteger(parentQty) || parentQty<=0 ||
+      parentFilled===null || parentFilled<0 || parentFilled>parentQty || stop===null || stop<=0) {
+    return blocked("PARENT_ORDER_OR_STOP_FIELDS_INVALID",{symbol,parentQty,parentFilled,stopPrice});
+  }
+
+  if (OPEN_PARENT.has(parentStatus)) {
+    return {
+      ok:true, execution:false, action:"CANCEL_PARENT_REMAINDER",
+      reason:"ENTRY_MUST_BE_TERMINAL_BEFORE_EXPOSURE_PROTECTION",
+      symbol, parentQty, parentFilledQty:parentFilled, stopPrice:stop
+    };
+  }
+  if (parentStatus==="pending_cancel") {
+    return {
+      ok:true, execution:false, action:"WAIT_FOR_CANCEL_CONFIRMATION",
+      reason:"CANCEL_REQUEST_IS_STILL_PENDING",
+      symbol, parentQty, parentFilledQty:parentFilled, stopPrice:stop
+    };
+  }
+  if (!TERMINAL_PARENT.has(parentStatus)) {
+    return blocked("PARENT_STATUS_NOT_RECOGNIZED_AS_SAFE_TERMINAL",{parentStatus});
+  }
+  if (parentStatus==="filled" && !close(parentFilled,parentQty)) {
+    return blocked("FILLED_PARENT_HAS_INCOMPLETE_CUMULATIVE_QUANTITY",{parentQty,parentFilled});
+  }
+
+  let childFilled=0;
+  if (stopChild) {
+    const childStatus=String(stopChild.status || "").toLowerCase();
+    const childSymbol=String(stopChild.symbol || "").toUpperCase();
+    const childSide=String(stopChild.side || "").toLowerCase();
+    const childType=String(stopChild.type || stopChild.order_type || "").toLowerCase();
+    const childQty=number(stopChild.qty);
+    childFilled=number(stopChild.filled_qty);
+    const childStop=number(stopChild.stop_price);
+    if (childSymbol!==symbol || childSide!=="sell" || !["stop","stop_limit"].includes(childType) ||
+        !Number.isInteger(childQty) || childQty<=0 || childFilled===null || childFilled<0 ||
+        childFilled>childQty || childStop===null || !close(childStop,stop,0.0001)) {
+      return blocked("OTO_STOP_CHILD_FIELDS_INVALID_OR_MISMATCHED",{childStatus,childSymbol,childSide,childType,childQty,childFilled,childStop});
+    }
+    if (childStatus==="held") {
+      return blocked("OTO_STOP_CHILD_REMAINS_HELD_AFTER_PARENT_TERMINAL",{parentStatus,childStatus,parentFilled,childFilled});
+    }
+    if (!ACTIVE_STOP.has(childStatus) && !TERMINAL_STOP.has(childStatus)) {
+      return blocked("OTO_STOP_CHILD_STATUS_UNVERIFIED",{childStatus});
+    }
+  }
+
+  if (childFilled>parentFilled) {
+    return blocked("STOP_CHILD_FILLED_MORE_THAN_ENTRY",{parentFilled,childFilled});
+  }
+  const expectedRemaining=Math.max(0,parentFilled-childFilled);
+  const positionQty=brokerPosition ? number(brokerPosition.qty) : 0;
+  const positionSide=String(brokerPosition?.side || (positionQty>0 ? "long" : "")).toLowerCase();
+  if (positionQty===null || positionQty<0 || (positionQty>0 && positionSide!=="long")) {
+    return blocked("BROKER_POSITION_IS_INVALID_OR_NOT_LONG",{positionQty,positionSide});
+  }
+  if (!close(positionQty,expectedRemaining)) {
+    return blocked("BROKER_POSITION_DOES_NOT_MATCH_ENTRY_MINUS_STOP_FILLS",{expectedRemaining,positionQty,parentFilled,childFilled});
+  }
+
+  if (expectedRemaining===0) {
+    return {
+      ok:true, execution:false, action:"COMPLETED_NO_EXPOSURE",
+      reason:"NO_REMAINING_LONG_POSITION",
+      symbol, parentStatus, parentFilledQty:parentFilled, stopChildFilledQty:childFilled, positionQty:0
+    };
+  }
+
+  if (stopChild && ACTIVE_STOP.has(String(stopChild.status || "").toLowerCase())) {
+    const childQty=number(stopChild.qty);
+    const childLeaves=number(stopChild.leaves_qty) ?? (childQty-childFilled);
+    if (!close(childLeaves,expectedRemaining)) {
+      return blocked("ACTIVE_OTO_STOP_DOES_NOT_COVER_EXACT_REMAINING_POSITION",{childLeaves,expectedRemaining,positionQty});
+    }
+    return {
+      ok:true, execution:false, action:"PROTECTED_BY_EXISTING_OTO_STOP",
+      reason:"ACTIVE_OTO_STOP_COVERS_ALL_REMAINING_SHARES",
+      symbol, parentStatus, parentFilledQty:parentFilled, stopChildFilledQty:childFilled,
+      positionQty, protectiveStopOrderId:String(stopChild.id || "")
+    };
+  }
+
+  const bid=number(quote?.bid);
+  const quoteAt=Date.parse(quote?.timestamp || "");
+  if (bid===null || bid<=0 || !Number.isFinite(quoteAt) || quoteAt>now || now-quoteAt>60_000) {
+    return blocked("FRESH_BID_REQUIRED_BEFORE_STANDALONE_STOP",{bid,quoteTimestamp:quote?.timestamp || null});
+  }
+  if (bid<=stop) {
+    return blocked("STOP_PRICE_ALREADY_BREACHED_OR_AT_MARKET",{bid,stopPrice:stop});
+  }
+
+  return {
+    ok:true, execution:false, action:"PLACE_STANDALONE_GTC_STOP",
+    reason:"PARENT_IS_TERMINAL_POSITION_RECONCILES_AND_NO_ACTIVE_CHILD_STOP_REMAINS",
+    symbol, parentStatus, parentFilledQty:parentFilled, stopChildFilledQty:childFilled,
+    positionQty:expectedRemaining, stopPrice:stop,
+    order:{symbol,qty:expectedRemaining,side:"sell",type:"stop",time_in_force:"gtc",stop_price:stop},
+    executionPriceNotGuaranteed:true
+  };
+}
