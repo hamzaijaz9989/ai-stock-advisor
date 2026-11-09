@@ -37,7 +37,7 @@ export async function onRequestPost({request,env}){
  if(!/^[0-9a-f-]{36}$/i.test(intentId)||body?.confirmation!=="SUBMIT_THIS_PAPER_ORDER")return fail("Provide an intentId and exact paper-order confirmation.");
  let control,intent,existing,snapshots,positions,orders;
  try{
-  [control,intent,existing,snapshots,positions,orders,strategyApproval]=await Promise.all([
+  [control,intent,existing,snapshots,positions,orders]=await Promise.all([
    db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first(),
    db.prepare("SELECT id,symbol,side,qty,reference_price,stop_price,status,request_hash FROM paper_trade_intents WHERE id=?").bind(intentId).first(),
    db.prepare("SELECT id,idempotency_key,client_request_hash,status,broker_order_id,response_json FROM paper_orders WHERE idempotency_key=?").bind("intent:"+intentId).first(),
@@ -94,7 +94,11 @@ export async function onRequestPost({request,env}){
   try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:existing.broker_order_id||null,response:{ledgerStatus:existing.status},reason:"EXISTING_CLIENT_ORDER_ID_NOT_FOUND"});}catch{}
   return fail("Northstar has an order record that Alpaca cannot confirm. Treat it as UNKNOWN; no resubmission is permitted.",503,{orderId:existing.id,status:"UNKNOWN"});
  }
- // Strategy approval is independent of paper controls and cannot be bypassed by an approved intent.
+ // Existing-order recovery above remains available even when strategy validation is not approved.
+ // New BUY submissions require the independently reviewed strategy attestation.
+ let strategyApproval;
+ try{strategyApproval=await db.prepare("SELECT approved,strategy_version,report_version,report_sha256,report_uri,approved_at,reviewer FROM northstar_strategy_approval WHERE id=1").first();}
+ catch{return fail("Strategy approval record is unavailable; no new paper BUY order may be submitted.",503);}
  const strategyValidation=evaluateStrategyApproval(strategyApproval);
  if(!strategyValidation.ok)return fail("Strategy validation is not approved; no new paper BUY order may be submitted.",409,{strategyValidation});
  // Enforce the global kill switch before considering any proposal or broker state.
