@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T18:17:11Z
+Last updated: 2026-11-09T18:23:00Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -1495,3 +1495,11 @@ No PR merge, force push, branch-protection bypass, D1 write/migration, productio
 8. **Runtime endpoint verification** — affected: Pages production/preview readiness, performance and control endpoints. Direct probes were blocked by the connected runtime's outbound policy. **Next:** use an authorized browser/operator network path for read-only GET checks; do not interpret runtime policy 403 as a Pages application failure.
 
 No PR #85 merge, production deployment, D1 migration/write, broker request, order, execution-control mutation, or PAPER enablement occurred in this run. The current release remains blocked; keep `enabled=0` and `kill_switch=1`.
+
+
+### CI retry follow-up — 2026-11-09T18:23:00Z
+- The documentation-only continuation commit `6c73922c02b3995d29d0615d91c29a89a1eaf40f` triggered fresh PR checks on the exact head. Tests run `42673330577` completed SUCCESS with a real job (`129350427604`): Python `95 passed`, JavaScript `337 passed / 0 failed`, Ruff `All checks passed`.
+- Validate run `42673330481` completed FAILURE but its job-list endpoint returned zero jobs and no job IDs/logs. Attempted rerun; GitHub again returned 403 `This workflow run cannot be retried`. No source-code test failure is evidenced, but Validate is not green on this exact head.
+- The failure alternates between the two workflows: the preceding head's Validate run passed while its Tests run failed without any jobs; this head's Tests run passed while Validate failed without any jobs. This pattern indicates a GitHub Actions orchestration/check-run problem, but the precise platform cause is unavailable. Do not treat a no-job failure as success.
+- A second documentation-only log update is being pushed to request one more fresh pair of checks without modifying application code or triggering a Pages build. Verify both workflow results and job logs on the resulting exact head before release.
+- No code, schema, secret, broker, order, production deployment or execution-control mutation occurred.
