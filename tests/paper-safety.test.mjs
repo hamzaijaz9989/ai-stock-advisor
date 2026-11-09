@@ -15,7 +15,10 @@ function mockDb(control) {
         sql,
         values: [],
         bind(...values) { this.values = values; return this; },
-        async first() { calls.push({ type: "first", sql }); return control; }
+        async first() {
+          calls.push({ type: "first", sql });
+          return sql.includes("paper_execution_claims") ? null : control;
+        }
       };
     },
     async batch(statements) { calls.push({ type: "batch", statements }); return []; }
@@ -93,6 +96,10 @@ test("operator control rejects unauthenticated requests without changing the led
 test("operator control only permits engaging the kill switch and audits the change", async () => {
   const { onRequestPost } = await loadFunction("../web/functions/api/paper/control.js");
   const { db, calls } = mockDb({});
+  db.batch = async statements => {
+    calls.push({ type: "batch", statements });
+    return statements.map(() => ({ meta: { changes: 1 } }));
+  };
   const response = await onRequestPost({
     request: new Request("https://northstar.test/api/paper/control", {
       method: "POST",
@@ -102,7 +109,9 @@ test("operator control only permits engaging the kill switch and audits the chan
     env: { NORTHSTAR_DB: db, NORTHSTAR_OPERATOR_TOKEN: "test-token" }
   });
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).killSwitchEngaged, true);
+  const body = await response.json();
+  assert.equal(body.killSwitchEngaged, true);
+  assert.equal(body.submissionQuiesced, true);
   assert.equal(calls.filter(call => call.type === "batch").length, 1);
   assert.equal(calls.find(call => call.type === "batch").statements.length, 2);
 });

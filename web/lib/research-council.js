@@ -4,7 +4,7 @@
  * No LLM calls, data fetching, persistence, broker access, or order execution here.
  * Every factual claim must cite supplied fact IDs.
  */
-export const COUNCIL_VERSION = "1.0.1";
+export const COUNCIL_VERSION = "1.0.4";
 export const COUNCIL_ROLES = Object.freeze({
   independent: ["market_scanner", "technical_analyst", "fundamental_analyst", "news_analyst", "sentiment_analyst"],
   debate: ["bull_researcher", "bear_researcher"],
@@ -29,6 +29,12 @@ function validateReport(report, validFactIds, role) {
       report.decision === undefined && report.vetoReasons === undefined;
     return {ok:clean, reason:role+" is unavailable or returned data with an unavailable status."};
   }
+  // Model specialists must provide evidence-linked work. The deterministic
+  // Risk Committee is different: its authoritative output is a decision plus
+  // explicit veto reasons, so empty findings/risks are valid for that role.
+  if (role !== "risk_committee" && report.findings.length + report.risks.length === 0) {
+    return {ok:false, reason:role+" returned an empty COMPLETE report; a cited finding or limitation is required."};
+  }
   for (const item of [...report.findings, ...report.risks]) {
     if (!validText(item?.claim) || !Array.isArray(item.factIds) || item.factIds.length===0 ||
         item.factIds.length > 10 ||
@@ -52,7 +58,17 @@ function validateReport(report, validFactIds, role) {
 async function invoke(role, worker, payload, factIds) {
   if (typeof worker !== "function") return {role, status:"UNAVAILABLE", reason:role+" worker not configured."};
   try {
-    const report = await worker(freezeDeep(structuredClone(payload)));
+    const coverage = payload.resourceCoverage?.roles?.[role] || null;
+    const roleResourcePack = coverage ? {
+      role,
+      status:coverage.status || "NOT_REPORTED",
+      relevantIds:Array.isArray(coverage.factIds) ? [...coverage.factIds] : [],
+      requiredInputs:Array.isArray(coverage.inputFields) ? [...coverage.inputFields] : [],
+      knownGaps:Array.isArray(coverage.gaps) ? [...coverage.gaps] : [],
+      allContextEvidenceRetained:true,
+      note:"This pack highlights role-relevant resources; the full shared dossier remains available for counter-evidence and cross-checking."
+    } : null;
+    const report = await worker(freezeDeep(structuredClone({...payload,roleResourcePack})));
     const checked = validateReport(report, factIds, role);
     if (!checked.ok) return {role, status:"BLOCKED", reason:checked.reason};
     return {role, status:report.status, report};
@@ -80,7 +96,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
   }
   const safeWorkers = workers || {};
   const base = {requestId, ticker:context.ticker, asOf:context.asOf, facts:context.facts,
-    evidence:context.evidence, portfolio:context.portfolio};
+    evidence:context.evidence, portfolio:context.portfolio, resourceCoverage:context.resourceCoverage || null};
   const independent = await Promise.all(COUNCIL_ROLES.independent.map(role =>
     invoke(role, safeWorkers[role], base, factIds)));
   const analystReady = independent.every(x=>x.status==="COMPLETE");
@@ -107,6 +123,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
     Array.isArray(risk.report.vetoReasons) && risk.report.vetoReasons.length===0;
   return {
     version:COUNCIL_VERSION, requestId, ticker:context.ticker||null, asOf:context.asOf||null,
+    resourceCoverage:context.resourceCoverage || null,
     status:approvedForReview?"RESEARCH_REVIEW_REQUIRED":"NO_TRADE",
     execution:false, automatedOrderSubmission:false,
     decisionAuthority:"Deterministic Northstar risk and validation gates remain authoritative; council output is advisory only.",

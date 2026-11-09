@@ -43,8 +43,8 @@ export function evaluatePortfolioRisk({account,positions,limits,dailyLossUsd,max
   const breaches=[];
   if(gross>Math.min(cap,equity)) breaches.push("PORTFOLIO_EXPOSURE_LIMIT");
   if(concentration.some(p=>p.weight>maxPosition)) breaches.push("POSITION_CONCENTRATION_LIMIT");
-  if(Number(dailyLossUsd)>cap*maxDailyLoss) breaches.push("DAILY_LOSS_LIMIT");
-  if(Number(maxDrawdownUsd)>cap*maxDrawdown) breaches.push("DRAWDOWN_LIMIT");
+  if(Number(dailyLossUsd)>=cap*maxDailyLoss) breaches.push("DAILY_LOSS_LIMIT");
+  if(Number(maxDrawdownUsd)>=cap*maxDrawdown) breaches.push("DRAWDOWN_LIMIT");
   if(account.trading_blocked||account.account_blocked||account.status!=="ACTIVE") breaches.push("BROKER_ACCOUNT_RESTRICTED");
   return {ok:breaches.length===0,status:breaches.length?"RISK_BLOCKED_FAIL_CLOSED":"RISK_CHECK_PASSED_READ_ONLY",reason:breaches.length?breaches.join(","):"WITHIN_CONFIGURED_LIMITS",execution:false,metrics:{equityUsd:equity,buyingPowerUsd:buyingPower,grossExposureUsd:Number(gross.toFixed(2)),dailyLossUsd:Number(dailyLossUsd),maxDrawdownUsd:Number(maxDrawdownUsd),concentration},breaches};
 }

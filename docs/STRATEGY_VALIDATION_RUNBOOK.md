@@ -18,6 +18,52 @@ Use `scripts/run_strategy_validation.py` with a JSON file containing:
 
 The provisional snapshot rules mirror the current app's major gates: positive annual and quarterly financial quality, revenue decline limits, price/DCF ratio within 0.40×–2.50×, entry zone at 75–80% of the DCF base, at least 2:1 reward/risk, ATR-derived risk, no known near-term earnings event or flagged risk headline, and whole-share risk/notional sizing. Any missing, malformed or future-dated input fails closed.
 
+## FMP source acquisition
+
+The operator-only FMP universe route returns current constituent lists, dated index changes, and the provider's delisted-company catalogue:
+
+```bash
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer $NORTHSTAR_OPERATOR_TOKEN" \
+  "$NORTHSTAR_API_BASE/api/fmp-universe?from=2016-01-01" \
+  -o fmp-universe.json
+```
+
+The earnings-history CLI requests consecutive non-overlapping 90-day windows, rejects provider pages at the 4,000-record cap, preserves retrieval timestamps, and refuses conflicting duplicate events:
+
+```bash
+NORTHSTAR_API_BASE="$NORTHSTAR_API_BASE" \
+NORTHSTAR_OPERATOR_TOKEN="$NORTHSTAR_OPERATOR_TOKEN" \
+node scripts/fetch_fmp_earnings.mjs \
+  --from 2016-01-01 --to 2026-11-09 --output fmp-earnings.json
+```
+
+Keep the operator token out of command history, logs, and committed files. The resulting source files are raw evidence only: validate provider coverage, event timing, symbol identity, and data licence before building historical snapshots.
+
+### Reproducible raw-source acquisition bundle
+
+For a controlled first acquisition, prepare an explicit ticker list (one symbol per line; comments beginning with `#` are allowed; maximum 500 unique tickers). Include the benchmark symbol explicitly:
+
+```text
+AAPL
+MSFT
+NVDA
+SPY
+```
+
+Then run:
+
+```bash
+NORTHSTAR_API_BASE="$NORTHSTAR_API_BASE" \
+NORTHSTAR_OPERATOR_TOKEN="$NORTHSTAR_OPERATOR_TOKEN" \
+node scripts/fetch_fmp_validation_sources.mjs \
+  --from 2016-01-01 --to 2026-11-09 \
+  --symbols-file symbols.txt --output raw-fmp-validation-sources.json
+```
+
+The CLI retrieves the operator-authenticated universe and earnings sources, then sequentially fetches FMP history for each explicitly listed symbol. It writes an exclusive-create JSON bundle with retrieval metadata, per-symbol coverage gaps, raw source responses, and point-in-time limitations. It refuses invalid tickers, windows over ten years, mismatched symbol responses, provider-capped earnings windows, and incomplete HTTP responses. The output is deliberately marked `RAW_SOURCE_BUNDLE_NOT_VALIDATION_INPUT`: it does not reconstruct historical membership, assign historical availability timestamps, assemble strategy snapshots, or approve the strategy. Preserve the exact bundle unchanged before any transformation.
+
+
 ## Run
 
 ```bash
@@ -34,8 +80,8 @@ Do not use synthetic examples as evidence of strategy performance. A report shou
 
 ## Known gaps before production approval
 
-1. A licensed, complete, reproducible historical data bundle has not yet been wired in. PtData is a candidate for point-in-time corporate facts and historical index constituents; verify its terms and coverage. It does not alone supply every historical price, timestamped news and earnings input required here.
-2. The input builder must produce snapshots from source records; manual or today's revised values are not acceptable for historical dates.
+1. FMP source adapters are wired at `/api/fmp-history`, `/api/fmp-universe`, and `/api/fmp-earnings`. The history adapter requests up to ten annual statements, forty quarterly statements, daily EOD bars for up to ten years, and the first 100 matching news records. The universe adapter retrieves current and historical S&P 500, Nasdaq, and Dow Jones constituent lists/change events, plus FMP's delisted-company catalogue. The universe and earnings adapters require the operator token to protect FMP quota. The earnings adapter retrieves earnings-calendar windows of at most 90 days; callers must chunk longer periods. These adapters preserve filing/news/event source fields but do not themselves assemble a point-in-time dataset. Actual plan coverage and licence must be verified; the news page is capped; the delisted-company catalogue is not guaranteed complete and historical bars/fundamentals may be missing for listed delisted symbols; and FMP's current historical responses are not immutable vendor-revision archives. Historical constituent changes must be reconstructed and independently checked. Earnings `date`/`lastUpdated` do not prove when an event was first publicly known, so they cannot automatically be used as historical availability timestamps.
+2. The input builder must assemble FMP source bundles, reconstruct historical index membership from current constituents and dated changes, retrieve earnings-calendar windows in <=90-day chunks, and produce snapshots from source records. Manual or today's revised values are not acceptable for historical dates.
 3. The validator now includes a cash-only, single-position-at-a-time portfolio equity curve with fixed-dollar risk sizing, cash/notional limits, overlap skips and drawdown. This is deliberately conservative and does not simulate overlapping positions or margin.
 4. The report now evaluates frozen-rule signals separately inside each chronological test window and truncates each symbol's future bars at that window's end. It does not fit or tune parameters in each training window; it is a repeated out-of-sample evaluation of a frozen strategy, not an adaptive model-training loop. Fold boundaries are currently based on unique snapshot dates, so the dataset builder must supply genuine market-session dates and a separately untouched final holdout.
 5. Each fold reports its own completed/incomplete trades, returns, profit factor and exact-date broad-market benchmark excess where benchmark dates match. Missing or date-incomplete SPY bars are not forward-filled. The same-stock buy-and-hold figure is reported separately and is not used as the broad-market benchmark. Review uncertainty, confidence intervals, parameter sensitivity and missing/delisted-stock coverage independently.

@@ -38,3 +38,17 @@
 Do not set approval flags to true merely to satisfy the runner. They are attestations about evidence, not configuration switches. Synthetic fixtures, successful software tests, and a current-history moving-average demo do not approve the live recommendation strategy.
 
 This status document records blockers honestly; it is not itself a validation report or approval.
+
+## Runtime BUY approval gate — 2026-11-09
+
+PR #85 adds migration `0007_strategy_validation_approval.sql` and a fail-closed runtime approval record. The migration seeds `northstar_strategy_approval.approved=0`; no current strategy is approved.
+
+- Paper preflight rejects a missing or unapproved approval record before making broker data requests.
+- Intent creation uses that preflight and therefore cannot persist a new BUY proposal while the gate is closed.
+- The broker submission endpoint independently checks the same approval record after its existing-order recovery path, so a previously persisted order can still be reconciled without granting new BUY authority.
+- The centralized pure execution policy also requires `strategyValidation.ok=true` and `approved=true`.
+- Approval requires the exact strategy version, a positive report version, a 64-character hexadecimal SHA-256, an HTTPS report URI, a valid approval timestamp, and a named independent reviewer.
+- D1 update triggers append every approval-state change to an append-only event table. There is no public approval endpoint.
+- Tests may use a complete approved fixture to exercise sizing and route behavior. That fixture is not an actual strategy approval and must never be copied into production.
+
+Do not change the seeded approval row to approved until the real point-in-time validation evidence, chronological walk-forward and untouched holdout, required completed-trade sample, provenance/corporate-action/cost attestations, and independent reproduction/review have all passed.

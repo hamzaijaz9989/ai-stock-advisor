@@ -38,9 +38,13 @@ test("risk evaluator blocks excess exposure and restricted accounts",()=>{
 test("risk evaluator enforces the documented $20 daily and $80 drawdown boundaries",()=>{
  const limits={maxPortfolioUsd:1000,maxPositionFraction:.25,maxRiskFraction:.01};
  const base={account:{status:"ACTIVE",equity:1000,buying_power:1000},positions:[],limits,maxDrawdownUsd:0};
- assert.equal(evaluatePortfolioRisk({...base,dailyLossUsd:20}).ok,true);
+ assert.equal(evaluatePortfolioRisk({...base,dailyLossUsd:19.99}).ok,true);
+ const dailyCap=evaluatePortfolioRisk({...base,dailyLossUsd:20});
+ assert.equal(dailyCap.ok,false);assert.ok(dailyCap.breaches.includes("DAILY_LOSS_LIMIT"));
  assert.ok(evaluatePortfolioRisk({...base,dailyLossUsd:20.01}).breaches.includes("DAILY_LOSS_LIMIT"));
- assert.equal(evaluatePortfolioRisk({...base,dailyLossUsd:0,maxDrawdownUsd:80}).ok,true);
+ assert.equal(evaluatePortfolioRisk({...base,dailyLossUsd:0,maxDrawdownUsd:79.99}).ok,true);
+ const drawdownCap=evaluatePortfolioRisk({...base,dailyLossUsd:0,maxDrawdownUsd:80});
+ assert.equal(drawdownCap.ok,false);assert.ok(drawdownCap.breaches.includes("DRAWDOWN_LIMIT"));
  assert.ok(evaluatePortfolioRisk({...base,dailyLossUsd:0,maxDrawdownUsd:80.01}).breaches.includes("DRAWDOWN_LIMIT"));
 });
 test("risk evaluator includes pending order exposure and rejects invalid marks",()=>{

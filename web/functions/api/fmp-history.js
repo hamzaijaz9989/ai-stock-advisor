@@ -12,25 +12,30 @@ async function get(path,key){
  const j=await r.json();if(!Array.isArray(j))throw new Error("Unexpected response for "+path.split("?")[0]);return j;
 }
 function pick(rows,fields){return rows.map(row=>Object.fromEntries(fields.filter(k=>row?.[k]!==undefined).map(k=>[k,row[k]])));}
+function validDate(value){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+ const d=new Date(value+"T00:00:00Z");
+ return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===value;
+}
 export async function onRequestGet({request,env}){
  const q=new URL(request.url).searchParams;
  const ticker=(q.get("ticker")||"").trim().toUpperCase();
  const to=q.get("to")||new Date().toISOString().slice(0,10);
  const from=q.get("from")||(()=>{const d=new Date(to+"T00:00:00Z");d.setUTCFullYear(d.getUTCFullYear()-5);return d.toISOString().slice(0,10)})();
- if(!TICKER_RE.test(ticker)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(from)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(to)||from>to)
+ if(!TICKER_RE.test(ticker)||!validDate(from)||!validDate(to)||from>to)
   return Response.json({available:false,error:"Provide a valid ticker and ISO from/to dates."},{status:400});
  if((Date.parse(to)-Date.parse(from))/86400000>3653)return Response.json({available:false,error:"Maximum requested window is 10 years."},{status:400});
  const fmpKey=env?.FMP_API_KEY2||env?.FMP_API_KEY;
  if(!fmpKey)return Response.json({available:false,configured:false,error:"FMP_API_KEY is not configured."},{status:503,headers:{"Cache-Control":"no-store"}});
  const tasks=[
   ["prices",`historical-price-eod/full?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}`],
-  ["annualIncome",`income-statement?symbol=${ticker}&period=annual&limit=5`],
-  ["annualBalance",`balance-sheet-statement?symbol=${ticker}&period=annual&limit=5`],
-  ["annualCashflow",`cash-flow-statement?symbol=${ticker}&period=annual&limit=5`],
-  ["quarterIncome",`income-statement?symbol=${ticker}&period=quarter&limit=5`],
-  ["quarterBalance",`balance-sheet-statement?symbol=${ticker}&period=quarter&limit=5`],
-  ["quarterCashflow",`cash-flow-statement?symbol=${ticker}&period=quarter&limit=5`],
-  ["news",`news/stock?symbols=${ticker}&from=${from}&to=${to}&limit=5&page=0`]
+  ["annualIncome",`income-statement?symbol=${ticker}&period=annual&limit=10`],
+  ["annualBalance",`balance-sheet-statement?symbol=${ticker}&period=annual&limit=10`],
+  ["annualCashflow",`cash-flow-statement?symbol=${ticker}&period=annual&limit=10`],
+  ["quarterIncome",`income-statement?symbol=${ticker}&period=quarter&limit=40`],
+  ["quarterBalance",`balance-sheet-statement?symbol=${ticker}&period=quarter&limit=40`],
+  ["quarterCashflow",`cash-flow-statement?symbol=${ticker}&period=quarter&limit=40`],
+  ["news",`news/stock?symbols=${ticker}&from=${from}&to=${to}&limit=100&page=0`]
  ];
  const settled=await Promise.allSettled(tasks.map(([,path])=>get(path,fmpKey)));
  const raw={},errors=[];
@@ -47,10 +52,10 @@ export async function onRequestGet({request,env}){
  const complete=["prices","annualIncome","annualBalance","annualCashflow","quarterIncome","quarterBalance","quarterCashflow"].filter(k=>Array.isArray(raw[k])&&raw[k].length>0).length;
  return Response.json({
   available:prices.length>0||Object.values(statements).some(x=>x.length>0),ticker,provider:"Financial Modeling Prep",retrievedAt:new Date().toISOString(),window:{from,to},
-  coverage:{datasetsReturned:complete,datasetsRequested:7,priceBars:prices.length,annualIncome:statements.annualIncome?.length||0,quarterIncome:statements.quarterIncome?.length||0,newsArticles:news.length},
+  coverage:{datasetsReturned:complete,datasetsRequested:7,annualStatementLimit:10,quarterlyStatementLimit:40,newsPageLimit:100,priceBars:prices.length,annualIncome:statements.annualIncome?.length||0,quarterIncome:statements.quarterIncome?.length||0,newsArticles:news.length},
   prices:prices.map(x=>({date:x.date,open:x.open,high:x.high,low:x.low,close:x.close,adjOpen:x.adjOpen,adjHigh:x.adjHigh,adjLow:x.adjLow,adjClose:x.adjClose,volume:x.volume})),
   statements,news,errors,
   pointInTimeRules:{financialAvailabilityField:"acceptedDate preferred; filingDate fallback only when acceptedDate absent",priceAvailabilityField:"daily bar date; close is available after that session",newsAvailabilityField:"publishedDate",warning:"Do not use a statement before its accepted/filing timestamp. If neither timestamp exists, exclude it from point-in-time snapshots. FMP's current historical response is not an immutable archive of every prior vendor revision."},
-  limitations:["Current ticker history does not establish historical index membership or include every delisted security.","News coverage and timestamps vary by symbol and may not be complete.","Historical prices may be adjusted; use a consistent adjustment policy and corporate-action audit before replay.","This endpoint retrieves source data; it does not approve BUY or certify a backtest."]
+  limitations:["Current ticker history does not establish historical index membership or include every delisted security.","Statement limits request up to ten annual and forty quarterly periods; actual provider coverage can be lower and must be checked per symbol.","News is limited to the first 100 matching records returned by the provider; this is not proof of complete historical news coverage.","News coverage and timestamps vary by symbol and may not be complete.","Historical prices may be adjusted; use a consistent adjustment policy and corporate-action audit before replay.","This endpoint retrieves source data; it does not approve BUY or certify a backtest."]
  },{headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }

@@ -8,8 +8,10 @@ import {onRequestGet as getNews} from "../news.js";
 import {onRequestGet as getEarnings} from "../earnings.js";
 import {buildResearchCouncilContext} from "../../../lib/research-council-facts.js";
 import {runResearchCouncil} from "../../../lib/research-council.js";
+import {evaluateResearchCouncilRun} from "../../../lib/research-council-evaluation.js";
 import {createResearchCouncilWorkers} from "../../../lib/research-council-adapters.js";
 import {deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
+import {onRequestPost as reconcilePaperAccount} from "../paper/reconcile.js";
 import {onRequestPost as syncPaperAccount} from "../paper/sync.js";
 
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
@@ -91,7 +93,15 @@ export async function onRequestPost({request,env}){
    if(String(prior.symbol||"").toUpperCase()!==ticker)return reply({ok:false,error:"requestId already belongs to a different ticker."},409);
    return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(prior.result_json),createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
   }
-  // Refresh the read-only broker snapshot before using portfolio values.
+  // Reconcile the existing broker and D1 snapshots BEFORE sync can refresh/replace
+  // the position mirror. This prevents a sync from hiding a pre-existing mismatch.
+  const reconcileResponse=await reconcilePaperAccount({request:new Request(origin+"/api/paper/reconcile",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||""}}),env});
+  let reconciliation={};
+  try{reconciliation=await reconcileResponse.json();}catch{}
+  if(!reconcileResponse.ok||reconciliation?.ok!==true||reconciliation?.reconciled!==true||reconciliation?.execution!==false)
+   throw new Error("Pre-sync broker-to-ledger reconciliation failed; research collection is blocked.");
+  // Only after independent reconciliation succeeds may the read-only sync refresh
+  // the durable broker snapshot used by the research portfolio context.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
   const portfolio=await portfolioSnapshot(env);
@@ -122,7 +132,8 @@ export async function onRequestPost({request,env}){
   if(existing){if(existing.input_sha256!==inputHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(existing.result_json),createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});}
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
-  const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
+  const evaluation=evaluateResearchCouncilRun(result,{factIds:context.facts.map(x=>x.id),evidenceIds:context.evidence.map(x=>x.id),evaluatedAt:new Date().toISOString(),roles:workers.telemetry||{}});
+  const storedResult={...result,evaluation,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING").bind(requestId,inputHash,ticker,result.status,JSON.stringify(storedResult)).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);

@@ -34,3 +34,26 @@ test("scheduled cache refuses partial or miscounted scans", () => {
   assert.match(refresh, /Cached result counts do not match/);
   assert.match(refresh, /refusing to overwrite the previous cache/);
 });
+
+import { validateStockCache } from "../scripts/verify-stock-cache.mjs";
+
+test("stock cache monitor accepts a fresh complete 253-symbol shortlist", () => {
+  const now=Date.parse("2026-11-09T12:00:00Z");
+  const data={generatedAt:"2026-11-09T10:00:00Z",universeSize:253,rankedCount:200,excludedCount:53,status:"success",stocks:[
+    {ticker:"AAPL",score:90,fundamentalFreshness:"CURRENT_WITHIN_18_MONTHS",entryStatus:"Checking live entry inputs"},
+    {ticker:"TSM",score:88,fundamentalFreshness:"STALE_OR_UNVERIFIED",entryStatus:"BLOCKED: stale fundamentals"}
+  ]};
+  assert.equal(validateStockCache(data,{nowMs:now}).ok,true);
+});
+test("stock cache monitor rejects stale, incomplete, duplicate and unsafe shortlist data", () => {
+  const now=Date.parse("2026-11-09T12:00:00Z");
+  const stale={generatedAt:"2026-11-09T01:00:00Z",universeSize:253,rankedCount:200,excludedCount:53,status:"success",stocks:[
+    {ticker:"AAPL",score:90,fundamentalFreshness:"CURRENT_WITHIN_18_MONTHS",entryStatus:"Checking"},
+    {ticker:"AAPL",score:88,fundamentalFreshness:"STALE_OR_UNVERIFIED",entryStatus:"Checking"}
+  ]};
+  const result=validateStockCache(stale,{nowMs:now});
+  assert.equal(result.ok,false);
+  assert.ok(result.errors.some(x=>x.includes("older than six hours")));
+  assert.ok(result.errors.some(x=>x.includes("duplicate")));
+  assert.ok(result.errors.some(x=>x.includes("not explicitly blocked")));
+});
