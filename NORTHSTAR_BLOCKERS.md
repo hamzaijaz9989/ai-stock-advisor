@@ -967,3 +967,27 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Static preview checks: Trading Lab deployment `a048a380-2dd4-4f41-8d02-3a9cef78a699` and final research page deployment `ff50f9d8-20db-4573-9cc7-660328fc2381` both succeeded. Preview Pages Functions were not available on these preview hosts; verify production API routing after merge.
 - No production deployment, D1 write/migration, broker request, order, or execution-control change was made. Paper execution remains disabled and the kill switch engaged.
 - Next action: merge PR #103 only after exact-head checks and review; then verify production Pages deployment and the protected collector route. Do not run the collector until a fresh equity snapshot and genuine seven-day baseline are available.
+
+
+## 2026-11-10 — Confirmed provider configuration blocker (Cloudflare Pages Preview)
+
+**Root cause verified from Cloudflare Pages project configuration (read-only; secret values remain redacted):**
+
+- Production environment has secret bindings by name: ALPACA_API_KEY_ID, ALPACA_API_SECRET_KEY, FMP_API_KEY2, GEMINI_API_KEY, NORTHSTAR_OPERATOR_TOKEN.
+- Preview environment has only NORTHSTAR_OPERATOR_TOKEN; it is missing both Alpaca credentials, the FMP key, and Gemini key.
+- The preview branch therefore cannot authenticate to Alpaca Paper or FMP. This is an environment configuration mismatch, not evidence that the provider keys were revoked or that provider code is broken.
+- POST /api/research/collect performs read-only Alpaca Paper sync before calling FMP fundamentals/history. Missing Alpaca bindings stop the request early, so FMP is not reached on that path.
+- Direct FMP endpoints also return unavailable when FMP_API_KEY2/FMP_API_KEY are absent. Gemini-based council workers may also be unavailable because preview lacks GEMINI_API_KEY.
+
+**Required remediation:**
+
+1. Add the existing Production ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY secret values to the Cloudflare Pages Preview environment.
+2. Add the existing Production FMP_API_KEY2 secret value to Preview.
+3. Add GEMINI_API_KEY to Preview if the configured council adapter uses Gemini (verify adapter requirements).
+4. Redeploy the preview branch and run safe, read-only checks: auth check, Alpaca /api/paper/sync, FMP fundamentals/history endpoints, then a full research collection only after fresh equity and seven-day baseline gates are satisfied.
+5. Never copy secret values into GitHub or chat. The Cloudflare API masks existing secret values and does not permit this integration to retrieve/copy them. The existing Production secret values cannot be provisioned into Preview automatically through the available connection; this is the one remaining external credential-provisioning action.
+6. Do not modify Production secrets, enable execution, or submit any order.
+
+**State/evidence:** Cloudflare Pages project ai-stock-advisor; preview deployment 436a3f12-0cac-40d7-aaa8-ce5ac83fbed9 (commit da1550fc09db32935b2060f93f52fe58620fd43f) is successfully deployed. The project config read confirms the environment-variable name mismatch; Cloudflare returns secret_text.value as empty/redacted. No secret values were exposed and no project configuration was changed during this audit.
+
+**Unchanged safety gates:** paper mode only, execution disabled, kill switch engaged, no paper/live orders, validated BUY disabled. Production D1 and Production secrets were not modified.
