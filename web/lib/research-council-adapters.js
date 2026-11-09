@@ -125,7 +125,6 @@ async function createGeminiGenerator(env) {
     generate.provider="gemini";
     generate.model=model.name;
     return generate;
-  };
 }
 
 async function createOpenAIGenerator(env) {
