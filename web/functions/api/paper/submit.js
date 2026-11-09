@@ -200,6 +200,20 @@ export async function onRequestPost({request,env}){
   try{await rejectClaimedSubmission(db,id,!sameStrategy?"FINAL_STRATEGY_APPROVAL_CHANGED_OR_REVOKED":"FINAL_EXECUTION_CONTROL_CHECK_BLOCKED","SUBMISSION_BLOCKED_FINAL_GATE");}catch{}
   return fail(!sameStrategy?"Strategy approval changed or was revoked before the broker boundary; no paper order was submitted.":"Execution controls changed before the broker boundary; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
  }
+ // Atomically claim the external broker-POST boundary against the kill switch.
+ // D1 serializes this conditional transaction with the operator's kill-switch
+ // transaction: whichever commits first determines whether a POST is permitted.
+ const postStartedAt=new Date().toISOString();
+ try{
+  const boundaryWrites=await db.batch([
+   db.prepare("UPDATE paper_execution_claims SET post_started_at=?,updated_at=? WHERE id=1 AND order_id=? AND state='SUBMITTING' AND post_started_at IS NULL AND EXISTS (SELECT 1 FROM execution_control WHERE id=1 AND mode='paper' AND enabled=1 AND kill_switch=0) AND EXISTS (SELECT 1 FROM northstar_strategy_approval WHERE id=1 AND approved=1 AND strategy_version=? AND report_version=? AND report_sha256=? AND report_uri=? AND approved_at=? AND reviewer=?)").bind(postStartedAt,postStartedAt,id,finalGate.strategy_version,finalGate.report_version,finalGate.report_sha256,finalGate.report_uri,finalGate.approved_at,finalGate.reviewer),
+   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM paper_execution_claims WHERE id=1 AND order_id=? AND post_started_at=?)").bind("system","PAPER_BROKER_POST_BOUNDARY_ACQUIRED","SUCCESS",id,safeJson({strategyVersion:finalGate.strategy_version,reportVersion:finalGate.report_version,execution:false}),id,postStartedAt)
+  ]);
+  if(boundaryWrites.length!==2||boundaryWrites.some(w=>Number(w?.meta?.changes)!==1))throw new Error("BROKER_POST_BOUNDARY_NOT_ACQUIRED");
+ }catch{
+  try{await rejectClaimedSubmission(db,id,"ATOMIC_BROKER_POST_BOUNDARY_BLOCKED","SUBMISSION_BLOCKED_ATOMIC_BOUNDARY");}catch{}
+  return fail("The atomic broker-submission boundary was not acquired; execution controls or strategy approval changed and no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
+ }
  let result;
  try{
   result=await broker("/v2/orders",key,secret,{method:"POST",body:JSON.stringify(payload)});
