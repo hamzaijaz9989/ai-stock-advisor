@@ -36,3 +36,12 @@ test("FMP universe adapter requires operator authentication",async()=>{
  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-universe"),env:{FMP_API_KEY:"test",NORTHSTAR_OPERATOR_TOKEN:"operator"}});
  assert.equal(response.status,401);
 });
+
+
+test("FMP universe adapter does not claim data availability when every dataset is empty",async()=>{
+ const original=globalThis.fetch;globalThis.fetch=async()=>Response.json([]);
+ try{
+  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-universe",{headers:{Authorization:"Bearer operator"}}),env:{FMP_API_KEY:"test",NORTHSTAR_OPERATOR_TOKEN:"operator"}});
+  assert.equal(response.status,200);const body=await response.json();assert.equal(body.available,false);
+ }finally{globalThis.fetch=original;}
+});
