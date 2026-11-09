@@ -233,3 +233,41 @@ No paper order, live order, or broker mutation was performed. Production executi
 - Latest PR #85 head before this log update: `622d55d55ac4ed5adeda8c00749ce36fe9654846`; GitHub reports all associated checks passed: JavaScript **222/222**, Python **94/94**, Ruff passed, separate validation workflow passed 43 Python + 4 JavaScript tests and 7 CLI checks.
 - PR #85 remains draft, mergeable, based on PR #84 production merge commit `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`; formal reviews remain empty. No branch-protection bypass attempted.
 - Latest successful Pages preview remains `727f3652-fa84-414f-af06-204c9f27d09c` with isolated preview D1 binding `bdffc29f-a4f6-498e-ade7-22c85d9bd373`; later root-doc-only commits were skipped by Pages path filters. Production deployment and production D1 remain unchanged.
+
+## Automation run — 2026-11-09 10:57 PKT
+
+### New critical gap discovered and closed in PR code
+A code review found that the research UI reported strategy validation as NOT APPROVED, but the paper preflight and broker submit routes did not independently enforce an evidence-backed strategy approval record. If an operator later enabled execution and approved an intent, a direct paper BUY path could have bypassed the strategy-validation state. This was a release-blocking authorization gap.
+
+PR #85 now adds:
+- `web/lib/strategy-validation-gate.js`: fail-closed validation of the strategy version, report version, 64-character SHA-256, HTTPS report URI, approval timestamp, and independent reviewer.
+- `web/migrations/0007_strategy_validation_approval.sql`: a single-row approval record seeded as `approved=0`, plus append-only approval events and triggers preventing event updates/deletes.
+- `web/functions/api/paper/preflight.js`: blocks a missing/unapproved approval record before any broker data request.
+- `web/functions/api/paper/submit.js`: rechecks the strategy attestation at the final new-order boundary, after existing-order recovery so already-submitted orders remain reconcilable.
+- `web/lib/paper-execution-policy.js`: requires strategy validation in the centralized pure execution gate.
+- `web/functions/api/paper/readiness.js`: reports the strategy approval state separately from execution enablement.
+- Regression tests for missing/unapproved approval, valid test-only approval fixtures, and the rule that an approved strategy attestation does not itself enable execution or release the kill switch.
+
+### Verified code/CI evidence
+- PR #85 head at this run: `52a27e638d70065422dfc3c334e5971e2914c217`.
+- GitHub Tests workflow run `42570102736`: passed. JavaScript suite: 232 passed, 0 failed; Python suite: 94 passed, 0 failed; lint passed.
+- GitHub Validate AI Stock Advisor workflow run `42570102737`: passed. Frontend analysis: 43 passed; paper readiness: 6 passed; synthetic CLI checks: 7 passed; SEC ingestion checks passed.
+- Cloudflare preview deployment `8aa42115-ab34-49de-9d1b-d9da76445af6` built commit `52a27e638d70065422dfc3c334e5971e2914c217` successfully.
+- Preview Pages project config binds `NORTHSTAR_DB` to isolated database `bdffc29f-a4f6-498e-ade7-22c85d9bd373`; preview variable-name list is empty.
+- Applied migration `0007_strategy_validation_approval.sql` to preview D1 only. D1 migration ledger now records 0001–0007. Approval row is `approved=0`; one initial audit event exists; all three audit triggers exist. Preview intents/orders/positions/fills remain zero. Preview execution remains disabled, mode paper, kill switch engaged.
+- Production D1 was not modified. Production remains on migrations 0001–0005; execution remains disabled and kill switch engaged. No paper or live order was submitted, and no broker mutation was performed.
+
+### Remaining release blockers
+1. Dedicated operator-only partial-fill recovery is still missing. The current read-only fill sync can detect an unprotected OTO partial fill, mark UNKNOWN and engage the kill switch, but does not cancel the unfilled remainder or establish a separately verified GTC protective stop.
+2. Strategy validation remains NOT APPROVED. Migration 0007 is deliberately seeded closed. The valid approval rows used in tests are fixtures only, not real approval evidence.
+3. Seven-day verified equity history is not yet available; production still has only one known snapshot from 2026-11-08T18:34:38.720Z.
+4. Production migration 0006/0007 and strategy gate deployment are not applied; PR #85 remains draft and undeployed to production.
+5. The production Pages configuration previously lacked `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN`; repository secret presence and scheduled production workflow execution remain unverified.
+6. Formal PR review and branch-protection requirements remain unverified because the connected GitHub integration cannot read branch protection (403). Do not bypass protections.
+
+### Next actions
+- Implement an idempotent, operator-only partial-fill recovery route that first cancels/reconciles the entry remainder, verifies actual broker position quantity, then either verifies the OTO stop child or places one deterministic standalone GTC stop; any ambiguous response must become UNKNOWN and never trigger blind resubmission.
+- Add mocked failure-injection tests for cancellation races, position mismatch, breached stop price, stop-order submission timeout, duplicate invocation, and already-active OTO protection. Never send real broker requests in tests.
+- Continue chronological strategy validation and keep the approval row NOT APPROVED until independent evidence/review is complete.
+- Collect real production equity snapshots through a verified read-only scheduled workflow; do not fabricate historical snapshots.
+- Keep production execution disabled and the kill switch engaged. Do not merge/deploy PR #85 until recovery, strategy approval, migrations, credentials, review and all required checks are verified.
