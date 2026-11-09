@@ -29,7 +29,7 @@ test("scorecard measures reference integrity and reports role coverage",()=>{
 test("scorecard includes trusted telemetry only when explicitly supplied",()=>{
  const score=evaluateResearchCouncilRun(run,{factIds:["f1"],evidenceIds:["e1"],roles:{
   bull_researcher:{latencyMs:1200,inputTokens:300,outputTokens:80,totalTokens:380,costUsd:0.002,provider:"gemini",model:"flash"},
-  bear_researcher:{latencyMs:1500,inputTokens:350,outputTokens:90,costUsd:0.003,provider:"openai",model:"gpt"}
+  bear_researcher:{latencyMs:1500,inputTokens:350,outputTokens:90,costUsd:0.003,provider:"openai",model:"gpt",failed:true}
  }});
  assert.equal(score.roles.bull_researcher.latencyMs,1200);
  assert.equal(score.roles.bull_researcher.provider,"gemini");
