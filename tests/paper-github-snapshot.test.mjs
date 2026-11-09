@@ -216,9 +216,9 @@ test("rejects non-POST requests and invalid request identifiers", async () => {
 
 test("OIDC read-only schedule requires execution disabled and kill switch engaged", async () => {
   const workflow = await readFile(new URL("../.github/workflows/northstar-equity-snapshot.yml", import.meta.url), "utf8");
-  const readinessStep = workflow.split("- name: Verify production policy remains fail-closed\\n")[1]?.split("\\n      - name:")[0] || "";
+  const readinessStep = workflow.split("- name: Verify production policy remains fail-closed\n")[1]?.split("\n      - name:")[0] || "";
   assert.ok(readinessStep, "readiness guard must exist");
-  assert.match(readinessStep, /\\.configured == true and \\.policyVerified == true and \\.mode == "paper" and \\.executionEnabled == false and \\.killSwitchEngaged == true/);
-  assert.match(readinessStep, /\\.executionEnabled == false/);
-  assert.match(readinessStep, /\\.killSwitchEngaged == true/);
-});;
+  assert.match(readinessStep, /\.configured == true and \.policyVerified == true and \.mode == "paper" and \.executionEnabled == false and \.killSwitchEngaged == true/);
+  assert.match(readinessStep, /\.executionEnabled == false/);
+  assert.match(readinessStep, /\.killSwitchEngaged == true/);
+});;;
