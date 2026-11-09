@@ -883,3 +883,5 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Verify the entire latest PR head in CI before any merge/deploy decision.
 
 - CI surfaced an adapter syntax regression during telemetry instrumentation: the Gemini generator retained an extra closing brace after refactoring. Corrected in `88325fdb47e7d2458477f1085961b24ff97f21ba`. The prior failing run was `42614072539`; its Validate companion passed, but the test workflow failed at module parse before tests ran. Latest syntax-fix commit is awaiting CI confirmation. No runtime provider call was made.
+
+- Extended measured telemetry to include provider-reported usage only: Gemini prompt/candidate/total token counts and OpenAI input/output/total token counts. Scorecards now retain per-role and aggregate total tokens when available; provider cost remains null until pricing is explicitly sourced and verified. Commits: `1fcba69c13d025d8f3150421a06999d8256364bc`, `07eadb974505d80517b882b3a192cf9cebb3fa99`, `3f8e496e0abbd2bffad3f0c687c1b81b66346fce`, `9ea22877267f5119908948ee4ac9700afe452e53`, docs: `845508f328b796712f3eea0fd8d123425d51ec22`.
