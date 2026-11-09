@@ -9,11 +9,17 @@ test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.equal(parseWatchZone("Model entry watch zone: $0–$10"),null);
  assert.equal(parseWatchZone("Model entry watch zone: $20–$10"),null);
 });
-test("market-hours gate uses New York time and excludes weekends",()=>{
+test("market-hours gate uses New York time and excludes weekends, exchange holidays and early closes",()=>{
  assert.equal(isUsMarketOpen(new Date("2026-11-10T15:00:00Z")),true);
  assert.equal(isUsMarketOpen(new Date("2026-11-10T21:00:00Z")),false);
  assert.equal(isUsMarketOpen(new Date("2026-11-14T15:00:00Z")),false);
  assert.equal(isUsMarketOpen(new Date("2026-11-10T14:29:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2026-11-26T16:00:00Z")),false); // Thanksgiving
+ assert.equal(isUsMarketOpen(new Date("2026-04-03T15:00:00Z")),false); // Good Friday
+ assert.equal(isUsMarketOpen(new Date("2026-06-19T15:00:00Z")),false); // Juneteenth
+ assert.equal(isUsMarketOpen(new Date("2026-12-25T15:00:00Z")),false); // Christmas
+ assert.equal(isUsMarketOpen(new Date("2026-11-27T17:30:00Z")),false); // 12:30 p.m. ET, after early close
+ assert.equal(isUsMarketOpen(new Date("2026-11-27T17:00:00Z")),true); // noon ET, before early close
 });
 
 test("quote freshness gate rejects missing, stale, and future timestamps",()=>{
