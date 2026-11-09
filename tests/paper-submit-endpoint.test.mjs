@@ -157,3 +157,52 @@ test("paper executor blocks an unapproved strategy before any broker request or 
  assert.equal(submitted,false);
  assert.equal(calls.length,0);
 });
+
+
+async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enabled:1,mode:"paper",kill_switch:0}}={}){
+ const now=new Date().toISOString(),calls=[];let controlReads=0,brokerPost=false;
+ const db={
+  prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
+   async first(){
+    if(sql.includes("execution_control")){controlReads++;return controlReads===1?{enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25}:finalControl;}
+    if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY"};
+    if(sql.includes("paper_orders"))return null;
+    if(sql.includes("northstar_strategy_approval"))return validStrategyApproval;
+    return null;
+   },
+   async all(){
+    if(sql.includes("paper_equity_snapshots"))return {results:[{captured_at:now,equity_usd:100000},{captured_at:new Date(Date.now()-8*86400000).toISOString(),equity_usd:100000}]};
+    return {results:[]};
+   }
+  };},
+  async batch(items){return items.map((_,i)=>({meta:{changes:claimChanges[i]??1}});}
+ };
+ const original=globalThis.fetch;
+ globalThis.fetch=async(url,options={})=>{
+  const u=String(url);calls.push({url:u,method:options.method||"GET"});
+  if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE",equity:"100000",last_equity:"100000",buying_power:"400000"});
+  if(u.endsWith("/v2/clock"))return Response.json({is_open:true});
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:99.9,ap:100,t:now}});
+  if(u.endsWith("/v2/positions"))return Response.json([]);
+  if(u.includes("/v2/orders?status=all"))return Response.json([]);
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){brokerPost=true;return Response.json({id:"broker-order",status:"new",filled_qty:"0"});}
+  throw new Error("unexpected broker request "+u);
+ };
+ try{
+  const response=await onRequestPost({request:request({"Authorization":"Bearer operator","X-NORTHSTAR-PAPER-APPROVAL":"approval"}),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN:"approval",ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret",NORTHSTAR_DB:db}});
+  return {response,brokerPost,controlReads,calls};
+ }finally{globalThis.fetch=original;}
+}
+test("single-flight claim loss prevents broker submission for a concurrent distinct intent",async()=>{
+ const {response,brokerPost}=await runClaimBoundaryCase({claimChanges:[0,0,0,0]});
+ assert.equal(response.status,409);
+ assert.equal(brokerPost,false);
+ assert.match((await response.json()).error,/single-flight|claim/i);
+});
+test("final kill-switch recheck blocks the broker boundary after the claim is acquired",async()=>{
+ const {response,brokerPost,controlReads}=await runClaimBoundaryCase({finalControl:{enabled:0,mode:"paper",kill_switch:1}});
+ assert.equal(response.status,409);
+ assert.equal(brokerPost,false);
+ assert.equal(controlReads,2);
+ assert.match((await response.json()).error,/controls changed/i);
+});
