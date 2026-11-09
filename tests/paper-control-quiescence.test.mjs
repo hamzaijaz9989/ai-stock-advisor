@@ -32,6 +32,7 @@ test("kill switch acknowledgement waits until an already-claimed submission is t
   assert.equal(body.killSwitchEngaged,true);
   assert.equal(body.submissionQuiesced,true);
   assert.equal(body.submissionState,"SUBMITTED");
+  assert.equal(body.brokerOutcomeVerified,true);
   assert.ok(writes.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")));
   assert.ok(writes.some(x=>x.args.includes("ENGAGE_KILL_SWITCH")));
   assert.match(body.warnings.join(" "),/Existing broker orders are not cancelled/);
@@ -57,6 +58,7 @@ test("kill switch returns a retry interval instead of claiming quiescence while 
     assert.equal(body.killSwitchEngaged,true);
     assert.equal(body.submissionQuiesced,false);
     assert.equal(body.submissionState,"SUBMITTING");
+    assert.equal(body.brokerOutcomeVerified,false);
   } finally {
     Date.now=originalNow;
     globalThis.setTimeout=originalTimeout;
@@ -81,6 +83,7 @@ test("kill switch does not acknowledge quiescence for an UNKNOWN broker outcome"
   assert.equal(body.killSwitchEngaged,true);
   assert.equal(body.submissionQuiesced,false);
   assert.equal(body.manualReconciliationRequired,true);
+  assert.equal(body.brokerOutcomeVerified,false);
 });
 
 test("kill switch fails closed when claim state cannot be read",async()=>{
