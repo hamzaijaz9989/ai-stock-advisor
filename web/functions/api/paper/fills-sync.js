@@ -169,6 +169,7 @@ export async function onRequestPost({request,env}){
   const changed=status!==previousStatus||filled!==previousFilled||(filled>0&&prior.avg!==avg);
   if(changed)lifecycle.push({id:row.id,status,response:JSON.stringify(brokerOrder),eventType:status!==previousStatus?"ORDER_STATUS_UPDATED":"ORDER_FILL_UPDATED",previousStatus,previousFilled,filled,avg,brokerOrderId:String(brokerOrder.id)});
  }
+ if(positionLedgerError&&!unsafeExposure.some(item=>String(item.id)===String(positionLedgerError.orderId)))unsafeExposure.push({id:null,brokerOrderId:"",reason:positionLedgerError.reason,filledQty:null,exposurePresent:true,brokerStatus:"UNKNOWN",response:{}});
  try{
   const statements=clean.map(a=>db.prepare("INSERT INTO broker_fill_activities(activity_id,broker_order_id,symbol,side,qty,price,cum_qty,leaves_qty,order_status,transaction_time,raw_json) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(activity_id) DO NOTHING").bind(a.id,a.order,a.symbol,a.side,a.qty,a.price,a.cum,a.leaves,a.status,a.time,a.raw));
   for(const fill of newTrackedFills){
