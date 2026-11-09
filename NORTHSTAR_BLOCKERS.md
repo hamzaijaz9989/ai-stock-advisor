@@ -1000,3 +1000,11 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - The secret values are write-only/redacted through the connected Cloudflare API. The pre-change Preview values cannot be read back from current project configuration. Do not overwrite the remaining Production secrets or create empty placeholder secrets. No further project-config PATCH should be made until a safe restoration source is found.
 - Recovery investigation: inspect Cloudflare deployment history/config snapshots, any existing CI/CD secret-backed workflows, and any repository-managed environment configuration. Prefer restoring the original Preview secrets from an existing secure source without exposing them. If no recoverable source exists, the credentials must be re-entered by an authorized secret owner; do not claim autonomous restoration is possible when values are irretrievable.
 - Production bindings remain configured by name and were not changed by this Preview PATCH. No orders, execution changes, or production database writes were performed.
+
+
+### Recovery-source checks — 2026-11-10
+
+- Cloudflare Pages deployment history confirms a successful pre-login-configuration Preview deployment at 2026-11-09T22:39:37Z (deployment `a1c5704f-7bea-4ca4-a252-c6b049b5857b`, commit `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`). Its deployment metadata does not return secret values or a restorable copy of the Preview environment-variable map.
+- Cloudflare account audit-log query did not return a Pages project configuration history payload containing previous secret values. Secret values remain write-only/redacted.
+- GitHub connector explicitly does not support GitHub Secrets endpoints. No repository file or deployment artifact should be treated as a safe source for API keys.
+- Therefore the original Preview secret values have not yet been recovered from an authorized connected source. Do not state that the providers are fixed. Continue only with safe, non-destructive recovery paths; otherwise the original secret owner must re-enter values.
