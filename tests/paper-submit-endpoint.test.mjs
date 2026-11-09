@@ -141,7 +141,7 @@ test("ambiguous existing order recovery engages the kill switch and never resubm
   assert.equal(posted,false);
   assert.equal(state.batch.length,4);
   assert.ok(state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")));
-  assert.ok(state.batch.some(x=>x.sql.includes("PAPER_ORDER_OUTCOME_UNVERIFIED")));
+  assert.ok(state.batch.some(x=>(x.args||[]).includes("PAPER_ORDER_OUTCOME_UNVERIFIED")));
   assert.equal(state.batch.some(x=>x.sql.includes("UPDATE paper_trade_intents SET status='SUBMISSION_UNKNOWN'")),false);
  }finally{globalThis.fetch=original;}
 });
