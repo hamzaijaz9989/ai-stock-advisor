@@ -55,7 +55,7 @@ test("partially filled open parent is canceled first and no stop is submitted in
  const db=makeDb();
  const {response,calls}=await run({db,brokerParent:parent({status:"partially_filled"})});
  const body=await response.json();
- assert.equal(response.status,202,JSON.stringify(await response.clone().json()));
+ assert.equal(response.status,202);
  assert.equal(body.status,"CANCEL_REQUEST_ACCEPTED");
  assert.ok(calls.some(x=>x.method==="DELETE"&&x.url.endsWith("/v2/orders/parent-broker")));
  assert.equal(calls.some(x=>x.method==="POST"),false);
