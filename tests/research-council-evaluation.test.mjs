@@ -5,7 +5,7 @@ import {evaluateResearchCouncilRun} from "../web/lib/research-council-evaluation
 const run={
  version:"1.0.4",requestId:"evaluation-test-001",status:"NO_TRADE",
  resourceCoverage:{roles:{technical_analyst:{status:"PARTIAL"},sentiment_analyst:{status:"MISSING"}}},
- agents:[{role:"bull_researcher",status:"COMPLETE"},{role:"bear_researcher",status:"COMPLETE"},{role:"technical_analyst",status:"COMPLETE"}],
+ agents:[{role:"bull_researcher",status:"COMPLETE"},{role:"bear_researcher",status:"COMPLETE"},{role:"technical_analyst",status:"COMPLETE"},{role:"sentiment_analyst",status:"UNAVAILABLE"}],
  reports:[
   {role:"bull_researcher",report:{findings:[{claim:"Upside evidence.",factIds:["f1","e1"]}],risks:[]}},
   {role:"bear_researcher",report:{findings:[],risks:[{claim:"Downside evidence.",factIds:["e1","bad-id"]}]}},
@@ -23,7 +23,10 @@ test("scorecard measures reference integrity and reports role coverage",()=>{
  assert.equal(score.roles.technical_analyst.resourceStatus,"PARTIAL");
  assert.equal(score.roles.technical_analyst.status,"COMPLETE");
  assert.equal(score.roles.bull_researcher.status,"COMPLETE");
- assert.equal(score.roles.sentiment_analyst,undefined);
+ assert.equal(score.roles.sentiment_analyst.status,"UNAVAILABLE");
+ assert.equal(score.roles.sentiment_analyst.resourceStatus,"MISSING");
+ assert.equal(score.totals.roleCount,9);
+ assert.equal(score.totals.roleReports,3);
  assert.equal(score.debate.sharedCitedEvidenceCount,1);
  assert.deepEqual(score.debate.sharedEvidenceIds,["e1"]);
  assert.equal(score.totals.costUsd,null);
@@ -54,4 +57,17 @@ test("scorecard does not invent denominators or performance metrics",()=>{
 
 test("scorecard rejects malformed run input",()=>{
  assert.throws(()=>evaluateResearchCouncilRun(null),/result with reports/);
+});
+
+test("scorecard retains failed specialist telemetry even when no report exists",()=>{
+ const partial={...run,agents:[...run.agents]};
+ const score=evaluateResearchCouncilRun(partial,{roles:{
+  sentiment_analyst:{latencyMs:321,provider:"gemini",model:"flash",failed:true}
+ }});
+ assert.equal(score.roles.sentiment_analyst.reportPresent,false);
+ assert.equal(score.roles.sentiment_analyst.status,"UNAVAILABLE");
+ assert.equal(score.roles.sentiment_analyst.latencyMs,321);
+ assert.equal(score.roles.sentiment_analyst.failed,true);
+ assert.equal(score.totals.telemetryRoles,1);
+ assert.equal(score.totals.failedInvocations,1);
 });
