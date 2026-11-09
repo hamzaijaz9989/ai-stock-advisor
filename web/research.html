@@ -63,6 +63,17 @@
     </section>
 
     <section id="market-regime-panel" class="news-section hidden" aria-live="polite" style="margin:22px 0;padding:18px;border:1px solid #30352a;border-radius:16px;background:#0c0f0a"><div class="section-heading"><div><p class="eyebrow">MARKET REGIME INTELLIGENCE</p><h2 id="market-regime-state">Market regime: UNKNOWN</h2></div><span id="market-regime-date" class="count">Not checked</span></div><p id="market-regime-summary" class="table-note">SPY and QQQ market conditions will be checked during stock analysis.</p><div id="market-regime-reasons" class="table-note"></div><p class="table-note">Context and risk gate only—not a stock signal, forecast, or trade authorization. UNKNOWN blocks new entries in this module.</p></section>
+    <section id="research-council-status-panel" class="beginner-subpanel" aria-live="polite">
+      <div class="beginner-subhead"><h3>Northstar Research Council</h3><span id="research-council-status-badge" class="count">CHECKING</span></div>
+      <p id="research-council-status-summary" class="muted">Checking the nine-agent service and its production audit trail.</p>
+      <div class="beginner-scorecards">
+        <article class="beginner-score"><p class="eyebrow">DURABLE PRODUCTION RUNS</p><strong id="research-council-run-count">—</strong><p id="research-council-run-latest" class="muted">Audit history not checked</p></article>
+        <article class="beginner-score"><p class="eyebrow">PROTECTED COLLECTION</p><strong id="research-council-collector-state">—</strong><p id="research-council-blockers" class="muted">Checking server-side readiness gates.</p></article>
+      </div>
+      <div id="research-council-roles" class="beginner-list" aria-label="Nine Research Council roles"></div>
+      <p id="research-council-safety" class="muted">Execution and automated order submission are unavailable.</p>
+      <p class="table-note">Read-only status only. This public dashboard does not expose operator credentials or launch the protected collector. An authenticated operator preflight is still required; no browser-side secret is used.</p>
+    </section>
     <div id="stock-results" class="stock-results hidden" aria-label="Analysis results for the selected stock">
     <section id="message" class="message" role="status" aria-live="polite">Enter a ticker and tap Analyze.</section>
     <section id="beginner-overview" class="beginner-overview hidden" aria-live="polite">
@@ -239,5 +250,6 @@
   <script src="./news-catalyst.js?v=newscatalyst1" defer></script>
   <script src="./market-regime.js?v=regime1" defer></script>
   <script src="./app.js?v=tickerpersist1" defer></script>
+  <script src="./research-council-status.js?v=councilstatus1" defer></script>
 </body>
 </html>
