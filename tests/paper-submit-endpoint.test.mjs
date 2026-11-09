@@ -160,8 +160,8 @@ test("paper executor blocks an unapproved strategy before any broker request or 
 });
 
 
-async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enabled:1,mode:"paper",kill_switch:0},finalStrategy=validStrategyApproval,finalQuote=null}={}){
- const now=new Date().toISOString(),calls=[];let controlReads=0,strategyReads=0,quoteReads=0,brokerPost=false;
+async function runClaimBoundaryCase({claimChanges=[1,1,1,1],boundaryChanges=1,finalControl={enabled:1,mode:"paper",kill_switch:0},finalStrategy=validStrategyApproval,finalQuote=null}={}){
+ const now=new Date().toISOString(),calls=[],batchCalls=[];let controlReads=0,strategyReads=0,quoteReads=0,brokerPost=false;
  const db={
   prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
    async first(){
@@ -177,7 +177,11 @@ async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enable
     return {results:[]};
    }
   };},
-  async batch(items){return items.map((_,i)=>({meta:{changes:claimChanges[i]??1}}));}
+  async batch(items){
+   batchCalls.push(items);
+   const isPostBoundary=items.some(item=>item.sql.includes("post_started_at"));
+   return items.map((_,i)=>({meta:{changes:isPostBoundary?boundaryChanges:(claimChanges[i]??1)}}));
+  }
  };
  const original=globalThis.fetch;
  globalThis.fetch=async(url,options={})=>{
@@ -192,7 +196,7 @@ async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enable
  };
  try{
   const response=await onRequestPost({request:request({"Authorization":"Bearer operator","X-NORTHSTAR-PAPER-APPROVAL":"approval"}),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN:"approval",ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret",NORTHSTAR_DB:db}});
-  return {response,brokerPost,controlReads,calls};
+  return {response,brokerPost,controlReads,calls,batchCalls};
  }finally{globalThis.fetch=original;}
 }
 test("single-flight claim loss prevents broker submission for a concurrent distinct intent",async()=>{
@@ -209,6 +213,19 @@ test("final kill-switch recheck blocks the broker boundary after the claim is ac
  assert.match((await response.json()).error,/controls changed/i);
 });
 
+
+test("atomic broker POST boundary loses to a concurrent kill-switch transaction and prevents the broker request",async()=>{
+ const {response,brokerPost,batchCalls}=await runClaimBoundaryCase({boundaryChanges:0});
+ assert.equal(response.status,409);
+ assert.equal(brokerPost,false);
+ assert.match((await response.json()).error,/atomic broker-submission boundary/i);
+ const boundaryBatch=batchCalls.find(items=>items.some(item=>item.sql.includes("post_started_at")));
+ assert.ok(boundaryBatch);
+ assert.equal(boundaryBatch.length,2);
+ assert.match(boundaryBatch[0].sql,/EXISTS \(SELECT 1 FROM execution_control/);
+ assert.match(boundaryBatch[0].sql,/EXISTS \(SELECT 1 FROM northstar_strategy_approval/);
+ assert.ok(boundaryBatch[1].sql.includes("PAPER_BROKER_POST_BOUNDARY_ACQUIRED"));
+});
 
 test("final strategy revocation blocks the broker boundary after the claim is acquired",async()=>{
  const {response,brokerPost}=await runClaimBoundaryCase({finalStrategy:{...validStrategyApproval,approved:0}});
