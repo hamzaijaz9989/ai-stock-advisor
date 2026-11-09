@@ -25,6 +25,8 @@ test("resource coverage exposes role-specific gaps without inventing unavailable
  assert.equal(context.resourceCoverage.roles.fundamental_analyst.status,"PARTIAL");
  assert.equal(context.resourceCoverage.roles.sentiment_analyst.status,"MISSING");
  assert.equal(context.resourceCoverage.roles.portfolio_analyst.status,"PARTIAL");
+ assert.equal(context.resourceCoverage.roles.risk_committee.status,"SUFFICIENT_FOR_DETERMINISTIC_GATES");
+ assert.equal(context.resourceCoverage.roles.risk_committee.inputFields.length,8);
  assert.ok(context.resourceCoverage.roles.sentiment_analyst.gaps.some(x=>x.includes("No dedicated")));
  assert.ok(context.resourceCoverage.roles.fundamental_analyst.gaps.some(x=>x.includes("public-availability")));
  assert.ok(context.resourceCoverage.roles.technical_analyst.gaps.some(x=>x.includes("corporate-action")));
