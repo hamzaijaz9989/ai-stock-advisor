@@ -323,3 +323,11 @@ PR #85 now adds:
 7. **Endpoint health is not freshly verified this run.** Web HTTP probes returned inaccessible errors. Recheck via a permitted authenticated environment before claiming production route health.
 
 No paper or live order was submitted, amended, canceled, or flattened. Production execution remains disabled and kill switch engaged. Project-wide completion estimate: **62%**. The increment reflects a tested deterministic partial-fill recovery decision layer; it does not mean the broker-mutating recovery lifecycle or production readiness is complete.
+
+
+### Run 6 final-head correction — 2026-11-09T07:08:20Z
+- The blocker-log update itself advanced the PR head to `9c5e38c9ee0a4a24244e4a7f311ccd2c19a3cef`; the earlier run-6 paragraph correctly describes the application-code head `12a6da5b1147539c89b6d5d97bd1c598721379b2`, but this is the final documentation head.
+- Final-head Tests workflow `42577343071` completed successfully: JavaScript `251/251`, Python `94/94`, Ruff passed.
+- Final-head validation workflow `42577343047` completed successfully: frontend analysis `43/43`, paper readiness `6/6`, SEC ingestion `7/7`, Ruff passed; synthetic strategy validation continued to assert not approved and not decision eligible.
+- A direct read-only fetch attempt to production readiness, production performance, and isolated preview readiness returned HTTP 403 from the runtime network layer for all three URLs. This is an environment access failure, not evidence that the application endpoints returned 403; no endpoint body was received. Cloudflare deployment metadata and D1 queries remain the verified production/preview evidence.
+- PR #85 remains open/draft/mergeable with no formal reviews. No merge or production deployment occurred. Production execution remains disabled and kill switch engaged.
