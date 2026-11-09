@@ -127,3 +127,5 @@ The current implementation is a bounded multi-stage research workflow, not a fre
 - The evaluator deliberately does not claim that citations support the claims, that cited facts are true, that model reasoning is correct, or that strategy returns are predictive. Accuracy, source correctness, investment performance and strategy approval require separate independently labelled datasets and holdout evaluation.
 - Runtime performance metrics remain null unless explicitly provided by trusted telemetry. No API credentials, provider response content or secret values are recorded by this evaluator.
 - Regression tests cover valid/invalid references, role resource status, optional telemetry, empty denominators and the evaluator's explicit limitations.
+
+- The authenticated server-side `/api/research/collect` path now computes and persists this scorecard inside each durable Research Council result using the exact canonical fact/evidence IDs collected for that run. Runtime latency/token/cost fields remain null because the current adapter does not yet expose trustworthy per-role telemetry.
