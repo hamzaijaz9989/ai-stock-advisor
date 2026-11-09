@@ -48,12 +48,24 @@ export async function onRequestPost({request,env}){
  if(!control||control.mode!=="paper"||Number(control.enabled)!==1||Number(control.kill_switch)!==0||Number(control.max_portfolio_usd)!==1000)return fail("Paper execution controls are disabled or kill-switched.",503);
  if(!intent||intent.status!=="APPROVED_REVIEW_ONLY"||intent.side!=="buy")return fail("Only a specifically approved, long-only review intent can be considered.",409);
  if((positions.results||[]).length!==0||(orders.results||[]).length!==0)return fail("Initial executor requires an empty position ledger and no prior Northstar order history; reconcile first.",409);
- let account,quote;
- try{[account,quote]=await Promise.all([broker("/v2/account",key,secret),broker("/v2/stocks/"+encodeURIComponent(intent.symbol)+"/quotes/latest?feed=iex",key,secret)]);}
+ let account,quote,clock;
+ try{[account,quote,clock]=await Promise.all([broker("/v2/account",key,secret),broker("/v2/stocks/"+encodeURIComponent(intent.symbol)+"/quotes/latest?feed=iex",key,secret),broker("/v2/clock",key,secret)]);}
  catch(e){return fail("Alpaca Paper account or quote unavailable; no order submitted.",503);}
  if(account.status!=="ACTIVE"||account.trading_blocked||account.account_blocked)return fail("Alpaca Paper account is restricted.",503);
+ if(clock?.is_open!==true)return fail("US equity market is closed; no paper market order will be submitted.",409);
  const q=quote?.quote,bid=num(q?.bp),ask=num(q?.ap),timestamp=q?.t;
- const history=deriveSnapshotRiskMetrics({snapshots:snapshots.results||[],currentEquity:account.equity,lastEquity:account.last_equity,virtualAllocationUsd:1000});
+ const quoteAt=Date.parse(timestamp||""),quoteAge=Date.now()-quoteAt;
+ if(!Number.isFinite(bid)||!Number.isFinite(ask)||ask<bid||!Number.isFinite(quoteAt)||quoteAge<0||quoteAge>60000)return fail("Latest Alpaca Paper quote is invalid, future-dated or older than 60 seconds.",503);
+ const spread=(ask-bid)/((ask+bid)/2);
+ if(spread>0.01)return fail("Current bid/ask spread exceeds the 1% paper-order limit.",409);
+ if(Number(intent.stop_price)>=ask)return fail("Protective stop must remain below the current ask for a long entry.",409);
+ const historyRows=snapshots.results||[];
+ const nowMs=Date.now();
+ const latestSnapshotAt=Date.parse(historyRows[0]?.captured_at||"");
+ if(!Number.isFinite(latestSnapshotAt)||latestSnapshotAt>nowMs||nowMs-latestSnapshotAt>15*60*1000)return fail("A reconciled equity snapshot no older than 15 minutes is required before paper submission.",503);
+ const weeklyBaseline=historyRows.find(row=>{const at=Date.parse(row?.captured_at||"");const value=Number(row?.equity_usd);return Number.isFinite(at)&&at<=nowMs-7*24*60*60*1000&&Number.isFinite(value)&&value>0;});
+ if(!weeklyBaseline)return fail("A verified seven-day equity baseline is required before paper submission.",503);
+ const history=deriveSnapshotRiskMetrics({snapshots:historyRows,currentEquity:account.equity,lastEquity:account.last_equity,virtualAllocationUsd:1000});
  if(!history.ok)return fail("Verified recent equity history is required: "+history.reason,503);
  // Require a fully flat broker and ledger before enabling this first, deliberately narrow executor.
  let brokerPositions,brokerOrders;
