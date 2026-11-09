@@ -139,3 +139,5 @@ Each specialist now receives a compact `roleResourcePack` containing its resourc
 - The server-side Gemini/OpenAI adapters now measure elapsed wall-clock time independently for each specialist invocation and record the actual selected provider/model name. Failed calls retain latency and a failure marker; unavailable workers do not receive fabricated metrics.
 - The authenticated collector passes this telemetry to the deterministic scorecard before persisting the run. Token usage and dollar cost remain null until provider usage fields and pricing are deliberately mapped, validated and covered by tests. No estimated costs are displayed.
 - Telemetry excludes API keys and response bodies. Tests use mocked provider responses; no live model-provider request was made for this change.
+
+- Provider usage metadata is now captured when returned by the API: Gemini prompt/candidate/total token counts and OpenAI input/output/total token counts. The evaluator surfaces per-role and aggregate total tokens only when all relevant reports have trusted values. Provider cost remains null; no hard-coded or estimated pricing is used.
