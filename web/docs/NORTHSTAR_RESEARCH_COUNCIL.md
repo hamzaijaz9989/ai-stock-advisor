@@ -134,3 +134,8 @@ The current implementation is a bounded multi-stage research workflow, not a fre
 
 ### Role-specific resource packs
 Each specialist now receives a compact `roleResourcePack` containing its resource status, relevant evidence IDs, required typed inputs and known gaps. This is a prioritization aid, not an evidence filter: the complete shared dossier remains available to every role so counter-evidence and cross-checks are not hidden. The deterministic Risk Committee receives its own required-input inventory as well. Regression tests verify pack identity, coverage status and preservation of the full context.
+
+### Trusted runtime telemetry
+- The server-side Gemini/OpenAI adapters now measure elapsed wall-clock time independently for each specialist invocation and record the actual selected provider/model name. Failed calls retain latency and a failure marker; unavailable workers do not receive fabricated metrics.
+- The authenticated collector passes this telemetry to the deterministic scorecard before persisting the run. Token usage and dollar cost remain null until provider usage fields and pricing are deliberately mapped, validated and covered by tests. No estimated costs are displayed.
+- Telemetry excludes API keys and response bodies. Tests use mocked provider responses; no live model-provider request was made for this change.
