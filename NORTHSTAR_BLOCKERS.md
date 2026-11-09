@@ -371,3 +371,40 @@ No paper or live order was submitted, amended, canceled, or flattened. Productio
 - Synchronization commit `633d30866130778fc653010a62afeb6ad5e5ce4b` completed both PR workflows successfully: Validate AI Stock Advisor run `42580264719` and Tests run `42580264770`; both job conclusions are success with no failed steps.
 - The subsequent blocker-log-only commit is `fa9f3a0a1cd50e4a60d10b6c420a0de2deb9c1a2`. Its Validate AI Stock Advisor run `42580301984` and Tests run `42580301959` also completed successfully. The workflows are green on the final PR head; the commit-status API still returns pending with zero legacy commit statuses, so rely on the two explicit successful Actions workflow runs rather than interpreting that legacy status response as a failure or pass.
 - PR #85 remains OPEN, DRAFT, mergeable, and zero commits behind main. No formal review submissions. Do not merge while the partial-fill recovery implementation, actual strategy evidence/independent review, and seven-day equity baseline remain incomplete.
+
+
+## Run 8 — 2026-11-09T07:38:27.947Z
+
+### Repository and CI recheck
+- PR #85 remains OPEN and DRAFT, mergeable=true, 162 commits, 37 changed files, no formal review submissions. Exact head: `a0b4b1f9a426a926d5b4afd68c305f04b815b304`; base main remains `e0efd5c5aa8e1f61a7946f8e11cc4a1c45942ffb`.
+- Both workflows on exact PR head `a0b4b1f9a426a926d5b4afd68c305f04b815b304` completed successfully: Tests run `42580409686`; Validate AI Stock Advisor run `42580409683`. This is CI evidence only, not a safety sign-off or production release approval.
+- PR body still explicitly records strategy validation NOT APPROVED, partial-fill recovery not implemented, seven-day equity history unavailable, migrations 0006/0007 preview-only, paper approval credential absent from production configuration, and PR intentionally draft.
+
+### Fresh D1 state (read-only queries)
+- Production DB `528f3a23-1d1f-4d16-8463-f643d85f5deb`: migrations 0001–0005 only; enabled=0; mode=paper; kill_switch=1; max_portfolio_usd=1000; one equity snapshot, latest `2026-11-08T18:34:38.720Z`; intents=0; orders=0; positions=0.
+- Preview DB `bdffc29f-a4f6-498e-ade7-22c85d9bd373`: migrations 0001–0007; enabled=0; mode=paper; kill_switch=1; zero equity snapshots; zero orders; zero positions.
+- The production query deliberately avoided tables introduced in migration 0006; an initial combined query against `northstar_fill_ledger` returned SQLITE_ERROR because that table is not in production. No write/migration was attempted.
+
+### Fresh Cloudflare Pages state
+- Latest production deployment `72b2ef88-7622-4e9b-af83-2ced42d1242c` succeeded at `2026-11-09T06:10:23Z`, serving main commit `e0efd5c5aa8e1f61a7946f8e11cc4a1c45942ffb`. Previous production deployment `2c92c7b3-5447-440e-b3f2-066270f54b8a` served PR #84 merge `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- Latest Pages API project response exposed no environment-variable names in its normalized configuration payload; this response is inconclusive about secrets. Do not infer absence/presence from this response. Prior direct configuration evidence in this log remains the last specific variable-name inventory; secret values were not accessed.
+- Public homepage, readiness and performance GET probes from the Cloudflare execution environment were blocked by the runtime egress policy with HTTP 403 body `Forbidden: requests to ai-stock-advisor.pages.dev are not allowed`. This is a probe limitation, not evidence of an application HTTP 403. Production endpoint health is therefore NOT freshly verified in this run.
+
+### Recovery workflow assessment
+- Inspected current `web/lib/paper-recovery-policy.js`, `web/functions/api/paper/fills-sync.js`, `web/functions/api/paper/reconcile.js`, `web/functions/api/paper/submit.js`, `web/functions/api/paper/control.js`, migration 0006/0007, and recovery/submit tests.
+- Existing recovery module is a pure decision policy; fill sync and reconciliation are read-only; control route only permits engaging the kill switch. No safe broker-mutating partial-fill recovery route currently exists. I did not add a speculative broker-mutating endpoint without durable idempotency/recovery records and race-safe broker-state verification; doing so would create an unsafe path for a real partially filled position.
+- Next implementation must first add durable recovery request/idempotency/audit state and prove a cancellation protocol: fetch and validate exact Northstar parent order; cancel only the remaining parent quantity; re-fetch until broker terminal state; re-fetch positions and all nested child orders; reconcile parent/child fills with D1 fill ledger; refuse standalone protection while any stop child remains active/held/ambiguous; only then submit a uniquely identified standalone GTC stop with ambiguous-submit lookup and verify exact remaining quantity/price/status. Recovery endpoint must be operator-only, paper-host hardcoded, rate/idempotency protected, and must never blindly retry a stop submission. No broker mutation was made.
+
+### Unresolved blockers (unchanged)
+1. Operator-only broker-mutating partial-fill recovery endpoint and durable idempotency/audit workflow missing.
+2. Real historical point-in-time strategy validation remains NOT APPROVED; independent reviewer is still required. User authorized technical review but cannot replace independent sign-off with self-approval.
+3. Seven-day genuine equity history missing; only one production snapshot exists. Earliest baseline cannot be before 2026-11-15T18:34:38.720Z, assuming continuous successful collection.
+4. Migrations 0006/0007 remain preview-only; production remains at 0005. Do not apply until full release gate and compatibility review pass.
+5. Paper approval credential/recovery authorization and repository scheduled-workflow secret presence are not verified as configured. Do not inspect or print values.
+6. PR #85 has no formal review and branch-protection API previously returned 403. Do not merge or deploy while blockers remain.
+7. Production endpoint health could not be re-probed due runtime egress 403; obtain verification from a permitted environment or trusted Cloudflare deployment/observability logs.
+
+### Safety statement
+- No broker-mutating API calls, paper orders, live orders, test orders, cancellations, amendments or flatten operations were performed.
+- Production remains paper mode, execution disabled, kill switch engaged. No D1 writes or migrations were performed.
+- No change to project completion estimate this run; no new application capability was completed.
