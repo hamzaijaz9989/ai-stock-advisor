@@ -46,7 +46,7 @@ jobs:
             "$base/fills-sync")"
           fills_ok="$(echo "$fills" | jq -r '.ok == true and .imported == true and .execution == false')"
           fills_safe="$(echo "$fills" | jq -r '.safeToContinue == true and .requiresManualRecovery == false')"
-          echo "$fills" | jq '{ok, imported, execution, safeToContinue, requiresManualRecovery, status, unsafeExposureCount, brokerRecords, newRecords, alreadyKnown, orderRowsUpdated, skippedLifecycleCount, checkedAt}'
+          echo "$fills" | jq '{ok, imported, execution, safeToContinue, requiresManualRecovery, status, unsafeExposureCount, unsafeOrderCount, brokerRecords, newRecords, alreadyKnown, orderRowsUpdated, skippedLifecycleCount, checkedAt}'
 
           # Always run reconciliation after a completed fill import, even when the
           # importer has raised a manual-recovery condition. The final job must fail
