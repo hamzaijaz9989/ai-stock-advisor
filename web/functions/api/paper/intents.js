@@ -22,7 +22,7 @@ export async function onRequestPost({request,env}){
  if(!/^[A-Za-z0-9._:-]{12,128}$/.test(key))return fail("idempotencyKey must be 12–128 safe characters.");
  if(!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)||!Number.isFinite(stop)||stop<=0)return fail("Provide a valid ticker and positive protective stop.");
  let control;try{control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd FROM execution_control WHERE id=1").first();}catch{return fail("Could not verify execution controls; fail-closed.",503);}
- if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==1000)return fail("Proposal journal is locked unless paper mode is disabled and kill-switched.",503);
+ if(!control||control.mode!=="paper"||Number(control.max_portfolio_usd)!==1000)return fail("Proposal journal requires the verified $1,000 paper allocation.",503);
  // The idempotency hash binds only the caller's proposal intent, not a moving quote.
  const requestHash=await hash({symbol,stopPrice:stop,rationale});
  try{
