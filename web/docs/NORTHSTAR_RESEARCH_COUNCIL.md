@@ -94,3 +94,13 @@ Request shape:
 The endpoint accepts up to 500 fact/evidence records and a 64 KiB body. IDs must be unique across both arrays. Each model specialist receives the same immutable context and must cite exact IDs. News and filing text is treated as untrusted input. Specialist workers do not fetch data, browse the web, calculate financial metrics, or submit orders. The deterministic risk committee independently checks portfolio limits (2% aggregate open risk, 100% gross exposure, 2% daily loss stop, 4% weekly loss stop, 8% drawdown pause, 40% sector exposure, and the initial one-position limit). Missing model credentials, malformed reports, unavailable workers, or risk-limit breaches result in `NO_TRADE`.
 
 The append-only `research_council_runs` table is defined in migration `0003_research_council_runs.sql` and is present in production D1. The authenticated API remains server-side. The research page's new status card is read-only and does not call the collector or council run endpoint. Caller-supplied facts must come from trusted Northstar collectors; do not send raw browser-supplied claims as authoritative facts.
+
+
+## 2026-11-10 — Stock Brain integration acceptance status
+
+- The nine-role workspace and authenticated collection flow are present in draft PR #103 (`northstar/research-council-status-dashboard`). The PR includes the read-only readiness endpoint and dashboard status card.
+- Exact PR head `e2bc27a25534150d32546ff10c04553d4e0639e0` passed Tests, Validate AI Stock Advisor and full-history secret scan. The preview Pages deployment succeeded for app-code commit `a068fa60d3df641d424f8e8c258ef770434a5922`; the latest PR head is docs-only and was skipped by Pages path filtering. A direct browser smoke test of the preview endpoint remains outstanding.
+- Production D1 confirms the required council migrations are present, but there are 0 durable council runs. The only equity snapshot is `2026-11-08T18:34:38.720Z`, which is stale and does not establish a seven-day baseline.
+- The collector must continue to fail closed until a fresh snapshot, seven-day baseline, reconciled broker state and server-side provider/operator configuration are verified. Missing risk history must never be replaced with zeroes.
+- This milestone is implemented in a draft PR and CI-green, but is not merged or production-accepted. Do not run the production collector as part of this documentation checkpoint.
+- Paper execution remains disabled, kill switch engaged, no paper/live orders, and validated BUY disabled.
