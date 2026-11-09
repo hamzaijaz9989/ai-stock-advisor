@@ -4,7 +4,7 @@ const finite = value => value !== null && value !== undefined && value !== "" &&
 
 export function validatePaperExecutionGate({
   control, account, reconciliation, equityHistory, quote,
-  order, virtualAllocationUsd = 1000, now = Date.now()
+  order, strategyValidation, virtualAllocationUsd = 1000, now = Date.now()
 }) {
   const block = (reason, details = {}) => ({
     ok: false, execution: false, status: "PAPER_EXECUTION_BLOCKED",
@@ -17,6 +17,7 @@ export function validatePaperExecutionGate({
     return block("PAPER_EXECUTION_CONTROL_NOT_EXPLICITLY_ENABLED");
   }
   if (virtualAllocationUsd !== 1000) return block("VIRTUAL_ALLOCATION_MUST_EQUAL_1000");
+  if (!strategyValidation || strategyValidation.ok !== true || strategyValidation.approved !== true) return block("STRATEGY_VALIDATION_NOT_APPROVED");
   if (!account || account.status !== "ACTIVE" || account.trading_blocked ||
       account.account_blocked || !finite(account.equity) || Number(account.equity) <= 0 ||
       !finite(account.buying_power) || Number(account.buying_power) <= 0) {
