@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T01:58:22Z  
+Last updated: 2026-11-09T02:47:47Z  
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -46,8 +46,9 @@ Evidence:
 - There is no broker-order cancellation/replacement endpoint or tested cancellation/recovery policy.
 - The current executor submits an OTO entry with a stop-loss child. Alpaca's official order documentation states that bracket child orders are not active until the entry is completely filled; OTO is a bracket variant. A partial entry can therefore leave partial exposure without an active stop until the parent completes. See https://docs.alpaca.markets/us/docs/orders-at-alpaca.
 - The current code detects an unverified/missing nested stop leg and fails closed, but it does not yet safely cancel the remaining entry and protect or flatten any partial fill. Engaging the kill switch does not itself protect an already-filled partial position.
+- Run 2 hardens verifyOtoStopLeg: a broker HELD child is accepted only when the parent has zero filled shares (no exposure); if any shares are filled, a HELD child is explicitly rejected as PARTIAL_FILL_WITH_HELD_STOP_CHILD. The submit route now reports protectiveStopVerified=false for a zero-fill held child and marks an exposed partial-fill/held-child result UNKNOWN with the kill switch engaged. This is detection/fail-closed behavior, not recovery; it does not cancel the remaining entry or establish a stop for the filled shares. CI is pending for this change.
 - Fill sync imports broker activities idempotently and advances matching order states, but it does not yet create an independent fill-derived position ledger or complete realized-P&L accounting. `paper_positions` is a latest broker snapshot mirror, not an independent historical position ledger.
-- The scheduled snapshot workflow currently calls only `/api/paper/sync`; it does not run a safe end-to-end sync → fill import → reconciliation sequence.
+- The scheduled snapshot workflow has been updated on PR #85 to run `/api/paper/sync` → `/api/paper/fills-sync` → `/api/paper/reconcile`, requiring execution=false and a clean read-only reconciliation at every stage. This updated workflow is not yet merged or production-verified; it still depends on the repository secret NORTHSTAR_OPERATOR_TOKEN.
 - Read-only maintenance endpoints have now been tested to work in paper mode while execution is enabled, without changing execution controls. The complete enabled-mode lifecycle has not been exercised against Alpaca Paper.
 
 Impact: An accepted parent order cannot yet be treated as a fully managed, continuously protected and reconciled position lifecycle. Do not enable paper execution.
@@ -92,3 +93,21 @@ Next action: Continue resolving blockers, inspect all latest changes, re-check e
 ## Completion estimate
 
 Project-wide estimate: **58%**. This is an evidence-based project estimate, not a percentage of code written. PR #84's successful merge/deployment and this run's tested read-only maintenance improvements are included. Strategy approval, seven-day equity history, complete partial-fill/cancellation/protection lifecycle, production authenticated workflow verification and PR #85 release remain outstanding.
+
+
+## Run 2 — 2026-11-09T02:47:47Z
+
+### Changes submitted to PR #85 (CI pending)
+- web/lib/paper-execution-policy.js: stop-child validation now distinguishes a held OTO child with zero parent fills from a held child while shares are exposed. It also validates the parent quantity and filled quantity, and recognizes Alpaca's group_role stop_loss field.
+- web/functions/api/paper/submit.js: initial submission and idempotent recovery now use the verified protected flag. A held child with no fills is no longer reported as a verified active stop. A held child with any partial exposure is marked UNKNOWN with the existing fail-closed kill-switch path.
+- tests/paper-execution-policy.test.mjs: replaced the prior unsafe assertion that a held stop is protective; added explicit zero-fill, partial-fill-held, partial-fill-active, malformed quantity and mismatched-stop cases.
+- .github/workflows/northstar-paper-snapshot.yml: scheduled maintenance now calls read-only account sync, idempotent fill import, and read-only reconciliation sequentially, and requires clean execution=false responses.
+
+### Remaining critical limitations
+- Partial-fill recovery is still not implemented: the executor does not cancel the unfilled remainder or establish a standalone protective stop/flatten the already-filled quantity. The kill switch prevents new orders only; it does not protect existing exposure.
+- No independent fill-derived position ledger or complete realized-P&L accounting is implemented.
+- The scheduled chain has not run against production because PR #85 remains unmerged. Repository-secret presence cannot be independently verified through the current GitHub integration.
+- Strategy validation remains NOT APPROVED; production has only one historical equity snapshot, so the seven-day baseline is not yet satisfied.
+- Branch protection/ruleset access remains unavailable to the connected GitHub integration; PR #85 is still draft and mergeability must be rechecked after these commits.
+
+No paper order, real-money order, or broker mutation was performed during this run. Production execution remains disabled with the kill switch engaged.
