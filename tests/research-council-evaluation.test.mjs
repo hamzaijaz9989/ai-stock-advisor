@@ -34,6 +34,7 @@ test("scorecard includes trusted telemetry only when explicitly supplied",()=>{
  assert.equal(score.roles.bull_researcher.latencyMs,1200);
  assert.equal(score.roles.bull_researcher.provider,"gemini");
  assert.equal(score.roles.bull_researcher.totalTokens,380);
+ assert.equal(score.roles.bear_researcher.failed,true);
  assert.equal(score.totals.latencyMs,null);
  assert.equal(score.totals.costUsd,null);
 });
