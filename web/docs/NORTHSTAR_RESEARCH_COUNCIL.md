@@ -141,3 +141,6 @@ Each specialist now receives a compact `roleResourcePack` containing its resourc
 - Telemetry excludes API keys and response bodies. Tests use mocked provider responses; no live model-provider request was made for this change.
 
 - Provider usage metadata is now captured when returned by the API: Gemini prompt/candidate/total token counts and OpenAI input/output/total token counts. The evaluator surfaces per-role and aggregate total tokens only when all relevant reports have trusted values. Provider cost remains null; no hard-coded or estimated pricing is used.
+
+- The scorecard also marks specialist invocation failures when the adapter records them. This lets reviewers distinguish a missing provider, a failed request and a successful report with weak evidence; it does not turn provider completion into a quality rating.
+- Mocked tests now cover both Gemini and OpenAI usage metadata, failed-call latency/failure markers, and absence of credential leakage.
