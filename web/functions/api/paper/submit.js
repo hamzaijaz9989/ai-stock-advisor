@@ -35,7 +35,7 @@ export async function onRequestPost({request,env}){
  let body;try{body=await request.json();}catch{return fail("Send valid JSON.");}
  const intentId=String(body?.intentId||"");
  if(!/^[0-9a-f-]{36}$/i.test(intentId)||body?.confirmation!=="SUBMIT_THIS_PAPER_ORDER")return fail("Provide an intentId and exact paper-order confirmation.");
- let control,intent,existing,snapshots,positions,orders,strategyApproval;
+ let control,intent,existing,snapshots,positions,orders;
  try{
   [control,intent,existing,snapshots,positions,orders,strategyApproval]=await Promise.all([
    db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first(),
