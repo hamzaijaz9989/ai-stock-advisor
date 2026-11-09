@@ -21,6 +21,7 @@ test("Stock Brain client uses authenticated server-side collection without persi
   assert.match(client, /body:JSON\.stringify\(\{ticker,requestId\}\)/);
   assert.match(client, /COUNCIL_DISPLAY_ROLES/);
   assert.match(client, /stock-brain-trace/);
+  assert.match(client, /payload\.traceDurable===true&&result\.traceDurable===true/);
   assert.match(client, /parseStockBrainResponse\(response\)/);
   assert.match(client, /renderCouncilEvaluation\(result\.evaluation,result\.agents,coverage\)/);
   assert.doesNotMatch(client, /localStorage\.setItem\([^\n]*token/i);
