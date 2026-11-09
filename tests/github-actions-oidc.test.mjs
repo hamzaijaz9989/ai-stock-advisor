@@ -81,12 +81,19 @@ test("rejects malformed, oversized and non-RS256 tokens", async () => {
   assert.equal((await verifyGitHubActionsOidc(await token({}, { alg: "none" }), { audience, now, jwks })).reason, "JWT_ALGORITHM_INVALID");
 });
 
-test("rejects wrong repository, immutable repository ID, owner ID, visibility and branch", async () => {
+test("accepts the exact pinned repository when its visibility is private or public", async () => {
+  for (const repository_visibility of ["private", "public"]) {
+    const result = await verifyGitHubActionsOidc(await token({ repository_visibility }), { audience, now, jwks });
+    assert.equal(result.ok, true, repository_visibility);
+  }
+});
+
+test("rejects wrong repository, immutable repository ID, owner ID, invalid visibility and branch", async () => {
   const cases = [
     [{ repository: "attacker/other" }, "REPOSITORY_MISMATCH"],
     [{ repository_id: "1" }, "REPOSITORY_ID_MISMATCH"],
     [{ repository_owner_id: "2" }, "OWNER_ID_MISMATCH"],
-    [{ repository_visibility: "private" }, "REPOSITORY_VISIBILITY_MISMATCH"],
+    [{ repository_visibility: "internal" }, "REPOSITORY_VISIBILITY_MISMATCH"],
     [{ ref: "refs/heads/feature" }, "REF_MISMATCH"],
     [{ sub: "repo:hamzaijaz9989/ai-stock-advisor:pull_request" }, "SUBJECT_MISMATCH"]
   ];
