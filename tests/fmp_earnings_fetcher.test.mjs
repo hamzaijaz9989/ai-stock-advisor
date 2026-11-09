@@ -41,3 +41,8 @@ test("earnings history fetcher rejects invalid dates and missing operator creden
  assert.throws(()=>buildEarningsWindows("2025-02-30","2025-03-01"),/valid ISO/);
  assert.throws(()=>buildEarningsWindows("2025-03-01","2025-02-01"),/valid ISO/);
 });
+
+
+test("earnings history fetcher requires operator credentials",async()=>{
+ await assert.rejects(()=>fetchEarningsHistory({from:"2025-01-01",to:"2025-01-10",baseUrl:"https://northstar.example"}),/NORTHSTAR_OPERATOR_TOKEN/);
+});
