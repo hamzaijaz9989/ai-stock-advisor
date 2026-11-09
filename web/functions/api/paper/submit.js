@@ -47,7 +47,7 @@ export async function onRequestPost({request,env}){
  // Enforce the global kill switch before considering any proposal or broker state.
  if(!control||control.mode!=="paper"||Number(control.enabled)!==1||Number(control.kill_switch)!==0||Number(control.max_portfolio_usd)!==1000)return fail("Paper execution controls are disabled or kill-switched.",503);
  if(!intent||intent.status!=="APPROVED_REVIEW_ONLY"||intent.side!=="buy")return fail("Only a specifically approved, long-only review intent can be considered.",409);
- if((positions.results||[]).length!==0||(orders.results||[]).length!==0)return fail("Initial executor permits no existing positions or unresolved orders; reconcile first.",409);
+ if((positions.results||[]).length!==0||(orders.results||[]).length!==0)return fail("Initial executor requires an empty position ledger and no prior Northstar order history; reconcile first.",409);
  let account,quote;
  try{[account,quote]=await Promise.all([broker("/v2/account",key,secret),broker("/v2/stocks/"+encodeURIComponent(intent.symbol)+"/quotes/latest?feed=iex",key,secret)]);}
  catch(e){return fail("Alpaca Paper account or quote unavailable; no order submitted.",503);}
