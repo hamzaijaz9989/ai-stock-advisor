@@ -46,10 +46,42 @@ export async function onRequestPost({request,env}){
   ]);
  }catch{return fail("Could not verify complete paper ledger; fail-closed.",503);}
  if(existing){
-  // Never blindly retry. First ask Alpaca whether the stable client_order_id already exists.
+  // Never blindly retry. Recover the stable client_order_id and re-verify its
+  // nested stop-loss leg before declaring an existing OTO order protected.
   try{
    const found=await broker("/v2/orders:by_client_order_id?client_order_id="+encodeURIComponent(existing.id),key,secret);
-   if(found?.id){const recoveredStatus=normalizeStatus(found.status);await db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=?").bind(found.id,recoveredStatus,safeJson(found),new Date().toISOString(),existing.id).run();return Response.json({ok:true,execution:false,replayed:true,status:recoveredStatus,brokerOrderId:found.id,message:"Existing client order recovered; no second order was submitted."},{headers:H});}
+   if(found?.id){
+    if(!intent){try{await markUnknown(db,{orderId:existing.id,brokerOrderId:found.id,response:found,reason:"RECOVERY_INTENT_MISSING"});}catch{}return fail("Existing broker order has no matching intent record. Treat as UNKNOWN and reconcile manually.",503,{orderId:existing.id,status:"UNKNOWN"});}
+    let recovered=found,recoveredStatus=normalizeStatus(found.status),filled=num(found.filled_qty);
+    if(recoveredStatus==="UNKNOWN"||filled===null||filled<0||filled>Number(intent.qty)||(recoveredStatus==="FILLED"&&Math.abs(filled-Number(intent.qty))>0.0001)||(recoveredStatus==="PARTIALLY_FILLED"&&(filled<=0||filled>=Number(intent.qty)))||(filled>0&&(!num(found.filled_avg_price)||num(found.filled_avg_price)<=0))){
+     try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:found.id,response:found,reason:"RECOVERED_ORDER_STATE_INCONSISTENT"});}catch{}
+     return fail("Recovered broker order state is inconsistent. Treat as UNKNOWN; no retry was attempted.",503,{orderId:existing.id,brokerOrderId:found.id,status:"UNKNOWN"});
+    }
+    if(!(recoveredStatus==="REJECTED"||recoveredStatus==="CANCELED"&&filled===0)){
+     const nested=await broker("/v2/orders?status=all&limit=500&direction=desc&nested=true",key,secret);
+     if(!Array.isArray(nested))throw new Error("NESTED_ORDER_LIST_INVALID");
+     recovered=nested.find(order=>String(order?.id||"")===String(found.id))||null;
+     const parentMatches=recovered&&String(recovered.symbol||"").toUpperCase()===intent.symbol&&String(recovered.side||"").toLowerCase()==="buy"&&Math.abs(Number(recovered.qty)-Number(intent.qty))<=0.0001&&String(recovered.client_order_id||"")===existing.id;
+     if(!parentMatches||!verifyOtoStopLeg(recovered,{symbol:intent.symbol,qty:intent.qty,stopPrice:intent.stop_price}).ok){
+      try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:found.id,response:recovered||found,reason:"RECOVERED_PROTECTIVE_STOP_NOT_VERIFIED"});}catch{}
+      return fail("Recovered OTO stop-loss leg is missing or mismatched. Treat as UNKNOWN and reconcile manually.",503,{orderId:existing.id,brokerOrderId:found.id,status:"UNKNOWN"});
+     }
+     recoveredStatus=normalizeStatus(recovered.status);filled=num(recovered.filled_qty);
+     if(recoveredStatus==="UNKNOWN"||filled===null||filled<0||filled>Number(intent.qty)||(recoveredStatus==="FILLED"&&Math.abs(filled-Number(intent.qty))>0.0001)||(recoveredStatus==="PARTIALLY_FILLED"&&(filled<=0||filled>=Number(intent.qty)))){
+      try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:found.id,response:recovered,reason:"RECOVERED_NESTED_STATE_INCONSISTENT"});}catch{}
+      return fail("Recovered nested broker state is inconsistent. Treat as UNKNOWN; no retry was attempted.",503,{orderId:existing.id,brokerOrderId:found.id,status:"UNKNOWN"});
+     }
+    }
+    const recoveredIntentStatus=recoveredStatus==="REJECTED"?"REJECTED":recoveredStatus==="CANCELED"?"CANCELLED":null;
+    const statements=[
+     db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=?").bind(found.id,recoveredStatus,safeJson(recovered),new Date().toISOString(),existing.id),
+     db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(existing.id,"BROKER_ORDER_RECOVERED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:found.id,status:recoveredStatus,protectiveStopVerified:!["REJECTED","CANCELED"].includes(recoveredStatus)})),
+     db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","ALPACA_PAPER_ORDER_RECOVERY","VERIFIED",existing.id,safeJson({brokerOrderId:found.id,status:recoveredStatus}))
+    ];
+    if(recoveredIntentStatus)statements.push(db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(recoveredIntentStatus,new Date().toISOString(),intentId));
+    await db.batch(statements);
+    return Response.json({ok:true,execution:false,replayed:true,status:recoveredStatus,brokerOrderId:found.id,protectiveStopVerified:!["REJECTED","CANCELED"].includes(recoveredStatus),message:"Existing client order recovered and reconciled; no second order was submitted."},{headers:H});
+   }
   }catch(e){if(e?.status!==404)return fail("Existing submission outcome is uncertain. No retry was attempted; reconcile by client_order_id.",503,{orderId:existing.id,status:existing.status});}
   return fail("An order record already exists. No automatic resubmission is permitted.",409,{orderId:existing.id,status:existing.status});
  }
