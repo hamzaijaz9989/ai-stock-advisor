@@ -197,6 +197,7 @@ export async function onRequestPost({request,env}){
    db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result.id,status:normalized,protectiveStopVerified}))
   ];
   if(intentStatus)statements.push(db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(intentStatus,new Date().toISOString(),intentId));
+  statements.push(db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","ALPACA_PAPER_ORDER_RESPONSE_VERIFIED",normalized,id,safeJson({intentId,brokerOrderId:result.id,status:normalized,protectiveStopVerified})));
   await db.batch(statements);
  }catch{try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder,reason:"BROKER_RESPONSE_LEDGER_WRITE_FAILED"});}catch{}return fail("Broker response received but ledger update failed. Treat the order as UNKNOWN; execution kill switch engagement was attempted. Reconcile; do not retry.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});}
  const canceled=normalized==="CANCELED",rejected=normalized==="REJECTED";
