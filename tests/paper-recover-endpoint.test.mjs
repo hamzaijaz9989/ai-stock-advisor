@@ -232,3 +232,32 @@ test("recovery rechecks that PAPER execution remains disabled and kill switch en
  assert.equal(controlReads,2);
  assert.equal(posts,0);
 });
+
+
+test("final recovery recheck subtracts newly reported OTO child fills before sizing the standalone stop",async()=>{
+ const db=makeDb();
+ let parentReads=0,positionReads=0,posts=0,posted=null;
+ const {response}=await run({db,fetchOverride:async(url,options={})=>{
+  const u=String(url);
+  if(u.includes("/v2/orders/parent-broker?nested=true")){
+   parentReads++;
+   return Response.json(parentReads===1?parent():parent({legs:[child({status:"canceled",qty:"2",filled_qty:"1",leaves_qty:"0"})]}));
+  }
+  if(u.endsWith("/v2/positions")){
+   positionReads++;
+   const qty=positionReads===1?"2":"1";
+   return Response.json([{symbol:"AAPL",qty,side:"long"}]);
+  }
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:"99",ap:"99.1",t:new Date().toISOString()}});
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){
+   posts++;posted=JSON.parse(options.body);
+   return Response.json({id:"recovery-broker",client_order_id:posted.client_order_id,symbol:posted.symbol,side:posted.side,qty:posted.qty,type:posted.type,time_in_force:posted.time_in_force,stop_price:posted.stop_price,status:"new",filled_qty:"0",leaves_qty:posted.qty});
+  }
+  throw new Error("unexpected broker request "+u);
+ }});
+ assert.equal(response.status,201);
+ assert.equal(parentReads,2);
+ assert.equal(positionReads,3);
+ assert.equal(posts,1);
+ assert.equal(posted.qty,"1");
+});
