@@ -18,6 +18,28 @@ Use `scripts/run_strategy_validation.py` with a JSON file containing:
 
 The provisional snapshot rules mirror the current app's major gates: positive annual and quarterly financial quality, revenue decline limits, price/DCF ratio within 0.40×–2.50×, entry zone at 75–80% of the DCF base, at least 2:1 reward/risk, ATR-derived risk, no known near-term earnings event or flagged risk headline, and whole-share risk/notional sizing. Any missing, malformed or future-dated input fails closed.
 
+## FMP source acquisition
+
+The operator-only FMP universe route returns current constituent lists, dated index changes, and the provider's delisted-company catalogue:
+
+```bash
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer $NORTHSTAR_OPERATOR_TOKEN" \
+  "$NORTHSTAR_API_BASE/api/fmp-universe?from=2016-01-01" \
+  -o fmp-universe.json
+```
+
+The earnings-history CLI requests consecutive non-overlapping 90-day windows, rejects provider pages at the 4,000-record cap, preserves retrieval timestamps, and refuses conflicting duplicate events:
+
+```bash
+NORTHSTAR_API_BASE="$NORTHSTAR_API_BASE" \
+NORTHSTAR_OPERATOR_TOKEN="$NORTHSTAR_OPERATOR_TOKEN" \
+node scripts/fetch_fmp_earnings.mjs \
+  --from 2016-01-01 --to 2026-11-09 --output fmp-earnings.json
+```
+
+Keep the operator token out of command history, logs, and committed files. The resulting source files are raw evidence only: validate provider coverage, event timing, symbol identity, and data licence before building historical snapshots.
+
 ## Run
 
 ```bash
