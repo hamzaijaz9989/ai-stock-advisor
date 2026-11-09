@@ -903,3 +903,16 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Visibility discrepancy: README states the repository must remain private, and the user says it is private; GitHub API metadata returned `private=false / visibility=public` on 2026-11-10. No visibility change was attempted. Confirm directly in GitHub Settings before relying on privacy assumptions.
 - Safety state remains unchanged: validated BUY is not approved; paper execution remains disabled; kill switch remains engaged; no live or paper order was submitted.
 - Next exact action: finish the nine-agent council's end-to-end integration and durable trace/dashboard verification on the latest code head, then run exact-head CI and preview verification. Separately resolve the repository visibility discrepancy through direct GitHub Settings.
+
+
+## 2026-11-10 03:26 PKT — Live production audit refresh
+- Read-only Cloudflare audit confirmed the production Pages deployment `921087a4-6194-4a67-ac61-2f8557edb0bc` serves main `57aa9f0743917401dd0e3e90521fc39c22bd9f55`.
+- Worker `northstar-market-monitor` is scheduled every five minutes. Latest Worker deployment `7326f3e7-f323-4856-badf-aa8b979dffb4` is at 100%.
+- Production D1 contains 17 monitor runs, all `market_closed`; 0 monitor quote rows and 0 monitor event rows. No market-open quote/freshness cycle has yet been verified.
+- Production D1 contains 0 `research_council_runs` and 0 `research_decision_traces`. Main source has the nine-role council and authenticated server-side collector, but the public research dashboard does not call the collector/council endpoints.
+- The collector's portfolio gate is currently unsatisfied: only one production equity snapshot exists (`2026-11-08T18:34:38.720Z`), not a fresh 15-minute snapshot plus seven-day baseline.
+- Paper safety confirmed: execution disabled, paper mode, kill switch engaged; 0 orders, 0 positions, 0 intents, 0 fills, 0 trade events; 1 equity snapshot and 2 audit rows.
+- Attempted remediation: inspected existing endpoint contracts, UI calls, D1 schema and runtime configuration. No production writes, migrations, broker calls or deployments were made.
+- Impact: do not claim nine-agent production dashboard acceptance, market-open monitor acceptance, seven-day portfolio readiness or paper lifecycle completion.
+- Next action: finish a safe read-only Research Council status/dashboard integration and a separately authenticated operator launch flow; collect and verify the seven-day read-only equity history before attempting the collector. Keep paper execution disabled and the kill switch engaged.
+- Governance note: GitHub API metadata reports `private=false / visibility=public`, contrary to the user's statement that the repository is private. No visibility change was attempted; verify directly in GitHub Settings.
