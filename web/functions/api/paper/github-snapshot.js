@@ -3,48 +3,106 @@
 // submits, amends, cancels, or flattens broker orders and cannot change controls.
 import { verifyGitHubActionsOidc } from "../../../lib/github-actions-oidc.js";
 
-const H = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referer" };ÛÛÝVPÕQÐUQQSÑHHÎËØZK\ÝØÚËXY\ÛÜYÙ\Ë]Â[Ý[Û\ÜÛÙJ\ÜÝ]\ÈHLË^HHßJHÂ]\\ÜÛÙKÛÛÈÚÎ[ÙK^XÝ][Û[ÙK\Ü^HKÈÝ]\ËXY\ÎJNÂB[Ý[ÛXZÙR[\[\]Y\Ý
-]ÚÙ[\]Y\ÝY
-HÂ]\]È\]Y\Ý
-ÎËÛÜÝ\[\[Ø\KÜ\\ÉÜ]XÂY]ÙÔÕXY\ÎÂ]]Ü^][ÛX\\	ÝÚÙ[XT\]Y\ÝRQ\]Y\ÝYXØÙ\\XØ][ÛÚÛÛBJNÂB\Þ[È[Ý[Û[ÚÙJ[\][Ü\]ÜÚÙ[\]Y\ÝY
-HÂÛÛÝ\Ý[H]ØZ][\È\]Y\ÝXZÙR[\[\]Y\Ý
-]Ü\]ÜÚÙ[\]Y\ÝY
-K[JNÂ]ÙNÂHÈÙHH]ØZ]\Ý[ÛÛ
-NÈHØ]ÚÈ]\ÈÚÎ[ÙK\ÜSSQÒSTÔTÔÓÑHNÈBY
-\\Ý[ÚÈÙOËÚÈOOHYHÙOË^XÝ][ÛOOH[ÙJHÂ]\ÈÚÎ[ÙK\ÜÝ[ÊÙOË\Ü	Ü]Õ\\Ø\ÙJ
-_WÑRSQ
-KÛXÙJ
-KÝ]\Î\Ý[Ý]\ÈNÂB]\ÈÚÎYKÙHNÂBÊ^ÜYÜ]\Z[\ÝXÈ\ÝÈÚ][XÝY\YXØ][Û[[\Ë
-Â^Ü\Þ[È[Ý[Û[XYÛTÛ\ÚÝÚZ[È\]Y\Ý[\YHH\YQÚ]XXÝ[ÛÓÚYË[\ÈH[JHÂY
-\]Y\ÝËY]ÙOOHÔÕH]\\ÜÛÙJÔÕ\È\]Z\YJNÂÛÛÝ]]Ü^][ÛH\]Y\ÝXY\ËÙ]
-]]Ü^][ÛHÂY
-X]]Ü^][ÛÝ\ÕÚ]
-X\\JH]\\ÜÛÙJHÚÜ[]YÚ]XXÝ[ÛÈÒQÈÚÙ[\È\]Z\YJNÂÛÛÝÚÙ[H]]Ü^][ÛÛXÙJÊNÂÛÛÝY[]HH]ØZ]\YJÚÙ[È]YY[ÙNVPÕQÐUQQSÑHJNÂY
-ZY[]OËÚÊH]\\ÜÛÙJÚ]XXÝ[ÛÈÛÜÙÝÈY[]HØ\ÈÝ\YYYJNÂÛÛÝÜ\]ÜÚÙ[H[ËÔÕTÓÔTUÔÕÒÑSÂY
-\[ÙÜ\]ÜÚÙ[OOHÝ[ÈÜ\]ÜÚÙ[[ÝMH]\\ÜÛÙJ[\[Ü\]ÜÜY[X[\È[]Z[XNÈXY[ÛHÞ[È\ÈØÚÙYLÊNÂÛÛÝ^XÝY\]Y\ÝYHÜÝ\Y\]Z]KIÚY[]K[YKIÚY[]K[][\XÂÛÛÝÝ\YY\]Y\ÝYH\]Y\ÝXY\ËÙ]
-T\]Y\ÝRQH^XÝY\]Y\ÝYÂY
-Ý\YY\]Y\ÝYOOH^XÝY\]Y\ÝYK×ÐKVK^NKÎW^ÎMIË\Ý
-Ý\YY\]Y\ÝY
-JH]\\ÜÛÙJ\]Y\ÝY[YY\Ù\ÈÝX]ÚH\YYYÚ]XXÝ[ÛÈ[
-NÂÛÛÝH[ËÔÕTÑÂY
-Y\[Ù\\HOOH[Ý[ÛH]\\ÜÛÙJÜÝ\HYÙ\\È[]Z[XNÈXY[ÛHÞ[È\ÈØÚÙYLÊNÂHÂÛÛÝ[ÜH]ØZ]\\JÑSPÕYXÝ[ÛÓH^XÝ][ÛØ]Y]ÛÙÈÒTH\]Y\ÝÚYS
-ËÊHSXÝ[ÛS
-	ÔPQÓÓWÐPÐÓÕSÔÖSÉË	ÔPQÓÓWÑSÒSTÔ	ÊHÔTHYTÐÈSRUHB[
-	ÜÝ\YY\]Y\ÝYK\Þ[Ø	ÜÝ\YY\]Y\ÝYKY[Ø
-K\Ý
+const H = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" };
+const EXPECTED_AUDIENCE = "https://ai-stock-advisor.pages.dev";
 
-NÂY
-[ÜH]\\ÜÛÙJ\ÈÚ]XXÝ[ÛÈ[][\[XYH\ÜYY\ÙHXY[ÛHÛ\ÚÝÚZ[È\ÙHH]ÈÛÜÙÝÈ][\ÜH]KKÈÝYÙNY[\Ý[ÞH][Ý\ÔÝYÙN[ÜXÝ[ÛJNÂHØ]ÚÂ]\\ÜÛÙJÛÝ[Ý\YHØÚY[Y\[Y[\Ý[ÞNÈXY[ÛHÞ[È\ÈØÚÙYLÊNÂBÛÛÝXÝ]R[\ÈH[\È]ØZ]ØY[\Ê
-NÂÛÛÝÞ[ÈH]ØZ][ÚÙJXÝ]R[\ËÞ[ÐXØÛÝ[Þ[È[Ü\]ÜÚÙ[	ÜÝ\YY\]Y\ÝYK\Þ[Ø
-NÂY
-\Þ[ËÚÊH]\\ÜÛÙJXY[ÛHXØÛÝ[Û\ÚÝZ[YÈ]\ÝYÙ\ÈÙ\HÝ[LËÈÝYÙNÞ[È]Z[Þ[Ë\ÜJNÂÛÛÝ[ÈH]ØZ][ÚÙJXÝ]R[\Ë[\Ü[Ë[Ë\Þ[È[Ü\]ÜÚÙ[	ÜÝ\YY\]Y\ÝYKY[Ø
-NÂY
-Y[ËÚÊH]\\ÜÛÙJXY[ÛH[[\ÜZ[YÈXÛÛÚ[X][ÛØ\ÈÝÛZ[YYLËÈÝYÙN[Ë\Þ[È]Z[[Ë\ÜÛ\ÚÝØ\\Y]Þ[ËÙKØ\\Y][JNÂÛÛÝXÛÛÚ[X][ÛH]ØZ][ÚÙJXÝ]R[\ËXÛÛÚ[PXØÛÝ[XÛÛÚ[H[Ü\]ÜÚÙ[	ÜÝ\YY\]Y\ÝYK\XÛÛÚ[X
-NÂY
-\XÛÛÚ[X][ÛÚÈXÛÛÚ[X][ÛÙKXÛÛÚ[YOOHYHXÛÛÚ[X][ÛÙKÝ]\ÈOOHPÓÓÒSPUSÓÔTÔÑQÔPQÓÓHHÂ]\\ÜÛÙJXY[ÛHÚÙ\XÛÛÚ[X][ÛYÝ\ÜËKÈÝYÙNXÛÛÚ[H]Z[XÛÛÚ[X][Û\ÜPÓÓÒSPUSÓÓÕÔTÔÑQÛ\ÚÝØ\\Y]Þ[ËÙKØ\\Y][JNÂB]\\ÜÛÙKÛÛÂÚÎYK^XÝ][Û[ÙK[ÙN\\ÛÜÙÝÎÈ[YY[]K[Y[][\Y[]K[][\][[YNY[]K][[YHKÞ[ÎÂÞ[ÙYÞ[ËÙKÞ[ÙYOOHYKØ\\Y]Þ[ËÙKØ\\Y][ÜÚ][ÛÎÞ[ËÙKÛ\ÚÝËÜÚ][ÛÈÏÈ[K[ÎÂ[\ÜY[ËÙK[\ÜYOOHYKÚÙ\XÛÜÎ[ËÙKÚÙ\XÛÜÈÏÈ[]ÔXÛÜÎ[ËÙK]ÔXÛÜÈÏÈ[[XYRÛÝÛ[ËÙK[XYRÛÝÛÏÈ[YÙ\Î[ËÙKYÙ\ÈÏÈ[KXÛÛÚ[X][ÛÂXÛÛÚ[YYKÝ]\ÎXÛÛÚ[X][ÛÙKÝ]\ËÛÝ[ÎXÛÛÚ[X][ÛÙKÛÝ[È[ÚXÚÙY]XÛÛÚ[X][ÛÙKÚXÚÙY][KØ\[ÜÎÂÚ]XXÝ[ÛÈÒQÈ]]Ü^\ÈÛH\È^XÝXZ[X[ÚXY[ÛHÛÜÙÝËH[\[Ü\]ÜÚÙ[[XZ[ÈÙ\\\ÚYH[\È]\]\YÈÚÙ\Ü\Ø\ÈÝXZ]Y[Y[YØ[Ù[YÜ][YÈ^XÝ][ÛÛÛÛÈÙ\HÝÚ[ÙYBKÈXY\ÎJNÂB\Þ[È[Ý[ÛØY[\Ê
-HÂÛÛÝÜÞ[Ë[ËXÛÛÚ[WHH]ØZ]ÛZ\ÙK[
-Ú[\Ü
-ÜÞ[ËÈK[\Ü
-Ù[Ë\Þ[ËÈK[\Ü
-ÜXÛÛÚ[KÈWJNÂ]\ÈÞ[ÐXØÛÝ[Þ[ËÛ\]Y\ÝÜÝ[\Ü[Î[ËÛ\]Y\ÝÜÝXÛÛÚ[PXØÛÝ[XÛÛÚ[KÛ\]Y\ÝÜÝNÂB^Ü\Þ[È[Ý[ÛÛ\]Y\ÝÜÝ
-È\]Y\Ý[JHÂ]\[XYÛTÛ\ÚÝÚZ[È\]Y\Ý[JNÂB
+function response(error, status = 503, extra = {}) {
+  return Response.json({ ok: false, execution: false, error, ...extra }, { status, headers: H });
+}
+
+function makeInternalRequest(path, token, requestId) {
+  return new Request(`https://northstar.internal/api/paper/${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Request-ID": requestId,
+      Accept: "application/json"
+    }
+  });
+}
+
+async function invoke(handler, path, env, operatorToken, requestId) {
+  const result = await handler({ request: makeInternalRequest(path, operatorToken, requestId), env });
+  let body;
+  try { body = await result.json(); } catch { return { ok: false, error: "INVALID_HANDLER_RESPONSE" }; }
+  if (!result.ok || body?.ok !== true || body?.execution !== false) {
+    return { ok: false, error: String(body?.error || `${path.toUpperCase()}_FAILED`).slice(0, 240), status: result.status };
+  }
+  return { ok: true, body };
+}
+
+/** Exported for deterministic tests with injected verification and handlers. */
+export async function runReadOnlySnapshotChain({ request, env, verify = verifyGitHubActionsOidc, handlers = null }) {
+  if (request?.method !== "POST") return response("POST is required.", 405);
+  const authorization = request.headers.get("Authorization") || "";
+  if (!authorization.startsWith("Bearer ")) return response("A short-lived GitHub Actions OIDC token is required.", 401);
+  const token = authorization.slice(7);
+  const identity = await verify(token, { audience: EXPECTED_AUDIENCE });
+  if (!identity?.ok) return response("GitHub Actions workflow identity was not verified.", 401);
+
+  const operatorToken = env?.NORTHSTAR_OPERATOR_TOKEN;
+  if (typeof operatorToken !== "string" || operatorToken.length < 16) return response("Internal operator credential is unavailable; read-only sync is blocked.", 503);
+  const expectedRequestId = `northstar-equity-${identity.runId}-${identity.runAttempt}`;
+  const suppliedRequestId = request.headers.get("X-Request-ID") || expectedRequestId;
+  if (suppliedRequestId !== expectedRequestId || !/^[A-Za-z0-9._:-]{8,160}$/.test(suppliedRequestId)) return response("Request identifier does not match the verified GitHub Actions run.", 400);
+  const db = env?.NORTHSTAR_DB;
+  if (!db || typeof db.prepare !== "function") return response("Northstar D1 ledger is unavailable; read-only sync is blocked.", 503);
+  try {
+    const prior = await db.prepare("SELECT id,action FROM execution_audit_log WHERE request_id IN (?,?) AND action IN ('READ_ONLY_ACCOUNT_SYNC','READ_ONLY_FILL_IMPORT') ORDER BY id DESC LIMIT 1")
+      .bind(`${suppliedRequestId}-sync`, `${suppliedRequestId}-fills`).first();
+    if (prior) return response("This GitHub Actions run attempt already performed part of the read-only snapshot chain; use a new workflow attempt for a retry.", 409, { stage: "idempotency", previousStage: prior.action });
+  } catch {
+    return response("Could not verify scheduled-run idempotency; read-only sync is blocked.", 503);
+  }
+
+  const activeHandlers = handlers || await loadHandlers();
+  const sync = await invoke(activeHandlers.syncAccount, "sync", env, operatorToken, `${suppliedRequestId}-sync`);
+  if (!sync.ok) return response("Read-only account snapshot failed; later stages were not run.", 503, { stage: "sync", detail: sync.error });
+
+  const fills = await invoke(activeHandlers.importFills, "fills-sync", env, operatorToken, `${suppliedRequestId}-fills`);
+  if (!fills.ok) return response("Read-only fill import failed; reconciliation was not claimed.", 503, { stage: "fills-sync", detail: fills.error, snapshotCapturedAt: sync.body.capturedAt || null });
+
+  const reconciliation = await invoke(activeHandlers.reconcileAccount, "reconcile", env, operatorToken, `${suppliedRequestId}-reconcile`);
+  if (!reconciliation.ok || reconciliation.body.reconciled !== true || reconciliation.body.status !== "RECONCILIATION_PASSED_READ_ONLY") {
+    return response("Read-only broker reconciliation did not pass.", 409, { stage: "reconcile", detail: reconciliation.error || "RECONCILIATION_NOT_PASSED", snapshotCapturedAt: sync.body.capturedAt || null });
+  }
+
+  return Response.json({
+    ok: true,
+    execution: false,
+    mode: "paper",
+    workflow: { runId: identity.runId, runAttempt: identity.runAttempt, eventName: identity.eventName },
+    sync: {
+      synced: sync.body.synced === true,
+      capturedAt: sync.body.capturedAt || null,
+      positions: sync.body.snapshot?.positions ?? null
+    },
+    fills: {
+      imported: fills.body.imported === true,
+      brokerRecords: fills.body.brokerRecords ?? null,
+      newRecords: fills.body.newRecords ?? null,
+      alreadyKnown: fills.body.alreadyKnown ?? null,
+      pages: fills.body.pages ?? null
+    },
+    reconciliation: {
+      reconciled: true,
+      status: reconciliation.body.status,
+      counts: reconciliation.body.counts || null,
+      checkedAt: reconciliation.body.checkedAt || null
+    },
+    warnings: [
+      "GitHub Actions OIDC authorizes only this exact main-branch read-only workflow.",
+      "The internal operator token remains server-side and is never returned.",
+      "No broker order was submitted, amended, cancelled, or flattened; execution controls were not changed."
+    ]
+  }, { headers: H });
+}
+
+async function loadHandlers() {
+  const [sync, fills, reconcile] = await Promise.all([import("./sync.js"), import("./fills-sync.js"), import("./reconcile.js")]);
+  return { syncAccount: sync.onRequestPost, importFills: fills.onRequestPost, reconcileAccount: reconcile.onRequestPost };
+}
+
+export async function onRequestPost({ request, env }) {
+  return runReadOnlySnapshotChain({ request, env });
+}
