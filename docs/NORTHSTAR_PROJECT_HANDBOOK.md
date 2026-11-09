@@ -35,7 +35,7 @@ The documented Trading Lab design describes a curated 253-symbol US-equity unive
 
 ### Phase 2 — Nine-agent research council / Stock Brain
 
-**Status: NEARLY COMPLETE — implementation exists; final integration and acceptance evidence must be checked against the latest branch and production state.**
+**Status: IN PROGRESS — backend orchestration exists; the nine-role status matrix and Trading Lab dashboard integration are being completed on `northstar/stock-brain-milestone-final`.**
 
 The source currently defines nine logical roles:
 
@@ -61,6 +61,15 @@ Existing implementation includes:
 - Evaluation scorecards for evidence-ID integrity, claim citation coverage, invalid references, resource status and available runtime telemetry.
 - Runtime latency and provider/model telemetry; token usage is recorded only when the provider reports it. Cost remains null until pricing is verified.
 - Research collection integration that persists the scorecard with the durable research run.
+
+
+
+**2026-11-10 milestone work in progress:**
+- The orchestrator returns a stable nine-role matrix on every run. Downstream roles that cannot run because an upstream stage failed are explicitly marked `BLOCKED`, rather than silently omitted.
+- The Trading Lab includes a Stock Brain workspace that calls the authenticated server-side `/api/research/collect` endpoint with only a ticker and unique request ID. The operator token is prompted for each run and is not saved in browser storage.
+- The dashboard renders each role's status/reason, source-linked finding IDs, risk statements, deterministic vetoes, evidence counts and durable-trace confirmation. Specialist text is rendered through `textContent`.
+- The collector and direct council endpoint persist `traceDurable=true` inside the stored result only when a durable write is confirmed.
+- New tests cover stable nine-role reporting, skipped-stage statuses, durable stored result metadata and dashboard integration. Exact-head CI and preview verification are still pending.
 
 **Important limitations:** these scorecards measure contract and evidence-reference quality, not factual truth, semantic support, reasoning quality, predictive accuracy or investment performance. The council's accepted output is only eligible for separate deterministic validation and human review. It is never an order.
 
@@ -103,15 +112,15 @@ These are the latest facts visible in the documentation/API audit for this hando
 - The production snapshot described in the blocker log is broker account equity, not the separate $1,000 Northstar virtual strategy allocation.
 - Production paper controls were documented as execution disabled, paper mode, kill switch engaged, with $1,000 virtual allocation, 0.5% default risk, 1% maximum per-trade risk and 25% maximum position notional.
 - The latest blocker evidence says strategy approval is false and paper execution is not enabled.
-- The README says the repository must remain private. However, the GitHub API metadata returned by the connected integration on 2026-11-10 reported `private=false / visibility=public`. This conflicts with the user's statement that the repository is private. **Do not change repository visibility based on this discrepancy. Reconfirm directly in GitHub repository Settings before any sensitive sharing or assumption about privacy.**
+- The owner confirmed on 2026-11-10 that the repository is intentionally public. GitHub API metadata also reports `private=false / visibility=public`. README and this handbook record the public status. Do not change visibility unless the owner explicitly requests it.
 
 ## 4. What to build next — ordered work queue
 
 Work from the first incomplete item. Do not skip ahead to trading automation.
 
-### NEXT 1 — Finish the nine-agent Stock Brain milestone
+### NEXT 1 — Finish and verify the nine-agent Stock Brain milestone
 
-1. Inspect the latest main and open PR heads; identify which agent/council changes are already merged versus only proposed.
+1. Finish CI on `northstar/stock-brain-milestone-final`; fix any failures, then open a PR against current `main` and verify the preview for the exact head.
 2. Confirm all nine roles are wired to the real research-collection path and that every unavailable role correctly blocks council completion.
 3. Verify that evidence IDs, as-of timestamps, source coverage, role resource packs, scorecards and runtime telemetry survive the full request path.
 4. Confirm the dashboard displays the council result, each role's status, missing resources, citations, risk veto reasons and evaluation limitations clearly.
@@ -216,7 +225,7 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - The handbook/documentation branch preview was skipped by the Pages path filter because its changes are documentation-only; no production deployment was attempted.
 - PR #102 (this handbook and continuity update) has successful Tests, Validate AI Stock Advisor, and full-history secret-scan workflows at head `18d68c9b85e0f3fe44b82fdf9d122cc1d1e08dbd`. It remains draft pending final documentation review.
 - The main branch API response reports `protected=false` and no required status checks. Do not treat green CI as branch governance.
-- Repository visibility discrepancy remains unresolved: the GitHub REST metadata returned `private=false / visibility=public`, while the user states the repository is private. No visibility setting was changed. Confirm in GitHub Settings; do not infer privacy from README text.
+- Repository visibility is intentionally public, confirmed by the owner on 2026-11-10 and consistent with GitHub REST metadata (`private=false / visibility=public`).
 
 ### Scanner and market-monitor status
 - Scanner phase: user-confirmed COMPLETE and tested. Do not restart scanner implementation absent a concrete regression.
@@ -228,7 +237,7 @@ This section supersedes older runtime counts above where they conflict. Evidence
 ### Nine-agent Research Council / Stock Brain
 - User-confirmed phase: nearly complete. The nine logical roles are already implemented in source; preserve this phase as active rather than reopening the scanner.
 - Main contains the server-side collector `POST /api/research/collect`, the specialist council endpoint, fact/evidence adapters, and append-only `research_council_runs` storage.
-- The public research page currently calls the older supplemental `/api/ai-research` path; no call to `/api/research/collect` or `/api/research/council` was found in the dashboard scripts. The nine-agent council is therefore not yet proven end-to-end from the user dashboard.
+- Historical audit found no Stock Brain dashboard call to `/api/research/collect`; this gap is now being addressed by the dedicated Trading Lab workspace on the milestone branch.
 - Production D1 `research_council_runs`: 0 rows. `research_decision_traces`: 0 rows. This confirms no production council run/decision trace has yet been recorded.
 - The collector is operator-authenticated and requires model credentials, Alpaca Paper read-only credentials, the disabled/kill-switched control row, reconciled empty positions/open orders, a fresh equity snapshot, and a seven-day equity baseline. Do not put `NORTHSTAR_OPERATOR_TOKEN` in browser JavaScript.
 - Current production paper equity history has one snapshot only: `2026-11-08T18:34:38.720Z`. It is neither a fresh 15-minute snapshot nor a seven-day series. The server-side collector therefore cannot currently pass its portfolio gate.
