@@ -154,3 +154,81 @@ test("terminal partial-fill recovery refuses an incomplete nested OTO response",
  assert.match((await response.json()).error,/nested OTO child list/i);
  assert.equal(calls.some(x=>x.method==="DELETE"||x.method==="POST"),false);
 });
+
+
+test("final recovery recheck sizes the standalone stop from the latest broker fill and position snapshot",async()=>{
+ const db=makeDb();
+ let parentReads=0,positionReads=0,quoteReads=0,posted=null;
+ const {response}=await run({db,fetchOverride:async(url,options={})=>{
+  const u=String(url);
+  if(u.includes("/v2/orders/parent-broker?nested=true")){
+   parentReads++;
+   return Response.json(parent({filled_qty:parentReads===1?"2":"3"}));
+  }
+  if(u.endsWith("/v2/positions")){
+   positionReads++;
+   return Response.json([{symbol:"AAPL",qty:positionReads===1?"2":"3",side:"long"}]);
+  }
+  if(u.includes("/v2/stocks/AAPL/quotes/latest")){
+   quoteReads++;
+   return Response.json({quote:{bp:"99",ap:"99.1",t:new Date().toISOString()}});
+  }
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){
+   posted=JSON.parse(options.body);
+   return Response.json({id:"recovery-broker",client_order_id:posted.client_order_id,symbol:posted.symbol,side:posted.side,qty:posted.qty,type:posted.type,time_in_force:posted.time_in_force,stop_price:posted.stop_price,status:"new",filled_qty:"0",leaves_qty:posted.qty});
+  }
+  throw new Error("unexpected broker request "+u);
+ }});
+ assert.equal(response.status,201);
+ assert.equal(parentReads,2);
+ assert.equal(positionReads,3);
+ assert.equal(quoteReads,2);
+ assert.equal(posted.qty,"3");
+});
+
+test("final recovery recheck blocks a changed broker position before any standalone stop POST",async()=>{
+ const db=makeDb();
+ let positionReads=0,posts=0;
+ const {response}=await run({db,fetchOverride:async(url,options={})=>{
+  const u=String(url);
+  if(u.includes("/v2/orders/parent-broker?nested=true"))return Response.json(parent());
+  if(u.endsWith("/v2/positions")){
+   positionReads++;
+   return Response.json([{symbol:"AAPL",qty:positionReads===1?"2":"3",side:"long"}]);
+  }
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:"99",ap:"99.1",t:new Date().toISOString()}});
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){posts++;throw new Error("must not submit");}
+  throw new Error("unexpected broker request "+u);
+ }});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.reason,"BROKER_POSITION_DOES_NOT_MATCH_ENTRY_MINUS_STOP_FILLS");
+ assert.equal(posts,0);
+ assert.equal(positionReads,2);
+});
+
+test("recovery rechecks that PAPER execution remains disabled and kill switch engaged before stop submission",async()=>{
+ const db=makeDb();
+ const originalPrepare=db.prepare.bind(db);
+ let controlReads=0,posts=0;
+ db.prepare=sql=>{
+  if(sql.includes("execution_control"))return {async first(){
+   controlReads++;
+   return controlReads===1?{enabled:0,mode:"paper",kill_switch:1}:{enabled:1,mode:"paper",kill_switch:0};
+  }};
+  return originalPrepare(sql);
+ };
+ const {response}=await run({db,fetchOverride:async(url,options={})=>{
+  const u=String(url);
+  if(u.includes("/v2/orders/parent-broker?nested=true"))return Response.json(parent());
+  if(u.endsWith("/v2/positions"))return Response.json([{symbol:"AAPL",qty:"2",side:"long"}]);
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:"99",ap:"99.1",t:new Date().toISOString()}});
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){posts++;throw new Error("must not submit");}
+  throw new Error("unexpected broker request "+u);
+ }});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.reason,"RECOVERY_REQUIRES_DISABLED_PAPER_EXECUTION_AND_ENGAGED_KILL_SWITCH");
+ assert.equal(controlReads,2);
+ assert.equal(posts,0);
+});
