@@ -236,3 +236,7 @@ def test_github_oidc_snapshot_claim_is_unique_per_workflow_attempt():
     except sqlite3.IntegrityError:
         pass
     db.close()
+
+def test_migration_prefixes_are_unique_and_contiguous():
+    prefixes = [path.name[:4] for path in sorted(MIGRATIONS.glob("*.sql"))]
+    assert prefixes == [f"{number:04d}" for number in range(1, len(prefixes) + 1)]
