@@ -167,9 +167,9 @@ export async function onRequestPost({request,env}){
  // The first broker snapshot precedes the quote request. Re-read the parent,
  // nested stop child, and exact position after the quote and immediately before
  // the durable recovery-order claim. Never submit a stop sized from stale fills.
- let finalParent,finalPositions,finalQuote;
+ let finalParent,boundaryPositions,finalQuote;
  try{
-  [finalParent,finalPositions,finalQuote]=await Promise.all([
+  [finalParent,boundaryPositions,finalQuote]=await Promise.all([
    broker("/v2/orders/"+encodeURIComponent(parentRow.broker_order_id)+"?nested=true",key,secret),
    broker("/v2/positions",key,secret),
    broker("/v2/stocks/"+encodeURIComponent(symbol)+"/quotes/latest?feed=iex",key,secret)
@@ -179,11 +179,11 @@ export async function onRequestPost({request,env}){
   String(finalParent?.client_order_id||"")===parentId&&String(finalParent?.order_class||"").toLowerCase()==="oto"&&
   String(finalParent?.symbol||"").toUpperCase()===symbol&&String(finalParent?.side||"").toLowerCase()==="buy"&&
   close(num(finalParent?.qty),Number(parentRow.qty));
- const finalPosition=positionFor(finalPositions,symbol);
+ const boundaryPosition=positionFor(boundaryPositions,symbol);
  const finalChildResult=childStop(finalParent);
- if(!finalParentMatches||!finalPosition.ok||finalChildResult.ambiguous)return fail("Broker parent/child identity or position changed during recovery; no standalone stop was submitted.",409,{reason:!finalParentMatches?"PARENT_CHANGED_BEFORE_RECOVERY_POST":finalPosition.reason||"AMBIGUOUS_STOP_CHILD"});
+ if(!finalParentMatches||!boundaryPosition.ok||finalChildResult.ambiguous)return fail("Broker parent/child identity or position changed during recovery; no standalone stop was submitted.",409,{reason:!finalParentMatches?"PARENT_CHANGED_BEFORE_RECOVERY_POST":boundaryPosition.reason||"AMBIGUOUS_STOP_CHILD"});
  const finalDecision=evaluatePartialFillRecovery({
-  parent:finalParent,stopChild:finalChildResult.child,brokerPosition:finalPosition.position,
+  parent:finalParent,stopChild:finalChildResult.child,brokerPosition:boundaryPosition.position,
   stopPrice:parentRow.stop_price,quote:{bid:finalQuote?.quote?.bp,timestamp:finalQuote?.quote?.t}
  });
  if(finalDecision.action==="COMPLETED_NO_EXPOSURE")return Response.json({ok:true,recovered:true,execution:false,status:"COMPLETED_NO_EXPOSURE",message:"The final broker recheck confirms zero exposure; no stop was needed."},{headers:H});
@@ -229,15 +229,15 @@ export async function onRequestPost({request,env}){
   try{await markUnknown(db,{parentId,recoveryId:clientId,reason:"RECOVERY_STOP_BROKER_RESPONSE_MISMATCH",details:{brokerOrderId:submitted?.id||null,status:submitted?.status||null}});}catch{}
   return fail("Broker recovery-stop response did not match the exact sell-only GTC request. Treat as UNKNOWN; no retry is permitted.",503,{status:"UNKNOWN",recoveryOrderId:clientId});
  }
- let finalPositions;
- try{finalPositions=await broker("/v2/positions",key,secret);}catch{return fail("Recovery stop was submitted but final position coverage could not be verified; reconcile immediately.",503,{recoveryOrderId:clientId,brokerOrderId:submitted.id,status:brokerStatus});}
- const finalPosition=positionFor(finalPositions,symbol);
+ let boundaryPositions;
+ try{boundaryPositions=await broker("/v2/positions",key,secret);}catch{return fail("Recovery stop was submitted but final position coverage could not be verified; reconcile immediately.",503,{recoveryOrderId:clientId,brokerOrderId:submitted.id,status:brokerStatus});}
+ const boundaryPosition=positionFor(boundaryPositions,symbol);
  const leaves=num(submitted.leaves_qty)??(brokerQty-brokerFilled);
  const active=["ACCEPTED","PARTIALLY_FILLED"].includes(brokerStatus);
  const protectedNow=active&&finalPosition.ok&&finalPosition.position?.side==="long"&&close(finalPosition.position.qty,leaves);
  const noExposure=brokerStatus==="FILLED"&&finalPosition.ok&&(!finalPosition.position||finalPosition.position.qty===0);
  if(!protectedNow&&!noExposure){
-  try{await markUnknown(db,{parentId,recoveryId:clientId,reason:"RECOVERY_STOP_POSITION_COVERAGE_NOT_VERIFIED",details:{brokerStatus,leaves,position:finalPosition.position||null,positionError:finalPosition.reason||null}});}catch{}
+  try{await markUnknown(db,{parentId,recoveryId:clientId,reason:"RECOVERY_STOP_POSITION_COVERAGE_NOT_VERIFIED",details:{brokerStatus,leaves,position:finalPosition.position||null,positionError:boundaryPosition.reason||null}});}catch{}
   return fail("Recovery stop exists but exact remaining-position coverage could not be verified. The ledger is UNKNOWN; manual recovery is required.",503,{status:"UNKNOWN",recoveryOrderId:clientId,brokerOrderId:submitted.id});
  }
  const storedStatus=brokerStatus;
