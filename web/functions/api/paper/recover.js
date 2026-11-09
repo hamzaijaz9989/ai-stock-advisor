@@ -81,7 +81,7 @@ async function verifyExistingRecovery(db,key,secret,parent,existing){
  const now=new Date().toISOString();
  await db.batch([
   db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=?").bind(found.id,status,safeJson(found),now,existing.id),
-  db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,event_source,details_json) VALUES(?,?,?,?,?)").bind(parent.id,"PAPER_RECOVERY_STOP_REVERIFIED",now,"alpaca_paper",safeJson({recoveryOrderId:existing.id,status,position:pos.position,execution:false}))
+  db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(parent.id,"PAPER_RECOVERY_STOP_REVERIFIED",now,"alpaca_paper",safeJson({recoveryOrderId:existing.id,status,position:pos.position,execution:false}))
  ]);
  return Response.json({ok:true,recovered:true,execution:false,status:noExposure?"COMPLETED_NO_EXPOSURE":"PROTECTED_BY_STANDALONE_GTC_STOP",recoveryOrderId:existing.id,brokerOrderId:found.id,position:pos.position,protectiveStopVerified:!noExposure,message:"Existing recovery order was queried and reconciled; no second order was submitted."},{headers:H});
 }
