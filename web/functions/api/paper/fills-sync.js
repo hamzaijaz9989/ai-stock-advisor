@@ -1,5 +1,6 @@
 // Authenticated, read-only import of Alpaca Paper fill activities into an idempotent D1 ledger.
 import {verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
+import {derivePaperPositionLedger} from "../../../lib/paper-position-ledger.js";
 // Does not submit, amend, or cancel broker orders.
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail=(error,status=400)=>Response.json({ok:false,imported:false,execution:false,error},{status,headers:H});
@@ -44,7 +45,78 @@ export async function onRequestPost({request,env}){
  catch{return fail("Could not read existing Northstar orders; fill/order lifecycle sync blocked.",503);}
  const ledgerRows=Array.isArray(ledgerOrders?.results)?ledgerOrders.results:[];
  const byBrokerId=new Map(brokerOrders.map(o=>[String(o?.id||""),o]).filter(([id])=>!!id));
+ const trackedOrderByBrokerId=new Map();
+ for(const row of ledgerRows){
+  const parentId=String(row.broker_order_id||"");
+  if(!parentId)continue;
+  trackedOrderByBrokerId.set(parentId,{row,kind:"entry"});
+  let storedResponse={};
+  try{storedResponse=JSON.parse(row.response_json||"{}");}catch{}
+  const parent=byBrokerId.get(parentId)||storedResponse.brokerResponse||storedResponse;
+  for(const leg of Array.isArray(parent?.legs)?parent.legs:[]){
+   const legId=String(leg?.id||"");
+   const role=String(leg?.order_group_role||leg?.group_role||leg?.role||"").toLowerCase();
+   const type=String(leg?.type||leg?.order_type||"").toLowerCase();
+   if(legId&&String(leg?.side||"").toLowerCase()==="sell"&&(role==="stop_loss"||type==="stop"||type==="stop_limit")){
+    trackedOrderByBrokerId.set(legId,{row,kind:"stop_loss"});
+   }
+  }
+ }
+ let existingTrackedFills;
+ try{
+  const tracked=await db.prepare("SELECT activity_id,order_id,broker_order_id,symbol,side,qty,price,transaction_time,raw_json FROM northstar_fill_ledger ORDER BY transaction_time,activity_id LIMIT 5001").all();
+  existingTrackedFills=Array.isArray(tracked?.results)?tracked.results:[];
+  if(existingTrackedFills.length>5000)return fail("Northstar fill-derived ledger exceeds the 5,000-row safe rebuild limit; no ledger changes were written.",503);
+ }catch{return fail("Fill-derived position ledger migration 0006 is unavailable or unreadable; no fill sync was written.",503);}
  const lifecycle=[],skippedLifecycle=[],unsafeExposure=[];
+ const trackedFillCandidates=[];
+ let positionLedgerError=null;
+ for(const activity of clean){
+  const match=trackedOrderByBrokerId.get(activity.order);
+  if(!match)continue;
+  const expectedSide=match.kind==="entry"?"buy":"sell";
+  if(activity.symbol!==String(match.row.symbol||"").toUpperCase()||activity.side!==expectedSide){
+   positionLedgerError={reason:"TRACKED_FILL_SYMBOL_OR_SIDE_MISMATCH",activityId:activity.id,orderId:match.row.id};
+   skippedLifecycle.push({orderId:match.row.id,activityId:activity.id,reason:positionLedgerError.reason});
+   break;
+  }
+  trackedFillCandidates.push({
+   activity_id:activity.id,order_id:match.row.id,broker_order_id:activity.order,
+   symbol:activity.symbol,side:activity.side,qty:activity.qty,price:activity.price,
+   transaction_time:activity.time,raw_json:activity.raw
+  });
+ }
+ const existingByActivity=new Map(existingTrackedFills.map(row=>[String(row.activity_id),row]));
+ const mergedByActivity=new Map(existingByActivity);
+ const newTrackedFills=[];
+ if(!positionLedgerError){
+  for(const fill of trackedFillCandidates){
+   const prior=existingByActivity.get(fill.activity_id);
+   if(prior){
+    const same=String(prior.order_id)===fill.order_id&&String(prior.broker_order_id)===fill.broker_order_id&&
+     String(prior.symbol).toUpperCase()===fill.symbol&&String(prior.side).toLowerCase()===fill.side&&
+     Math.abs(Number(prior.qty)-fill.qty)<=0.0000001&&Math.abs(Number(prior.price)-fill.price)<=0.0000001&&
+     String(prior.transaction_time)===fill.transaction_time;
+    if(!same){positionLedgerError={reason:"TRACKED_FILL_ACTIVITY_CONFLICT",activityId:fill.activity_id,orderId:fill.order_id};break;}
+   }else{
+    mergedByActivity.set(fill.activity_id,fill);
+    newTrackedFills.push(fill);
+   }
+  }
+ }
+ let positionLedger={ok:!positionLedgerError,positions:[],lots:[],realized:[],fillsProcessed:mergedByActivity.size};
+ if(!positionLedgerError&&mergedByActivity.size){
+  positionLedger=derivePaperPositionLedger([...mergedByActivity.values()]);
+  if(!positionLedger.ok)positionLedgerError={...positionLedger,reason:positionLedger.reason};
+ }
+ if(positionLedgerError){
+  const affected=ledgerRows.find(row=>String(row.id)===String(positionLedgerError.orderId))||null;
+  if(affected){
+   const existingUnsafe=unsafeExposure.find(item=>item.id===affected.id);
+   if(existingUnsafe){existingUnsafe.exposurePresent=true;existingUnsafe.additionalReason=positionLedgerError.reason;}
+   else unsafeExposure.push({id:affected.id,brokerOrderId:String(affected.broker_order_id||""),reason:positionLedgerError.reason,filledQty:null,exposurePresent:true,brokerStatus:String(byBrokerId.get(String(affected.broker_order_id||""))?.status||"UNKNOWN"),response:byBrokerId.get(String(affected.broker_order_id||""))||{}});
+  }
+ }
  const nextStatus=s=>({new:"ACCEPTED",accepted:"ACCEPTED",pending_new:"ACCEPTED",accepted_for_bidding:"ACCEPTED",partially_filled:"PARTIALLY_FILLED",filled:"FILLED",canceled:"CANCELED",rejected:"REJECTED"}[String(s||"").toLowerCase()]||null);
  const stored=row=>{try{const x=JSON.parse(row.response_json||"{}");return {qty:num(x.filled_qty),avg:num(x.filled_avg_price)};}catch{return {qty:null,avg:null};}};
  const allowed={SUBMITTING:["ACCEPTED","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"],ACCEPTED:["PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"],PARTIALLY_FILLED:["PARTIALLY_FILLED","FILLED","CANCELED","UNKNOWN"],UNKNOWN:["ACCEPTED","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"]};
@@ -99,12 +171,26 @@ export async function onRequestPost({request,env}){
  }
  try{
   const statements=clean.map(a=>db.prepare("INSERT INTO broker_fill_activities(activity_id,broker_order_id,symbol,side,qty,price,cum_qty,leaves_qty,order_status,transaction_time,raw_json) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(activity_id) DO NOTHING").bind(a.id,a.order,a.symbol,a.side,a.qty,a.price,a.cum,a.leaves,a.status,a.time,a.raw));
+  for(const fill of newTrackedFills){
+   statements.push(db.prepare("INSERT INTO northstar_fill_ledger(activity_id,order_id,broker_order_id,symbol,side,qty,price,transaction_time,raw_json) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(activity_id) DO NOTHING").bind(fill.activity_id,fill.order_id,fill.broker_order_id,fill.symbol,fill.side,fill.qty,fill.price,fill.transaction_time,fill.raw_json));
+  }
+  if(positionLedger.ok&&mergedByActivity.size){
+   statements.push(db.prepare("DELETE FROM paper_realized_trades"));
+   statements.push(db.prepare("DELETE FROM paper_position_lots"));
+   for(const lot of positionLedger.lots){
+    statements.push(db.prepare("INSERT INTO paper_position_lots(lot_id,source_activity_id,order_id,symbol,opened_at,entry_price,original_qty,open_qty) VALUES(?,?,?,?,?,?,?,?)").bind(lot.lotId,lot.sourceActivityId,lot.orderId,lot.symbol,lot.openedAt,lot.entryPrice,lot.originalQty,lot.openQty));
+   }
+   for(const trade of positionLedger.realized){
+    statements.push(db.prepare("INSERT INTO paper_realized_trades(close_activity_id,open_activity_id,open_order_id,close_order_id,symbol,qty,entry_price,exit_price,realized_pl_usd,closed_at) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(trade.closeActivityId,trade.openActivityId,trade.openOrderId,trade.closeOrderId,trade.symbol,trade.qty,trade.entryPrice,trade.exitPrice,trade.realizedPl,trade.closedAt));
+   }
+  }
   for(const item of lifecycle){
    const eventAt=new Date().toISOString();
    statements.push(db.prepare("UPDATE paper_orders SET status=?,response_json=?,updated_at=? WHERE id=?").bind(item.status,item.response,eventAt,item.id));
    statements.push(db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(item.id,item.eventType,eventAt,"alpaca_paper_fill_sync",JSON.stringify({brokerOrderId:item.brokerOrderId,previousStatus:item.previousStatus,status:item.status,previousFilledQty:item.previousFilled,filledQty:item.filled,averageFillPrice:item.avg,execution:false})));
   }
   const checkedAt=new Date().toISOString();
+  if(statements.length+unsafeExposure.length*2+lifecycle.length*2+2>900)return fail("Fill import and position-ledger rebuild exceed the safe D1 batch limit; no changes were written.",503);
   for(const item of unsafeExposure){
    statements.push(db.prepare("UPDATE paper_orders SET status='UNKNOWN',response_json=?,updated_at=? WHERE id=?").bind(JSON.stringify({brokerResponse:item.response,safetyReason:item.reason,requiresManualRecovery:true}),checkedAt,item.id));
    statements.push(db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(item.id,"UNVERIFIED_ORDER_STATE_REQUIRES_MANUAL_RECOVERY",checkedAt,"alpaca_paper_fill_sync",JSON.stringify({brokerOrderId:item.brokerOrderId,reason:item.reason,filledQty:item.filledQty,exposurePresent:item.exposurePresent,brokerStatus:item.brokerStatus,execution:false,killSwitchEngaged:true})));
@@ -117,6 +203,6 @@ export async function onRequestPost({request,env}){
   const result=await db.batch(statements);
   const inserted=result.slice(0,clean.length).reduce((s,x)=>s+(Number(x?.meta?.changes)||0),0);
   const requiresManualRecovery=unsafeExposure.length>0;
-  return Response.json({ok:!requiresManualRecovery,imported:true,execution:false,safeToContinue:!requiresManualRecovery,requiresManualRecovery,status:requiresManualRecovery?"MANUAL_RECOVERY_REQUIRED":"FILL_IMPORT_AND_ORDER_SYNC_PASSED_READ_ONLY",unsafeExposureCount:unsafeExposure.filter(x=>x.exposurePresent).length,unsafeOrderCount:unsafeExposure.length,unsafeExposure:unsafeExposure.map(({id,brokerOrderId,reason,filledQty,exposurePresent,brokerStatus})=>({orderId:id,brokerOrderId,reason,filledQty,exposurePresent,brokerStatus})),brokerRecords:clean.length,newRecords:inserted,alreadyKnown:clean.length-inserted,orderRowsUpdated:lifecycle.length,lifecycleEvents:lifecycle.length,skippedLifecycleCount:skippedLifecycle.length,skippedLifecycle,pages,checkedAt:new Date().toISOString(),warnings:["Imported broker fill activities idempotently and refreshed matching Northstar order lifecycle snapshots from Alpaca Paper.","Only existing Northstar ledger orders with matching broker_order_id are updated; external broker orders are not fabricated into the Northstar ledger.","Position rows remain a separate authoritative read-only account sync.","Order lifecycle rows are not advanced unless the nested OTO protective stop leg is verified.","Any missing or unverified tracked order lifecycle/protection state is marked UNKNOWN and engages the paper kill switch, including an open zero-fill entry that could fill later. This does not itself cancel, protect, or flatten broker exposure.","No broker orders were submitted, modified, or cancelled.","Realized P&L remains gross FIFO and excludes fees, dividends, transfers, taxes and corporate actions unless separately modeled.","When all tracked order states are verified, this endpoint never changes execution-control settings; when any tracked order lifecycle/protection state is unverified, it only disables execution and engages the kill switch.","This endpoint never submits, modifies, or cancels broker orders."]},{status:requiresManualRecovery?409:200,headers:H});
+  return Response.json({ok:!requiresManualRecovery,imported:true,execution:false,safeToContinue:!requiresManualRecovery,requiresManualRecovery,status:requiresManualRecovery?"MANUAL_RECOVERY_REQUIRED":"FILL_IMPORT_AND_ORDER_SYNC_PASSED_READ_ONLY",unsafeExposureCount:unsafeExposure.filter(x=>x.exposurePresent).length,unsafeOrderCount:unsafeExposure.length,unsafeExposure:unsafeExposure.map(({id,brokerOrderId,reason,filledQty,exposurePresent,brokerStatus})=>({orderId:id,brokerOrderId,reason,filledQty,exposurePresent,brokerStatus})),positionLedger:{complete:positionLedger.ok&&!positionLedgerError,trackedFillCount:mergedByActivity.size,newTrackedFills:newTrackedFills.length,openLotCount:positionLedger.lots?.length||0,realizedMatchCount:positionLedger.realized?.length||0,positions:positionLedger.positions||[],grossRealizedPlUsd:positionLedger.grossRealizedPlUsd??null,error:positionLedgerError||null},brokerRecords:clean.length,newRecords:inserted,alreadyKnown:clean.length-inserted,orderRowsUpdated:lifecycle.length,lifecycleEvents:lifecycle.length,skippedLifecycleCount:skippedLifecycle.length,skippedLifecycle,pages,checkedAt:new Date().toISOString(),warnings:["Imported broker fill activities idempotently and refreshed matching Northstar order lifecycle snapshots from Alpaca Paper.","Only existing Northstar ledger orders with matching broker_order_id are updated; external broker orders are not fabricated into the Northstar ledger.","paper_positions remains a broker snapshot mirror; paper_position_lots and paper_realized_trades are rebuilt from idempotent Northstar-tracked fill activities only.","FIFO position derivation is long-only and fails closed if a sell exceeds tracked open shares or a fill conflicts with its immutable activity record.","Gross realized P&L excludes fees, dividends, transfers, taxes and corporate actions unless separately modeled.","Order lifecycle rows are not advanced unless the nested OTO protective stop leg is verified.","Any missing or unverified tracked order lifecycle/protection state is marked UNKNOWN and engages the paper kill switch, including an open zero-fill entry that could fill later. This does not itself cancel, protect, or flatten broker exposure.","No broker orders were submitted, modified, or cancelled.","Realized P&L remains gross FIFO and excludes fees, dividends, transfers, taxes and corporate actions unless separately modeled.","When all tracked order states are verified, this endpoint never changes execution-control settings; when any tracked order lifecycle/protection state is unverified, it only disables execution and engages the kill switch.","This endpoint never submits, modifies, or cancels broker orders."]},{status:requiresManualRecovery?409:200,headers:H});
  }catch{return fail("D1 fill/order lifecycle sync failed. No successful sync is claimed; verify schema and database before retrying.",503);}
 }
