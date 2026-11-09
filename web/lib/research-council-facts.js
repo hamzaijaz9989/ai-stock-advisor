@@ -27,6 +27,57 @@ function validatePortfolio(portfolio, asOfMs) {
   return {...values, asOf: new Date(capturedAt).toISOString(), source: portfolio.source, verified: true};
 }
 
+
+function buildResourceCoverage(facts, evidence, portfolio, asOf) {
+  const byType = type => facts.filter(item => item.type === type);
+  const evidenceByType = type => evidence.filter(item => item.type === type);
+  const history = byType("DAILY_OHLCV_HISTORY");
+  const quote = byType("QUOTE");
+  const sec = byType("SEC_REPORTED_FACT");
+  const fmp = byType("FMP_REPORTED_FUNDAMENTALS_CROSSCHECK").concat(byType("FMP_STATEMENT_PERIOD"));
+  const news = evidenceByType("NEWS_DISCOVERY");
+  const earnings = evidence.filter(item => item.type.startsWith("EARNINGS_"));
+  const historyCount = history.reduce((n,item) => n + Number(item.value?.observationCount || 0), 0);
+  const exactAvailability = sec.some(item => item.value?.availabilityTimestampVerified === true);
+  const quoteFresh = quote.some(item => item.value?.timestampStatus === "PRESENT" &&
+    Date.parse(item.observedAt || "") <= Date.parse(asOf));
+  const entry = (status, ids, gaps) => ({status, factIds:ids, gaps});
+  return {
+    generatedBy:"northstar-canonical-fact-adapter",
+    asOf,
+    roles:{
+      market_scanner:entry(quoteFresh && historyCount >= 60 ? "PARTIAL" : "INSUFFICIENT",
+        [...quote,...history].map(x=>x.id),
+        [...(!quoteFresh?["No verified timestamped quote at or before as-of time."]:[]),
+          ...(historyCount < 60?["At least 60 valid daily bars are not present."]:[]),
+          "Broad market-universe, breadth and cross-sectional liquidity coverage are not supplied."]),
+      technical_analyst:entry(historyCount >= 60 ? "PARTIAL" : "INSUFFICIENT",history.map(x=>x.id),
+        [...(historyCount < 60?["Fewer than 60 valid daily OHLCV observations."]:[]),
+          "Adjusted-price and corporate-action continuity are not independently attested.",
+          "Trusted precomputed technical indicators are not supplied."]),
+      fundamental_analyst:entry(sec.length && fmp.length ? "PARTIAL" : "INSUFFICIENT",
+        [...sec,...fmp].map(x=>x.id),
+        [...(!sec.length?["SEC company-facts observations are missing."]:[]),
+          ...(!fmp.length?["FMP reported-fundamental cross-checks are missing."]:[]),
+          ...(!exactAvailability?["Exact public-availability timestamps for SEC facts are not verified."]:[])]),
+      news_analyst:entry(news.length || earnings.length ? "PARTIAL" : "INSUFFICIENT",
+        [...news,...earnings].map(x=>x.id),
+        ["News items are discovery evidence; original-source corroboration is not established by collection.",
+          "Issuer/regulator source verification is not consistently recorded."]),
+      sentiment_analyst:entry("MISSING",[],
+        ["No dedicated timestamped sentiment or positioning feed is connected.",
+          "Retail, institutional, short-interest, options-flow and analyst-revision populations are unavailable."]),
+      bull_researcher:entry("DEPENDENT",facts.map(x=>x.id).concat(evidence.map(x=>x.id)),
+        ["Upside case is bounded by the upstream evidence gaps; no independent external retrieval is available."]),
+      bear_researcher:entry("DEPENDENT",facts.map(x=>x.id).concat(evidence.map(x=>x.id)),
+        ["Downside case is bounded by the upstream evidence gaps; no independent external retrieval is available."]),
+      portfolio_analyst:entry(portfolio?.verified === true ? "PARTIAL" : "INSUFFICIENT",[],
+        ["Sector classification and portfolio-wide correlation matrix are not supplied.",
+          "Portfolio fit must remain limited where exposure or risk inputs are unavailable."])
+    }
+  };
+}
+
 export function buildResearchCouncilContext(input) {
   const ticker = String(input?.ticker || "").trim().toUpperCase();
   if (!TICKER_RE.test(ticker)) throw new TypeError("A valid US equity ticker is required.");
@@ -138,5 +189,5 @@ export function buildResearchCouncilContext(input) {
 
   const portfolio = validatePortfolio(input.portfolio, asOfMs);
   if (facts.length + evidence.length > 500) throw new TypeError("Research Council context exceeds 500 canonical facts and evidence items.");
-  return {ticker,asOf,facts,evidence,portfolio};
+  return {ticker,asOf,facts,evidence,portfolio,resourceCoverage:buildResourceCoverage(facts,evidence,portfolio,asOf)};
 }
