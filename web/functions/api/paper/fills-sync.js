@@ -171,7 +171,7 @@ export async function onRequestPost({request,env}){
    const positionQty=position?num(position.qty):0;
    const positionSide=String(position?.side||"").toLowerCase();
    const active=["ACCEPTED","PARTIALLY_FILLED"].includes(status);
-   const terminalFlat=["FILLED","CANCELED","REJECTED"].includes(status)&&positionQty===0;
+   const terminalFlat=["FILLED","CANCELED","REJECTED"].includes(status)&&matchingPositions.length===0&&positionQty===0;
    const directStopOk=brokerType==="stop"&&brokerTif==="gtc"&&String(brokerOrder.side||"").toLowerCase()==="sell"&&
     String(brokerOrder.symbol||"").toUpperCase()===String(row.symbol||"").toUpperCase()&&stopPrice!==null&&brokerStop!==null&&
     Math.abs(brokerStop-stopPrice)<=0.0001;
