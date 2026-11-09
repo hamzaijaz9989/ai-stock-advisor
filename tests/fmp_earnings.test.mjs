@@ -12,7 +12,7 @@ test("FMP earnings adapter fetches a bounded window and filters by ticker",async
   ]);
  };
  try{
-  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-earnings?from=2025-01-01&to=2025-03-01&ticker=AAPL"),env:{FMP_API_KEY:"test"}});
+  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-earnings?from=2025-01-01&to=2025-03-01&ticker=AAPL",{headers:{Authorization:"Bearer operator"}}),env:{FMP_API_KEY:"test",NORTHSTAR_OPERATOR_TOKEN:"operator"}});
   assert.equal(response.status,200);const body=await response.json();
   assert.equal(body.events.length,1);assert.equal(body.events[0].symbol,"AAPL");
   assert.equal(requested.searchParams.get("from"),"2025-01-01");
@@ -31,4 +31,10 @@ test("FMP earnings adapter rejects windows longer than 90 days",async()=>{
 test("FMP earnings adapter rejects impossible dates",async()=>{
  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-earnings?from=2025-02-30&to=2025-03-01"),env:{FMP_API_KEY:"test"}});
  assert.equal(response.status,400);
+});
+
+
+test("FMP earnings adapter requires operator authentication",async()=>{
+ const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-earnings?from=2025-01-01&to=2025-02-01"),env:{FMP_API_KEY:"test",NORTHSTAR_OPERATOR_TOKEN:"operator"}});
+ assert.equal(response.status,401);
 });
