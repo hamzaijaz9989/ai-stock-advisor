@@ -180,9 +180,9 @@ test("final recovery recheck sizes the standalone stop from the latest broker fi
   throw new Error("unexpected broker request "+u);
  }});
  assert.equal(response.status,201);
- assert.equal(parentReads,2);
- assert.equal(positionReads,3);
- assert.equal(quoteReads,2);
+ assert.equal(parentReads,3);
+ assert.equal(positionReads,4);
+ assert.equal(quoteReads,3);
  assert.equal(posted.qty,"3");
 });
 
@@ -256,8 +256,8 @@ test("final recovery recheck subtracts newly reported OTO child fills before siz
   throw new Error("unexpected broker request "+u);
  }});
  assert.equal(response.status,201);
- assert.equal(parentReads,2);
- assert.equal(positionReads,3);
+ assert.equal(parentReads,3);
+ assert.equal(positionReads,4);
  assert.equal(posts,1);
  assert.equal(posted.qty,"1");
 });
@@ -285,7 +285,7 @@ test("post-ledger recovery recheck blocks a broker position change before any st
  assert.equal(posts,0);
  assert.equal(db.batches.length,2);
  assert.match(db.batches[1][0].sql,/status='REJECTED'/);
- assert.ok(db.batches[1].some(stmt=>stmt.sql.includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
+ assert.ok(db.batches[1].some(stmt=>(stmt.args||[]).includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
 });
 
 test("post-ledger recovery recheck blocks a changed parent fill quantity instead of posting a stale stop",async()=>{
@@ -311,7 +311,7 @@ test("post-ledger recovery recheck blocks a changed parent fill quantity instead
  assert.equal(parentReads,3);
  assert.equal(positionReads,3);
  assert.equal(posts,0);
- assert.ok(db.batches[1].some(stmt=>stmt.sql.includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
+ assert.ok(db.batches[1].some(stmt=>(stmt.args||[]).includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
 });
 
 test("post-ledger recovery recheck blocks if the PAPER kill switch state changes before the stop POST",async()=>{
@@ -339,5 +339,5 @@ test("post-ledger recovery recheck blocks if the PAPER kill switch state changes
  assert.equal(body.reason,"RECOVERY_CONTROL_CHANGED_AFTER_LEDGER_WRITE");
  assert.equal(controlReads,3);
  assert.equal(posts,0);
- assert.ok(db.batches[1].some(stmt=>stmt.sql.includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
+ assert.ok(db.batches[1].some(stmt=>(stmt.args||[]).includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
 });
