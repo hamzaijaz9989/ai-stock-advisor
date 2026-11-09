@@ -388,6 +388,121 @@
     const val=document.createElement("strong");val.textContent=value;
     row.append(left,val);root.appendChild(row);
   }
+  const COUNCIL_DISPLAY_ROLES = [
+    "market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst",
+    "bull_researcher","bear_researcher","portfolio_analyst","risk_committee"
+  ];
+  const roleTitle = role => String(role||"").replaceAll("_"," ").replace(/\\b\\w/g,letter=>letter.toUpperCase());
+  function renderCouncilResult(payload) {
+    const result=payload.result||{};
+    const summary=$("stock-brain-summary");
+    summary.hidden=false;
+    $("stock-brain-outcome").textContent=String(result.status||"NO_TRADE").replaceAll("_"," ");
+    $("stock-brain-agent-count").textContent=(Array.isArray(result.agents)?result.agents.length:0)+" / 9";
+    const collection=result.collection||{};
+    $("stock-brain-evidence-count").textContent=String(Number(collection.factCount||0)+Number(collection.evidenceCount||0));
+    $("stock-brain-trace").textContent=payload.traceDurable===true&&result.traceDurable===true?"CONFIRMED":"NOT CONFIRMED";
+
+    const agentRoot=$("stock-brain-agents");
+    agentRoot.replaceChildren();
+    const byRole=new Map((Array.isArray(result.agents)?result.agents:[]).map(agent=>[agent.role,agent]));
+    for(const role of COUNCIL_DISPLAY_ROLES){
+      const agent=byRole.get(role)||{role,status:"BLOCKED",reason:"No status was returned for this role."};
+      const row=document.createElement("div");row.className="journal-row";
+      const left=document.createElement("div");
+      const title=document.createElement("strong");title.textContent=roleTitle(role);
+      const reason=document.createElement("div");reason.className="muted tiny";
+      reason.textContent=String(agent.reason||(
+        agent.status==="COMPLETE"?"Specialist report completed.":"This role did not complete."
+      ));
+      left.append(title,reason);
+      const status=document.createElement("span");
+      status.className="state"+(agent.status==="COMPLETE"?" good":" bad");
+      status.textContent=String(agent.status||"UNKNOWN");
+      row.append(left,status);agentRoot.appendChild(row);
+    }
+
+    const vetoRoot=$("stock-brain-vetoes");vetoRoot.replaceChildren();
+    const vetoes=Array.isArray(result.vetoReasons)?result.vetoReasons:[];
+    if(vetoes.length){
+      const heading=document.createElement("strong");heading.textContent="Why this run is blocked";
+      vetoRoot.appendChild(heading);
+      for(const reason of vetoes.slice(0,30)){
+        const item=document.createElement("p");item.className="warning";item.textContent=String(reason);vetoRoot.appendChild(item);
+      }
+    }else{
+      const note=document.createElement("p");note.className="muted small";
+      note.textContent=result.status==="RESEARCH_REVIEW_REQUIRED"
+        ?"All council stages completed and the deterministic committee accepted the candidate for separate human review. This is not a trade approval."
+        :"No separate veto details were returned; the overall outcome remains "+String(result.status||"NO_TRADE")+".";
+      vetoRoot.appendChild(note);
+    }
+
+    const reportRoot=$("stock-brain-reports");reportRoot.replaceChildren();
+    const reports=Array.isArray(result.reports)?result.reports:[];
+    if(!reports.length){
+      const empty=document.createElement("p");empty.className="muted small";
+      empty.textContent="No specialist reports were produced. Review the role status and blocker reasons above.";
+      reportRoot.appendChild(empty);
+    }
+    for(const entry of reports){
+      const card=document.createElement("article");card.className="card";card.style.marginTop="10px";
+      const header=document.createElement("div");header.className="card-head";
+      const heading=document.createElement("h2");heading.textContent=roleTitle(entry.role);
+      const status=document.createElement("span");status.className="state good";status.textContent=String(entry.report?.status||"UNKNOWN");
+      header.append(heading,status);card.appendChild(header);
+      for(const [key,label] of [["findings","Findings"],["risks","Risks"]]){
+        const items=Array.isArray(entry.report?.[key])?entry.report[key]:[];
+        const group=document.createElement("div");
+        const groupTitle=document.createElement("strong");groupTitle.textContent=label+" ("+items.length+")";
+        group.appendChild(groupTitle);
+        if(!items.length){
+          const none=document.createElement("p");none.className="muted small";none.textContent="None reported.";group.appendChild(none);
+        }
+        for(const item of items.slice(0,30)){
+          const row=document.createElement("p");row.className="small";
+          row.textContent=String(item.claim||"Claim unavailable")+" · Evidence IDs: "+(Array.isArray(item.factIds)?item.factIds.join(", "):"not supplied");
+          group.appendChild(row);
+        }
+        card.appendChild(group);
+      }
+      reportRoot.appendChild(card);
+    }
+  }
+  $("run-stock-brain").addEventListener("click",async()=>{
+    const button=$("run-stock-brain");
+    const status=$("stock-brain-status");
+    const ticker=String($("stock-brain-ticker").value||"").trim().toUpperCase();
+    if(!/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker)){
+      status.textContent="Enter a valid US equity ticker.";
+      return;
+    }
+    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved in browser storage.");
+    if(!token)return;
+    const requestId="stockbrain-"+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2));
+    button.disabled=true;button.textContent="Researching…";
+    status.textContent="Collecting server-side quote, history, fundamentals, filings, news, earnings and reconciled portfolio evidence. This may take a little while.";
+    $("stock-brain-summary").hidden=true;
+    $("stock-brain-agents").replaceChildren();
+    $("stock-brain-vetoes").replaceChildren();
+    $("stock-brain-reports").replaceChildren();
+    try{
+      const response=await fetch("/api/research/collect",{
+        method:"POST",
+        headers:{Authorization:"Bearer "+token,Accept:"application/json","Content-Type":"application/json"},
+        body:JSON.stringify({ticker,requestId})
+      });
+      const data=await response.json();
+      if(!response.ok||data.ok!==true)throw new Error(data.error||"Stock Brain research run failed safely.");
+      renderCouncilResult(data);
+      status.textContent=ticker+" · "+(data.result?.status||"NO_TRADE")+" · "+(data.traceDurable===true?"Durable trace confirmed":"Trace durability not confirmed")+" · "+new Date(data.createdAt||Date.now()).toLocaleString()+". No orders were submitted.";
+    }catch(error){
+      status.textContent=(error?.message||"Stock Brain run unavailable.")+" No order action was attempted. If the blocker is seven-day equity history, continue the read-only snapshot schedule until the required baseline exists.";
+    }finally{
+      button.disabled=false;button.textContent="Run 9-agent research";
+    }
+  });
+
   async function runTimeMachine() {
     const button=$("run-backtest"), status=$("backtest-status"), root=$("backtest-results");
     const ticker=String($("backtest-symbol").value||"").trim().toUpperCase();
