@@ -36,7 +36,7 @@ test("paper executor blocks an untracked broker position before writing or submi
    const stmt={sql,args:[],bind(...args){this.args=args;return this;},
     async first(){
      if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
-     if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY",reviewer:"independent-reviewer",decided_at:"2026-11-09T05:00:00.000Z"};
+     if(sql.includes("paper_trade_intents"))return {...{id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY",reviewer:"independent-reviewer",decided_at:"2026-11-09T05:00:00.000Z"},...intentOverrides};
      if(sql.includes("paper_orders"))return null;
      if(sql.includes("northstar_strategy_approval"))return validStrategyApproval;
      return null;
@@ -71,7 +71,7 @@ test("paper executor blocks an untracked broker position before writing or submi
 });
 
 
-async function runHistoricalOrderCase({ledgerOrderRows=[],brokerOrderRows=[],strategyApproval=validStrategyApproval}={}){
+async function runHistoricalOrderCase({ledgerOrderRows=[],brokerOrderRows=[],strategyApproval=validStrategyApproval,intentOverrides={}}={}){
  const now=new Date().toISOString(),calls=[];let submitted=false;
  const db={prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
   async first(){
@@ -239,4 +239,13 @@ test("final quote freshness check blocks a stale quote before broker submission"
  assert.equal(response.status,409);
  assert.equal(brokerPost,false);
  assert.match((await response.json()).error,/final account, market-open, quote-freshness/i);
+});
+
+test("paper executor rejects an approved status without immutable reviewer attribution",async()=>{
+ const {response,submitted,calls}=await runHistoricalOrderCase({intentOverrides:{reviewer:null,decided_at:null}});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.match(body.error,/reviewed, timestamped/i);
+ assert.equal(submitted,false);
+ assert.equal(calls.length,0);
 });
