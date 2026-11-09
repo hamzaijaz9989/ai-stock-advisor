@@ -760,3 +760,9 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - The eight model roles still share one configured model/provider; no independent per-role model routing has been added. Model workers intentionally have no direct browser, broker, database-write or external market-data tools; trusted server collectors provide their shared evidence dossier.
 - There is no durable learned agent memory or continuous autonomous agent loop yet. The existing endpoint stores run results, which is audit history rather than adaptive memory.
 - No dashboard integration, production deployment, D1 migration/write, provider call or broker action was performed in this run. Production remains on main and paper execution remains disabled with kill switch engaged.
+
+
+### Research Council CI verification — 2026-11-09 11:14 UTC
+- Latest PR head `5919b043a12d63cb866514e12aa964967763176f` passed Tests workflow run `42607287149`: 301 JavaScript tests passed, 94 Python tests passed, Ruff lint passed; 0 failures.
+- Validate AI Stock Advisor workflow run `42607287146` completed successfully: Python tests/lint, JavaScript syntax, frontend analysis tests, paper readiness endpoint tests, SEC ingestion adapter and validation CLI smoke checks all passed. The validation smoke test still asserts strategy validation is false.
+- These are automated CI tests, not live model-provider quality tests, production council runs, market-data verification or strategy performance evidence.
