@@ -223,3 +223,28 @@ test("OIDC read-only schedule accepts only consistent PAPER control states witho
   assert.match(workflow, /id-token:\s*write/);
   assert.equal(workflow.includes("secrets.NORTHSTAR_OPERATOR_TOKEN"), false);
 });;;
+
+test("does not report success when reconciliation is marked passed but mismatch details are nonempty", async () => {
+  const calls = [];
+  const handlers = baseHandlers(calls);
+  handlers.reconcileAccount = async () => {
+    calls.push(["reconcile"]);
+    return jsonResponse({
+      ok: true,
+      execution: false,
+      reconciled: true,
+      status: "RECONCILIATION_PASSED_READ_ONLY",
+      counts: { brokerPositions: 1, ledgerPositions: 0, fillDerivedPositions: 0, brokerOrders: 0, ledgerOrders: 0 },
+      mismatches: { positions: [{ symbol: "AAPL" }], fillDerivedPositions: [], orders: [] },
+      checkedAt: "2026-11-09T10:01:00.000Z"
+    });
+  };
+  const result = await runReadOnlySnapshotChain({
+    request: request({ Authorization: "Bearer signed-oidc-token", "X-Request-ID": "northstar-equity-12345678-1" }),
+    env: { NORTHSTAR_OPERATOR_TOKEN: "server-side-operator-token", NORTHSTAR_DB: fakeDb },
+    verify: async () => validIdentity,
+    handlers
+  });
+  assert.equal(result.status, 409);
+  assert.equal((await result.json()).stage, "reconcile");
+});
