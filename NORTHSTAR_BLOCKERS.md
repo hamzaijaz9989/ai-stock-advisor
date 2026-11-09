@@ -430,3 +430,30 @@ No paper or live order was submitted, amended, canceled, or flattened. Productio
 ### Safety
 - No broker API mutation or order submission was performed. No production D1 migration/write or production deployment was performed in this run.
 - Production remains paper mode, execution disabled, kill switch engaged. The FMP adapter change is in PR #85 preview only; main/production are unchanged.
+
+## Run 10 — 2026-11-09T07:52:15.519Z
+
+### FMP historical research adapters and acquisition workflow
+- Added operator-authenticated /api/fmp-universe. It retrieves current and historical S&P 500, Nasdaq, and Dow Jones constituent records plus the FMP delisted-company catalogue. It preserves the source change records and explicitly warns that current lists plus change events must be reconstructed and checked for completeness, symbol reuse, and effective dates.
+- Added operator-authenticated /api/fmp-earnings. It retrieves an FMP earnings-calendar window of at most 90 days, optionally filters by ticker, and warns that event date/lastUpdated do not prove when an earnings date was first publicly known.
+- Added scripts/fetch_fmp_earnings.mjs to request consecutive, non-overlapping 90-day windows across a longer date range, preserve retrieval metadata, reject provider pages at the 4,000-record cap, validate event symbols/dates, detect conflicting duplicates, and write output with exclusive-create semantics (no silent overwrite). It uses the Cloudflare operator-authenticated endpoint; the FMP key remains server-side.
+- Added tests for index/delisted catalog handling, empty responses, operator authentication, earnings window validation, chunk boundaries, provider truncation, duplicate-safe aggregation, and CLI date validation.
+- Updated docs/STRATEGY_VALIDATION_RUNBOOK.md with adapter coverage and acquisition commands. Source retrieval is not a point-in-time validation dataset or strategy approval.
+- Latest code/test head: ab17e51c3b8558fc54a8248d9106ef8ca4be1c66. Both workflows passed: Tests run 42581934385 and Validate AI Stock Advisor run 42581934358. PR #85 remains open/draft and mergeable; branch is zero commits behind main (196 ahead at last comparison).
+- Preview deployment for the endpoint/CLI code commit b4a00be8aac212a290356c5b9fe0be807c6f6c19 succeeded as deployment 88496aa0-ca16-4d51-9113-8689a85e2113. Latest test-only preview deployment 4d91182d-e99b-441f-b471-b154c536fa76 remained queued at last check.
+- Direct preview HTTP probes were blocked by the execution environment's outbound request policy (403 policy-denial body). This is not evidence of a Pages application 403 and means runtime FMP binding/API reachability was not verified.
+
+### Remaining FMP validation gaps
+1. FMP API plan coverage, actual key binding, and licence/usage rights are not yet verified. No key value was read or printed.
+2. Historical constituent event feeds and delisted catalogue require independent completeness/symbol-identity checks; they do not represent a guaranteed complete historical US equity universe.
+3. Earnings-calendar data is retrievable in <=90-day chunks, but event date/lastUpdated do not prove first-public-announcement timing. Do not use as a PIT availability timestamp without independent evidence.
+4. Historical financial statement revisions/restatements remain a point-in-time limitation. Preserve acceptedDate/filingDate and exclude records without trustworthy availability timestamps.
+5. No actual FMP source bundle was downloaded in this run because preview endpoint access from the execution environment is policy-blocked. No real strategy report has been generated; approval remains NOT APPROVED.
+
+### Reviewer and release
+- User stated they will independently review the final versioned validation package. Their review remains pending until a complete reproducible dataset/report is available.
+- PR #85 remains DRAFT. No merge or production deployment was performed. No production D1 writes or migrations were applied.
+
+### Safety
+- No broker mutation, paper order submission/cancellation/amendment, or live broker request occurred.
+- Production remains paper mode, execution disabled, kill switch engaged.
