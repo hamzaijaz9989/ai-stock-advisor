@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T16:13:00.131Z",
+  "generatedAt": "2026-11-09T20:44:58.272Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -42,6 +42,7 @@
           "display": "-27.3%"
         }
       ],
+      "entryReady": false,
       "entryStatus": "BLOCKED: annual fundamentals are stale or unverified; refresh and reconcile the latest reported period before any entry decision."
     },
     {
@@ -74,7 +75,8 @@
           "display": "-18.6%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified; potential material-risk headline needs review. Latest provider price: $21.48 (Nasdaq quote API; 11/9/2026, 8:44:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.12. Estimated reward/risk from entry midpoint: 9.98:1; illustrative model gap: 0.47×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ANET",
@@ -106,7 +108,8 @@
           "display": "-26.6%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AAPL",
@@ -138,7 +141,8 @@
           "display": "-13.8%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $350.66 (Nasdaq quote API; 11/9/2026, 8:44:00 PM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $145.16. Estimated reward/risk from entry midpoint: 2.63:1; illustrative model gap: 1.67×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ADI",
@@ -170,7 +174,8 @@
           "display": "-20.7%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "V",
@@ -202,7 +207,8 @@
           "display": "-17.4%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid; valuation unavailable; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "JNJ",
@@ -234,7 +240,8 @@
           "display": "-11.0%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $281.89 (Nasdaq quote API; 11/9/2026, 8:44:00 PM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $80.71. Estimated reward/risk from entry midpoint: 1.78:1; illustrative model gap: 2.27×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AMGN",
@@ -266,7 +273,8 @@
           "display": "-16.6%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "VRTX",
@@ -298,7 +306,8 @@
           "display": "-15.2%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $551.53 (Nasdaq quote API; 11/9/2026, 8:44:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "MNST",
@@ -330,8 +339,14 @@
           "display": "-17.7%"
         }
       ],
-      "entryStatus": "Checking latest quote and valuation inputs…"
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     }
   ],
-  "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis."
+  "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
+  "completedAt": "2026-11-09T20:44:58.272Z",
+  "workflowRunId": "42695329710",
+  "sourceCommit": "b00a7b67f16c9b8463b3e01f463d036ae2aa4bdc",
+  "scanDurationSeconds": 188,
+  "enrichedCount": 10
 }
