@@ -34,11 +34,11 @@ export async function fetchValidationSources({from,to,symbols,baseUrl,operatorTo
  validateWindow(from,to);
  if(!Array.isArray(symbols)||!symbols.length)throw new Error("An explicit non-empty ticker list is required.");
  const normalized=[...new Set(symbols.map(x=>String(x).trim().toUpperCase()))].sort();
- benchmarkSymbol=String(benchmarkSymbol).trim().toUpperCase();
- if(!TICKER_RE.test(benchmarkSymbol)||!normalized.includes(benchmarkSymbol))throw new Error("The benchmark symbol must be a valid member of the explicit ticker list.");
  if(normalized.length>500||normalized.some(x=>!TICKER_RE.test(x)))throw new Error("Ticker list is invalid or exceeds 500 unique symbols.");
  if(typeof baseUrl!=="string"||!/^https:\/\//.test(baseUrl))throw new Error("A valid HTTPS NORTHSTAR_API_BASE is required.");
  if(typeof operatorToken!=="string"||!operatorToken)throw new Error("NORTHSTAR_OPERATOR_TOKEN is required.");
+ benchmarkSymbol=String(benchmarkSymbol).trim().toUpperCase();
+ if(!TICKER_RE.test(benchmarkSymbol)||!normalized.includes(benchmarkSymbol))throw new Error("The benchmark symbol must be a valid member of the explicit ticker list.");
  const base=baseUrl.replace(/\/$/,"");
  const auth={Authorization:"Bearer "+operatorToken,Accept:"application/json"};
  const universeUrl=new URL("/api/fmp-universe",base);universeUrl.searchParams.set("from",from);
