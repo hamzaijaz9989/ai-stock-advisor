@@ -129,6 +129,30 @@ test("stops before reconciliation when fill import requires manual recovery even
   assert.deepEqual(calls.map(call => call[0]), ["sync", "fills-sync"]);
 });
 
+test("fails closed when fill import omits the explicit safety contract", async () => {
+  const calls = [];
+  const handlers = baseHandlers(calls);
+  handlers.importFills = async () => {
+    calls.push(["fills-sync"]);
+    return jsonResponse({ ok: true, execution: false, imported: true });
+  };
+  const result = await runReadOnlySnapshotChain({
+    request: request({
+      Authorization: "Bearer signed-oidc-token",
+      "X-Request-ID": "northstar-equity-12345678-1"
+    }),
+    env: {
+      NORTHSTAR_OPERATOR_TOKEN: "server-side-operator-token",
+      NORTHSTAR_DB: fakeDb
+    },
+    verify: async () => validIdentity,
+    handlers
+  });
+  assert.equal(result.status, 409);
+  assert.equal((await result.json()).stage, "fills-sync");
+  assert.deepEqual(calls.map(call => call[0]), ["sync", "fills-sync"]);
+});
+
 test("does not report success when reconciliation is not clean", async () => {
   const calls = [];
   const handlers = baseHandlers(calls);
