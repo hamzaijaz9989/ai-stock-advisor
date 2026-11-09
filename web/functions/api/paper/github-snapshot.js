@@ -48,12 +48,37 @@ export async function runReadOnlySnapshotChain({ request, env, verify = verifyGi
   if (suppliedRequestId !== expectedRequestId || !/^[A-Za-z0-9._:-]{8,160}$/.test(suppliedRequestId)) return response("Request identifier does not match the verified GitHub Actions run.", 400);
   const db = env?.NORTHSTAR_DB;
   if (!db || typeof db.prepare !== "function") return response("Northstar D1 ledger is unavailable; read-only sync is blocked.", 503);
+  // Atomically claim this workflow run/attempt before any internal handler runs.
+  // A SELECT followed by handler invocation is race-prone: two replayed requests
+  // could both pass the read. INSERT ... SELECT WHERE NOT EXISTS is one SQLite
+  // write statement, so D1 serializes competing claims and only one can proceed.
   try {
-    const prior = await db.prepare("SELECT id,action FROM execution_audit_log WHERE request_id IN (?,?) AND action IN ('READ_ONLY_ACCOUNT_SYNC','READ_ONLY_FILL_IMPORT') ORDER BY id DESC LIMIT 1")
-      .bind(`${suppliedRequestId}-sync`, `${suppliedRequestId}-fills`).first();
-    if (prior) return response("This GitHub Actions run attempt already performed part of the read-only snapshot chain; use a new workflow attempt for a retry.", 409, { stage: "idempotency", previousStage: prior.action });
+    const claim = await db.prepare(`
+      INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json)
+      SELECT ?,?,?,?,?
+      WHERE NOT EXISTS (
+        SELECT 1 FROM execution_audit_log WHERE action=? AND request_id=?
+      )
+    `).bind(
+      "github-actions",
+      "GITHUB_OIDC_SNAPSHOT_CLAIMED",
+      "STARTED",
+      suppliedRequestId,
+      JSON.stringify({
+        runId: identity.runId,
+        runAttempt: identity.runAttempt,
+        eventName: identity.eventName,
+        tokenId: identity.tokenId,
+        scope: "read-only-paper-snapshot"
+      }),
+      "GITHUB_OIDC_SNAPSHOT_CLAIMED",
+      suppliedRequestId
+    ).run();
+    if (Number(claim?.meta?.changes) !== 1) {
+      return response("This GitHub Actions run attempt has already been claimed; use a new workflow attempt for a retry.", 409, { stage: "idempotency" });
+    }
   } catch {
-    return response("Could not verify scheduled-run idempotency; read-only sync is blocked.", 503);
+    return response("Could not atomically claim this scheduled run; read-only sync is blocked.", 503);
   }
 
   const activeHandlers = handlers || await loadHandlers();
