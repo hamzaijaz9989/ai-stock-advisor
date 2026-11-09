@@ -39,3 +39,19 @@ test("rejects empty COMPLETE reports instead of treating silence as successful r
  assert.ok(r.agents.some(x=>x.role==="market_scanner"&&x.status==="BLOCKED"));
  assert.ok(r.vetoReasons.some(x=>x.includes("empty COMPLETE report")));
 });
+
+test("accepts the deterministic risk committee's decision-only report",async()=>{
+ const w=workers();
+ w.risk_committee=async()=>({status:"COMPLETE",findings:[],risks:[],decision:"ACCEPT_FOR_REVIEW",vetoReasons:[]});
+ const r=await runResearchCouncil({requestId:"request-0016",context,workers:w});
+ assert.equal(r.status,"RESEARCH_REVIEW_REQUIRED");
+ assert.ok(r.agents.some(x=>x.role==="risk_committee"&&x.status==="COMPLETE"));
+ assert.deepEqual(r.reports.find(x=>x.role==="risk_committee").report.findings,[]);
+});
+test("deterministic risk committee rejection remains a hard veto without model findings",async()=>{
+ const w=workers();
+ w.risk_committee=async()=>({status:"COMPLETE",findings:[],risks:[],decision:"REJECT",vetoReasons:["Daily loss threshold reached."]});
+ const r=await runResearchCouncil({requestId:"request-0017",context,workers:w});
+ assert.equal(r.status,"NO_TRADE");
+ assert.ok(r.vetoReasons.includes("Daily loss threshold reached."));
+});
