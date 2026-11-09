@@ -132,7 +132,7 @@ def enable(db, request_id, now):
 def test_direct_enable_without_a_fresh_approval_request_is_rejected():
     db = database()
     try:
-        enable(db, "missing-request", datetime.now(timezone.utc))
+        enable(db, "missing-request", datetime.now(UTC))
         raise AssertionError("direct PAPER enablement must be rejected")
     except sqlite3.IntegrityError:
         pass
@@ -142,7 +142,7 @@ def test_direct_enable_without_a_fresh_approval_request_is_rejected():
 
 def test_activation_requires_a_verified_seven_day_equity_baseline():
     db = database()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     seed_strategy(db, now)
     latest, baseline = seed_snapshots(db, now, weekly=False)
     request_id = insert_activation_request(db, now, latest, baseline)
@@ -157,7 +157,7 @@ def test_activation_requires_a_verified_seven_day_equity_baseline():
 
 def test_pending_intent_blocks_activation_even_with_other_evidence_valid():
     db = database()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     seed_strategy(db, now)
     latest, baseline = seed_snapshots(db, now)
     db.execute(
@@ -181,7 +181,7 @@ def test_pending_intent_blocks_activation_even_with_other_evidence_valid():
 
 def test_valid_activation_creates_immutable_event_and_audit_without_creating_orders():
     db = database()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     seed_strategy(db, now)
     latest, baseline = seed_snapshots(db, now)
     request_id = insert_activation_request(db, now, latest, baseline)
