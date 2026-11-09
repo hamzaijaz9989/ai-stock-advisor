@@ -5,18 +5,21 @@ import { readFile } from "node:fs/promises";
 async function loadFunction() {
   const helper = await readFile(new URL("../web/lib/paper-order-guards.js", import.meta.url), "utf8");
   const helperUrl = "data:text/javascript;base64," + Buffer.from(helper).toString("base64");
+  const strategyHelper = await readFile(new URL("../web/lib/strategy-validation-gate.js", import.meta.url), "utf8");
+  const strategyHelperUrl = "data:text/javascript;base64," + Buffer.from(strategyHelper).toString("base64");
   let source = await readFile(new URL("../web/functions/api/paper/preflight.js", import.meta.url), "utf8");
   source = source.replace('from "../../../lib/paper-order-guards.js"', 'from "' + helperUrl + '"');
+  source = source.replace('from "../../../lib/strategy-validation-gate.js"', 'from "' + strategyHelperUrl + '"');
   return import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
 }
-function mockDb(control, ledgerRows=[], snapshots=null) {
+function mockDb(control, ledgerRows=[], snapshots=null, approval={approved:1,strategy_version:"northstar-provisional-gates-v1",report_version:3,report_sha256:"a".repeat(64),report_uri:"https://github.com/hamzaijaz9989/ai-stock-advisor/blob/main/docs/strategy-validation-report.md",approved_at:"2026-11-09T05:00:00.000Z",reviewer:"independent-reviewer"}) {
   const history=snapshots||[
     {captured_at:new Date().toISOString(),equity_usd:100000},
     {captured_at:new Date(Date.now()-8*86400000).toISOString(),equity_usd:100000}
   ];
   return { prepare(sql) {
     return {
-      async first() { assert.match(sql,/execution_control/); return control; },
+      async first() { if(/execution_control/.test(sql)) return control; if(/northstar_strategy_approval/.test(sql)) return approval; throw new Error("unexpected first SQL "+sql); },
       async all() { if(/paper_positions/.test(sql)) return {results:ledgerRows}; if(/paper_equity_snapshots/.test(sql)) return {results:history}; throw new Error("unexpected SQL "+sql); }
     };
   }};
@@ -50,6 +53,7 @@ test("preflight sizes from fresh quote and reconciled paper ledger without submi
     assert.equal(body.execution,false);
     assert.equal(body.shares,1);
     assert.equal(body.broker.positionsReconciled,true);
+    assert.equal(body.strategyValidation.approved,true);
   } finally { globalThis.fetch=oldFetch; }
 });
 test("preflight normalizes existing broker exposure to the virtual allocation before sizing",async()=>{
@@ -112,4 +116,27 @@ test("preflight blocks market orders while the US equity market is closed",async
     assert.equal(response.status,409);
     assert.match((await response.json()).error,/market is closed/i);
   }finally{globalThis.fetch=oldFetch;}
+});
+
+test("preflight blocks an unapproved strategy before making broker requests",async()=>{
+ const {onRequestPost}=await loadFunction();
+ const oldFetch=globalThis.fetch;globalThis.fetch=async()=>{throw new Error("BROKER_MUST_NOT_BE_CALLED");};
+ try{
+  const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control,[],null,{approved:0,strategy_version:"northstar-provisional-gates-v1"}),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.equal(body.strategyValidation.approved,false);
+  assert.ok(body.strategyValidation.issues.includes("STRATEGY_VALIDATION_NOT_APPROVED"));
+ }finally{globalThis.fetch=oldFetch;}
+});
+
+test("preflight blocks when the strategy approval record is missing",async()=>{
+ const {onRequestPost}=await loadFunction();
+ const oldFetch=globalThis.fetch;globalThis.fetch=async()=>{throw new Error("BROKER_MUST_NOT_BE_CALLED");};
+ try{
+  const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control,[],null,null),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.strategyValidation.issues.includes("STRATEGY_APPROVAL_RECORD_MISSING"));
+ }finally{globalThis.fetch=oldFetch;}
 });
