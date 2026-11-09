@@ -111,3 +111,11 @@ The current implementation is a bounded multi-stage research workflow, not a fre
 - The deterministic Risk Committee emits no model findings; it returns only `decision` and `vetoReasons`. The shared non-empty-report rule previously rejected this legitimate decision-only contract, which would have blocked every real deterministic committee result.
 - The validator now applies the non-empty requirement only to model specialists while continuing to validate the committee's explicit decision and veto-reason invariants.
 - Regression tests cover both decision-only acceptance and decision-only rejection. A rejection remains a hard veto.
+
+
+### Deterministic resource coverage inventory — v1.0.4
+- The canonical fact adapter now emits a per-role `resourceCoverage` inventory alongside facts, evidence and the verified portfolio snapshot. It records explicit status, related evidence IDs and missing-resource explanations for all eight model specialists.
+- The inventory distinguishes partial coverage from insufficient or missing resources. Current known gaps are made explicit: no dedicated timestamped sentiment/positioning feed; no broad cross-sectional universe/breadth feed; no trusted precomputed technical indicator pack or corporate-action-adjusted history attestation; no exact public-availability timestamp for SEC facts; no consistent original-source news corroboration; and no sector/correlation matrix for portfolio analysis.
+- The coordinator passes this immutable inventory through independent analysis, bull/bear debate and portfolio synthesis and includes it in the final result. Role prompts explicitly require specialists to disclose their listed gaps.
+- Coverage status is an observability aid, not an investment-quality score or approval. `PARTIAL` never means complete; missing resources are not replaced with model guesses. The deterministic validation and risk pipeline remains authoritative.
+- Regression tests cover missing resources, partial coverage, and immutable propagation to every specialist stage.
