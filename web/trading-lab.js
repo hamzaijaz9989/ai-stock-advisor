@@ -125,6 +125,21 @@
       row.append(left,severity);root.appendChild(row);
     }
   }
+  function renderMonitorQuotes(quotes){
+    const root=$("monitor-quotes");if(!root)return;root.replaceChildren();
+    if(!Array.isArray(quotes)||!quotes.length){const p=document.createElement("p");p.className="muted small";p.textContent="No verified quotes have been recorded yet. Quote collection is pending a successful market-session run.";root.appendChild(p);return;}
+    for(const quote of quotes){
+      const row=document.createElement("div");row.className="journal-row";
+      const left=document.createElement("div");
+      const title=document.createElement("strong");title.textContent=String(quote.symbol||"—")+" · "+(Number.isFinite(Number(quote.price))?"$"+Number(quote.price).toFixed(2):"Price unavailable");left.appendChild(title);
+      const pct=Number(quote.change_pct);const change=document.createElement("div");change.className="muted tiny";change.textContent=(Number.isFinite(pct)?(pct>0?"+":"")+pct.toFixed(2)+"% vs previous close":"Daily change unavailable")+(Number(quote.in_watch_zone)===1?" · Inside provisional watch zone":"");left.appendChild(change);
+      const stamp=document.createElement("div");stamp.className="muted tiny";
+      const qtime=Date.parse(quote.quote_time||"");const age=Number.isFinite(qtime)?(Date.now()-qtime)/60000:Infinity;
+      const freshness=age<0?"Future timestamp · reject":age<=15?"Fresh quote":"Last recorded quote · stale";
+      stamp.textContent="Quote "+monitorTime(quote.quote_time)+" · "+freshness+" · "+String(quote.source||"Source unavailable");left.appendChild(stamp);
+      row.appendChild(left);const status=document.createElement("span");status.className="state";status.textContent=age<=15&&age>=0?"FRESH":"STALE";row.appendChild(status);root.appendChild(row);
+    }
+  }
   async function loadMonitor(){
     const status=$("monitor-status"),button=$("refresh-monitor");
     if(status)status.textContent="Refreshing monitor ledger…";
@@ -139,10 +154,12 @@
       monitorMetric("monitor-symbols",Number.isFinite(Number(run.symbols_checked))?run.symbols_checked:"—");
       monitorMetric("monitor-errors",Number.isFinite(Number(run.errors))?run.errors:"—");
       monitorMetric("monitor-alert-count",data.unacknowledgedEvents??0);
+      renderMonitorQuotes(data.quotes);
       renderMonitorEvents(data.events);
       if(status)status.textContent="Ledger connected · checked "+monitorTime(data.checkedAt)+" · "+String(data.cadence||"scheduled cadence");
     }catch(error){
       if(status)status.textContent="Monitor unavailable · "+(error?.message||"request failed");
+      renderMonitorQuotes([]);
       renderMonitorEvents([]);
       monitorMetric("monitor-run-status","UNAVAILABLE");
       monitorMetric("monitor-run-time","No verified status");
