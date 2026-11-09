@@ -16,7 +16,7 @@ function reviewConfiguration(env){
  const reviewerToken=env?.NORTHSTAR_INTENT_REVIEW_TOKEN;
  const reviewer=String(env?.NORTHSTAR_INTENT_REVIEWER||"").trim();
  const paperApproval=env?.NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN;
- return !!operator&&!!reviewerToken&&reviewerToken!==operator&&reviewerToken!==paperApproval&&reviewer.length>=3&&reviewer.length<=120;
+ return typeof operator==="string"&&operator.length>=16&&typeof reviewerToken==="string"&&reviewerToken.length>=32&&reviewerToken.length<=256&&reviewerToken!==operator&&reviewerToken!==paperApproval&&reviewer.length>=3&&reviewer.length<=120;
 }
 function authorized(request,env){
  return reviewConfiguration(env)&&
