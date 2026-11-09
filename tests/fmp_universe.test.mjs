@@ -19,7 +19,9 @@ test("FMP universe adapter returns current index lists and historical changes wi
   assert.equal(body.indexes.sp500.currentCount,1);
   assert.equal(body.indexes.sp500.historicalChangeCount,1);
   assert.equal(body.historicalChangesSince,"2020-01-01");
-  assert.equal(paths.length,7);\n  assert.equal(body.delistedCompanyCount,1);\n  assert.equal(body.delistedCompanies[0].symbol,"OLD");
+  assert.equal(paths.length,7);
+  assert.equal(body.delistedCompanyCount,1);
+  assert.equal(body.delistedCompanies[0].symbol,"OLD");
   assert.equal(body.reconstructionRules.applyHistoricalChangesInReverseChronologicalOrderToReconstructEarlierMembership,true);
  }finally{globalThis.fetch=original;}
 });
