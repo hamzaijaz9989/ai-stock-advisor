@@ -10,7 +10,7 @@ export async function onRequestGet({request,env}){
  if(!authorized(request,env))return fail("Unauthorized.",401);
  const db=env?.NORTHSTAR_DB;if(!db)return fail("Paper ledger unavailable.",503);
  try{
-  const rows=await db.prepare("SELECT id,symbol,side,qty,reference_price,stop_price,estimated_notional_usd,planned_risk_usd,status,rationale,evidence_json,created_at,updated_at,decided_at,decision_note FROM paper_trade_intents ORDER BY created_at DESC LIMIT 100").all();
+  const rows=await db.prepare("SELECT id,symbol,side,qty,reference_price,stop_price,estimated_notional_usd,planned_risk_usd,status,rationale,evidence_json,created_at,updated_at,decided_at,decision_note,reviewer FROM paper_trade_intents ORDER BY created_at DESC LIMIT 100").all();
   return Response.json({ok:true,execution:false,items:(rows.results||[]).map(x=>{const {evidence_json,...item}=x;let evidence={};try{evidence=JSON.parse(evidence_json||"{}");}catch{}return {...item,evidence};}),limit:100,notes:["Proposal/review journal only; not an order ledger.","Approval is review-only and does not authorize broker submission.","Execution remains disabled unless all independent safeguards pass."]},{headers:H});
  }catch{return fail("Intent journal unavailable; apply migration 0005 first.",503);}
 }
