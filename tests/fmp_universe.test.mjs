@@ -13,7 +13,7 @@ test("FMP universe adapter returns current index lists and historical changes wi
     :[{symbol:"NEW",name:"New Company"}]);
  };
  try{
-  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-universe?from=2020-01-01"),env:{FMP_API_KEY:"test"}});
+  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-universe?from=2020-01-01",{headers:{Authorization:"Bearer operator"}}),env:{FMP_API_KEY:"test",NORTHSTAR_OPERATOR_TOKEN:"operator"}});
   assert.equal(response.status,200);const body=await response.json();
   assert.equal(body.provider,"Financial Modeling Prep");
   assert.equal(body.indexes.sp500.currentCount,1);
@@ -27,4 +27,10 @@ test("FMP universe adapter returns current index lists and historical changes wi
 test("FMP universe adapter rejects invalid dates",async()=>{
  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-universe?from=2025-02-30"),env:{FMP_API_KEY:"test"}});
  assert.equal(response.status,400);
+});
+
+
+test("FMP universe adapter requires operator authentication",async()=>{
+ const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-universe"),env:{FMP_API_KEY:"test",NORTHSTAR_OPERATOR_TOKEN:"operator"}});
+ assert.equal(response.status,401);
 });
