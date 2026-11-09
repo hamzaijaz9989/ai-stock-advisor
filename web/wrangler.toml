@@ -6,5 +6,13 @@ compatibility_date = "2026-10-27"
 binding = "NORTHSTAR_DB"
 database_name = "northstar-paper-ledger"
 database_id = "528f3a23-1d1f-4d16-8463-f643d85f5deb"
-preview_database_id = "bdffc29f-a4f6-498e-ade7-22c85d9bd373"
+migrations_dir = "migrations"
+
+# Cloudflare Pages preview deployments use a separate, schema-migrated D1 database.
+# The top-level binding above remains production-only.
+[env.preview]
+[[env.preview.d1_databases]]
+binding = "NORTHSTAR_DB"
+database_name = "northstar-preview"
+database_id = "bdffc29f-a4f6-498e-ade7-22c85d9bd373"
 migrations_dir = "migrations"
