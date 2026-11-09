@@ -1,5 +1,14 @@
 # Build Plan
 
+## Current phase status — 2026-11-10
+
+- Universe scanning: **COMPLETE and user-confirmed tested**. Do not rebuild it without a concrete regression.
+- Nine-agent Research Council / Stock Brain: **implementation and dashboard integration in PR #103**, awaiting merge and production acceptance. The nine roles are implemented; durable trace persistence and dashboard result rendering are covered by CI.
+- Strategy validation: **NOT APPROVED**. Validated BUY remains disabled until real point-in-time data, frozen rules, walk-forward and holdout evidence, realistic costs, and independent review exist.
+- Paper lifecycle: **NOT COMPLETE**. Execution remains disabled and kill switch engaged. No paper or live order may be submitted.
+
+Immediate next sequence: merge PR #103 after exact-head CI and static preview verification; confirm production deployment and protected collector route; restore fresh read-only equity snapshots and a seven-day baseline; run one controlled research-only council collection and verify idempotent replay; only then move to strategy validation.
+
 ## Product contract
 
 - Market: US-listed equities (NYSE/Nasdaq).
