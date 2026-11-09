@@ -40,6 +40,30 @@ node scripts/fetch_fmp_earnings.mjs \
 
 Keep the operator token out of command history, logs, and committed files. The resulting source files are raw evidence only: validate provider coverage, event timing, symbol identity, and data licence before building historical snapshots.
 
+### Reproducible raw-source acquisition bundle
+
+For a controlled first acquisition, prepare an explicit ticker list (one symbol per line; comments beginning with `#` are allowed; maximum 500 unique tickers). Include the benchmark symbol explicitly:
+
+```text
+AAPL
+MSFT
+NVDA
+SPY
+```
+
+Then run:
+
+```bash
+NORTHSTAR_API_BASE="$NORTHSTAR_API_BASE" \
+NORTHSTAR_OPERATOR_TOKEN="$NORTHSTAR_OPERATOR_TOKEN" \
+node scripts/fetch_fmp_validation_sources.mjs \
+  --from 2016-01-01 --to 2026-11-09 \
+  --symbols-file symbols.txt --output raw-fmp-validation-sources.json
+```
+
+The CLI retrieves the operator-authenticated universe and earnings sources, then sequentially fetches FMP history for each explicitly listed symbol. It writes an exclusive-create JSON bundle with retrieval metadata, per-symbol coverage gaps, raw source responses, and point-in-time limitations. It refuses invalid tickers, windows over ten years, mismatched symbol responses, provider-capped earnings windows, and incomplete HTTP responses. The output is deliberately marked `RAW_SOURCE_BUNDLE_NOT_VALIDATION_INPUT`: it does not reconstruct historical membership, assign historical availability timestamps, assemble strategy snapshots, or approve the strategy. Preserve the exact bundle unchanged before any transformation.
+
+
 ## Run
 
 ```bash
