@@ -140,7 +140,7 @@ export async function onRequestPost({request,env}) {
     account:{status:account.status,currency:account.currency},
     counts:{brokerPositions:bp.length,ledgerPositions:lp.length,brokerOrders:brokerOrders.length,ledgerOrders:orderRows.length,orderHistoryPages:pages},
     mismatches:{positions:positionMismatches,orders:orderMismatches},
-    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Order status, cumulative filled quantity, and average fill price are compared; missing fill snapshots are treated as mismatches.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","Execution remains disabled and the kill switch remains engaged."],
+    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Order status, cumulative filled quantity, and average fill price are compared; missing fill snapshots are treated as mismatches.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","This endpoint never changes execution-control settings or broker orders."],
     checkedAt:new Date().toISOString()
   },{status:mismatches===0?200:409,headers:H});
 }
