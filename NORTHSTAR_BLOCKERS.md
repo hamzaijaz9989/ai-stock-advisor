@@ -1209,3 +1209,13 @@ No PR #85 or #88 merge, production migration/write, production application deplo
 9. Independently review the remaining external broker-read/POST timing risk and exact OTO/standalone-stop coverage. Do not enable PAPER until all strategy, schema, broker, reconciliation, history and risk gates pass.
 
 No PR #85 or #88 merge, production migration/write, production application deployment, broker request/mutation, paper/live order or PAPER enablement occurred during this run. Execution remains disabled and the kill switch engaged.
+
+
+### Live Pages GET endpoint verification — 2026-11-09T16:56Z
+- Production `GET /api/paper/readiness`: HTTP 200 at `2026-11-09T16:56:07Z`; configured and policy verified, mode PAPER, execution disabled, kill switch engaged, virtual allocation $1,000, default risk $5, max risk $10, max position $250.
+- Production `GET /api/paper/performance`: HTTP 200 at `2026-11-09T16:56:06Z`; one snapshot only (`2026-11-08T18:34:38.720Z`), $100,000 observed equity/cash, no positions, fill ledger unavailable because migrations 0006–0010 are not in production, no trade statistics.
+- Production `GET /api/paper/control`: HTTP 200 at `2026-11-09T16:56:07Z`; execution disabled and kill switch engaged.
+- PR #85 preview `bf57e76c` `GET /api/paper/readiness`: HTTP 200 at `2026-11-09T16:56:07Z`; strategy approval explicitly false, with missing report version/hash/URI/approval timestamp/reviewer; BUY and paper submission remain blocked. Limits include $20 daily-loss cap and $80 maximum drawdown.
+- PR #85 preview `GET /api/paper/performance`: HTTP 200 at `2026-11-09T16:56:14Z`; zero snapshots, zero tracked fills, no trade statistics. Preview `GET /api/paper/control`: HTTP 200, execution disabled, kill switch engaged.
+- This supersedes the earlier note that the connected container/web fetch path could not reach Pages: a live GET probe through the connected scraping service succeeded. Authenticated POST endpoints (`sync`, `fills-sync`, `reconcile`, `preflight`, intent review and OIDC snapshot) were not invoked because no authorized operator/reviewer/OIDC runtime credentials were available in this probe. No broker request, database write or order was made.
+- Remaining impact: production still lacks migration 0006–0010 schema and fresh equity history; preview has no equity history and strategy approval is false. Next action remains branch protection + independent review, followed by approved credentials, authenticated read-only sync, seven-day history and clean reconciliation before any production migration or PAPER enablement.
