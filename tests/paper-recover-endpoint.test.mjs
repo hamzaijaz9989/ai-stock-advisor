@@ -55,7 +55,7 @@ test("partially filled open parent is canceled first and no stop is submitted in
  const db=makeDb();
  const {response,calls}=await run({db,brokerParent:parent({status:"partially_filled"})});
  const body=await response.json();
- assert.equal(response.status,202);
+ assert.equal(response.status,202,JSON.stringify(await response.clone().json()));
  assert.equal(body.status,"CANCEL_REQUEST_ACCEPTED");
  assert.ok(calls.some(x=>x.method==="DELETE"&&x.url.endsWith("/v2/orders/parent-broker")));
  assert.equal(calls.some(x=>x.method==="POST"),false);
@@ -70,7 +70,7 @@ test("pending parent cancellation is observed without another mutation",async()=
 test("held OTO child is canceled only after position reconciliation",async()=>{
  const db=makeDb();
  const {response,calls}=await run({db,brokerParent:parent({legs:[child()]})});
- assert.equal(response.status,202);
+ assert.equal(response.status,202,JSON.stringify(await response.clone().json()));
  assert.equal((await response.json()).status,"HELD_CHILD_CANCEL_REQUEST_ACCEPTED");
  assert.ok(calls.some(x=>x.method==="DELETE"&&x.url.endsWith("/v2/orders/child-broker")));
  assert.equal(calls.some(x=>x.method==="POST"),false);
