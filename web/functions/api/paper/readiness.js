@@ -31,29 +31,38 @@ export async function onRequestGet({ env }) {
       }, { status: 503, headers: HEADERS });
     }
 
-    const safe = result.mode === "paper" &&
-      Number(result.enabled) === 0 &&
-      Number(result.kill_switch) === 1 &&
+    const policyConfigurationVerified = result.mode === "paper" &&
       Number(result.max_portfolio_usd) === 1000 &&
       Number(result.default_risk_fraction) === 0.005 &&
       Number(result.max_risk_fraction) === 0.01 &&
       Number(result.max_position_fraction) === 0.25;
+    const enabled = Number(result.enabled) === 1;
+    const killSwitchEngaged = Number(result.kill_switch) === 1;
+    const controlStateVerified = (enabled === false && killSwitchEngaged === true) ||
+      (enabled === true && killSwitchEngaged === false);
+    const safe = policyConfigurationVerified && controlStateVerified;
+    const executionEnabled = enabled && !killSwitchEngaged;
 
     return Response.json({
       configured: true,
       policyVerified: safe,
-      mode: "paper",
-      executionEnabled: false,
-      killSwitchEngaged: true,
+      mode: result.mode,
+      executionEnabled,
+      killSwitchEngaged,
+      controlStateVerified,
       limits: {
         virtualCapitalUsd: 1000,
         defaultRiskUsd: 5,
         maxRiskUsd: 10,
         maxPositionUsd: 250
       },
-      message: safe
-        ? "Ledger is configured. Order execution is deliberately disabled while authentication, risk enforcement, reconciliation and validation are incomplete."
-        : "Ledger policy does not match the required fail-closed settings. Execution is unavailable.",
+      message: !policyConfigurationVerified
+        ? "Paper allocation or risk limits do not match the required policy."
+        : !controlStateVerified
+          ? "Execution enablement and kill-switch state are inconsistent; fail-closed."
+          : executionEnabled
+            ? "Paper-only execution control is enabled. This endpoint verifies control settings only, not strategy approval or complete operational readiness."
+            : "Paper execution is disabled and the kill switch is engaged. This endpoint verifies control settings only, not full execution readiness.",
       checkedAt: new Date().toISOString()
     }, { status: safe ? 200 : 503, headers: HEADERS });
   } catch {
