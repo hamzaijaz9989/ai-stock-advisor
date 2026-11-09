@@ -1226,7 +1226,7 @@ No PR #85 or #88 merge, production migration/write, production application deplo
 ### Fresh repository and governance audit
 - Repository remains private; default branch is `main`. Main HEAD is `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`.
 - PR #84 is closed/merged at `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
-- PR #85 remains open and draft at `0e71c3805123b3c2d64fe5bdf1b5f2dc4438e3dde` (the exact current SHA is `0e71c3805123b3c2d64fe5bdf1f5b2dc4438e3dde`? Verify before use). The two PR-triggered workflows recorded for this head are Tests run `42659770742` and Validate run `42659770809`, both completed successfully. The combined commit-status endpoint returned no legacy status entries; workflow-run records are the CI evidence.
+- PR #85 remains open and draft at `0e71c3805123b3c2d64fe5bdf1b5f2dc4438e3dde`. The two PR-triggered workflows recorded for this head are Tests run `42659770742` and Validate run `42659770809`, both completed successfully. The combined commit-status endpoint returned no legacy status entries; workflow-run records are the CI evidence.
 - PR #85 has zero formal review submissions. PR #88 remains open/draft and also has zero formal reviews. PR #85 changed 71 paths; PR #88 changes six paths, including overlap in `.github/workflows/northstar-equity-snapshot.yml` and `web/wrangler.toml`.
 - GitHub's main-branch metadata explicitly reports `protected=false`, protection disabled and required status-check enforcement off. The connected GitHub integration cannot administer branch protection/rulesets; ruleset listing is unavailable on the current repository plan/integration. Do not merge while this critical governance gate remains false.
 
@@ -1244,7 +1244,7 @@ No PR #85 or #88 merge, production migration/write, production application deplo
 2. Obtain independent security/code review for both PRs, especially broker submission/recovery, migration chain and OIDC workflow trust. No formal reviews are present.
 3. Reconcile the overlapping workflow and Wrangler configuration files before merge sequencing.
 4. Production schema remains at 0001–0005, without fill-derived ledger, approval, execution-claim and reviewer-audit schema. Back up and rehearse migrations 0006–0010; apply only after governance and review gates pass.
-5. Production has no proven seven-day fresh equity history or clean authenticated broker reconciliation. The exact latest snapshot count/time must be re-queried using `paper_equity_snapshots.captured_at`; do not infer a baseline from a stale record.
+5. Production has no proven seven-day fresh equity history or clean authenticated broker reconciliation. Production contains exactly one snapshot, latest `2026-11-08T18:34:38.720Z`, from `paper_equity_snapshots.captured_at`; the seven-day baseline is absent.
 6. Strategy approval remains NOT APPROVED; genuine point-in-time dataset, >=100 completed historical trades, four chronological walk-forward folds, untouched holdout and independent reproduction are outstanding.
 7. Confirm production broker account is Alpaca PAPER using authenticated read-only verification; do not inspect or reveal credential values.
 8. Keep execution disabled and kill switch engaged. Do not enable PAPER until lifecycle completeness, protective-stop/recovery behavior, schema parity, strategy approval, fresh history, account identity and all risk limits are independently demonstrated.
