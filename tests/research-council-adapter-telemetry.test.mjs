@@ -63,3 +63,13 @@ test("failed specialist calls retain measured latency and a failure marker",asyn
  assert.equal(workers.telemetry.bear_researcher.failed,true);
  assert.ok(Number.isFinite(workers.telemetry.bear_researcher.latencyMs));
 });
+
+test("deterministic risk committee records latency without model token claims",async()=>{
+ const workers=await createResearchCouncilWorkers({});
+ const report=await workers.risk_committee({portfolio:{}});
+ assert.equal(report.status,"COMPLETE");
+ assert.equal(workers.telemetry.risk_committee.provider,"deterministic");
+ assert.equal(workers.telemetry.risk_committee.model,"northstar-risk-committee-v1");
+ assert.ok(Number.isFinite(workers.telemetry.risk_committee.latencyMs));
+ assert.equal(workers.telemetry.risk_committee.inputTokens,undefined);
+});
