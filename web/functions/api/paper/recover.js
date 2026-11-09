@@ -72,7 +72,7 @@ async function verifyExistingRecovery(db,key,secret,parent,existing){
   String(found.side||"").toLowerCase()==="sell"&&String(found.type||found.order_type||"").toLowerCase()==="stop"&&
   String(found.time_in_force||"").toLowerCase()==="gtc"&&qty!==null&&filled!==null&&filled>=0&&filled<=qty&&
   close(qty,Number(existing.qty))&&stop!==null&&close(stop,Number(existing.stop_price))&&status!=="UNKNOWN"&&
-  parentTerminal&&childTerminal&&!childResult.ambiguous&&parentFilled!==null&&childFilled!==null&&
+  parentTerminal&&childTerminal&&!childResult.ambiguous&&(parentFilled===0||Array.isArray(parent.legs))&&parentFilled!==null&&childFilled!==null&&
   expectedBeforeRecovery>=0&&close(qty,expectedBeforeRecovery)&&expectedAfterRecovery>=0;
  let positions;
  try{positions=await broker("/v2/positions",key,secret);}catch{return fail("Could not verify broker position against the existing recovery stop.",503);}
@@ -124,6 +124,7 @@ export async function onRequestPost({request,env}){
  try{parent=await broker("/v2/orders/"+encodeURIComponent(parentRow.broker_order_id)+"?nested=true",key,secret);}
  catch(e){return fail("Could not retrieve the original Alpaca Paper parent order; no recovery mutation was made.",503,{brokerStatus:e.status||null});}
  if(String(parent?.id||"")!==String(parentRow.broker_order_id)||String(parent.client_order_id||"")!==parentId||String(parent.order_class||"").toLowerCase()!=="oto"||String(parent.symbol||"").toUpperCase()!==symbol||String(parent.side||"").toLowerCase()!=="buy"||!close(num(parent.qty),Number(parentRow.qty)))return fail("Broker parent order does not match the Northstar OTO ledger; manual recovery is required.",409);
+ if(num(parent.filled_qty)>0&&!Array.isArray(parent.legs))return fail("Alpaca Paper did not return the nested OTO child list; no recovery mutation was made.",503);
  if(existing)return verifyExistingRecovery(db,key,secret,{...parent,id:parentId},existing);
 
  let brokerPositions;
