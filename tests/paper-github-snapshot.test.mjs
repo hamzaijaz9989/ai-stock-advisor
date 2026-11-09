@@ -95,7 +95,7 @@ test("does not continue when fill import returns ok but imported is false", asyn
   });
   assert.equal(result.status, 503);
   assert.equal((await result.json()).stage, "fills-sync");
-  assert.deepEqual(calls.map(x => x[0]), ["fills-sync"]);
+  assert.deepEqual(calls.map(x => x[0]), ["sync", "fills-sync"]);
 });
 
 test("does not report success when reconciliation is not clean", async () => {
