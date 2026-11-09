@@ -52,7 +52,7 @@ export async function onRequestPost({request,env}) {
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all();
     ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,stop_price,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
   } catch { return fail("Could not read the complete paper ledger; fail-closed.",503); }
-  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Execution controls are not in the required disabled/kill-switched state.",503);
+  if(!control||control.mode!=="paper") return fail("Paper mode is required for read-only reconciliation.",503);
   let account,brokerPositions,brokerOrders=[],pageToken=null,pages=0;
   try {
     [account,brokerPositions]=await Promise.all([
