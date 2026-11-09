@@ -57,15 +57,18 @@ export async function onRequestPost({request,env}){
      try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:found.id,response:found,reason:"RECOVERED_ORDER_STATE_INCONSISTENT"});}catch{}
      return fail("Recovered broker order state is inconsistent. Treat as UNKNOWN; no retry was attempted.",503,{orderId:existing.id,brokerOrderId:found.id,status:"UNKNOWN"});
     }
+    let recoveredStopVerified=false;
     if(!(recoveredStatus==="REJECTED"||recoveredStatus==="CANCELED"&&filled===0)){
      const nested=await broker("/v2/orders?status=all&limit=500&direction=desc&nested=true",key,secret);
      if(!Array.isArray(nested))throw new Error("NESTED_ORDER_LIST_INVALID");
      recovered=nested.find(order=>String(order?.id||"")===String(found.id))||null;
      const parentMatches=recovered&&String(recovered.symbol||"").toUpperCase()===intent.symbol&&String(recovered.side||"").toLowerCase()==="buy"&&Math.abs(Number(recovered.qty)-Number(intent.qty))<=0.0001&&String(recovered.client_order_id||"")===existing.id;
-     if(!parentMatches||!verifyOtoStopLeg(recovered,{symbol:intent.symbol,qty:intent.qty,stopPrice:intent.stop_price}).ok){
+     const recoveredStopCheck=verifyOtoStopLeg(recovered,{symbol:intent.symbol,qty:intent.qty,stopPrice:intent.stop_price});
+     if(!parentMatches||!recoveredStopCheck.ok||(filled>0&&!recoveredStopCheck.protected)){
       try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:found.id,response:recovered||found,reason:"RECOVERED_PROTECTIVE_STOP_NOT_VERIFIED"});}catch{}
-      return fail("Recovered OTO stop-loss leg is missing or mismatched. Treat as UNKNOWN and reconcile manually.",503,{orderId:existing.id,brokerOrderId:found.id,status:"UNKNOWN"});
+      return fail("Recovered OTO stop-loss leg is missing, inactive for exposed shares, or mismatched. Treat as UNKNOWN and reconcile manually.",503,{orderId:existing.id,brokerOrderId:found.id,status:"UNKNOWN"});
      }
+     recoveredStopVerified=recoveredStopCheck.protected===true;
      recoveredStatus=normalizeStatus(recovered.status);filled=num(recovered.filled_qty);
      if(recoveredStatus==="UNKNOWN"||filled===null||filled<0||filled>Number(intent.qty)||(recoveredStatus==="FILLED"&&Math.abs(filled-Number(intent.qty))>0.0001)||(recoveredStatus==="PARTIALLY_FILLED"&&(filled<=0||filled>=Number(intent.qty)))){
       try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:found.id,response:recovered,reason:"RECOVERED_NESTED_STATE_INCONSISTENT"});}catch{}
@@ -75,7 +78,7 @@ export async function onRequestPost({request,env}){
     const recoveredIntentStatus=recoveredStatus==="REJECTED"?"REJECTED":recoveredStatus==="CANCELED"?"CANCELLED":null;
     const statements=[
      db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=?").bind(found.id,recoveredStatus,safeJson(recovered),new Date().toISOString(),existing.id),
-     db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(existing.id,"BROKER_ORDER_RECOVERED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:found.id,status:recoveredStatus,protectiveStopVerified:recoveredStatus!=="REJECTED"&&!(recoveredStatus==="CANCELED"&&filled===0)})),
+     db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(existing.id,"BROKER_ORDER_RECOVERED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:found.id,status:recoveredStatus,protectiveStopVerified:recoveredStopVerified})),
      db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","ALPACA_PAPER_ORDER_RECOVERY","VERIFIED",existing.id,safeJson({brokerOrderId:found.id,status:recoveredStatus}))
     ];
     if(recoveredIntentStatus)statements.push(db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(recoveredIntentStatus,new Date().toISOString(),intentId));
@@ -152,7 +155,7 @@ export async function onRequestPost({request,env}){
   try{await markUnknown(db,{orderId:id,intentId,response:result||{},reason:"BROKER_ORDER_ID_MISSING"});}catch{}
   return fail("Broker response did not include a verifiable order ID. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,status:"UNKNOWN"});
  }
- let normalized=normalizeStatus(result.status),verifiedOrder=result;
+ let normalized=normalizeStatus(result.status),verifiedOrder=result,stopVerification={ok:false,protected:false};
  if(normalized==="UNKNOWN"){
   try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:result,reason:"BROKER_STATUS_UNRECOGNIZED"});}catch{}
   return fail("Broker returned an unrecognized order state. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
@@ -178,9 +181,10 @@ export async function onRequestPost({request,env}){
     return fail("Could not verify the broker's nested OTO stop-loss leg. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
    }
    const parentMatches=verifiedOrder&&String(verifiedOrder.symbol||"").toUpperCase()===intent.symbol&&String(verifiedOrder.side||"").toLowerCase()==="buy"&&Math.abs(Number(verifiedOrder.qty)-Number(intent.qty))<=0.0001&&String(verifiedOrder.client_order_id||"")===id;
-   if(!parentMatches||!verifyOtoStopLeg(verifiedOrder,{symbol:intent.symbol,qty:intent.qty,stopPrice:intent.stop_price}).ok){
+   stopVerification=verifyOtoStopLeg(verifiedOrder,{symbol:intent.symbol,qty:intent.qty,stopPrice:intent.stop_price});
+   if(!parentMatches||!stopVerification.ok||(initialFilled>0&&!stopVerification.protected)){
     try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder||result,reason:"PROTECTIVE_STOP_LEG_NOT_VERIFIED"});}catch{}
-    return fail("The exact protective stop-loss child was not verified at Alpaca. Order marked UNKNOWN and kill switch engaged; manual reconciliation is required.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+    return fail("The exact protective stop-loss child was not verified as active for all exposed shares at Alpaca. Order marked UNKNOWN and kill switch engaged; manual recovery is required.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
    }
    normalized=normalizeStatus(verifiedOrder.status);
    const verifiedFilled=num(verifiedOrder.filled_qty);
@@ -194,7 +198,7 @@ export async function onRequestPost({request,env}){
   }
  }
  const intentStatus=normalized==="REJECTED"?"REJECTED":normalized==="CANCELED"?"CANCELLED":null;
- const protectiveStopVerified=normalized!=="REJECTED"&&!(normalized==="CANCELED"&&num(verifiedOrder?.filled_qty)===0);
+ const protectiveStopVerified=normalized!=="REJECTED"&&!(normalized==="CANCELED"&&num(verifiedOrder?.filled_qty)===0)&&stopVerification.protected===true;
  try{
   const statements=[
    db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=? AND status IN ('SUBMITTING','UNKNOWN')").bind(result.id,normalized,safeJson(verifiedOrder),new Date().toISOString(),id),
