@@ -127,3 +127,11 @@ Immediate next sequence: merge PR #103 after exact-head CI and static preview ve
 - Next: provision the existing provider secret values into Cloudflare Pages Preview, redeploy, then validate read-only Alpaca and FMP endpoints independently. Gemini must also be configured for the council model adapter if required.
 - Secret values are write-only/redacted in the Cloudflare API and cannot be cloned automatically by this connection. Keep them out of GitHub, chat, logs and documentation.
 - No trading or execution changes. Paper execution remains disabled and kill switch engaged.
+
+
+## 2026-11-10 — Assistant-caused Preview secret regression
+
+- Root cause correction: during operator login setup, the assistant patched Cloudflare Pages Preview `env_vars` with only `NORTHSTAR_OPERATOR_TOKEN`, replacing the existing Preview environment-variable map. This removed Preview Alpaca, FMP and Gemini bindings and explains the provider outage after the login configuration change.
+- This was an assistant-introduced regression. Production bindings remain present; Preview secret values are write-only and cannot be recovered from current Cloudflare configuration.
+- Recovery work: inspect pre-change deployment snapshots and existing CI/CD secret stores for secure copies; never overwrite Production or commit credentials. If no secure copy is recoverable, an authorized owner must re-enter the original values.
+- Do not claim restoration until read-only Alpaca and FMP tests pass independently. No orders or execution changes.
