@@ -33,13 +33,35 @@ The council returns only RESEARCH_REVIEW_REQUIRED or NO_TRADE. It cannot enable 
 - Draft PR #39 contains an earlier six-agent scanner prototype. It is not merged: its separate scoring/sizing path and beta data endpoint would duplicate and potentially bypass the newer deterministic pipeline. Reuse its useful scanner concepts only after adapting them to shared contracts and validating provider coverage.
 - Draft PR #41 contains a paper order submission endpoint. It is not merged: client-side confirmation alone is not an adequate server-side approval boundary and its limits differ from the current paper safety specification. Do not enable it.
 
-## Next integration steps
-1. Build provider adapters that map existing quote, price history, SEC, FMP and news responses into canonical immutable fact/evidence IDs.
-2. Add per-agent structured prompts and output schemas behind server-side model adapters; keep secrets server-side and treat tool output as untrusted.
-3. Persist run events and reports with idempotent request IDs and append-only audit records.
-4. Add agent-level evaluation fixtures, adversarial prompt-injection tests, source attribution checks and cost/latency budgets.
-5. Run shadow analyses against deterministic baseline, measure disagreement and factual error before any influence on ranking.
+## Implementation status — 2026-11-10
 
+The core nine-role backend is implemented on `main`:
+- Immutable fact/evidence context construction from quote, history, SEC, FMP, news, earnings and portfolio inputs.
+- Server-side Gemini/OpenAI specialist adapters with strict structured-output contracts.
+- Five parallel independent specialists, Bull/Bear debate, Portfolio Analyst synthesis and deterministic Risk Committee veto.
+- Claim-to-fact-ID validation, prompt-injection boundaries, fail-closed unavailable-agent handling and idempotent durable `research_council_runs` persistence.
+- An authenticated server-side `POST /api/research/collect` route that gathers provider data itself and reconciles read-only Alpaca Paper portfolio context before running the council.
+- An authenticated `POST /api/research/council` route for trusted pre-collected context.
+
+The current dashboard integration gap is now being addressed in the separate PR `northstar/research-council-status-dashboard`: a public, read-only `GET /api/research/council/status` endpoint and a status card on `research.html`. The card shows the nine roles, durable production run count, known collection preconditions and safety state. It never returns secret values, broker balances, positions or raw portfolio data. It does not launch a council run.
+
+### Remaining work, in order
+
+1. Complete and merge the read-only status panel only after exact-head CI, secret scan and Pages preview checks pass.
+2. Build a separately authenticated operator launch path. Never place `NORTHSTAR_OPERATOR_TOKEN` in browser JavaScript or local storage.
+3. Restore a fresh, reconciled read-only equity snapshot and accumulate a genuine seven-day history. Current production D1 has only one old snapshot, so the collector's 15-minute freshness and seven-day baseline gates fail closed.
+4. Verify broker status, open orders, positions and D1 reconciliation through the protected operator workflow before any production collection attempt.
+5. Run one research-only production council collection with a stable request ID; verify all nine roles, source/fact references, stored result, replay idempotency and no order side effects.
+6. Evaluate factual support, disagreement, missing-resource behavior, latency and provider cost. Existing scorecards validate contracts and references, not truth or predictive accuracy.
+7. Only after this phase is independently accepted should the strategy-validation phase become the active product goal. Validated BUY remains disabled.
+
+### Current production evidence
+
+At the 2026-11-10 read-only audit:
+- `research_council_runs` and `research_decision_traces` both contain zero rows.
+- Production D1 has one equity snapshot dated `2026-11-08T18:34:38.720Z`; it is not fresh and does not provide a seven-day history.
+- Paper execution is disabled and the kill switch is engaged.
+- The public status panel is observability only. A green configuration indicator is not proof that the broker state, data, or strategy is valid.
 
 ## Connected worker API (v1)
 
@@ -71,4 +93,4 @@ Request shape:
 
 The endpoint accepts up to 500 fact/evidence records and a 64 KiB body. IDs must be unique across both arrays. Each model specialist receives the same immutable context and must cite exact IDs. News and filing text is treated as untrusted input. Specialist workers do not fetch data, browse the web, calculate financial metrics, or submit orders. The deterministic risk committee independently checks portfolio limits (2% aggregate open risk, 100% gross exposure, 2% daily loss stop, 4% weekly loss stop, 8% drawdown pause, 40% sector exposure, and the initial one-position limit). Missing model credentials, malformed reports, unavailable workers, or risk-limit breaches result in `NO_TRADE`.
 
-The append-only `research_council_runs` table is defined in migration `0003_research_council_runs.sql`. Apply that migration to D1 before using the endpoint in production. The endpoint is currently an authenticated API, not yet wired to the dashboard's ticker-analysis flow. Caller-supplied facts must come from trusted Northstar collectors; do not send raw browser-supplied claims as authoritative facts.
+The append-only `research_council_runs` table is defined in migration `0003_research_council_runs.sql` and is present in production D1. The authenticated API remains server-side. The research page's new status card is read-only and does not call the collector or council run endpoint. Caller-supplied facts must come from trusted Northstar collectors; do not send raw browser-supplied claims as authoritative facts.
