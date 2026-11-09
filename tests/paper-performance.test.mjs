@@ -75,3 +75,17 @@ test("performance withholds FIFO statistics when independent derived lots disagr
  assert.ok(b.fillLedger.dataQualityIssues.some(x=>x.reason==="FILL_DERIVED_OPEN_LOTS_MISMATCH"));
  assert.equal(b.tradeStatistics.grossRealizedPlUsd??null,null);
 });
+
+
+test("performance withholds FIFO metrics for ambiguous same-timestamp fills",async()=>{
+ const fills=[
+  {activity_id:"buy",broker_order_id:"test-order",symbol:"AAPL",side:"buy",qty:1,price:100,transaction_time:"2026-01-01T10:00:00Z"},
+  {activity_id:"sell",broker_order_id:"test-order",symbol:"AAPL",side:"sell",qty:1,price:110,transaction_time:"2026-01-01T10:00:00Z"}
+ ];
+ const r=await onRequestGet({env:{NORTHSTAR_DB:db({fills})}});
+ const b=await r.json();
+ assert.equal(r.status,200);
+ assert.equal(b.fillLedger.available,false);
+ assert.equal(b.tradeStatistics.status,"WITHHELD_FILL_DATA_QUALITY");
+ assert.ok(b.fillLedger.dataQualityIssues.some(x=>x.reason==="AMBIGUOUS_FILL_ORDERING"));
+});
