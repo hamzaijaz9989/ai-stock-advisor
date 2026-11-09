@@ -766,3 +766,27 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Latest PR head `5919b043a12d63cb866514e12aa964967763176f` passed Tests workflow run `42607287149`: 301 JavaScript tests passed, 94 Python tests passed, Ruff lint passed; 0 failures.
 - Validate AI Stock Advisor workflow run `42607287146` completed successfully: Python tests/lint, JavaScript syntax, frontend analysis tests, paper readiness endpoint tests, SEC ingestion adapter and validation CLI smoke checks all passed. The validation smoke test still asserts strategy validation is false.
 - These are automated CI tests, not live model-provider quality tests, production council runs, market-data verification or strategy performance evidence.
+
+
+## Research Council deterministic risk-committee correction — 2026-11-09 11:25 UTC
+
+### Verified defect and fix
+- Code inspection found a contract bug: the shared report validator rejected every empty `COMPLETE` report before applying the Risk Committee-specific schema. The actual deterministic `riskCommittee()` intentionally returns `findings: []` and `risks: []`, with its authoritative `decision` and `vetoReasons` fields. Therefore the production adapter's real deterministic Risk Committee would always have been marked BLOCKED, even though mock tests with non-empty findings passed.
+- Corrected `web/lib/research-council.js`: the non-empty-report requirement now applies to the eight model specialists only. The deterministic Risk Committee may return a decision-only report, but its explicit decision/veto invariants remain mandatory. Contract version bumped to 1.0.3.
+- Added regression tests for both a decision-only `ACCEPT_FOR_REVIEW` and decision-only `REJECT`; the rejection remains a hard veto.
+- Updated `web/docs/NORTHSTAR_RESEARCH_COUNCIL.md` to document the deliberate exception and defect correction.
+
+### Commits and CI
+- `86f9df77fb3088265195dd3f36dd746d51ad06cd` — correct risk committee report validation.
+- `6225aa44893b76c69984dd8a0d9f8ad1733e5743` — decision-only accept/reject regression tests.
+- `0e46785db0b120c9796c25f7194d4b88cb128fc4` — council contract version 1.0.3.
+- `bdc17b4ee250cdce6b4a39361018f8c1d2fae917` — document correction.
+- Tests workflow run `42608689387` completed successfully: 303 JavaScript tests passed, 0 failed; Ruff lint passed.
+- Validate AI Stock Advisor run `42608689428` completed successfully: Python tests/lint, JavaScript syntax, frontend analysis, paper readiness endpoint, SEC ingestion and synthetic validation smoke checks passed. Synthetic smoke check continues to assert strategy validation is false.
+- The green CI runs were triggered on commit `6225aa44893b76c69984dd8a0d9f8ad1733e5743`, before the subsequent version-only and documentation/log commits. Re-run/confirm CI on the final PR head before treating the final head as verified.
+
+### Remaining limitations and release gates
+- PR #85 remains draft and unmerged. No production deployment, D1 migration/write, live model-provider call, broker mutation or paper/live order occurred.
+- The eight model roles still share one selected provider/model configuration and the same immutable collected evidence dossier. Per-role model routing, independent model diversity, durable learning memory, scheduled autonomous research cycles and dashboard integration are not implemented.
+- The council is not yet verified against live Gemini/OpenAI provider responses or real provider data. Existing CI validates orchestration contracts with test workers, not factual accuracy or investment performance.
+- Continue to keep strategy approval false, paper execution disabled and kill switch engaged. Existing blockers remain: seven-day production equity history and clean reconciliation; authenticated scheduled sync; real point-in-time FMP/SEC dataset and strategy validation; independent review and formal branch governance; controlled production migrations/release; paper approval credential and final D1-to-broker boundary race mitigation.
