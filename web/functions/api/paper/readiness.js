@@ -45,7 +45,6 @@ export async function onRequestGet({ env }) {
     const safe = policyConfigurationVerified && controlStateVerified;
     const executionEnabled = enabled && !killSwitchEngaged;
     const strategyValidation = evaluateStrategyApproval(strategyApproval);
-    const paperExecutionReady = safe && strategyValidation.ok;
 
     return Response.json({
       configured: true,
@@ -54,8 +53,6 @@ export async function onRequestGet({ env }) {
       executionEnabled,
       killSwitchEngaged,
       strategyValidation,
-      strategyValidationApproved: strategyValidation.ok,
-      paperExecutionReady,
       controlStateVerified,
       limits: {
         virtualCapitalUsd: 1000,
