@@ -146,24 +146,27 @@ export function evaluatePartialFillRecovery({
 
 // Cross-check a durable standalone recovery stop against the original OTO
 // parent, its terminal child fills, the recovery-order ledger and live position.
-export function verifyStandaloneRecoveryStop({parent,parentRow,recoveryOrder,recoveryRow,brokerPosition=null}) {
+export function verifyStandaloneRecoveryStop({parent,parentRow,recoveryOrder,recoveryRow,brokerPosition=null,brokerPositionCount=null}) {
   const blocked=reason=>({ok:false,reason});
   if(!parent||!parentRow||!recoveryOrder||!recoveryRow)return blocked("RECOVERY_STOP_OR_LINKED_LEDGER_ROW_MISSING");
   const parentStatus=String(parent.status||"").toLowerCase();
   const parentQty=number(parent.qty),parentFilled=number(parent.filled_qty);
   const symbol=String(parentRow.symbol||"").toUpperCase();
+  const parentId=String(parentRow.id||"");
   const stopPrice=number(parentRow.stop_price);
   const terminalParent=["filled","canceled","cancelled","expired","rejected"].includes(parentStatus);
   if(!terminalParent||String(parent.order_class||"").toLowerCase()!=="oto"||
-     String(parent.client_order_id||"")!==String(parentRow.id||"")||
+     !parentId||String(parentRow.broker_order_id||"")!==String(parent.id||"")||
+     String(parentRow.side||"").toLowerCase()!=="buy"||
+     String(parent.client_order_id||"")!==parentId||
      String(parent.side||"").toLowerCase()!=="buy"||
      String(parent.symbol||"").toUpperCase()!==symbol||
      !Number.isInteger(parentQty)||parentQty<=0||!Number.isInteger(parentFilled)||parentFilled<0||parentFilled>parentQty||
      !close(parentQty,number(parentRow.qty))||stopPrice===null||stopPrice<=0||
      (parentStatus==="filled"&&!close(parentFilled,parentQty)))return blocked("RECOVERY_PARENT_NOT_TERMINAL_OR_MISMATCHED");
+  if(!Array.isArray(parent.legs))return blocked("RECOVERY_PARENT_STOP_CHILD_LIST_UNAVAILABLE");
 
-  const legs=Array.isArray(parent.legs)?parent.legs:[];
-  const children=legs.filter(x=>String(x?.side||"").toLowerCase()==="sell"&&(
+  const children=parent.legs.filter(x=>String(x?.side||"").toLowerCase()==="sell"&&(
     ["stop","stop_limit"].includes(String(x?.type||x?.order_type||"").toLowerCase())||
     String(x?.order_group_role||x?.group_role||x?.role||"").toLowerCase()==="stop_loss"));
   if(children.length>1)return blocked("RECOVERY_PARENT_HAS_AMBIGUOUS_STOP_CHILDREN");
@@ -171,24 +174,33 @@ export function verifyStandaloneRecoveryStop({parent,parentRow,recoveryOrder,rec
   if(children.length){
     const child=children[0],childStatus=String(child.status||"").toLowerCase();
     const childQty=number(child.qty),filled=number(child.filled_qty),childStop=number(child.stop_price);
-    if(!["filled","canceled","cancelled","expired","rejected"].includes(childStatus)||
+    if(!child.id||!["filled","canceled","cancelled","expired","rejected"].includes(childStatus)||
        String(child.symbol||"").toUpperCase()!==symbol||
+       String(child.side||"").toLowerCase()!=="sell"||
        !["stop","stop_limit"].includes(String(child.type||child.order_type||"").toLowerCase())||
-       !Number.isInteger(childQty)||childQty<=0||!Number.isInteger(filled)||filled<0||filled>childQty||
+       !Number.isInteger(childQty)||childQty<=0||childQty>parentQty||
+       !Number.isInteger(filled)||filled<0||filled>childQty||filled>parentFilled||
        childStop===null||!close(childStop,stopPrice))return blocked("RECOVERY_OTO_CHILD_NOT_TERMINAL_OR_MISMATCHED");
     childFilled=filled;
   }
-  if(childFilled>parentFilled)return blocked("RECOVERY_CHILD_FILLS_EXCEED_PARENT_FILLS");
   const expectedBeforeRecovery=parentFilled-childFilled;
+  if(expectedBeforeRecovery<=0)return blocked("RECOVERY_NO_REMAINING_EXPOSURE");
   const recoveryQty=number(recoveryRow.qty),recoveryFilled=number(recoveryOrder.filled_qty);
   const recoveryStop=number(recoveryOrder.stop_price);
   const recoveryStatus=String(recoveryOrder.status||"").toLowerCase();
+  const statusMap={new:"ACCEPTED",accepted:"ACCEPTED",pending_new:"ACCEPTED",accepted_for_bidding:"ACCEPTED",
+    partially_filled:"PARTIALLY_FILLED",filled:"FILLED",canceled:"CANCELED",cancelled:"CANCELED",expired:"CANCELED",rejected:"REJECTED"};
+  const normalizedRecoveryStatus=statusMap[recoveryStatus]||"UNKNOWN";
+  const rowStatus=String(recoveryRow.status||"").toUpperCase().replace("CANCELLED","CANCELED");
   const recoveryStatusActive=["new","accepted","pending_new","accepted_for_bidding","partially_filled"].includes(recoveryStatus);
   const recoveryStatusFilled=recoveryStatus==="filled";
   const recoveryStatusTerminal=["canceled","cancelled","expired","rejected"].includes(recoveryStatus);
-  if(expectedBeforeRecovery<=0||recoveryRow.idempotency_key!=="recovery:"+parentRow.id||
-     String(recoveryRow.side||"").toLowerCase()!=="sell"||String(recoveryRow.order_type||"").toLowerCase()!=="stop"||
-     String(recoveryRow.time_in_force||"").toLowerCase()!=="gtc"||!close(recoveryQty,expectedBeforeRecovery)||
+  if(recoveryRow.idempotency_key!=="recovery:"+parentId||
+     String(recoveryRow.symbol||"").toUpperCase()!==symbol||
+     String(recoveryRow.side||"").toLowerCase()!=="sell"||
+     String(recoveryRow.order_type||"").toLowerCase()!=="stop"||
+     String(recoveryRow.time_in_force||"").toLowerCase()!=="gtc"||
+     !Number.isInteger(recoveryQty)||!close(recoveryQty,expectedBeforeRecovery)||
      !close(number(recoveryRow.stop_price),stopPrice)||
      String(recoveryOrder.id||"")!==String(recoveryRow.broker_order_id||"")||
      String(recoveryOrder.client_order_id||"")!==String(recoveryRow.id||"")||
@@ -198,20 +210,26 @@ export function verifyStandaloneRecoveryStop({parent,parentRow,recoveryOrder,rec
      String(recoveryOrder.time_in_force||"").toLowerCase()!=="gtc"||
      !close(number(recoveryOrder.qty),recoveryQty)||recoveryStop===null||!close(recoveryStop,stopPrice)||
      recoveryFilled===null||recoveryFilled<0||recoveryFilled>recoveryQty||
+     normalizedRecoveryStatus==="UNKNOWN"||rowStatus!==normalizedRecoveryStatus||
      !(recoveryStatusActive||recoveryStatusFilled||recoveryStatusTerminal))return blocked("RECOVERY_STOP_ORDER_OR_LEDGER_MISMATCHED");
 
   const expectedAfterRecovery=expectedBeforeRecovery-recoveryFilled;
-  const positionQty=brokerPosition?number(brokerPosition.qty):0;
-  const positionSide=String(brokerPosition?.side||(positionQty>0?"long":"")).toLowerCase();
+  const count=brokerPositionCount===null||brokerPositionCount===undefined?(brokerPosition?1:0):Number(brokerPositionCount);
+  if(!Number.isInteger(count)||count<0||count>1||(count===1&&!brokerPosition)||(count===0&&brokerPosition))return blocked("RECOVERY_STOP_BROKER_POSITION_SET_AMBIGUOUS");
+  const positionQty=count===1?number(brokerPosition.qty):0;
+  const positionSide=String(brokerPosition?.side||"").toLowerCase();
   if(positionQty===null||positionQty<0||!close(positionQty,expectedAfterRecovery)||
-     (positionQty>0&&positionSide!=="long"))return blocked("RECOVERY_STOP_POSITION_DOES_NOT_MATCH_CUMULATIVE_FILLS");
-  const leaves=number(recoveryOrder.leaves_qty)??(recoveryQty-recoveryFilled);
+     (count===1&&(positionQty<=0||positionSide!=="long"||String(brokerPosition.symbol||"").toUpperCase()!==symbol)))return blocked("RECOVERY_STOP_POSITION_DOES_NOT_MATCH_CUMULATIVE_FILLS");
+
+  const reportedLeaves=number(recoveryOrder.leaves_qty);
+  const leaves=reportedLeaves??(recoveryQty-recoveryFilled);
+  if(leaves<0||!close(leaves,recoveryQty-recoveryFilled))return blocked("RECOVERY_STOP_LEAVES_QUANTITY_MISMATCH");
   if(recoveryStatusActive){
     if(expectedAfterRecovery<=0||!close(leaves,expectedAfterRecovery))return blocked("RECOVERY_STOP_LEAVES_DO_NOT_COVER_REMAINING_POSITION");
   }else if(recoveryStatusFilled){
-    if(!close(recoveryFilled,recoveryQty)||expectedAfterRecovery!==0)return blocked("RECOVERY_STOP_FILLED_QUANTITY_INCOMPLETE");
+    if(!close(recoveryFilled,recoveryQty)||expectedAfterRecovery!==0||leaves!==0)return blocked("RECOVERY_STOP_FILLED_QUANTITY_INCOMPLETE");
   }else if(expectedAfterRecovery!==0){
     return blocked("RECOVERY_STOP_TERMINAL_WITH_REMAINING_EXPOSURE");
   }
-  return {ok:true,reason:"STANDALONE_RECOVERY_STOP_RECONCILED",expectedBeforeRecovery,expectedAfterRecovery,recoveryStatus,positionQty,leaves};
+  return {ok:true,reason:"STANDALONE_RECOVERY_STOP_RECONCILED",expectedBeforeRecovery,expectedAfterRecovery,recoveryStatus:normalizedRecoveryStatus,positionQty,leaves};
 }
