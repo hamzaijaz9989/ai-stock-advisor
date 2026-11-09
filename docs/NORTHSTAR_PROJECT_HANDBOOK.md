@@ -292,3 +292,13 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - The API masks secret values. Current configuration cannot restore prior values, and the connected Cloudflare integration cannot read them back. No further config overwrite should occur. Recovery investigation is to inspect deployment snapshots, CI/CD secrets, and other existing secure sources. Do not modify Production credentials or place secrets in source control.
 - If no secure copy exists, restoration requires an authorized secret owner to re-enter the original values. The assistant must be transparent about this limitation and not claim the API credentials have been restored.
 - No trading execution, paper/live orders, production D1 writes/migrations or production secret changes were made.
+
+
+## 2026-11-10 — Operator login reverted
+
+- User confirmed the login is unnecessary and prioritized restoring Alpaca/FMP connectivity.
+- Reverted `web/trading-lab.html` and `web/trading-lab.js` to their pre-login baseline at commit `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`; removed `web/functions/api/auth/check.js`.
+- This removes the assistant-added login screen and restores the previous Trading Lab client flow. It does **not** restore the missing Preview provider secrets. The baseline client uses the original token-prompt flow for protected operator actions.
+- Commits: `e8c41c88aaf24025258f335c50688d8021b2abce`, `64621115bdf8c7c485760aca9ee35c8909fbac80`, `79388ef24fc27f94f3fd6a54cd1dc404e295b6bf`.
+- No Production deployment, Production secret change, database write/migration, broker order, or execution-control change.
+- Remaining blocker: restore original Preview `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, `FMP_API_KEY2` (and `GEMINI_API_KEY` for Gemini-backed agents) from an authorized secure source. Current Cloudflare API integration cannot read prior secret values. Do not claim APIs are restored until independent read-only tests pass.
