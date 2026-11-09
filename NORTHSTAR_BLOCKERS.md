@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T15:02:19Z
+Last updated: 2026-11-09T15:08:37Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -1009,7 +1009,7 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Production controls remain `enabled=0`, `mode='paper'`, `kill_switch=1`, virtual allocation $1,000, default risk 0.5%, maximum risk 1%, and maximum position fraction 25%.
 - Preview D1 controls are also disabled with kill switch engaged. Preview has zero equity snapshots, intents, orders, positions, broker fills, fill-ledger rows, position lots, realized trades, and execution claims. Its strategy approval record remains `approved=0` with no report hash, URI, reviewer, or approval timestamp.
 - All D1 audit queries were read-only: `rows_written=0`, `changed_db=false`.
-- Direct web HTTP probes for production readiness/performance and preview readiness were inaccessible from the connected web runtime. No fresh endpoint health check is claimed for this run; use the last successful production readiness response recorded earlier, and verify endpoints again from an authorized network before release.
+- The web.open probes were inaccessible, but live Firecrawl fetches with maxAge=0 subsequently verified the endpoints: production readiness HTTP 200 at 2026-11-09T15:08:06.192Z (configured/policyVerified=true, PAPER, execution disabled, kill switch engaged); production performance HTTP 200 at 15:08:06.460Z (one old snapshot, $100,000 broker equity/cash, no imported fills and no trade statistics); production control HTTP 200 (execution disabled, kill switch engaged). Preview readiness HTTP 200 at 15:08:06.261Z (control state verified; strategy validation NOT APPROVED with report/hash/URI/timestamp/reviewer missing); preview performance and control HTTP 200 at 15:08:37.157Z (zero snapshots/fills, execution disabled, kill switch engaged). These were GET-only checks; no endpoint mutation occurred.
 - No production D1 writes/migrations, broker requests, broker mutations, paper/live orders, production deployment, PR merge, or PAPER enablement occurred in this run.
 
 #### Remaining blockers and next actions
@@ -1022,4 +1022,12 @@ The additional review did not issue broker requests or modify any D1 row. These 
 7. Strategy validation remains NOT APPROVED. A real point-in-time dataset, frozen-rule replay, at least 100 completed historical trades, four chronological walk-forward folds, untouched holdout, provenance/survivorship/corporate-action/cost attestations and independent reproduction are outstanding.
 8. The separate `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN` and guarded, audited PAPER-only enable procedure are not configured/verified. Strategy approval remains false; do not enable execution.
 9. Direct production/preview endpoint verification must be repeated from an authorized network before release.
+
+
+
+#### Run 6 follow-up — scheduled workflow and OIDC bridge review — 2026-11-09T15:08:37Z
+- Production scheduled workflow run `42583519570` is confirmed failed at the GitHub Actions secret-presence step: `NORTHSTAR_OPERATOR_TOKEN` was missing/empty in the Actions secret store. The production readiness step passed first; account snapshot and reconciliation steps were skipped. The secret value was never requested or exposed.
+- PR #88 (`62ca1021b3b394116d4dccfdab9284ac94aae5bc`) was technically inspected. Its OIDC verifier pins the GitHub issuer/JWKS URL, RS256, fixed audience, private repository name and immutable repository/owner IDs, main ref, exact workflow path, event allowlist, run ID/attempt, token ID and short token lifetime. The bridge atomically claims each workflow attempt in D1, then invokes only account sync, fill import and reconciliation handlers. The three handlers' Alpaca wrappers use GET-only requests; no broker order POST/PATCH/DELETE is present in this chain.
+- PR #88 Tests run `42611929156` and Validate run `42611929171` previously passed. PR #88 remains draft, has no formal review or review threads, and has not been deployed. The bridge still requires the Cloudflare-side `NORTHSTAR_OPERATOR_TOKEN`; its presence/value is not confirmed by secret-name metadata. Keep branch protection and independent review as prerequisites before relying on the workflow.
+- The production/preview endpoint GET checks above confirm route availability and fail-closed state, not broker-account identity, clean reconciliation, or strategy approval. No broker account API call was made in this run.
 
