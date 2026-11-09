@@ -42,3 +42,12 @@ It deliberately separates recovery into ordered decisions:
 5. Any mismatch, unknown state, stale quote, or breached stop price returns `MANUAL_RECOVERY_REQUIRED`. The policy never recommends a blind market flatten.
 
 The standalone stop is a stop-market order: its stop trigger does not guarantee the eventual execution price. The operator endpoint that performs cancellation and stop placement is not implemented yet; this commit establishes and tests the deterministic safety policy before adding broker mutations.
+
+
+## Single-flight submission boundary — 2026-11-09
+
+Migration `0008_paper_execution_single_flight.sql` adds a durable singleton claim for the deliberately narrow first paper executor. The order row, claim, event and audit row are written in one D1 batch; each dependent insert is conditional on acquiring the singleton. A second distinct intent cannot create a second submission claim. The claim is intentionally permanent for this initial one-order executor and is not released by a terminal broker state.
+
+Immediately before the broker POST, the route re-reads `execution_control` and refuses submission if paper mode is not active, execution is disabled, or the kill switch is engaged. This narrows the control race window but cannot make a D1 read and an external broker request atomic. The route remains paper-only; no LIVE URL or fallback exists. The final-control and singleton-claim tests use broker mocks only.
+
+Migration 0008 is branch/preview scope until reviewed and applied through the normal release process. Do not apply it to production or enable paper execution while the strategy, recovery, equity-history, credential, governance and end-to-end verification gates remain open.
