@@ -15,7 +15,10 @@ function mockDb(control) {
         sql,
         values: [],
         bind(...values) { this.values = values; return this; },
-        async first() { calls.push({ type: "first", sql }); return control; }
+        async first() {
+          calls.push({ type: "first", sql });
+          return sql.includes("paper_execution_claims") ? null : control;
+        }
       };
     },
     async batch(statements) { calls.push({ type: "batch", statements }); return []; }
@@ -102,7 +105,9 @@ test("operator control only permits engaging the kill switch and audits the chan
     env: { NORTHSTAR_DB: db, NORTHSTAR_OPERATOR_TOKEN: "test-token" }
   });
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).killSwitchEngaged, true);
+  const body = await response.json();
+  assert.equal(body.killSwitchEngaged, true);
+  assert.equal(body.submissionQuiesced, true);
   assert.equal(calls.filter(call => call.type === "batch").length, 1);
   assert.equal(calls.find(call => call.type === "batch").statements.length, 2);
 });
