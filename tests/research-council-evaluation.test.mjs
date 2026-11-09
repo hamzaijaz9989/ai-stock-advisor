@@ -20,6 +20,8 @@ test("scorecard measures reference integrity and reports role coverage",()=>{
  assert.equal(score.totals.totalReferences,5);
  assert.equal(score.totals.invalidReferenceClaims,1);
  assert.equal(score.roles.technical_analyst.resourceStatus,"PARTIAL");
+ assert.equal(score.roles.technical_analyst.status,"COMPLETE");
+ assert.equal(score.roles.bull_researcher.status,"COMPLETE");
  assert.equal(score.roles.sentiment_analyst,undefined);
  assert.equal(score.debate.sharedCitedEvidenceCount,1);
  assert.deepEqual(score.debate.sharedEvidenceIds,["e1"]);
