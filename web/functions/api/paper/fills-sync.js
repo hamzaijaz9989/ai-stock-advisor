@@ -201,7 +201,7 @@ export async function onRequestPost({request,env}){
     const matchingPositions=brokerPositions.filter(p=>String(p?.symbol||"").toUpperCase()===String(row.symbol||"").toUpperCase());
     const recoveryCheck=verifyStandaloneRecoveryStop({
      parent:brokerOrder,parentRow:row,recoveryOrder:linkedRecoveryBroker,recoveryRow:linkedRecovery,
-     brokerPosition:matchingPositions.length===1?matchingPositions[0]:null
+     brokerPosition:matchingPositions.length===1?matchingPositions[0]:null,brokerPositionCount:matchingPositions.length
     });
     if(!recoveryCheck.ok){
      const reason=linkedRecovery?(recoveryCheck.reason||stopCheck.reason):stopCheck.reason;
