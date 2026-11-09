@@ -54,7 +54,7 @@ function validateClaims(claims, { audience, nowSeconds }) {
   if (claims.repository !== EXPECTED_REPOSITORY) return "REPOSITORY_MISMATCH";
   if (String(claims.repository_id || "") !== EXPECTED_REPOSITORY_ID) return "REPOSITORY_ID_MISMATCH";
   if (String(claims.repository_owner_id || "") !== EXPECTED_OWNER_ID) return "OWNER_ID_MISMATCH";
-  if (claims.repository_visibility !== "private") return "REPOSITORY_VISIBILITY_MISMATCH";
+  if (claims.repository_visibility !== "public") return "REPOSITORY_VISIBILITY_MISMATCH";
   if (claims.ref !== EXPECTED_REF) return "REF_MISMATCH";
   const legacySub = `repo:${EXPECTED_REPOSITORY}:ref:${EXPECTED_REF}`;
   const immutableSub = `repo:hamzaijaz9989@${EXPECTED_OWNER_ID}/ai-stock-advisor@${EXPECTED_REPOSITORY_ID}:ref:${EXPECTED_REF}`;
