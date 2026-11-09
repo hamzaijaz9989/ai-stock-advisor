@@ -958,3 +958,12 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Direct HTTP smoke test for homepage and `/api/research/council-status` could not be completed because the web browsing layer could not access the Pages host. This is a tooling reachability limitation; do not mark the app broken or runtime verified.
 - No merge, production deployment, production DB write/migration, broker call, order or execution-control change was performed. Production council run count remains 0; fresh and seven-day equity history gates remain unmet; collector was not run.
 - **Open acceptance blocker:** runtime smoke test of preview dashboard/status route and protected collector auth/failure behavior. Then complete review and safe merge decision. The research council code milestone is CI-green and preview-deployed, but not yet accepted as production-ready.
+
+
+## 2026-11-10 — Scope correction before PR #103 merge
+- Removed the separate public Research Council readiness endpoint/card and its tests. Preview probes returned Cloudflare Pages 404 for the new route and for existing API routes on the same preview deployment; the static UI deployed successfully. The status endpoint was unnecessary public surface and exposed configuration-presence booleans.
+- Kept the protected Trading Lab Stock Brain workspace, nine-role matrix, durable trace confirmation, and safe non-JSON API fallback handling. The UI calls the existing protected `POST /api/research/collect` route and does not store the operator token.
+- PR #103 current verified head at this checkpoint: `f318d329a4043ca6920e12ec970549737cc8e8fd`; Tests `42714973358` and `42714968748`, Validate `42714973449`, and secret scan `42714973213` all passed.
+- Static preview checks: Trading Lab deployment `a048a380-2dd4-4f41-8d02-3a9cef78a699` and final research page deployment `ff50f9d8-20db-4573-9cc7-660328fc2381` both succeeded. Preview Pages Functions were not available on these preview hosts; verify production API routing after merge.
+- No production deployment, D1 write/migration, broker request, order, or execution-control change was made. Paper execution remains disabled and the kill switch engaged.
+- Next action: merge PR #103 only after exact-head checks and review; then verify production Pages deployment and the protected collector route. Do not run the collector until a fresh equity snapshot and genuine seven-day baseline are available.
