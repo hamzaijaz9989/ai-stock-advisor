@@ -33,7 +33,7 @@ test("kill switch acknowledgement waits until an already-claimed submission is t
   assert.equal(body.submissionQuiesced,true);
   assert.equal(body.submissionState,"SUBMITTED");
   assert.ok(writes.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")));
-  assert.ok(writes.some(x=>x.sql.includes("ENGAGE_KILL_SWITCH")));
+  assert.ok(writes.some(x=>x.args.includes("ENGAGE_KILL_SWITCH")));
   assert.match(body.warnings.join(" "),/Existing broker orders are not cancelled/);
 });
 
