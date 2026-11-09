@@ -10,6 +10,7 @@ import {buildResearchCouncilContext} from "../../../lib/research-council-facts.j
 import {runResearchCouncil} from "../../../lib/research-council.js";
 import {createResearchCouncilWorkers} from "../../../lib/research-council-adapters.js";
 import {deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
+import {onRequestPost as reconcilePaperAccount} from "../paper/reconcile.js";
 import {onRequestPost as syncPaperAccount} from "../paper/sync.js";
 
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
@@ -91,7 +92,15 @@ export async function onRequestPost({request,env}){
    if(String(prior.symbol||"").toUpperCase()!==ticker)return reply({ok:false,error:"requestId already belongs to a different ticker."},409);
    return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(prior.result_json),createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
   }
-  // Refresh the read-only broker snapshot before using portfolio values.
+  // Reconcile the existing broker and D1 snapshots BEFORE sync can refresh/replace
+  // the position mirror. This prevents a sync from hiding a pre-existing mismatch.
+  const reconcileResponse=await reconcilePaperAccount({request:new Request(origin+"/api/paper/reconcile",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||""}}),env});
+  let reconciliation={};
+  try{reconciliation=await reconcileResponse.json();}catch{}
+  if(!reconcileResponse.ok||reconciliation?.ok!==true||reconciliation?.reconciled!==true||reconciliation?.execution!==false)
+   throw new Error("Pre-sync broker-to-ledger reconciliation failed; research collection is blocked.");
+  // Only after independent reconciliation succeeds may the read-only sync refresh
+  // the durable broker snapshot used by the research portfolio context.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
   const portfolio=await portfolioSnapshot(env);

@@ -1,4 +1,5 @@
 // Authenticated, read-only broker-to-ledger reconciliation. Never submits or mutates orders.
+import {verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
 const H = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail = (error,status=400,extra={}) => Response.json({ok:false,reconciled:false,execution:false,error,...extra},{status,headers:H});
 function safeEqual(a,b) {
@@ -19,7 +20,18 @@ async function alpaca(path,key,secret) {
   return response.json();
 }
 const num = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
-const statusOf = value => String(value || "").trim().toUpperCase();
+const statusOf = value => {
+  const raw=String(value || "").trim().toLowerCase();
+  // Alpaca's broker vocabulary is normalized to Northstar's durable ledger states.
+  // Unknown broker states remain UNKNOWN and therefore fail closed during reconciliation.
+  return ({
+    new:"ACCEPTED", pending_new:"ACCEPTED", held:"ACCEPTED",
+    accepted:"ACCEPTED", accepted_for_bidding:"ACCEPTED",
+    partially_filled:"PARTIALLY_FILLED", filled:"FILLED",
+    canceled:"CANCELED", cancelled:"CANCELED", rejected:"REJECTED",
+    unknown:"UNKNOWN"
+  })[raw] || "UNKNOWN";
+};
 function storedFill(row) {
   try {
     const data=JSON.parse(row.response_json || "{}");
@@ -38,9 +50,9 @@ export async function onRequestPost({request,env}) {
   try {
     control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all();
-    ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
+    ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,stop_price,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
   } catch { return fail("Could not read the complete paper ledger; fail-closed.",503); }
-  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Execution controls are not in the required disabled/kill-switched state.",503);
+  if(!control||control.mode!=="paper") return fail("Paper mode is required for read-only reconciliation.",503);
   let account,brokerPositions,brokerOrders=[],pageToken=null,pages=0;
   try {
     [account,brokerPositions]=await Promise.all([
@@ -48,7 +60,7 @@ export async function onRequestPost({request,env}) {
       alpaca("/v2/positions",key,secret)
     ]);
     do {
-      const query=new URLSearchParams({status:"all",limit:"500",direction:"desc"});
+      const query=new URLSearchParams({status:"all",limit:"500",direction:"desc",nested:"true"});
       if(pageToken) query.set("page_token",pageToken);
       const result=await alpaca("/v2/orders?"+query.toString(),key,secret);
       if(!Array.isArray(result)) throw new Error("BROKER_INVALID_ORDERS");
@@ -111,6 +123,12 @@ export async function onRequestPost({request,env}) {
     if(brokerFilledQty>0 && (brokerFilledAvg===null || ledgerFill.avg===null || !close(brokerFilledAvg,ledgerFill.avg,0.01))) {
       orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"AVERAGE_FILL_PRICE_NOT_RECONCILED",ledgerFilledAvgPrice:ledgerFill.avg,brokerFilledAvgPrice:brokerFilledAvg});
     }
+    const noExposureTerminal=brokerStatus==="REJECTED"||(brokerStatus==="CANCELED"&&brokerFilledQty===0);
+    const stopPrice=num(l.stop_price);
+    if(stopPrice!==null&&!noExposureTerminal){
+      const stopCheck=verifyOtoStopLeg(b,{symbol:l.symbol,qty:lqty,stopPrice});
+      if(!stopCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,expectedStopPrice:stopPrice});
+    }
   }
   for(const b of brokerOrders) {
     if(!ledgerByBrokerId.has(String(b.id))) orderMismatches.push({brokerOrderId:String(b.id),reason:"BROKER_ORDER_MISSING_FROM_LEDGER",symbol:b.symbol,status:b.status});
@@ -122,7 +140,7 @@ export async function onRequestPost({request,env}) {
     account:{status:account.status,currency:account.currency},
     counts:{brokerPositions:bp.length,ledgerPositions:lp.length,brokerOrders:brokerOrders.length,ledgerOrders:orderRows.length,orderHistoryPages:pages},
     mismatches:{positions:positionMismatches,orders:orderMismatches},
-    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Order status, cumulative filled quantity, and average fill price are compared; missing fill snapshots are treated as mismatches.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","Execution remains disabled and the kill switch remains engaged."],
+    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Order status, cumulative filled quantity, and average fill price are compared; missing fill snapshots are treated as mismatches.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","This endpoint never changes execution-control settings or broker orders."],
     checkedAt:new Date().toISOString()
   },{status:mismatches===0?200:409,headers:H});
 }

@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 async function loadFunction() {
-  const source=await readFile(new URL("../web/functions/api/paper/reconcile.js",import.meta.url),"utf8");
+  const helper=await readFile(new URL("../web/lib/paper-execution-policy.js",import.meta.url),"utf8");
+  const helperUrl="data:text/javascript;base64,"+Buffer.from(helper).toString("base64");
+  let source=await readFile(new URL("../web/functions/api/paper/reconcile.js",import.meta.url),"utf8");
+  source=source.replace('from "../../../lib/paper-execution-policy.js"','from "'+helperUrl+'"');
   return import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
 }
 const control={enabled:0,mode:"paper",kill_switch:1};
@@ -99,4 +102,30 @@ test("reconciliation fails closed when broker data is unavailable",async()=>{
     const response=await onRequestPost({request:request(),env:{NORTHSTAR_DB:mockDb(),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
     assert.equal(response.status,503);
   }finally{globalThis.fetch=oldFetch;}
+});
+
+
+test("reconciliation normalizes Alpaca new status to Northstar ACCEPTED",async()=>{
+  const db=mockDb({orders:[{id:"ledger-new",broker_order_id:"broker-new",symbol:"AAPL",side:"buy",qty:1,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})}]});
+  const response=await run({db,broker:{orders:[{id:"broker-new",symbol:"AAPL",side:"buy",qty:"1",status:"new",filled_qty:"0"}]}});
+  const body=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(body.reconciled,true);
+});
+
+test("reconciliation keeps unknown broker order states fail-closed",async()=>{
+  const db=mockDb({orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:1,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})}]});
+  const response=await run({db,broker:{orders:[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"1",status:"done_for_day",filled_qty:"0"}]}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="ORDER_STATUS_DIFFER" && x.brokerStatus==="UNKNOWN"));
+});
+
+test("reconciliation flags a missing or mismatched OTO protective stop leg",async()=>{
+  const ledger={id:"ledger-oto",broker_order_id:"broker-oto",symbol:"AAPL",side:"buy",qty:2,stop_price:98,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})};
+  const broker={id:"broker-oto",symbol:"AAPL",side:"buy",qty:"2",status:"new",filled_qty:"0",order_class:"oto",legs:[]};
+  const response=await run({db:mockDb({orders:[ledger]}),broker:{orders:[broker]}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="PROTECTIVE_STOP_LEG_NOT_RECONCILED"));
 });

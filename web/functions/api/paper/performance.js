@@ -35,7 +35,7 @@ export async function onRequestGet({env}){
    db.prepare("SELECT symbol,qty,avg_entry_price,market_value,unrealized_pl,reconciled_at FROM paper_positions ORDER BY symbol").all(),
    db.prepare("SELECT activity_id,broker_order_id,symbol,side,qty,price,transaction_time FROM broker_fill_activities ORDER BY transaction_time ASC,activity_id ASC LIMIT 5000").all()
   ]);
-  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1)return Response.json({ok:false,available:false,execution:false,error:"Execution policy is not in the required disabled/kill-switched state."},{status:503,headers:H});
+  if(!control||control.mode!=="paper")return Response.json({ok:false,available:false,execution:false,error:"Paper mode is required for read-only performance reporting."},{status:503,headers:H});
   const snapshots=Array.isArray(rows?.results)?rows.results:[],fills=Array.isArray(fillRows?.results)?fillRows.results:[];
   const current=snapshots.at(-1)||null,first=snapshots[0]||null;
   let peak=-Infinity,maxDrawdown=0;

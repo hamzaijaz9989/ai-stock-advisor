@@ -40,19 +40,21 @@ export async function onRequestPost({request,env}) {
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price,market_value FROM paper_positions ORDER BY symbol").all();
     equitySnapshots=await db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all();
   } catch { return fail("Could not verify ledger policy or positions; fail-closed.",503); }
-  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Paper execution controls are not in the required disabled/kill-switched state.",503);
-  let account,brokerPositions,quote;
+  if(!control||control.mode!=="paper"||Number(control.max_portfolio_usd)!==1000) return fail("Paper-only allocation policy is unavailable or invalid.",503);
+  let account,brokerPositions,quote,clock;
   try {
-    [account,brokerPositions,quote]=await Promise.all([
+    [account,brokerPositions,quote,clock]=await Promise.all([
       alpaca("/v2/account",key,secret),
       alpaca("/v2/positions",key,secret),
-      alpaca("/v2/stocks/"+encodeURIComponent(symbol)+"/quotes/latest?feed=iex",key,secret)
+      alpaca("/v2/stocks/"+encodeURIComponent(symbol)+"/quotes/latest?feed=iex",key,secret),
+      alpaca("/v2/clock",key,secret)
     ]);
   } catch(error) {
     const code=String(error?.message||"");
     return fail(code.startsWith("BROKER_HTTP_")?"Alpaca Paper data request failed ("+code.slice(12)+"); no preflight approval.":"Alpaca Paper request timed out or failed; no preflight approval.",503);
   }
   if(account.status!=="ACTIVE"||account.trading_blocked||account.account_blocked) return fail("Alpaca paper account is not active or is blocked.",503);
+  if(clock?.is_open!==true) return fail("US equity market is closed; preflight cannot approve a market order.",409);
   const q=quote?.quote;
   const bid=Number(q?.bp),ask=Number(q?.ap),quoteTime=Date.parse(q?.t||"");
   const now=Date.now(),ageMs=now-quoteTime;
@@ -77,6 +79,11 @@ export async function onRequestPost({request,env}) {
   if(!Number.isFinite(equity)||equity<=0||!Number.isFinite(buyingPower)||buyingPower<=0) return fail("Broker equity or buying power is unavailable.",503);
   const history=deriveSnapshotRiskMetrics({snapshots:equitySnapshots?.results||[],currentEquity:equity,lastEquity:account.last_equity,virtualAllocationUsd:capital});
   if(!history.ok) return fail("Verified recent equity history is required for daily-loss and drawdown controls; preflight blocked ("+history.reason+").",503);
+  const historyRows=equitySnapshots?.results||[];
+  const latestSnapshotAt=Date.parse(historyRows[0]?.captured_at||"");
+  if(!Number.isFinite(latestSnapshotAt)||latestSnapshotAt>now||now-latestSnapshotAt>15*60*1000) return fail("A reconciled equity snapshot no older than 15 minutes is required for paper preflight.",503);
+  const weeklyBaseline=historyRows.find(row=>{const at=Date.parse(row?.captured_at||"");const value=Number(row?.equity_usd);return Number.isFinite(at)&&at<=now-7*24*60*60*1000&&Number.isFinite(value)&&value>0;});
+  if(!weeklyBaseline) return fail("A verified seven-day equity baseline is required before any paper preflight.",503);
   if(broker.some(p=>p.market_value===null||p.market_value===undefined||!Number.isFinite(Number(p.market_value)))) return fail("Broker position market values are missing or invalid; risk preflight blocked.",503);
   const normalizedPositions=broker.map(p=>({symbol:String(p.symbol||"").toUpperCase(),market_value:Number(p.market_value)*(capital/equity)}));
   // All portfolio exposure calculations below use the separate virtual-allocation units.
