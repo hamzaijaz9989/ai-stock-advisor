@@ -1,4 +1,5 @@
 -- Independent Northstar fill-derived long-position ledger.
+-- Cloudflare Pages preview must bind to its isolated northstar-preview D1 database, never production.
 -- Broker account snapshots remain a separate mirror and must reconcile to this ledger.
 CREATE TABLE IF NOT EXISTS northstar_fill_ledger (
   activity_id TEXT PRIMARY KEY,
