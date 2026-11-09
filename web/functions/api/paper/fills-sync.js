@@ -119,7 +119,7 @@ export async function onRequestPost({request,env}){
  }
  const nextStatus=s=>({new:"ACCEPTED",accepted:"ACCEPTED",pending_new:"ACCEPTED",accepted_for_bidding:"ACCEPTED",partially_filled:"PARTIALLY_FILLED",filled:"FILLED",canceled:"CANCELED",rejected:"REJECTED"}[String(s||"").toLowerCase()]||null);
  const stored=row=>{try{const x=JSON.parse(row.response_json||"{}");return {qty:num(x.filled_qty),avg:num(x.filled_avg_price)};}catch{return {qty:null,avg:null};}};
- const allowed={SUBMITTING:["ACCEPTED","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"],ACCEPTED:["PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"],PARTIALLY_FILLED:["PARTIALLY_FILLED","FILLED","CANCELED","UNKNOWN"],UNKNOWN:["ACCEPTED","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"]};
+ const allowed={SUBMITTING:["ACCEPTED","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"],ACCEPTED:["ACCEPTED","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"],PARTIALLY_FILLED:["PARTIALLY_FILLED","FILLED","CANCELED","UNKNOWN"],FILLED:["FILLED"],CANCELED:["CANCELED"],REJECTED:["REJECTED"],UNKNOWN:["ACCEPTED","PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"]};
  const flagUnsafe=(row,brokerOrder,reason,filled)=>{if(!unsafeExposure.some(x=>x.id===row.id))unsafeExposure.push({id:row.id,brokerOrderId:String(brokerOrder?.id||row.broker_order_id||""),reason,filledQty:filled,exposurePresent:filled!==null&&filled>0,brokerStatus:String(brokerOrder?.status||"UNKNOWN"),response:brokerOrder||{}});};
  for(const row of ledgerRows){
   const brokerOrder=byBrokerId.get(String(row.broker_order_id));
