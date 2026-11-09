@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T02:47:47Z  
+Last updated: 2026-11-09T12:18:10.647Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -896,3 +896,38 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Administrative correction: the preceding blocker-log update omitted the target branch argument and created a documentation-only commit on `main` (`ad1dbe01773c4518c9281cf94e9c5b98c6056f3e`). It changed only `NORTHSTAR_BLOCKERS.md`; no application code, D1, secrets, controls or deployment changed. The same verification entry is copied onto this PR branch. This direct documentation commit is recorded for review and does not imply PR #85 was merged.
 
 - Further telemetry hardening: scorecards now preserve an explicit per-role failed-call flag. Added mocked OpenAI success/usage tests and failed-call latency tests, complementing Gemini tests; tests assert no API credential leaks into telemetry. Commits: `0e654dd9381b1646506a36f85216fff447bbd41f`, `804f54878aa7123b6b56241aa57157753c366cf3`, `024efc6cf3975574c478e7d2b7228b1a19362099`, docs: `ec336e6a1fc62cacdbe34e53170a2747354755d2`.
+
+
+## Automation run 4 — 2026-11-09T12:18:10.647Z
+
+### Repository and release evidence
+- PR #84 remains merged; merge commit `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- Main advanced from `2a85645023f8d5e494fdafdcc0e67976a5dfb78e` to documentation-only commit `ad1dbe01773c4518c9281cf94e9c5b98c6056f3e`. The only file changed on main was `NORTHSTAR_BLOCKERS.md`; this work-branch update includes main as a second parent and preserves both blocker-log histories.
+- PR #85 remains draft. Formal reviews and review threads: zero. Main protection remains disabled (`protected=false`, required status checks enforcement `off`).
+- PR compare previously showed 367 commits ahead and zero behind the old base; the add/add blocker-log conflict caused GitHub to report `mergeable_state=dirty`. Recheck mergeability after this update; do not force merge.
+- CI at `e28fdcab164b6693ceda8c0df09e948f2966ab4f`: Tests run `42615242216` passed 316/316 JavaScript tests, Python tests and Ruff; Validate run `42615242133` passed Python tests/lint, JS syntax, frontend analysis, readiness, SEC ingestion and synthetic CLI smoke checks. Synthetic strategy validation remains NOT APPROVED.
+- Preview Pages deployment `7580f794-732e-4ff6-9b8c-8a41393e9c79` succeeded for commit `fdfbd80d2f39f8f512562e2b40fa090114925979`; deployment `ad5242a5-34df-477b-945d-c5317a7cf029` succeeded for commit `cab7425d4057762e6da03e5e7a6d54530a1f0cf1`. Later documentation/test-only commits were skipped by Pages path configuration. Earlier previews for commits `154e799b58d46f8715839aa927e150a255e131ce` and `ca0385620b8ef555d95c102e559165f0f0363e5f` failed on a Research Council adapter syntax error; the corrected adapter subsequently built successfully in preview.
+- Production Pages deployment remains `e4efbfd8-43f2-41b0-b01d-fc44e5b2a308`, successful on main commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`. No PR #85 code has been deployed to production.
+
+### Safety improvements made on the PR branch
+- `web/functions/api/paper/control.js` now verifies that the singleton execution-control update and durable audit insert each changed exactly one row before it can acknowledge the kill switch. Missing control row or missing audit event returns HTTP 503 without claiming quiescence. Code commit: `8f5b0c6224db26773a5636532bb112fe87a6b9bb`; regression tests were added and the existing authenticated mock was corrected in `137c41475222df46b4e80288c700bbbc1c390470`.
+- `.github/workflows/northstar-equity-snapshot.yml` now uses `curl --fail` for fill import and exits before reconciliation when import is incomplete, unsafe, or requires manual recovery. This prevents a failed fill import from being followed by a misleading reconciliation result. Workflow commit: `cab7425d4057762e6da03e5e7a6d54530a1f0cf1`; static guard test: `tests/northstar-equity-snapshot-workflow.test.mjs`.
+- The preview build failure caused by an extra brace in `web/lib/research-council-adapters.js` was corrected by subsequent Research Council commits; latest successful preview build confirms Pages Functions bundling recovered.
+- Early CI failures were retained as evidence and fixed: the control test mock was updated to return D1 batch change metadata; the workflow guard regex was corrected to assert both bracketed shell conditions; the telemetry test fixture was corrected to avoid global-fetch mutation and malformed test structure. The latest fully green milestone above includes these fixes.
+
+### Production D1 and risk-control state
+- Production migrations: 0001–0005 only. Preview migrations: 0001–0009. No production migration or D1 write was performed.
+- Production D1 read-only counts: 1 equity snapshot, 0 intents, 0 paper orders, 0 positions, 0 broker fill activities, 2 audit events.
+- Production control row: mode `paper`, enabled `0`, kill switch `1`, virtual allocation `$1,000`, default risk fraction `0.005`, maximum risk fraction `0.01`, maximum position fraction `0.25`.
+- Production has no `northstar_strategy_approval` table yet because migration 0007 is not applied. Seven-day equity history, broker-paper account confirmation and clean fill/position reconciliation remain unproven.
+- Production Pages configuration lists Alpaca credentials, FMP, Gemini and `NORTHSTAR_OPERATOR_TOKEN` as secret names; Cloudflare redacts values, so actual secret values were not inspected or inferred. `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN` is absent by name. The prior GitHub Actions snapshot workflow reported the repository `NORTHSTAR_OPERATOR_TOKEN` secret missing/empty. PR #88's scoped GitHub OIDC read-only bridge remains separate, draft and unreviewed; it is not deployed.
+- No broker mutation, paper order, live order, live endpoint or live credential was used.
+
+### Remaining blockers and next actions
+1. Configure main branch protection and required CI through an authorized GitHub administrator/eligible plan; do not bypass protections.
+2. Obtain an independent formal review of PR #85 and resolve any remaining mergeability conflict without force-pushing.
+3. Complete genuine point-in-time strategy validation (at least 100 completed historical trades, four chronological folds, untouched holdout and independently reproducible review); keep strategy approval false until then.
+4. Establish seven days of fresh reconciled equity history and confirm the actual Alpaca PAPER account through read-only checks.
+5. Review and release PR #88 separately if approved; verify its OIDC identity and read-only behavior before relying on it for scheduled production sync.
+6. Apply migrations 0006–0009 only after schema compatibility, backup/recovery and release gates pass. Implement and verify a guarded, audited PAPER-only enable procedure only after every execution lifecycle and risk gate is proven.
+7. Keep execution disabled and the kill switch engaged. Never submit test orders or enable live trading.
