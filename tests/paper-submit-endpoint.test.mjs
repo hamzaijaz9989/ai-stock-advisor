@@ -111,3 +111,37 @@ test("paper executor blocks historical Northstar ledger orders",async()=>{
  assert.equal(submitted,false);
  assert.match((await response.json()).error,/historical|order history/i);
 });
+
+
+test("ambiguous existing order recovery engages the kill switch and never resubmits",async()=>{
+ const state={batch:[]};
+ const db={
+  prepare(sql){const stmt={sql,args:[],bind(...args){this.args=args;return this;},
+   async first(){
+    if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000};
+    if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY"};
+    if(sql.includes("paper_orders")&&sql.includes("idempotency_key"))return {id:"northstar-order-existing",idempotency_key:"intent:123e4567-e89b-12d3-a456-426614174000",status:"SUBMITTING",broker_order_id:null};
+    return null;
+   },
+   async all(){return {results:[]};}
+  };return stmt;},
+  async batch(items){state.batch=items;return items.map(()=>({meta:{changes:1}}));}
+ };
+ const original=globalThis.fetch;let posted=false;
+ globalThis.fetch=async(url,options={})=>{
+  if(String(url).includes("/v2/orders:by_client_order_id"))return Response.json({message:"not found"},{status:404});
+  if(String(url).endsWith("/v2/orders")&&options.method==="POST"){posted=true;throw new Error("must never resubmit");}
+  throw new Error("unexpected request "+url);
+ };
+ try{
+  const r=await onRequestPost({request:request({"Authorization":"Bearer operator","X-NORTHSTAR-PAPER-APPROVAL":"approval"}),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN:"approval",ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret",NORTHSTAR_DB:db}});
+  const body=await r.json();
+  assert.equal(r.status,503);
+  assert.equal(body.status,"UNKNOWN");
+  assert.equal(posted,false);
+  assert.equal(state.batch.length,4);
+  assert.ok(state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")));
+  assert.ok(state.batch.some(x=>x.sql.includes("PAPER_ORDER_OUTCOME_UNVERIFIED")));
+  assert.equal(state.batch.some(x=>x.sql.includes("UPDATE paper_trade_intents SET status='SUBMISSION_UNKNOWN'")),false);
+ }finally{globalThis.fetch=original;}
+});
