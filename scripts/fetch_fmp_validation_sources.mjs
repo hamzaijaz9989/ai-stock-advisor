@@ -30,10 +30,12 @@ async function getJson(fetchImpl,url,headers,label){
  if(!response.ok||!payload||typeof payload!=="object")throw new Error(label+" failed (HTTP "+response.status+").");
  return payload;
 }
-export async function fetchValidationSources({from,to,symbols,baseUrl,operatorToken,fetchImpl=fetch}){
+export async function fetchValidationSources({from,to,symbols,baseUrl,operatorToken,benchmarkSymbol="SPY",fetchImpl=fetch}){
  validateWindow(from,to);
  if(!Array.isArray(symbols)||!symbols.length)throw new Error("An explicit non-empty ticker list is required.");
  const normalized=[...new Set(symbols.map(x=>String(x).trim().toUpperCase()))].sort();
+ benchmarkSymbol=String(benchmarkSymbol).trim().toUpperCase();
+ if(!TICKER_RE.test(benchmarkSymbol)||!normalized.includes(benchmarkSymbol))throw new Error("The benchmark symbol must be a valid member of the explicit ticker list.");
  if(normalized.length>500||normalized.some(x=>!TICKER_RE.test(x)))throw new Error("Ticker list is invalid or exceeds 500 unique symbols.");
  if(typeof baseUrl!=="string"||!/^https:\/\//.test(baseUrl))throw new Error("A valid HTTPS NORTHSTAR_API_BASE is required.");
  if(typeof operatorToken!=="string"||!operatorToken)throw new Error("NORTHSTAR_OPERATOR_TOKEN is required.");
@@ -53,7 +55,8 @@ export async function fetchValidationSources({from,to,symbols,baseUrl,operatorTo
   const priceBars=Number(history.coverage?.priceBars)||0;
   const annual=Number(history.coverage?.annualIncome)||0;
   const quarterly=Number(history.coverage?.quarterIncome)||0;
-  if(priceBars===0||annual===0||quarterly===0)gaps.push({symbol,priceBars,annualIncome:annual,quarterIncome:quarterly});
+  const missing= symbol===benchmarkSymbol ? priceBars===0 : priceBars===0||annual===0||quarterly===0;
+  if(missing)gaps.push({symbol,role:symbol===benchmarkSymbol?"benchmark":"equity",priceBars,annualIncome:annual,quarterIncome:quarterly});
   historyBySymbol[symbol]=history;
  }
  const allSymbols=[...normalized];
@@ -63,6 +66,7 @@ export async function fetchValidationSources({from,to,symbols,baseUrl,operatorTo
    requestedWindow:{from,to},
    acquiredAt:new Date().toISOString(),
    requestedSymbols:allSymbols,
+   benchmarkSymbol,
    symbolCount:allSymbols.length,
    acquisitionVersion:1,
    stage:"RAW_SOURCE_BUNDLE_NOT_VALIDATION_INPUT",
@@ -76,6 +80,7 @@ export async function fetchValidationSources({from,to,symbols,baseUrl,operatorTo
    symbolsWithHistory:Object.keys(historyBySymbol).length,
    symbolsWithMissingCoreCoverage:gaps,
    earningsEvents:earnings.metadata.recordCount,
+   benchmarkPriceBars:Number(historyBySymbol[benchmarkSymbol]?.coverage?.priceBars)||0,
    pointInTimeLimitations:[
     "FMP current historical responses are not immutable vendor-revision archives.",
     "Earnings date and lastUpdated do not prove first-public availability.",
@@ -96,7 +101,7 @@ async function main(){
  const args=parseArgs(process.argv.slice(2));
  if(!args.from||!args.to||!args["symbols-file"]||!args.output)throw new Error("Usage: node scripts/fetch_fmp_validation_sources.mjs --from YYYY-MM-DD --to YYYY-MM-DD --symbols-file symbols.txt --output raw-sources.json");
  const symbols=parseSymbolsText(await fs.readFile(args["symbols-file"],"utf8"));
- const result=await fetchValidationSources({from:args.from,to:args.to,symbols,baseUrl:process.env.NORTHSTAR_API_BASE,operatorToken:process.env.NORTHSTAR_OPERATOR_TOKEN});
+ const result=await fetchValidationSources({from:args.from,to:args.to,symbols,baseUrl:process.env.NORTHSTAR_API_BASE,operatorToken:process.env.NORTHSTAR_OPERATOR_TOKEN,benchmarkSymbol:args.benchmark||"SPY"});
  await fs.mkdir(path.dirname(path.resolve(args.output)),{recursive:true});
  await fs.writeFile(args.output,JSON.stringify(result,null,2)+"\n",{flag:"wx"});
  console.log("Saved raw source bundle for "+result.metadata.symbolCount+" tickers; "+result.coverage.symbolsWithMissingCoreCoverage.length+" symbols have incomplete core coverage. No validation approval was created.");
