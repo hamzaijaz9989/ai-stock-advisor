@@ -2,6 +2,18 @@
 // Pure validation only: no broker calls, no database writes, and no control changes.
 const finite = value => value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
 
+export const PAPER_EXECUTION_LIMITS = Object.freeze({
+  virtualCapitalUsd: 1000,
+  defaultRiskFraction: 0.005,
+  maxRiskFraction: 0.01,
+  defaultRiskUsd: 5,
+  maxRiskUsd: 10,
+  maxPositionFraction: 0.25,
+  maxPositionUsd: 250,
+  dailyLossCapUsd: 20,
+  maxDrawdownUsd: 80
+});
+
 export function validatePaperExecutionGate({
   control, account, reconciliation, equityHistory, quote,
   order, strategyValidation, virtualAllocationUsd = 1000, now = Date.now()
@@ -12,11 +24,11 @@ export function validatePaperExecutionGate({
   });
 
   if (!control || control.mode !== "paper" ||
-      Number(control.max_portfolio_usd) !== 1000 ||
+      Number(control.max_portfolio_usd) !== PAPER_EXECUTION_LIMITS.virtualCapitalUsd ||
       Number(control.enabled) !== 1 || Number(control.kill_switch) !== 0) {
     return block("PAPER_EXECUTION_CONTROL_NOT_EXPLICITLY_ENABLED");
   }
-  if (virtualAllocationUsd !== 1000) return block("VIRTUAL_ALLOCATION_MUST_EQUAL_1000");
+  if (virtualAllocationUsd !== PAPER_EXECUTION_LIMITS.virtualCapitalUsd) return block("VIRTUAL_ALLOCATION_MUST_EQUAL_1000");
   if (!strategyValidation || strategyValidation.ok !== true || strategyValidation.approved !== true) return block("STRATEGY_VALIDATION_NOT_APPROVED");
   if (!account || account.status !== "ACTIVE" || account.trading_blocked ||
       account.account_blocked || !finite(account.equity) || Number(account.equity) <= 0 ||
@@ -47,11 +59,11 @@ export function validatePaperExecutionGate({
   }
   const qty = Number(order.qty), ask = Number(quote.ask), stop = Number(order.stopPrice);
   const notional = qty * ask, risk = qty * (ask - stop);
-  const maxRisk = 10, maxPosition = 250;
+  const maxRisk = PAPER_EXECUTION_LIMITS.maxRiskUsd, maxPosition = PAPER_EXECUTION_LIMITS.maxPositionUsd;
   if (!Number.isFinite(notional) || notional > maxPosition) return block("POSITION_LIMIT_EXCEEDED", {notionalUsd:notional,maxPositionUsd:maxPosition});
   if (!Number.isFinite(risk) || risk > maxRisk) return block("PER_TRADE_RISK_LIMIT_EXCEEDED", {plannedRiskUsd:risk,maxRiskUsd:maxRisk});
-  if (Number(equityHistory.dailyLossUsd) > 20) return block("DAILY_LOSS_LIMIT_EXCEEDED");
-  if (Number(equityHistory.maxDrawdownUsd) > 80) return block("MAX_DRAWDOWN_LIMIT_EXCEEDED");
+  if (Number(equityHistory.dailyLossUsd) > PAPER_EXECUTION_LIMITS.dailyLossCapUsd) return block("DAILY_LOSS_LIMIT_EXCEEDED");
+  if (Number(equityHistory.maxDrawdownUsd) > PAPER_EXECUTION_LIMITS.maxDrawdownUsd) return block("MAX_DRAWDOWN_LIMIT_EXCEEDED");
   return {
     ok: true, execution: false, status: "PAPER_EXECUTION_POLICY_PASSED_NOT_SUBMITTED",
     reason: "ALL_PRE_SUBMISSION_POLICY_CHECKS_PASSED",
