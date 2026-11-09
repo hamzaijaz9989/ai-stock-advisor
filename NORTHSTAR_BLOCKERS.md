@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T15:26:23Z
+Last updated: 2026-11-09T15:29:41Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -1058,4 +1058,15 @@ The additional review did not issue broker requests or modify any D1 row. These 
 7. PR #85 remains draft with no formal independent reviews. Main branch protection was previously observed false and protection/ruleset API reads returned 403; do not bypass.
 8. The guarded PAPER-only enable procedure remains unimplemented/unverified. Even after all credentials and validation are available, require a separate audited enable path, authenticated Paper account confirmation, fresh history, clean reconciliation and all limits.
 9. The recovery endpoint's final broker recheck narrows but cannot eliminate the non-atomic race between the last external Alpaca read and broker POST. Independent safety review and post-submit exact-position verification remain mandatory.
+
+
+
+#### Run 6 final release-state refresh — 2026-11-09T15:29:41Z
+- PR #85 current head before this log-only update: `4b03d073ae6c1ad651e40b575c7a4be48c6a7908`; base `ad1dbe01773c4518c9281cf94e9c5b98c6056f3e`; compare 414 ahead / 0 behind; mergeable, draft; 71 files, 5,496 additions, 220 deletions; no deleted/renamed files; zero formal reviews/threads.
+- The blocker-log update itself is documentation-only. Current application code remains `964f49a139dc8ca66cd82d619e247925d7f817a0`, deployed successfully to preview `a991fb12-345b-4bcf-938a-52cb65099bab`; production remains successful deployment `e4efbfd8-43f2-41b0-b01d-fc44e5b2a308` on `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`. Main's newer `ad1dbe01773c4518c9281cf94e9c5b98c6056f3e` and latest preview docs commits were skipped by Pages path configuration.
+- Latest CI on PR head `4b03d073ae6c1ad651e40b575c7a4be48c6a7908`: Tests run `42645000292` passed 336/336 JS, 95/95 Python and Ruff; Validate run `42645000760` passed Python tests/lint, syntax, 44 frontend tests, 7 readiness tests, SEC ingestion and synthetic CLI smoke checks. Strategy validation is still NOT APPROVED.
+- Fresh live GETs at 15:29:40–15:29:41Z: production readiness, performance and control all HTTP 200; execution disabled, PAPER mode and kill switch engaged. Production performance still has one snapshot from `2026-11-08T18:34:38.720Z`, $100,000 broker equity/cash, no imported fills and no trade statistics. Preview readiness, performance and control all HTTP 200; strategy validation false, zero snapshots/fills, execution disabled and kill switch engaged.
+- Fresh read-only D1 audit: production migrations 0001–0005, preview 0001–0010; production has one snapshot and zero intents/orders/positions/fills; preview has zero snapshots/intents/orders/positions/fills/claims and strategy approval false. Production has no `reviewer` column; preview has it and six review triggers. All D1 verification reads reported rows_written=0 and changed_db=false.
+- Production environment secret-name metadata still does not list `NORTHSTAR_INTENT_REVIEW_TOKEN`, `NORTHSTAR_INTENT_REVIEWER`, or `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN`. `NORTHSTAR_OPERATOR_TOKEN` exists by name in Cloudflare production metadata but its value is redacted/not verified; the separate GitHub Actions secret is confirmed missing/empty by run `42583519570`. No values were read or exposed.
+- No production migration/write, broker request/mutation, paper/live order, production deployment, merge or PAPER enablement occurred. PR #85 remains draft pending branch governance, independent review, real strategy validation, seven-day equity history, credentials, migration and paper-account gates.
 
