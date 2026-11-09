@@ -43,24 +43,38 @@ test("the virtual allocation cannot silently expand to broker buying power",()=>
 });
 
 
-test("OTO verification requires a matching held or active protective stop leg",()=>{
- const order={order_class:"oto",qty:"2",filled_qty:"0",legs:[{order_group_role:"stop_loss",type:"stop",status:"held",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
- const r=verifyOtoStopLeg(order,{symbol:"AAPL",qty:2,stopPrice:98});
+test("OTO verification treats a held stop child as unprotected only while there is exposure",()=>{
+ const held={order_class:"oto",qty:"2",filled_qty:"0",legs:[{group_role:"stop_loss",type:"stop",status:"held",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
+ const r=verifyOtoStopLeg(held,{symbol:"AAPL",qty:2,stopPrice:98});
  assert.equal(r.ok,true);
- assert.equal(r.legStatus,"HELD");
- assert.equal(r.legQty,2);
+ assert.equal(r.protected,false);
+ assert.equal(r.reason,"OTO_STOP_HELD_WITH_NO_EXPOSURE");
+ assert.equal(r.exposedQty,0);
 });
 
-test("OTO verification fails closed on missing, mismatched or rejected stop legs",()=>{
- const good={order_class:"oto",qty:"2",filled_qty:"0",legs:[{order_group_role:"stop_loss",type:"stop",status:"held",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
+test("OTO verification rejects a held stop child when the parent has a partial fill",()=>{
+ const order={order_class:"oto",qty:"5",filled_qty:"2",legs:[{group_role:"stop_loss",type:"stop",status:"held",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
+ const r=verifyOtoStopLeg(order,{symbol:"AAPL",qty:5,stopPrice:98});
+ assert.equal(r.ok,false);
+ assert.equal(r.protected,false);
+ assert.equal(r.reason,"PARTIAL_FILL_WITH_HELD_STOP_CHILD");
+});
+
+test("OTO verification accepts a matching active stop for actual partial exposure",()=>{
+ const order={order_class:"oto",qty:"5",filled_qty:"2",legs:[{group_role:"stop_loss",type:"stop",status:"new",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
+ const r=verifyOtoStopLeg(order,{symbol:"AAPL",qty:5,stopPrice:98});
+ assert.equal(r.ok,true);
+ assert.equal(r.protected,true);
+ assert.equal(r.exposedQty,2);
+});
+
+test("OTO verification fails closed on missing, mismatched, rejected, or malformed stop legs",()=>{
+ const good={order_class:"oto",qty:"2",filled_qty:"0",legs:[{group_role:"stop_loss",type:"stop",status:"held",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
  assert.equal(verifyOtoStopLeg({...good,legs:[]},{symbol:"AAPL",qty:2,stopPrice:98}).reason,"PROTECTIVE_STOP_LEG_MISSING_OR_MISMATCHED");
  assert.equal(verifyOtoStopLeg({...good,legs:[{...good.legs[0],stop_price:"97"}]},{symbol:"AAPL",qty:2,stopPrice:98}).ok,false);
  assert.equal(verifyOtoStopLeg({...good,legs:[{...good.legs[0],qty:"1"}]},{symbol:"AAPL",qty:2,stopPrice:98}).ok,false);
  assert.equal(verifyOtoStopLeg({...good,legs:[{...good.legs[0],status:"rejected"}]},{symbol:"AAPL",qty:2,stopPrice:98}).ok,false);
  assert.equal(verifyOtoStopLeg({...good,order_class:"simple"},{symbol:"AAPL",qty:2,stopPrice:98}).ok,false);
-});
-
-test("OTO stop quantity tracks actual filled quantity for a partial parent fill",()=>{
- const order={order_class:"oto",qty:"5",filled_qty:"2",legs:[{order_group_role:"stop_loss",type:"stop",status:"new",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
- assert.equal(verifyOtoStopLeg(order,{symbol:"AAPL",qty:5,stopPrice:98}).ok,true);
+ assert.equal(verifyOtoStopLeg({...good,filled_qty:"NaN"},{symbol:"AAPL",qty:2,stopPrice:98}).reason,"PARENT_FILLED_QUANTITY_UNAVAILABLE");
+ assert.equal(verifyOtoStopLeg({...good,qty:"3"},{symbol:"AAPL",qty:2,stopPrice:98}).reason,"PARENT_ORDER_QUANTITY_INVALID");
 });
