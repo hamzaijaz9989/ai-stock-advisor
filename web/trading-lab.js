@@ -1,15 +1,6 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
-  async function readJsonResponse(response, fallback) {
-    const contentType = String(response.headers?.get("content-type") || "").toLowerCase();
-    if (!contentType.includes("application/json") && !contentType.includes("+json")) {
-      try { await response.text(); } catch {}
-      throw new Error(fallback);
-    }
-    try { return await response.json(); }
-    catch { throw new Error(fallback); }
-  }
   const CAPITAL = 1000;
   const RISK_PCT_MAX = 1;
   const STORAGE_KEY = "northstar-trading-lab-plans-v1";
@@ -155,7 +146,7 @@
     if(button)button.disabled=true;
     try{
       const response=await fetch("/api/monitor?limit=20",{headers:{Accept:"application/json"},cache:"no-store"});
-      const data=await readJsonResponse(response, "Monitor API returned a non-JSON response; no monitor values are assumed.");
+      const data=await response.json();
       if(!response.ok||data.ok!==true)throw new Error(data.error||"Monitor ledger unavailable");
       const run=data.latestRun||{};
       monitorMetric("monitor-run-status",String(run.status||"NO RUN").replaceAll("_"," ").toUpperCase());
@@ -181,7 +172,7 @@
     try {
       const response = await fetch("./data/top-stocks-cache.json", {cache:"no-store", headers:{Accept:"application/json"}});
       if (!response.ok) throw new Error("Cached shortlist unavailable (HTTP " + response.status + ").");
-      const data = await readJsonResponse(response, "Cached shortlist returned a non-JSON response; no candidates are inferred.");
+      const data = await response.json();
       const generated = Date.parse(data.generatedAt || "");
       const ageHours = Number.isFinite(generated) ? (Date.now() - generated) / 3600000 : Infinity;
       const stale = ageHours < 0 || ageHours > 4 || data.status !== "success";
@@ -243,7 +234,7 @@
     detail.textContent = "";
     try {
       const response = await fetch("/api/alpaca/status", {headers:{Accept:"application/json"},cache:"no-store"});
-      const data = await readJsonResponse(response, "Paper connection API returned a non-JSON response; no account data is verified.");
+      const data = await response.json();
       if (!response.ok || !data.connected || data.environment !== "paper") throw new Error(data.error || "Paper connection could not be verified.");
       badge.textContent = "PAPER CONNECTED";
       message.textContent = "Connected to Alpaca Paper Trading. The endpoint is read-only; no orders are submitted.";
@@ -271,7 +262,7 @@
         headers: {Accept:"application/json"},
         cache: "no-store"
       });
-      const data = await readJsonResponse(response, "Paper readiness API returned a non-JSON response; execution remains disabled.");
+      const data = await response.json();
       if (!response.ok || !data.configured || !data.policyVerified) {
         badge.textContent = "NOT VERIFIED";
         message.textContent = data.message || "Ledger readiness could not be verified.";
@@ -303,7 +294,7 @@
     positionsRoot.textContent = "Loading broker positions…";
     try {
       const response = await fetch("/api/alpaca/status", {headers:{Accept:"application/json"},cache:"no-store"});
-      const data = await readJsonResponse(response, "Paper account API returned a non-JSON response; no substitute values are shown.");
+      const data = await response.json();
       if (!response.ok || !data.connected || data.environment !== "paper" || !data.account) throw new Error(data.error || "Paper account could not be verified.");
       const equity=Number(data.account.equity), prior=Number(data.account.lastEquity), buying=Number(data.account.buyingPower);
       if (![equity,prior,buying].every(Number.isFinite)) throw new Error("Broker returned incomplete account values; P&L withheld.");
@@ -339,7 +330,7 @@
     const status=$("snapshot-status");
     try {
       const response=await fetch("/api/paper/performance",{headers:{Accept:"application/json"},cache:"no-store"});
-      const data=await readJsonResponse(response, "Durable performance API returned a non-JSON response; no values are shown.");
+      const data=await response.json();
       if(!response.ok||!data.ok)throw new Error(data.error||"Durable performance unavailable.");
       $("snapshot-return").textContent=fmtPct(data.observedChange?.returnPct);
       $("snapshot-drawdown").textContent=fmtPct(data.observedChange?.maxDrawdownPct);
@@ -359,13 +350,13 @@
     } catch(error) {status.textContent=error?.message||"Could not load durable paper performance.";}
   }
   $("sync-paper-snapshot").addEventListener("click",async()=>{
-    const token=sessionStorage.getItem("northstar_operator_token");
-    if(!token){location.reload();return;}
+    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved in browser storage.");
+    if(!token)return;
     const button=$("sync-paper-snapshot");button.disabled=true;button.textContent="Saving…";
     $("snapshot-status").textContent="Reading Alpaca Paper account and saving a verified snapshot…";
     try{
       const response=await fetch("/api/paper/sync",{method:"POST",headers:{Authorization:"Bearer "+token,Accept:"application/json","Content-Type":"application/json"},body:"{}"});
-      const data=await readJsonResponse(response, "Snapshot API returned a non-JSON response; no snapshot was confirmed.");
+      const data=await response.json();
       if(!response.ok||!data.synced)throw new Error(data.error||"Snapshot sync failed.");
       $("snapshot-status").textContent="Snapshot saved at "+new Date(data.capturedAt).toLocaleString()+". Broker equity "+money(data.snapshot.equityUsd)+" · "+data.snapshot.positions+" open positions. No orders were submitted.";
       await loadDurablePerformance();
@@ -374,13 +365,13 @@
   });
 
   $("sync-paper-fills").addEventListener("click",async()=>{
-    const token=sessionStorage.getItem("northstar_operator_token");
-    if(!token){location.reload();return;}
+    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved.");
+    if(!token)return;
     const button=$("sync-paper-fills");button.disabled=true;button.textContent="Importing…";
     $("snapshot-status").textContent="Fetching broker-reported fill activities and importing idempotently…";
     try{
       const response=await fetch("/api/paper/fills-sync",{method:"POST",headers:{Authorization:"Bearer "+token,Accept:"application/json","Content-Type":"application/json"},body:"{}"});
-      const data=await readJsonResponse(response, "Fill-history API returned a non-JSON response; no fills were imported.");
+      const data=await response.json();
       if(!response.ok||!data.imported)throw new Error(data.error||"Fill import failed.");
       $("snapshot-status").textContent="Fill history checked: "+data.brokerRecords+" broker records · "+data.newRecords+" new · "+data.alreadyKnown+" already imported. No orders submitted.";
       await loadDurablePerformance();
@@ -486,8 +477,8 @@
       status.textContent="Enter a valid US equity ticker.";
       return;
     }
-    const token=sessionStorage.getItem("northstar_operator_token");
-    if(!token){location.reload();return;}
+    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved in browser storage.");
+    if(!token)return;
     const requestId="stockbrain-"+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2));
     button.disabled=true;button.textContent="Researching…";
     status.textContent="Collecting server-side quote, history, fundamentals, filings, news, earnings and reconciled portfolio evidence. This may take a little while.";
@@ -501,7 +492,7 @@
         headers:{Authorization:"Bearer "+token,Accept:"application/json","Content-Type":"application/json"},
         body:JSON.stringify({ticker,requestId})
       });
-      const data=await readJsonResponse(response, "Stock Brain API returned a non-JSON response; no research run was confirmed.");
+      const data=await response.json();
       if(!response.ok||data.ok!==true)throw new Error(data.error||"Stock Brain research run failed safely.");
       renderCouncilResult(data);
       status.textContent=ticker+" · "+(data.result?.status||"NO_TRADE")+" · "+(data.traceDurable===true?"Durable trace confirmed":"Trace durability not confirmed")+" · "+new Date(data.createdAt||Date.now()).toLocaleString()+". No orders were submitted.";
@@ -519,7 +510,7 @@
     button.disabled=true; button.textContent="Running…"; status.textContent="Fetching historical data and calculating diagnostics…"; root.replaceChildren();
     try {
       const response=await fetch("/api/strategy-backtest?ticker="+encodeURIComponent(ticker),{headers:{Accept:"application/json"},cache:"no-store"});
-      const data=await readJsonResponse(response, "Historical test API returned a non-JSON response; no results are shown.");
+      const data=await response.json();
       if(!response.ok) throw new Error(data.error||"Historical test unavailable.");
       const provider=document.createElement("div");provider.className="warning";
       provider.textContent="DATA SOURCE · "+(data.source||"Unknown")+" · "+(data.sourceStatus||"STATUS UNKNOWN")+" · SPY: "+(data.benchmarkSource||"Unknown");
