@@ -45,8 +45,9 @@ test("scorecard does not invent denominators or performance metrics",()=>{
  const score=evaluateResearchCouncilRun({reports:[],status:"NO_TRADE"});
  assert.equal(score.totals.claimCitationCoverage,null);
  assert.equal(score.totals.citationPrecision,null);
- assert.equal(score.totals.latencyMs,0);
- assert.equal(score.totals.costUsd,0);
+ assert.equal(score.totals.latencyMs,null);
+ assert.equal(score.totals.totalTokens,null);
+ assert.equal(score.totals.costUsd,null);
  assert.ok(score.limitations.some(x=>x.includes("factual truth")));
 });
 
