@@ -162,3 +162,8 @@ BEGIN
   FROM paper_execution_activation_requests
   WHERE request_id=NEW.last_activation_request_id;
 END;
+
+-- OIDC workflow-run claims are unique per run/attempt, even under concurrent retries.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_execution_audit_log_github_oidc_snapshot_claim
+ON execution_audit_log(request_id)
+WHERE action='GITHUB_OIDC_SNAPSHOT_CLAIMED';
