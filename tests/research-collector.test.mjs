@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import {onRequestPost} from "../web/functions/api/research/collect.js";
 
 test("server-side research collector rejects unauthenticated callers before provider access",async()=>{
@@ -70,4 +71,15 @@ test("collector reconciles the broker against the existing ledger before sync ca
   assert.equal(calls.filter(u=>u.includes("/v2/account")).length,1,"only reconciliation should call the broker before the mismatch blocks collection");
   assert.equal(calls.some(u=>u.includes("sec.gov")),false,"provider collection must not begin after reconciliation fails");
  }finally{globalThis.fetch=old;}
+});
+
+const collectorSource = await readFile(new URL("../web/functions/api/research/collect.js", import.meta.url), "utf8");
+
+test("collector evaluates and persists scorecard with the durable nine-agent run",()=>{
+ assert.match(collectorSource,/evaluateResearchCouncilRun\(result,/);
+ assert.match(collectorSource,/roles:workers\.telemetry\|\|\{\}/);
+ assert.match(collectorSource,/const storedResult=\{\.\.\.result,evaluation,collection:/);
+ assert.match(collectorSource,/INSERT INTO research_council_runs/);
+ assert.match(collectorSource,/traceDurable:true/);
+ assert.match(collectorSource,/reconcilePaperAccount/);
 });
