@@ -282,3 +282,44 @@ PR #85 now adds:
 - PR #85 head advanced to `1673c05c34a4453e9ac8a8a3e7ccbfcdf66d3fb4` solely for this blocker-log update; application code is unchanged from the tested tree at `16a3582292379579556f2d7dc6a6f75e354e9e8a`.
 - PR #85 remains OPEN, DRAFT, and mergeable. GitHub reports zero formal review submissions.
 - The branch-protection API continues to return HTTP 403 to the connected integration; required review/branch rules cannot be independently confirmed.
+
+
+## Automation run 6 — 2026-11-09 11:56 PKT / 06:56 UTC
+
+### Repository and release state rechecked
+- PR #84 remains merged into `main` as `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- PR #85 remains OPEN and DRAFT, with `mergeable=true`, base `main` at `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`, and current branch head `12a6da5b1147539c89b6d5d97bd1c598721379b2`.
+- PR #85 has no formal review submissions. Branch-protection read still returns HTTP 403 `Resource not accessible by integration`; required rules cannot be independently inspected. No bypass, ready-for-review transition, merge, or production deployment was attempted.
+- Current production Pages deployment metadata reports successful deployment `72b2ef88-7622-4e9b-af83-2ced42d1242c`, serving main commit `e0efd5c5aa8e1f61a7946f8e11cc4a1c45942ffb` (top-stock cache refresh), not PR #85. Production binding remains D1 `528f3a23-1d1f-4d16-8463-f643d85f5deb`.
+- Isolated preview Pages deployment `6716d632-5053-4358-a2b9-e143e7816708` succeeded for recovery-policy application commit `2bd1aca402460f9b93223ed0444eeb90a2654afd`, bound to preview D1 `bdffc29f-a4f6-498e-ade7-22c85d9bd373`. Later test/documentation-only commits were skipped by the Pages path filter. Older preview deployments that reference production D1 remain unsafe for maintenance-route testing; use only isolated preview D1.
+
+### New code added and verified
+- Added `web/lib/paper-recovery-policy.js`, a pure decision policy for partial-fill recovery. It performs no network calls, broker mutations, or D1 writes.
+- Added `tests/paper-recovery-policy.test.mjs` with 19 cases covering open-parent cancellation sequencing, pending-cancel waiting, zero-fill completion, partial-fill standalone-stop recommendation, exact active OTO coverage, partial stop fills, held-child rejection, undercoverage, position mismatch, stale/breached quote, unknown states, invalid fill quantities, and non-buy parent rejection.
+- Documented the decision sequence in `docs/PAPER_LIFECYCLE_AND_RISK.md`.
+- The policy only recommends a standalone GTC stop after the entry is terminal, broker position exactly reconciles to entry fills minus stop-child fills, no active child stop exists, and a fresh bid remains above the stop price. It marks every mismatch, stale quote, breached stop, held child, or unknown broker state as `MANUAL_RECOVERY_REQUIRED`. It never recommends a blind market flatten.
+- Important limitation: this is a tested policy layer, not the operator-only broker cancellation/stop-placement endpoint. No broker API mutation was performed and the partial-fill recovery blocker remains OPEN.
+
+### CI evidence on final branch head
+- GitHub Actions Tests run `42577101795` completed successfully on `12a6da5b1147539c89b6d5d97bd1c598721379b2`: JavaScript `251/251` passed, Python `94/94` passed, Ruff passed.
+- Validate AI Stock Advisor run `42577101979` completed successfully: frontend analysis `43/43`, paper readiness `6/6`, SEC ingestion `7/7`; synthetic strategy CLI smoke assertions passed and correctly asserted `strategy_validation_passed=false` and `decision_eligible=false`.
+- Cloudflare preview build for the application-code change succeeded; the current branch head's test/documentation-only changes did not require another Pages build.
+
+### Production and preview database recheck
+- Production D1 migration ledger still contains only 0001–0005. No PR #85 migration was applied to production.
+- Production execution control remains `enabled=0`, `mode='paper'`, `kill_switch=1`, allocation $1,000, default risk 0.005, max risk 0.01, max position fraction 0.25.
+- Production counts remain 0 intents, 0 paper orders, 0 paper positions and 1 equity snapshot. The only snapshot is `2026-11-08T18:34:38.720Z`; it is broker account equity, not Northstar strategy capital.
+- Isolated preview D1 has migrations 0001–0007 applied; strategy approval remains `approved=0`; execution remains disabled and kill switch engaged.
+- Production Pages variable-name inventory includes `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, `FMP_API_KEY2`, `GEMINI_API_KEY`, and `NORTHSTAR_OPERATOR_TOKEN`. It does not include `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN` or a dedicated recovery token. Only names were inspected; secret values were never read.
+- Direct public HTTP probes for production readiness/performance and preview readiness were inaccessible from the available HTTP browsing layer in this run. Deployment metadata and D1 state were verified; fresh endpoint response verification is not claimed.
+
+### Remaining blockers and next actions
+1. **Operator recovery endpoint is still missing.** Implement a durable idempotent recovery operation, cancel the open parent remainder exactly once, wait for confirmed terminal state, reconcile final broker position and OTO child fills, then verify an existing child or place one deterministic standalone GTC stop. Query by deterministic client order ID after ambiguous submit outcomes; never blindly resubmit. Add cancellation-race, timeout, duplicate-call, position-mismatch, stop-undercoverage and already-protected tests. Integrate recovery-stop IDs into fill sync, FIFO ledger and reconciliation so a standalone stop is not misclassified as an untracked broker order.
+2. **Strategy remains NOT APPROVED.** No real point-in-time dataset, frozen strategy signal replay, minimum 100 completed trades, four-fold chronological walk-forward report, untouched holdout, cost/corporate-action attestations or independent reproduction is present. Keep migration 0007 approval row closed.
+3. **Seven-day equity baseline is still missing.** Production has one snapshot only. The earliest possible baseline remains 2026-11-15 18:34:38.720 UTC only if real periodic snapshots are successfully collected; no historical snapshots may be fabricated.
+4. **Production migrations 0006/0007 are not applied.** Keep them preview-only until recovery and strategy gates, migration review and release verification pass.
+5. **Secrets and scheduled operations remain unverified.** The production Pages project lacks the paper approval token; recovery token is also absent. Repository secret values cannot be inspected through this integration. Verify only non-empty presence through a safe workflow after the corresponding routes are ready. The scheduled snapshot chain has not yet run successfully against production.
+6. **Formal review/branch rules remain unknown.** PR #85 is draft with no formal review submissions; branch-protection API access remains 403. Obtain authorized review/rules evidence before release. Do not bypass.
+7. **Endpoint health is not freshly verified this run.** Web HTTP probes returned inaccessible errors. Recheck via a permitted authenticated environment before claiming production route health.
+
+No paper or live order was submitted, amended, canceled, or flattened. Production execution remains disabled and kill switch engaged. Project-wide completion estimate: **62%**. The increment reflects a tested deterministic partial-fill recovery decision layer; it does not mean the broker-mutating recovery lifecycle or production readiness is complete.
