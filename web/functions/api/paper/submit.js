@@ -59,7 +59,7 @@ export async function onRequestPost({request,env}){
  let brokerPositions,brokerOrders;
  try{[brokerPositions,brokerOrders]=await Promise.all([broker("/v2/positions",key,secret),broker("/v2/orders?status=open&limit=500",key,secret)]);}
  catch{return fail("Could not verify broker positions and open orders.",503);}
- if(!Array.isArray(brokerPositions)||!Array.isArray(brokerOrders)||brokerOrders.length>0||(orders.results||[]).length>0)return fail("Executor requires no open broker orders or unresolved Northstar orders; reconcile first.",409);
+ if(!Array.isArray(brokerPositions)||!Array.isArray(brokerOrders)||brokerPositions.length!==0||brokerOrders.length>0||(orders.results||[]).length>0)return fail("Initial executor requires a fully flat broker and ledger with no open or unresolved orders; reconcile first.",409);
  if(intent.qty>Math.floor(250/(ask||Infinity)))return fail("Approved quantity exceeds the $250 virtual position ceiling at the current ask.",409);
  const gate=validatePaperExecutionGate({control,account,reconciliation:{ok:true,reconciled:true,execution:false},equityHistory:history,quote:{bid,ask,timestamp},order:{symbol:intent.symbol,side:"buy",qty:intent.qty,stopPrice:intent.stop_price},virtualAllocationUsd:1000});
  if(!gate.ok)return fail("Deterministic paper execution policy blocked the order: "+gate.reason,409,{policy:gate});
