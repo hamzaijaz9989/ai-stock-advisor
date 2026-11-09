@@ -58,7 +58,17 @@ function validateReport(report, validFactIds, role) {
 async function invoke(role, worker, payload, factIds) {
   if (typeof worker !== "function") return {role, status:"UNAVAILABLE", reason:role+" worker not configured."};
   try {
-    const report = await worker(freezeDeep(structuredClone(payload)));
+    const coverage = payload.resourceCoverage?.roles?.[role] || null;
+    const roleResourcePack = coverage ? {
+      role,
+      status:coverage.status || "NOT_REPORTED",
+      relevantIds:Array.isArray(coverage.factIds) ? [...coverage.factIds] : [],
+      requiredInputs:Array.isArray(coverage.inputFields) ? [...coverage.inputFields] : [],
+      knownGaps:Array.isArray(coverage.gaps) ? [...coverage.gaps] : [],
+      allContextEvidenceRetained:true,
+      note:"This pack highlights role-relevant resources; the full shared dossier remains available for counter-evidence and cross-checking."
+    } : null;
+    const report = await worker(freezeDeep(structuredClone({...payload,roleResourcePack})));
     const checked = validateReport(report, factIds, role);
     if (!checked.ok) return {role, status:"BLOCKED", reason:checked.reason};
     return {role, status:report.status, report};
