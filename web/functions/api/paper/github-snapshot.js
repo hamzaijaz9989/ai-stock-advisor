@@ -21,12 +21,13 @@ function makeInternalRequest(path, token, requestId) {
   });
 }
 
-async function invoke(handler, path, env, operatorToken, requestId) {
+async function invoke(handler, path, env, operatorToken, requestId, successField) {
   const result = await handler({ request: makeInternalRequest(path, operatorToken, requestId), env });
   let body;
   try { body = await result.json(); } catch { return { ok: false, error: "INVALID_HANDLER_RESPONSE" }; }
-  if (!result.ok || body?.ok !== true || body?.execution !== false) {
-    return { ok: false, error: String(body?.error || `${path.toUpperCase()}_FAILED`).slice(0, 240), status: result.status };
+  if (!result.ok || body?.ok !== true || body?.execution !== false || body?.[successField] !== true) {
+    const fallback = body?.[successField] !== true ? `${path.toUpperCase()}_INCOMPLETE` : `${path.toUpperCase()}_FAILED`;
+    return { ok: false, error: String(body?.error || fallback).slice(0, 240), status: result.status };
   }
   return { ok: true, body };
 }
@@ -56,13 +57,13 @@ export async function runReadOnlySnapshotChain({ request, env, verify = verifyGi
   }
 
   const activeHandlers = handlers || await loadHandlers();
-  const sync = await invoke(activeHandlers.syncAccount, "sync", env, operatorToken, `${suppliedRequestId}-sync`);
+  const sync = await invoke(activeHandlers.syncAccount, "sync", env, operatorToken, `${suppliedRequestId}-sync`, "synced");
   if (!sync.ok) return response("Read-only account snapshot failed; later stages were not run.", 503, { stage: "sync", detail: sync.error });
 
-  const fills = await invoke(activeHandlers.importFills, "fills-sync", env, operatorToken, `${suppliedRequestId}-fills`);
+  const fills = await invoke(activeHandlers.importFills, "fills-sync", env, operatorToken, `${suppliedRequestId}-fills`, "imported");
   if (!fills.ok) return response("Read-only fill import failed; reconciliation was not claimed.", 503, { stage: "fills-sync", detail: fills.error, snapshotCapturedAt: sync.body.capturedAt || null });
 
-  const reconciliation = await invoke(activeHandlers.reconcileAccount, "reconcile", env, operatorToken, `${suppliedRequestId}-reconcile`);
+  const reconciliation = await invoke(activeHandlers.reconcileAccount, "reconcile", env, operatorToken, `${suppliedRequestId}-reconcile`, "reconciled");
   if (!reconciliation.ok || reconciliation.body.reconciled !== true || reconciliation.body.status !== "RECONCILIATION_PASSED_READ_ONLY") {
     return response("Read-only broker reconciliation did not pass.", 409, { stage: "reconcile", detail: reconciliation.error || "RECONCILIATION_NOT_PASSED", snapshotCapturedAt: sync.body.capturedAt || null });
   }
