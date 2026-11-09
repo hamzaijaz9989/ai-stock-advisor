@@ -73,7 +73,13 @@ function buildResourceCoverage(facts, evidence, portfolio, asOf) {
         ["Downside case is bounded by the upstream evidence gaps; no independent external retrieval is available."]),
       portfolio_analyst:entry(portfolio?.verified === true ? "PARTIAL" : "INSUFFICIENT",[],
         ["Sector classification and portfolio-wide correlation matrix are not supplied.",
-          "Portfolio fit must remain limited where exposure or risk inputs are unavailable."])
+          "Portfolio fit must remain limited where exposure or risk inputs are unavailable."]),
+      risk_committee:{
+        status:portfolio?.verified === true ? "SUFFICIENT_FOR_DETERMINISTIC_GATES" : "INSUFFICIENT",
+        factIds:[],
+        inputFields:["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"],
+        gaps:portfolio?.verified === true ? [] : ["Verified portfolio risk inputs are unavailable."]
+      }
     }
   };
 }
