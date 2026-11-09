@@ -4,7 +4,7 @@
  * No LLM calls, data fetching, persistence, broker access, or order execution here.
  * Every factual claim must cite supplied fact IDs.
  */
-export const COUNCIL_VERSION = "1.0.3";
+export const COUNCIL_VERSION = "1.0.4";
 export const COUNCIL_ROLES = Object.freeze({
   independent: ["market_scanner", "technical_analyst", "fundamental_analyst", "news_analyst", "sentiment_analyst"],
   debate: ["bull_researcher", "bear_researcher"],
@@ -86,7 +86,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
   }
   const safeWorkers = workers || {};
   const base = {requestId, ticker:context.ticker, asOf:context.asOf, facts:context.facts,
-    evidence:context.evidence, portfolio:context.portfolio};
+    evidence:context.evidence, portfolio:context.portfolio, resourceCoverage:context.resourceCoverage || null};
   const independent = await Promise.all(COUNCIL_ROLES.independent.map(role =>
     invoke(role, safeWorkers[role], base, factIds)));
   const analystReady = independent.every(x=>x.status==="COMPLETE");
@@ -113,6 +113,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
     Array.isArray(risk.report.vetoReasons) && risk.report.vetoReasons.length===0;
   return {
     version:COUNCIL_VERSION, requestId, ticker:context.ticker||null, asOf:context.asOf||null,
+    resourceCoverage:context.resourceCoverage || null,
     status:approvedForReview?"RESEARCH_REVIEW_REQUIRED":"NO_TRADE",
     execution:false, automatedOrderSubmission:false,
     decisionAuthority:"Deterministic Northstar risk and validation gates remain authoritative; council output is advisory only.",
