@@ -8,13 +8,61 @@ const MAX_CONCURRENCY = 3;
 const MOVE_ALERT_PCT = 3;
 const HEADERS = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
 
+function nthWeekday(year, month, weekday, occurrence) {
+  const first = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  return 1 + (weekday - first + 7) % 7 + (occurrence - 1) * 7;
+}
+function lastWeekday(year, month, weekday) {
+  const last = new Date(Date.UTC(year, month, 0));
+  return last.getUTCDate() - (last.getUTCDay() - weekday + 7) % 7;
+}
+function observedFixedHoliday(year, month, day) {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const weekday = date.getUTCDay();
+  if (weekday === 6) date.setUTCDate(date.getUTCDate() - 1);
+  if (weekday === 0) date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+function easterSunday(year) {
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const month=Math.floor((h+l-7*m+114)/31),day=(h+l-7*m+114)%31+1;
+  return new Date(Date.UTC(year,month-1,day));
+}
+function usMarketCalendar(year) {
+  const holidays = new Set([
+    observedFixedHoliday(year,1,1), observedFixedHoliday(year,6,19),
+    observedFixedHoliday(year,7,4), observedFixedHoliday(year,12,25),
+    new Date(Date.UTC(year,0,nthWeekday(year,1,1,3))).toISOString().slice(0,10),
+    new Date(Date.UTC(year,1,nthWeekday(year,2,1,3))).toISOString().slice(0,10),
+    new Date(Date.UTC(year,4,lastWeekday(year,5,1))).toISOString().slice(0,10),
+    new Date(Date.UTC(year,8,nthWeekday(year,9,1,1))).toISOString().slice(0,10),
+    new Date(Date.UTC(year,10,nthWeekday(year,11,4,4))).toISOString().slice(0,10)
+  ]);
+  const easter=easterSunday(year); easter.setUTCDate(easter.getUTCDate()-2);
+  holidays.add(easter.toISOString().slice(0,10));
+  holidays.add(observedFixedHoliday(year+1,1,1));
+  const earlyCloses = new Set();
+  const thanksgiving = new Date(Date.UTC(year,10,nthWeekday(year,11,4,4)));
+  const fridayAfter = new Date(thanksgiving); fridayAfter.setUTCDate(fridayAfter.getUTCDate()+1);
+  earlyCloses.add(fridayAfter.toISOString().slice(0,10));
+  const christmasEve = new Date(Date.UTC(year,11,24));
+  if (![0,6].includes(christmasEve.getUTCDay())) earlyCloses.add(christmasEve.toISOString().slice(0,10));
+  const julyThird = new Date(Date.UTC(year,6,3));
+  if (![0,6].includes(julyThird.getUTCDay()) && !holidays.has(julyThird.toISOString().slice(0,10))) earlyCloses.add(julyThird.toISOString().slice(0,10));
+  return {holidays,earlyCloses};
+}
 export function isUsMarketOpen(date = new Date()) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
-    timeZone:"America/New_York",weekday:"short",hour:"2-digit",minute:"2-digit",hourCycle:"h23"
+    timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit",weekday:"short",hour:"2-digit",minute:"2-digit",hourCycle:"h23"
   }).formatToParts(date).map(p=>[p.type,p.value]));
-  const day = parts.weekday;
-  const minutes = Number(parts.hour)*60+Number(parts.minute);
-  return !["Sat","Sun"].includes(day) && minutes >= 570 && minutes < 960;
+  if (["Sat","Sun"].includes(parts.weekday)) return false;
+  const key=parts.year+"-"+parts.month+"-"+parts.day;
+  const calendar=usMarketCalendar(Number(parts.year));
+  if (calendar.holidays.has(key)) return false;
+  const minutes=Number(parts.hour)*60+Number(parts.minute);
+  const close=calendar.earlyCloses.has(key)?13*60:16*60;
+  return minutes>=570&&minutes<close;
 }
 export function isQuoteFresh(quoteTime, now = Date.now()) {
   const timestamp = Date.parse(quoteTime || "");
