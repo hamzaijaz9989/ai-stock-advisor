@@ -13,9 +13,9 @@ CREATE TABLE IF NOT EXISTS northstar_strategy_approval (
   CHECK (
     approved = 0 OR (
       report_version IS NOT NULL AND report_version > 0 AND
-      length(report_sha256) = 64 AND
+      report_sha256 IS NOT NULL AND length(report_sha256) = 64 AND
       report_sha256 NOT GLOB '*[^0-9a-fA-F]*' AND
-      report_uri LIKE 'https://%' AND
+      report_uri IS NOT NULL AND report_uri LIKE 'https://%' AND
       approved_at IS NOT NULL AND
       reviewer IS NOT NULL AND length(trim(reviewer)) > 0
     )
