@@ -96,7 +96,7 @@ The append-only `research_council_runs` table is defined in migration `0003_rese
 
 ### Supervisor and quality gates
 - The coordinator is the deterministic supervisor: it controls stage order, freezes inputs, validates report schemas and citations, blocks downstream stages after failures, preserves bull/bear disagreement and invokes the Risk Committee only after a complete dossier.
-- A specialist cannot count an empty `COMPLETE` envelope as work. It must return at least one evidence-linked finding or a cited limitation/risk; otherwise the report is blocked.
+- A model specialist cannot count an empty `COMPLETE` envelope as work. It must return at least one evidence-linked finding or a cited limitation/risk; otherwise the report is blocked. The deterministic Risk Committee is the deliberate exception: its valid output is a decision plus explicit veto reasons, so it may return empty findings/risks.
 - Missing workers, provider failures, invalid references, malformed reports and any risk veto result in `NO_TRADE`.
 - The supervisor never changes the risk policy, approves strategy validation, enables paper execution or submits an order.
 
@@ -105,3 +105,9 @@ Each release should test individual role boundaries, evidence attribution, promp
 
 ### Known limitations
 The current implementation is a bounded multi-stage research workflow, not a free-chat agent society. Specialists share one configured model provider/model and the same collected evidence context; they do not independently browse or hold distinct external tool credentials. Dashboard integration, per-role model selection, durable evaluation dashboards and autonomous scheduled research cycles remain separate work. Production use is still gated by the strategy-validation, seven-day equity-history, authenticated collection and release blockers documented in the project blocker log.
+
+
+### Supervisor contract correction — v1.0.3
+- The deterministic Risk Committee emits no model findings; it returns only `decision` and `vetoReasons`. The shared non-empty-report rule previously rejected this legitimate decision-only contract, which would have blocked every real deterministic committee result.
+- The validator now applies the non-empty requirement only to model specialists while continuing to validate the committee's explicit decision and veto-reason invariants.
+- Regression tests cover both decision-only acceptance and decision-only rejection. A rejection remains a hard veto.
