@@ -163,3 +163,19 @@ test("fill sync refuses to publish a short position from an oversized tracked se
  assert.ok(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")));
  assert.equal(db.state.batch.some(x=>x.sql.startsWith("DELETE FROM paper_position_lots")),false);
 });
+
+
+test("fill sync idempotently rebuilds a previously imported terminal fill without reopening its order",async()=>{
+ const row={id:"northstar-order-entry",broker_order_id:"ord-entry",symbol:"AAPL",qty:2,stop_price:98,status:"FILLED",response_json:'{"filled_qty":"2","filled_avg_price":"100"}'};
+ const brokerOrder={id:"ord-entry",symbol:"AAPL",side:"buy",qty:"2",filled_qty:"2",filled_avg_price:"100",status:"filled",order_class:"oto",legs:[{id:"stop-child",order_group_role:"stop_loss",type:"stop",status:"new",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
+ const activity={id:"buy-fill",order_id:"ord-entry",symbol:"AAPL",side:"buy",qty:"2",price:"100",transaction_time:"2026-01-01T10:00:00Z"};
+ const tracked={activity_id:"buy-fill",order_id:"northstar-order-entry",broker_order_id:"ord-entry",symbol:"AAPL",side:"buy",qty:2,price:100,transaction_time:"2026-01-01T10:00:00Z",raw_json:JSON.stringify(activity)};
+ const {response,db}=await run({activities:[activity],brokerOrders:[brokerOrder],ledgerRows:[row],trackedFills:[tracked]});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(body.positionLedger.complete,true);
+ assert.equal(body.positionLedger.newTrackedFills,0);
+ assert.equal(body.positionLedger.positions[0].qty,2);
+ assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control")),false);
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
+});
