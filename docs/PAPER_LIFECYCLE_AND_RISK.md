@@ -23,3 +23,7 @@ The functions in this module perform no broker calls, network requests, database
 4. Add sector/correlation limits, open-order reservations, market-hours/calendar checks, stale-data controls, and price collars.
 5. Backtest with point-in-time/unbiased data, corporate actions, survivorship controls, realistic fees/slippage, out-of-sample and walk-forward evaluation, and multiple-testing controls.
 6. Run sustained paper forward tests and reconcile every broker event. Engineering checks do not establish profitability.
+
+## Strategy approval is a separate hard gate
+
+The BUY path requires an evidence-backed `northstar_strategy_approval` D1 record in addition to portfolio, quote, equity-history, reconciliation, stop and execution-control checks. The migration seeds it as NOT APPROVED. Missing schema, missing row, invalid report metadata or an unapproved status blocks preflight and submission. Existing-order recovery remains available so an already-submitted order can be reconciled even while new BUYs are blocked. Never treat a unit-test approval fixture as real validation evidence.
