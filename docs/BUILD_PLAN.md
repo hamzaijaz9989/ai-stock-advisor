@@ -95,8 +95,16 @@
 
 - Repository visibility is public, owner-confirmed.
 - Universe scanning remains complete and tested; do not rebuild it without a demonstrated regression.
-- Nine-agent Stock Brain code and dashboard integration are combined in draft PR #103. Exact-head CI passed (Tests, Validate AI Stock Advisor and full-history secret scan). Cloudflare preview deployment succeeded for application-code commit `a068fa60d3df641d424f8e8c258ef770434a5922`; live preview endpoint/UI smoke test remains outstanding.
+- Nine-agent Stock Brain code and dashboard integration are combined in open, non-open PR #103 at head `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`. Exact-head CI passed (Cloudflare Pages, Tests, Validate AI Stock Advisor and full-history secret scan). Cloudflare preview deployment `a1c5704f-7bea-4ca4-a252-c6b049b5857b` succeeded at https://a1c5704f.ai-stock-advisor.pages.dev; live preview endpoint/UI smoke test remains outstanding because the browsing layer cannot reach the Pages host.
 - PR #103 is not merged or production-deployed. Do not treat CI or preview deployment as production acceptance.
 - Production D1 currently has zero Research Council runs and one stale equity snapshot. The collector's fresh-snapshot and seven-day-history requirements are not satisfied. Controls remain paper mode, execution disabled, kill switch engaged.
-- **Next goal:** finish PR #103 review and preview smoke tests, verify authentication/provider configuration safely, establish fresh scheduled read-only equity snapshots and a seven-day baseline, then complete one controlled research-only run with durable replay verification. No orders.
+- **Next goal:** complete a real preview runtime smoke test and protected collector auth/failure checks; then finish review and decide on safe merge. Separately establish fresh scheduled read-only equity snapshots and a seven-day baseline before any controlled research-only run with durable replay verification. No orders.
 - **After Stock Brain acceptance:** begin the point-in-time strategy-validation milestone. Validated BUY remains disabled until independent evidence gates pass.
+
+
+## 2026-11-10 — Latest autonomous Stock Brain acceptance checkpoint
+
+- Repository is public by owner choice.
+- PR #103 is open and non-draft at head `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`; exact-head CI is green and Cloudflare preview deployment succeeded at https://a1c5704f.ai-stock-advisor.pages.dev.
+- Live HTTP/UI smoke testing remains outstanding due to the connected browsing layer's inability to reach the Pages host. Deployment success is not runtime acceptance.
+- Next task: verify preview dashboard/status/auth paths in an authorized browser, then complete review and safe merge decision. No production deployment or DB mutation has been made.
