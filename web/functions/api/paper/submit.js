@@ -131,21 +131,32 @@ export async function onRequestPost({request,env}){
    try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:result,reason:"BROKER_FILL_SNAPSHOT_INCONSISTENT"});}catch{}
    return fail("Broker fill snapshot is inconsistent with the approved quantity. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
   }
-  // Alpaca only returns child legs in nested order responses. Verify the actual
-  // stop-loss child before treating the parent OTO order as protected.
-  try{
-   const nested=await broker("/v2/orders?status=all&limit=500&direction=desc&nested=true",key,secret);
-   if(!Array.isArray(nested))throw new Error("NESTED_ORDER_LIST_INVALID");
-   verifiedOrder=nested.find(order=>String(order?.id||"")===String(result.id))||null;
-  }catch{
-   try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:result,reason:"NESTED_OTO_ORDER_LOOKUP_FAILED"});}catch{}
-   return fail("Could not verify the broker's nested OTO stop-loss leg. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+  if(!(normalized==="CANCELED"&&initialFilled===0)){
+   // Alpaca only returns child legs in nested order responses. Verify the actual
+   // stop-loss child before treating the parent OTO order as protected.
+   try{
+    const nested=await broker("/v2/orders?status=all&limit=500&direction=desc&nested=true",key,secret);
+    if(!Array.isArray(nested))throw new Error("NESTED_ORDER_LIST_INVALID");
+    verifiedOrder=nested.find(order=>String(order?.id||"")===String(result.id))||null;
+   }catch{
+    try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:result,reason:"NESTED_OTO_ORDER_LOOKUP_FAILED"});}catch{}
+    return fail("Could not verify the broker's nested OTO stop-loss leg. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+   }
+   const parentMatches=verifiedOrder&&String(verifiedOrder.symbol||"").toUpperCase()===intent.symbol&&String(verifiedOrder.side||"").toLowerCase()==="buy"&&Math.abs(Number(verifiedOrder.qty)-Number(intent.qty))<=0.0001&&String(verifiedOrder.client_order_id||"")===id;
+   if(!parentMatches||!verifyOtoStopLeg(verifiedOrder,{symbol:intent.symbol,qty:intent.qty,stopPrice:intent.stop_price}).ok){
+    try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder||result,reason:"PROTECTIVE_STOP_LEG_NOT_VERIFIED"});}catch{}
+    return fail("The exact protective stop-loss child was not verified at Alpaca. Order marked UNKNOWN and kill switch engaged; manual reconciliation is required.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+   }
+   normalized=normalizeStatus(verifiedOrder.status);
+   const verifiedFilled=num(verifiedOrder.filled_qty);
+   if(normalized==="UNKNOWN"||verifiedFilled===null||verifiedFilled<0||verifiedFilled>Number(intent.qty)||
+     (normalized==="FILLED"&&Math.abs(verifiedFilled-Number(intent.qty))>0.0001)||
+     (normalized==="PARTIALLY_FILLED"&&(verifiedFilled<=0||verifiedFilled>=Number(intent.qty)))||
+     (verifiedFilled>0&&(!num(verifiedOrder.filled_avg_price)||num(verifiedOrder.filled_avg_price)<=0))){
+    try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder,reason:"NESTED_ORDER_STATE_INCONSISTENT"});}catch{}
+    return fail("Nested broker order state is inconsistent. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+   }
   }
-  if(!verifiedOrder||!verifyOtoStopLeg(verifiedOrder,{symbol:intent.symbol,qty:intent.qty,stopPrice:intent.stop_price}).ok){
-   try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder||result,reason:"PROTECTIVE_STOP_LEG_NOT_VERIFIED"});}catch{}
-   return fail("The exact protective stop-loss child was not verified at Alpaca. Order marked UNKNOWN and kill switch engaged; manual reconciliation is required.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
-  }
-  normalized=normalizeStatus(verifiedOrder.status);
  }
  const intentStatus=normalized==="REJECTED"?"REJECTED":"SUBMITTED_TO_PAPER";
  try{
@@ -154,6 +165,6 @@ export async function onRequestPost({request,env}){
    db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED"})),
    db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(intentStatus,new Date().toISOString(),intentId)
   ]);
- }catch{return fail("Broker response received but ledger update failed. Treat order as unresolved and reconcile; do not retry.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});}
+ }catch{try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder,reason:"BROKER_RESPONSE_LEDGER_WRITE_FAILED"});}catch{}return fail("Broker response received but ledger update failed. Order marked UNKNOWN where possible; execution kill switch engaged. Reconcile; do not retry.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});}
  return Response.json({ok:normalized!=="REJECTED",execution:false,submittedTo:"alpaca-paper",orderId:id,brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED",qty:intent.qty,symbol:intent.symbol,estimatedNotionalUsd:gate.sizing.notionalUsd,plannedStopRiskUsd:gate.sizing.plannedRiskUsd,message:"Paper order submitted to Alpaca Paper; broker status and protective stop leg were verified. This is not a live-market order."},{status:normalized==="REJECTED"?409:201,headers:H});
 }
