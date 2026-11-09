@@ -55,3 +55,14 @@ test("invalid timestamps and unsupported sides fail closed",()=>{
   assert.equal(derivePaperPositionLedger([fill("a","o","bo","buy",1,100,"bad")]).reason,"FILL_ROW_INVALID");
   assert.equal(derivePaperPositionLedger([fill("a","o","bo","short",1,100,"2026-01-01T10:00:00Z")]).reason,"FILL_ROW_INVALID");
 });
+
+
+test("ambiguous same-timestamp fills fail closed instead of guessing FIFO order",()=>{
+  const result=derivePaperPositionLedger([
+    fill("buy","entry","broker-entry","buy",1,100,"2026-01-01T10:00:00Z"),
+    fill("sell","close","broker-stop","sell",1,110,"2026-01-01T10:00:00Z")
+  ]);
+  assert.equal(result.ok,false);
+  assert.equal(result.reason,"AMBIGUOUS_FILL_ORDERING");
+  assert.equal(result.execution,false);
+});
