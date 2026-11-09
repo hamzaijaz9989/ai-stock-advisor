@@ -30,3 +30,12 @@ test("rejects overlong model claims and excessive fact references without trunca
  assert.equal(tooManyRefs.status,"NO_TRADE");
  assert.ok(tooManyRefs.agents.some(x=>x.role==="technical_analyst"&&x.status==="BLOCKED"));
 });
+
+test("rejects empty COMPLETE reports instead of treating silence as successful research",async()=>{
+ const w=workers();
+ w.market_scanner=async()=>({status:"COMPLETE",findings:[],risks:[]});
+ const r=await runResearchCouncil({requestId:"request-0015",context,workers:w});
+ assert.equal(r.status,"NO_TRADE");
+ assert.ok(r.agents.some(x=>x.role==="market_scanner"&&x.status==="BLOCKED"));
+ assert.ok(r.vetoReasons.some(x=>x.includes("empty COMPLETE report")));
+});
