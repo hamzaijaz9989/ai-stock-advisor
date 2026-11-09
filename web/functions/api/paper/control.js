@@ -64,10 +64,13 @@ export async function onRequestPost({request,env}) {
     const body=await request.json();
     if(body?.action!=="ENGAGE_KILL_SWITCH") return Response.json({ok:false,error:"Only ENGAGE_KILL_SWITCH is permitted. Disabling the switch and enabling execution are not supported."},{status:400,headers:H});
     const nowAt=new Date().toISOString();
-    await db.batch([
+    const writes=await db.batch([
       db.prepare("UPDATE execution_control SET enabled=0,kill_switch=1,updated_at=? WHERE id=1").bind(nowAt),
-      db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","ENGAGE_KILL_SWITCH","SUCCESS",request.headers.get("X-Request-ID")||null,JSON.stringify({mode:"paper",executionEnabled:false,killSwitchEngaged:true,at:nowAt}))
+      db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM execution_control WHERE id=1 AND mode='paper' AND enabled=0 AND kill_switch=1 AND updated_at=?)").bind("operator","ENGAGE_KILL_SWITCH","SUCCESS",request.headers.get("X-Request-ID")||null,JSON.stringify({mode:"paper",executionEnabled:false,killSwitchEngaged:true,at:nowAt}),nowAt)
     ]);
+    if(writes.length!==2 || Number(writes[0]?.meta?.changes)!==1 || Number(writes[1]?.meta?.changes)!==1) {
+      return Response.json({ok:false,controlStateVerified:false,submissionQuiesced:false,error:"The execution-control row or durable kill-switch audit event could not be verified. Do not assume the system is quiesced; verify the ledger and reconcile."},{status:503,headers:H});
+    }
     const drain=await waitForSubmissionQuiescence(db);
     if(!drain.ok) {
       return Response.json({ok:false,executionEnabled:false,killSwitchEngaged:true,submissionQuiesced:false,submissionState:drain.state,error:"Kill switch was written, but the in-flight submission state could not be verified. Treat submission status as unknown and reconcile before further action."},{status:503,headers:H});
