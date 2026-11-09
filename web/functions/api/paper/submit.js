@@ -4,6 +4,7 @@
 import {deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
 import {validatePaperExecutionGate,verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
 import {evaluateStrategyApproval} from "../../../lib/strategy-validation-gate.js";
+import {onRequestPost as runReadOnlyReconciliation} from "./reconcile.js";
 
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail=(error,status=400,extra={})=>Response.json({ok:false,execution:false,error,...extra},{status,headers:H});
@@ -142,7 +143,24 @@ export async function onRequestPost({request,env}){
  const orderNotional=Number(intent.qty)*ask,buyingPower=num(account.buying_power);
  if(!Number.isInteger(Number(intent.qty))||Number(intent.qty)<=0||!Number.isFinite(orderNotional)||!Number.isFinite(buyingPower)||buyingPower<=0||orderNotional>buyingPower)return fail("Current Alpaca Paper buying power is insufficient or the approved quantity is invalid.",409);
  if(intent.qty>Math.floor(250/(ask||Infinity)))return fail("Approved quantity exceeds the $250 virtual position ceiling at the current ask.",409);
- const gate=validatePaperExecutionGate({control,account,reconciliation:{ok:true,reconciled:true,execution:false},equityHistory:history,quote:{bid,ask,timestamp},order:{symbol:intent.symbol,side:"buy",qty:intent.qty,stopPrice:intent.stop_price},strategyValidation,virtualAllocationUsd:1000});
+ let reconciliation;
+ try{
+  const reconciliationRequest=new Request(new URL("/api/paper/reconcile",request.url),{
+   method:"POST",
+   headers:{Authorization:request.headers.get("Authorization")||"",Accept:"application/json"}
+  });
+  const reconciliationResponse=await runReadOnlyReconciliation({request:reconciliationRequest,env});
+  reconciliation=await reconciliationResponse.json();
+  const reconciledAt=Date.parse(reconciliation?.checkedAt||"");
+  if(!reconciliationResponse.ok||reconciliation?.ok!==true||reconciliation?.reconciled!==true||
+     reconciliation?.execution!==false||reconciliation?.status!=="RECONCILIATION_PASSED_READ_ONLY"||
+     !Number.isFinite(reconciledAt)||reconciledAt>Date.now()||Date.now()-reconciledAt>60000){
+   return fail("A fresh read-only broker-to-ledger reconciliation did not pass; no paper order may be submitted.",409,{reconciliationStatus:reconciliation?.status||"UNVERIFIED"});
+  }
+ }catch{
+  return fail("A fresh read-only broker-to-ledger reconciliation could not be completed; no paper order may be submitted.",503);
+ }
+ const gate=validatePaperExecutionGate({control,account,reconciliation,equityHistory:history,quote:{bid,ask,timestamp},order:{symbol:intent.symbol,side:"buy",qty:intent.qty,stopPrice:intent.stop_price},strategyValidation,virtualAllocationUsd:1000});
  if(!gate.ok)return fail("Deterministic paper execution policy blocked the order: "+gate.reason,409,{policy:gate});
  if(!Number.isFinite(bid)||!Number.isFinite(ask)||ask<bid)return fail("Invalid current quote.",503);
  const id=crypto.randomUUID(),now=new Date().toISOString(),idem="intent:"+intentId;
