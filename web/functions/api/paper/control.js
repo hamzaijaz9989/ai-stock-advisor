@@ -4,6 +4,7 @@
 // to leave SUBMITTING. Existing broker orders are never cancelled by this route.
 const H = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const TERMINAL_SUBMISSION_STATES = new Set(["SUBMITTED","REJECTED"]);
+const PENDING_RETRY_SECONDS = 2;
 function sameSecret(a,b) {
   if (typeof a !== "string" || typeof b !== "string" || !a || !b) return false;
   let diff = a.length ^ b.length;
@@ -75,7 +76,7 @@ export async function onRequestPost({request,env}) {
       return Response.json({ok:false,executionEnabled:false,killSwitchEngaged:true,submissionQuiesced:false,brokerOutcomeVerified:false,submissionState:"UNKNOWN",manualReconciliationRequired:true,error:"Kill switch is engaged, but the broker outcome of the in-flight submission is unknown. Reconcile by client order ID and broker position before treating the account as quiesced."},{status:503,headers:H});
     }
     if(!drain.quiesced) {
-      return Response.json({ok:false,executionEnabled:false,killSwitchEngaged:true,submissionQuiesced:false,brokerOutcomeVerified:false,submissionState:drain.state,status:"KILL_SWITCH_ENGAGED_SUBMISSION_DRAIN_PENDING",message:"The kill switch is engaged, but an already-claimed broker submission has not reached a verified terminal ledger state. Do not treat the system as quiesced yet."},{status:202,headers:{...H,"Retry-After":"2"}});
+      return Response.json({ok:false,executionEnabled:false,killSwitchEngaged:true,submissionQuiesced:false,brokerOutcomeVerified:false,submissionState:drain.state,status:"KILL_SWITCH_ENGAGED_SUBMISSION_DRAIN_PENDING",message:"The kill switch is engaged, but an already-claimed broker submission has not reached a verified terminal ledger state. Do not treat the system as quiesced yet."},{status:202,headers:{...H,"Retry-After":String(PENDING_RETRY_SECONDS)}});
     }
     return Response.json({ok:true,executionEnabled:false,killSwitchEngaged:true,submissionQuiesced:true,brokerOutcomeVerified:true,submissionState:drain.state,updatedAt:nowAt,warnings:["The kill switch prevents new paper submissions.","Any already-claimed submission has reached a verified terminal ledger state.","Existing broker orders are not cancelled; reconcile and manage them separately."]},{headers:H});
   } catch { return Response.json({ok:false,error:"Control update failed; assume kill switch remains engaged and verify ledger."},{status:503,headers:H}); }
