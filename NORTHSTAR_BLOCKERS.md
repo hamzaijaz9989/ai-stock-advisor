@@ -873,3 +873,11 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Added per-role `roleResourcePack` handoffs to the coordinator. Each worker receives its own status, relevant evidence IDs, required typed inputs and known gaps while retaining the entire shared dossier for counter-evidence. Updated model instructions and regression tests. Commits: `b4d05f5ee8123dc743fd203465e374a1cb06d33a`, `cc648a648e81cd0fb11ee3dafec6116a31687146`, `91bdcb7feb56a1483187428b3337973c7ee15e6d`, documentation: `d2f1b500d12fdb76cbb6da9d245090f2eb236068`.
 
 - Latest role-resource-pack code/test CI verified: Tests run `42613087355` passed **311/311 JavaScript tests**, Python tests and lint; Validate run `42613087263` passed its complete validation job. PR #85 head at this check was `cddace73356fb2beb057de538628bc4539d22fa9`, GitHub reported mergeable=true and draft=true. No independent reviews are recorded. This is CI evidence only; no preview deployment or production verification is implied.
+
+
+## 2026-11-09 — Per-agent runtime telemetry
+- Added server-side elapsed-time measurement for each model specialist invocation and recorded the actual selected provider/model identifiers. Failed invocations retain measured latency and a failure flag; unconfigured workers remain explicitly unavailable.
+- Authenticated research collection now passes this telemetry to the deterministic evaluation scorecard before durable persistence. Token counts and dollar cost remain null until provider usage fields/pricing are validated; no estimates are emitted.
+- Added mocked-provider regression tests. No live model-provider request, production write, broker mutation, order action, merge or deployment performed.
+- Commits: `154e799b58d46f8715839aa927e150a255e131ce` (initial adapter telemetry), `ca0385620b8ef555d95c102e559165f0f0363e5f` (OpenAI wrapper correction), `5a87dac305489a80a8cb2d9ad6ab578d70bb5dc9` (collector persistence), `1faa52d89807619cab566c0e9581e4e73632a69a` (tests), docs: `98754b7ba055fda1250f55a49cbeaaf65c44f161`.
+- Verify the entire latest PR head in CI before any merge/deploy decision.
