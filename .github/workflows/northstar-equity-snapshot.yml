@@ -1,4 +1,4 @@
-name: Northstar read-only paper equity snapshots
+name: Northstar read-only paper ledger snapshots
 
 on:
   schedule:
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   snapshot-and-reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - name: Verify production policy remains fail-closed
         run: |
@@ -46,10 +46,28 @@ jobs:
           base="https://ai-stock-advisor.pages.dev/api/paper"
           sync="$(curl --fail --silent --show-error --max-time 30 -X POST \
             -H "Authorization: Bearer $OPERATOR_TOKEN" \
-            -H "X-Request-ID: northstar-equity-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            -H "X-Request-ID: northstar-sync-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
             -H "Accept: application/json" "$base/sync")"
           echo "$sync" | jq -e '.ok == true and .synced == true and .execution == false and .mode == "paper"' >/dev/null
-          echo "$sync" | jq '{ok, synced, execution, mode, capturedAt, positions: .snapshot.positions}'
+          echo "$sync" | jq '{ok, synced, execution, mode, capturedAt, snapshot}'
+
+      - name: Import broker fills without submitting or changing orders
+        id: fills
+        env:
+          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
+        run: |
+          set -euo pipefail
+          base="https://ai-stock-advisor.pages.dev/api/paper"
+          fills="$(curl --silent --show-error --max-time 45 -X POST \
+            -H "Authorization: Bearer $OPERATOR_TOKEN" \
+            -H "X-Request-ID: northstar-fills-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            -H "Accept: application/json" "$base/fills-sync")"
+          fills_ok="$(echo "$fills" | jq -r '.ok == true and .imported == true and .execution == false')"
+          fills_safe="$(echo "$fills" | jq -r '.safeToContinue == true and .requiresManualRecovery == false')"
+          echo "$fills" | jq '{ok, imported, execution, safeToContinue, requiresManualRecovery, status, unsafeExposureCount, unsafeOrderCount, brokerRecords, newRecords, alreadyKnown, orderRowsUpdated, skippedLifecycleCount, checkedAt}'
+          if [ "$fills_ok" != "true" ] || [ "$fills_safe" != "true" ]; then
+            echo "::warning::Fill import reported an unsafe lifecycle state; reconciliation will still run."
+          fi
 
       - name: Run read-only broker-to-ledger reconciliation
         env:
@@ -59,7 +77,11 @@ jobs:
           base="https://ai-stock-advisor.pages.dev/api/paper"
           reconcile="$(curl --silent --show-error --max-time 45 -X POST \
             -H "Authorization: Bearer $OPERATOR_TOKEN" \
-            -H "X-Request-ID: northstar-equity-reconcile-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            -H "X-Request-ID: northstar-reconcile-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
             -H "Accept: application/json" "$base/reconcile")"
+          reconcile_ok="$(echo "$reconcile" | jq -r '.ok == true and .reconciled == true and .execution == false and .status == "RECONCILIATION_PASSED_READ_ONLY"')"
           echo "$reconcile" | jq '{ok, reconciled, execution, status, counts, checkedAt}'
-          echo "$reconcile" | jq -e '.ok == true and .reconciled == true and .execution == false and .status == "RECONCILIATION_PASSED_READ_ONLY"' >/dev/null
+          if [ "$reconcile_ok" != "true" ]; then
+            echo "::error::Read-only broker-to-ledger reconciliation did not pass."
+            exit 1
+          fi
