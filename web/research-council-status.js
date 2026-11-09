@@ -15,6 +15,16 @@
     READ_ONLY_BROKER_STATE_PREFLIGHT_REQUIRED:"An authenticated operator must still verify broker status, open orders and reconciliation."
   };
 
+  async function readJsonResponse(response) {
+    const contentType = String(response.headers?.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("application/json") && !contentType.includes("+json")) {
+      try { await response.text(); } catch {}
+      throw new Error("Research Council status endpoint is unavailable in this deployment.");
+    }
+    try { return await response.json(); }
+    catch { throw new Error("Research Council status response was invalid; readiness is not verified."); }
+  }
+
   function set(id, value) {
     const node = $(id);
     if (node) node.textContent = value;
@@ -36,7 +46,7 @@
         cache:"no-store",
         signal:AbortSignal.timeout(8000)
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok || !data?.ok) throw new Error(data?.error || "Status unavailable.");
 
       const council = data.council || {};
