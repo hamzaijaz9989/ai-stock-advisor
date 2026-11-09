@@ -58,3 +58,25 @@ test("requires stale fundamentals to remain explicitly blocked", () => {
   const result = validateStockCache(data, now);
   assert.ok(result.errors.some(error => error.includes("without an explicit blocked status")));
 });
+
+test("rejects stale fundamentals marked entry-ready", () => {
+  const data = fixture();
+  data.stocks[1].entryReady = true;
+  const result = validateStockCache(data, now);
+  assert.ok(result.errors.some(error => error.includes("cannot be entry-ready")));
+});
+
+test("rejects timestamps too far in the future", () => {
+  const data = fixture();
+  data.generatedAt = new Date(now + 6 * 60 * 1000).toISOString();
+  data.completedAt = data.generatedAt;
+  const result = validateStockCache(data, now);
+  assert.ok(result.errors.some(error => error.includes("freshness window")));
+});
+
+test("rejects missing scan provenance", () => {
+  const data = fixture({ workflowRunId: "", sourceCommit: "invalid" });
+  const result = validateStockCache(data, now);
+  assert.ok(result.errors.some(error => error.includes("workflowRunId is required")));
+  assert.ok(result.errors.some(error => error.includes("sourceCommit must be a Git commit SHA")));
+});
