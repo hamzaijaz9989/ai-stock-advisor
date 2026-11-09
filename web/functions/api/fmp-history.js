@@ -13,7 +13,7 @@ async function get(path,key){
 }
 function pick(rows,fields){return rows.map(row=>Object.fromEntries(fields.filter(k=>row?.[k]!==undefined).map(k=>[k,row[k]])));}
 function validDate(value){
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return false;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
  const d=new Date(value+"T00:00:00Z");
  return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===value;
 }
