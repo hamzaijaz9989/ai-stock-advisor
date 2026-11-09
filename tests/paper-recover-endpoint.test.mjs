@@ -149,9 +149,7 @@ test("unsupported stop-price precision blocks recovery before any broker order m
 });
 
 test("terminal partial-fill recovery refuses an incomplete nested OTO response",async()=>{
- const f=fixture();
- f.brokerParent=parent({legs:undefined});
- const {response,calls}=await run(f);
+ const {response,calls}=await run({brokerParent:parent({legs:undefined})});
  assert.equal(response.status,503);
  assert.match((await response.json()).error,/nested OTO child list/i);
  assert.equal(calls.some(x=>x.method==="DELETE"||x.method==="POST"),false);
