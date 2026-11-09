@@ -12,6 +12,15 @@ async function get(path,key){
  if(!Array.isArray(payload))throw new Error("Unexpected response for "+path.split("?")[0]);
  return payload;
 }
+function safeEqual(a,b){
+ if(typeof a!=="string"||typeof b!=="string"||!a||!b)return false;
+ let diff=a.length^b.length;
+ for(let i=0;i<Math.max(a.length,b.length);i++)diff|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);
+ return diff===0;
+}
+function authorized(request,env){
+ return !!env?.NORTHSTAR_OPERATOR_TOKEN&&safeEqual(request.headers.get("Authorization")||"","Bearer "+env.NORTHSTAR_OPERATOR_TOKEN);
+}
 function validDate(value){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
  const date=new Date(value+"T00:00:00Z");
@@ -21,6 +30,7 @@ export async function onRequestGet({request,env}){
  const query=new URL(request.url).searchParams;
  const from=query.get("from")||"2000-01-01";
  if(!validDate(from))return Response.json({available:false,error:"Provide a valid ISO from date."},{status:400});
+ if(!authorized(request,env))return Response.json({available:false,error:"Unauthorized."},{status:401,headers:{"Cache-Control":"no-store"}});
  const key=env?.FMP_API_KEY2||env?.FMP_API_KEY;
  if(!key)return Response.json({available:false,configured:false,error:"FMP_API_KEY is not configured."},{status:503,headers:{"Cache-Control":"no-store"}});
  const settled=await Promise.allSettled([...INDEX_ENDPOINTS.flatMap(([,current,historical])=>[get(current,key),get(historical,key)]),get("delisted-companies",key)]);
