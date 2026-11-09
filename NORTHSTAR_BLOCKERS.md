@@ -1365,3 +1365,37 @@ No PR #85/#88 merge, production migration/write, production deployment, broker r
 - Preview performance reports zero snapshots and zero tracked fills; the fill-derived ledger is structurally complete but empty; trade statistics are withheld as `NOT_AVAILABLE_NO_TRACKED_NORTHSTAR_FILLS`.
 - Preview control confirms execution disabled and kill switch engaged. No POST endpoint, broker API, order, execution-control mutation or D1 write was invoked.
 - The latest PR #85 documentation-only head is `e07b9baf7a0334522f7bde7afb847d2fb5dddb40`; CI runs `42669305835` and `42669305023` completed successfully. GitHub reports mergeable=true but PR remains DRAFT. Main is still unprotected and formal reviews remain absent.
+
+
+## Continuation run — 2026-11-09T18:05:00Z
+
+### Current GitHub state and CI
+- Repository `hamzaijaz9989/ai-stock-advisor` remains private. PR #84 is merged as `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- Raw GitHub PR API currently reports PR #85 head commit `fac76f44bfc65c0edf95b6d474eb46fc7cd58fea`, base `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`, 430 commits, 71 changed files, draft=true, mergeable=null, mergeable_state=unknown. This corrects the previous run's stale mergeability wording: GitHub is not currently reporting a confirmed conflict; mergeability is unknown.
+- Latest PR-triggered CI for this exact head: Tests run `42662730058` SUCCESS; Validate run `42662729970` SUCCESS. Formal PR reviews: zero. Inline review threads: zero.
+- PR #88 head remains `bfcf5564b8f99e12155a2b87d4e20fa866d6633a`, 16 commits ahead / 0 behind main; CI runs `42659129378` and `42659129618` both SUCCESS; formal reviews zero. Its OIDC workflow still overlaps with PR #85 in `.github/workflows/northstar-equity-snapshot.yml` and `web/wrangler.toml`.
+- Commit comparison for PR #85 reports 429 commits ahead / 0 behind main. It includes the current main SHA as its base; no behind-branch update is currently required. The GitHub PR API reports mergeability unknown, not a confirmed conflict. Recheck GitHub's mergeability after its asynchronous calculation; do not force-push or assume mergeable.
+- The current PR #85 branch includes a documentation-only blocker-log update after the prior CI head. CI success evidence above is for the raw API's exact current head `fac76f44...`, not for earlier stale heads.
+
+### Repository governance blocker — confirmed platform limitation
+- Attempted read of `GET /repos/hamzaijaz9989/ai-stock-advisor/branches/main/protection`; GitHub returned HTTP 403, `Resource not accessible by integration`. The installed GitHub connection lacks repository-administration permission.
+- Attempted read of `GET /repos/hamzaijaz9989/ai-stock-advisor/rulesets`; GitHub returned HTTP 403 with explicit message: `Upgrade to GitHub Pro or make this repository public to enable this feature.`
+- User requirement is to keep the repository private. Therefore do not make it public. The actionable path is for the owner to upgrade/enable GitHub Pro (or use an eligible organization plan) and configure branch protection/rulesets from GitHub Settings. Then required CI and independent review must be enforced. This cannot be completed by the current connected integration.
+- A formal independent review cannot be authored by this same automation identity as a substitute for a second maintainer. PR #85 and PR #88 both have zero formal reviews. Request a qualified second reviewer/collaborator; do not self-approve or fabricate approval.
+
+### Work performed and safe boundary
+- Re-read the complete PR #85 and PR #88 diffs and compared changed-file sets. Confirmed shared paths are the scheduled snapshot workflow and Wrangler configuration; the PRs must be reconciled before final merge sequencing. Do not merge PR #88 blindly over PR #85's fill-import and stop-on-unsafe-reconciliation workflow behavior.
+- Re-read the latest PR #85 preview runtime evidence already recorded above: readiness, performance and control GET routes returned HTTP 200; strategy approval false, execution disabled and kill switch engaged. This is preview evidence, not production.
+- Rechecked production D1 read-only: migrations 0001–0005 only; exactly one equity snapshot at `2026-11-08T18:34:38.720Z`; PR #85 tables `paper_execution_claims` and strategy-approval schema are absent; existing fill/order/position/intent tables are present. No migration/write was attempted.
+- No authenticated sync/reconciliation or broker API call was made because no authorized credential/runtime was available. No secret value was requested, read or exposed. No broker order, paper or live, was created.
+- No production deployment or migration occurred. Production remains on main commit `fed9d402187b3e4e6e4a4b22d53580ea04ee191c` and execution remains disabled / kill switch engaged.
+
+### Remaining blocker actions for repository owner
+1. Keep repository private and upgrade to GitHub Pro (or eligible organization plan). In repository Settings → Rules → Rulesets (or Branches/branch protection), protect `main`; require pull requests, at least one independent approval, dismiss stale approvals, require the two CI workflows, require branches up to date, and block force pushes/deletion. Re-read the ruleset/protection after saving.
+2. Add/request a qualified second reviewer for PR #85 and PR #88; have them review the broker POST/recovery safety, OIDC JWT verification/claim pinning, D1 migration ordering, scheduled workflow and secret handling. Resolve all comments.
+3. Reconcile the shared snapshot workflow/Wrangler config with a deliberate combined diff. Preserve fill import, stop-on-unsafe/manual-recovery, read-only reconciliation, OIDC identity restrictions, idempotency and no-order capability. Then rerun CI on the final combined head.
+4. Confirm PR #85 mergeability becomes true after GitHub recalculates. Do not merge while mergeability is unknown or false, reviews missing, protections missing, or checks not enforced.
+5. Production still needs migrations 0006–0010 after a verified backup and rehearsal, at least seven days of fresh equity snapshots, authenticated Alpaca PAPER account identity and clean reconciliation. Production strategy validation remains NOT APPROVED; do not invent historical trades or synthetic approval.
+6. Keep PAPER execution disabled and kill switch engaged. Do not enable until all gates in this document are independently demonstrated.
+
+No PR merge, force push, branch-protection bypass, D1 write/migration, production deployment, broker API request, paper/live order or execution enablement occurred in this run.
