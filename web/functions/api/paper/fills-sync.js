@@ -204,7 +204,7 @@ export async function onRequestPost({request,env}){
      brokerPosition:matchingPositions.length===1?matchingPositions[0]:null
     });
     if(!recoveryCheck.ok){
-     const reason=recoveryCheck.reason||stopCheck.reason;
+     const reason=linkedRecovery?(recoveryCheck.reason||stopCheck.reason):stopCheck.reason;
      skippedLifecycle.push({orderId:row.id,reason,otoStopReason:stopCheck.reason});
      flagUnsafe(row,brokerOrder,reason,filled);
      continue;
