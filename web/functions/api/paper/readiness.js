@@ -1,4 +1,5 @@
 // Safe, read-only status for the durable paper-trading ledger.
+import {evaluateStrategyApproval} from "../../../lib/strategy-validation-gate.js";
 // This endpoint never submits, cancels, or modifies broker orders.
 const HEADERS = {
   "Cache-Control": "no-store",
@@ -18,9 +19,10 @@ export async function onRequestGet({ env }) {
   }
 
   try {
-    const result = await db.prepare(
-      "SELECT enabled, mode, kill_switch, max_portfolio_usd, default_risk_fraction, max_risk_fraction, max_position_fraction FROM execution_control WHERE id = 1"
-    ).first();
+    const [result, strategyApproval] = await Promise.all([
+      db.prepare("SELECT enabled, mode, kill_switch, max_portfolio_usd, default_risk_fraction, max_risk_fraction, max_position_fraction FROM execution_control WHERE id = 1").first(),
+      db.prepare("SELECT approved,strategy_version,report_version,report_sha256,report_uri,approved_at,reviewer FROM northstar_strategy_approval WHERE id=1").first()
+    ]);
 
     if (!result) {
       return Response.json({
@@ -42,6 +44,8 @@ export async function onRequestGet({ env }) {
       (enabled === true && killSwitchEngaged === false);
     const safe = policyConfigurationVerified && controlStateVerified;
     const executionEnabled = enabled && !killSwitchEngaged;
+    const strategyValidation = evaluateStrategyApproval(strategyApproval);
+    const paperExecutionReady = safe && strategyValidation.ok;
 
     return Response.json({
       configured: true,
@@ -49,6 +53,9 @@ export async function onRequestGet({ env }) {
       mode: result.mode,
       executionEnabled,
       killSwitchEngaged,
+      strategyValidation,
+      strategyValidationApproved: strategyValidation.ok,
+      paperExecutionReady,
       controlStateVerified,
       limits: {
         virtualCapitalUsd: 1000,
@@ -60,9 +67,11 @@ export async function onRequestGet({ env }) {
         ? "Paper allocation or risk limits do not match the required policy."
         : !controlStateVerified
           ? "Execution enablement and kill-switch state are inconsistent; fail-closed."
-          : executionEnabled
-            ? "Paper-only execution control is enabled. This endpoint verifies control settings only, not strategy approval or complete operational readiness."
-            : "Paper execution is disabled and the kill switch is engaged. This endpoint verifies control settings only, not full execution readiness.",
+          : !strategyValidation.ok
+            ? "Paper controls are configured, but strategy validation is not approved. BUY and paper order submission remain blocked."
+            : executionEnabled
+              ? "Paper-only execution control is enabled. This endpoint verifies control settings only, not complete operational readiness."
+              : "Paper execution is disabled and the kill switch is engaged. This endpoint verifies control settings only, not full execution readiness.",
       checkedAt: new Date().toISOString()
     }, { status: safe ? 200 : 503, headers: HEADERS });
   } catch {
