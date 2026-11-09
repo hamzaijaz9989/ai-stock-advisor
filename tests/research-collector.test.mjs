@@ -80,6 +80,8 @@ test("collector evaluates and persists scorecard with the durable nine-agent run
  assert.match(collectorSource,/roles:workers\.telemetry\|\|\{\}/);
  assert.match(collectorSource,/const storedResult=\{\.\.\.result,evaluation,collection:/);
  assert.match(collectorSource,/INSERT INTO research_council_runs/);
- assert.match(collectorSource,/traceDurable:true/);
+ assert.match(collectorSource,/const storedResult=\{\.\.\.result,traceDurable:true,evaluation,/);
+ assert.match(collectorSource,/result:\{\.\.\.JSON\.parse\(prior\.result_json\),traceDurable:true\}/);
+ assert.match(collectorSource,/result:\{\.\.\.JSON\.parse\(stored\.result_json\),traceDurable:true\}/);
  assert.match(collectorSource,/reconcilePaperAccount/);
 });
