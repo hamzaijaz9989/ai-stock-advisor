@@ -13,7 +13,7 @@ const validIdentity = { ok: true, runId: "12345678", runAttempt: "1", eventName:
 const fakeDb = { prepare: () => ({ bind: () => ({ first: async () => null, run: async () => ({ meta: { changes: 1 } }) }) }) };
 const baseHandlers = calls => ({
   syncAccount: async ({ request: req, env }) => { calls.push(["sync", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, synced: true, capturedAt: "2026-11-09T10:00:00.000Z", snapshot: { positions: 0 } }); },
-  importFills: async ({ request: req, env }) => { calls.push(["fills-sync", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, imported: true, brokerRecords: 0, newRecords: 0, alreadyKnown: 0, pages: 1 }); },
+  importFills: async ({ request: req, env }) => { calls.push(["fills-sync", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, imported: true, safeToContinue: true, requiresManualRecovery: false, brokerRecords: 0, newRecords: 0, alreadyKnown: 0, pages: 1 }); },
   reconcileAccount: async ({ request: req, env }) => { calls.push(["reconcile", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, reconciled: true, status: "RECONCILIATION_PASSED_READ_ONLY", counts: { brokerPositions: 0, ledgerPositions: 0, brokerOrders: 0, ledgerOrders: 0 }, checkedAt: "2026-11-09T10:01:00.000Z" }); }
 });
 
@@ -96,6 +96,37 @@ test("does not continue when fill import returns ok but imported is false", asyn
   assert.equal(result.status, 503);
   assert.equal((await result.json()).stage, "fills-sync");
   assert.deepEqual(calls.map(x => x[0]), ["sync", "fills-sync"]);
+});
+
+test("stops before reconciliation when fill import requires manual recovery even if imported is true", async () => {
+  const calls = [];
+  const handlers = baseHandlers(calls);
+  handlers.importFills = async () => {
+    calls.push(["fills-sync"]);
+    return jsonResponse({
+      ok: true,
+      execution: false,
+      imported: true,
+      safeToContinue: false,
+      requiresManualRecovery: true,
+      status: "MANUAL_RECOVERY_REQUIRED"
+    });
+  };
+  const result = await runReadOnlySnapshotChain({
+    request: request({
+      Authorization: "Bearer signed-oidc-token",
+      "X-Request-ID": "northstar-equity-12345678-1"
+    }),
+    env: {
+      NORTHSTAR_OPERATOR_TOKEN: "server-side-operator-token",
+      NORTHSTAR_DB: fakeDb
+    },
+    verify: async () => validIdentity,
+    handlers
+  });
+  assert.equal(result.status, 409);
+  assert.equal((await result.json()).stage, "fills-sync");
+  assert.deepEqual(calls.map(call => call[0]), ["sync", "fills-sync"]);
 });
 
 test("does not report success when reconciliation is not clean", async () => {
