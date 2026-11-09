@@ -1,4 +1,5 @@
 // Authenticated, read-only broker-to-ledger reconciliation. Never submits or mutates orders.
+import {verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
 const H = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail = (error,status=400,extra={}) => Response.json({ok:false,reconciled:false,execution:false,error,...extra},{status,headers:H});
 function safeEqual(a,b) {
@@ -49,7 +50,7 @@ export async function onRequestPost({request,env}) {
   try {
     control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all();
-    ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
+    ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,stop_price,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
   } catch { return fail("Could not read the complete paper ledger; fail-closed.",503); }
   if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Execution controls are not in the required disabled/kill-switched state.",503);
   let account,brokerPositions,brokerOrders=[],pageToken=null,pages=0;
@@ -59,7 +60,7 @@ export async function onRequestPost({request,env}) {
       alpaca("/v2/positions",key,secret)
     ]);
     do {
-      const query=new URLSearchParams({status:"all",limit:"500",direction:"desc"});
+      const query=new URLSearchParams({status:"all",limit:"500",direction:"desc",nested:"true"});
       if(pageToken) query.set("page_token",pageToken);
       const result=await alpaca("/v2/orders?"+query.toString(),key,secret);
       if(!Array.isArray(result)) throw new Error("BROKER_INVALID_ORDERS");
@@ -121,6 +122,12 @@ export async function onRequestPost({request,env}) {
     }
     if(brokerFilledQty>0 && (brokerFilledAvg===null || ledgerFill.avg===null || !close(brokerFilledAvg,ledgerFill.avg,0.01))) {
       orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"AVERAGE_FILL_PRICE_NOT_RECONCILED",ledgerFilledAvgPrice:ledgerFill.avg,brokerFilledAvgPrice:brokerFilledAvg});
+    }
+    const noExposureTerminal=brokerStatus==="REJECTED"||(brokerStatus==="CANCELED"&&brokerFilledQty===0);
+    const stopPrice=num(l.stop_price);
+    if(stopPrice!==null&&!noExposureTerminal){
+      const stopCheck=verifyOtoStopLeg(b,{symbol:l.symbol,qty:lqty,stopPrice});
+      if(!stopCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,expectedStopPrice:stopPrice});
     }
   }
   for(const b of brokerOrders) {
