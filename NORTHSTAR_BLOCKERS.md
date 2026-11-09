@@ -408,3 +408,25 @@ No paper or live order was submitted, amended, canceled, or flattened. Productio
 - No broker-mutating API calls, paper orders, live orders, test orders, cancellations, amendments or flatten operations were performed.
 - Production remains paper mode, execution disabled, kill switch engaged. No D1 writes or migrations were performed.
 - No change to project completion estimate this run; no new application capability was completed.
+
+## Run 9 — 2026-11-09T07:46:01.995Z
+
+### FMP historical-source improvement
+- User confirmed FMP has already been added to the project. Inspected the existing /api/fmp-history adapter and its tests.
+- Expanded retrieval requests from 5 to 10 annual statement periods and 40 quarterly periods, so quarterly fundamentals can cover roughly a decade where the provider plan returns that history. Increased the first-page news request from 5 to 100 records. Added strict calendar-date validation (rejects impossible dates such as 2025-02-30) and test assertions for the requested coverage limits.
+- Updated docs/STRATEGY_VALIDATION_RUNBOOK.md to accurately describe what FMP supplies and what it does not prove. FMP current history is not an immutable point-in-time revision archive; the adapter does not prove historical index membership/delisted-stock coverage or historical earnings-calendar availability. Provider plan coverage and licence still require verification. This does not approve the strategy or create a validated backtest dataset.
+- Code/test commit: 3333674306c3f559ea44fba1eef831c3dc0b0881; both CI workflows passed: Tests run 42581230963 and Validate AI Stock Advisor run 42581231026.
+- Runbook documentation commit: 6ffa126b7f9c73a5ec23f371f11d56c91034e5b9; both CI workflows passed: Tests run 42581311902 and Validate AI Stock Advisor run 42581311888.
+- Preview deployment for code commit 109541e0d916b1b37a5552a3668183478f3fa2b3 succeeded: d096d075-679e-4a03-8d4f-48d603037ec5. Latest preview for test commit 3333674306c3f559ea44fba1eef831c3dc0b0881 was queued at last check; verify its terminal state separately.
+
+### Reviewer coordination
+- User stated they will independently review the completed validation package. This replaces the need to ask the user to arrange an external reviewer, but the review itself remains pending until a real, reproducible dataset and versioned validation report exist. The implementer must not self-approve or set the strategy approval row.
+
+### Remaining strategy-data limitations
+1. FMP adapter coverage must be verified against the actual configured plan and licence; no key value was accessed.
+2. Historical point-in-time universe membership, delisted symbols, and historical earnings availability are not established by the current adapter.
+3. No complete point-in-time snapshot dataset, >=100 completed trades, four walk-forward folds, or untouched holdout report has been generated from real data. Strategy remains NOT APPROVED.
+
+### Safety
+- No broker API mutation or order submission was performed. No production D1 migration/write or production deployment was performed in this run.
+- Production remains paper mode, execution disabled, kill switch engaged. The FMP adapter change is in PR #85 preview only; main/production are unchanged.
