@@ -1,7 +1,7 @@
 // Explicit PAPER-only activation. This route performs read-only broker checks and
 // D1 audit writes only; it never creates, submits, modifies, or cancels an order.
 import {onRequestPost as runAccountSync} from "./sync.js";
-import {onRequestPost as runFillSync} from "./fills-sync.js";
+import {onRequestPost as runFillSyncHandler} from "./fills-sync.js";
 import {onRequestPost as runReadOnlyReconciliation} from "./reconcile.js";
 import {evaluatePaperActivationGate,validatePaperActivationConfiguration} from "../../../lib/paper-activation-gate.js";
 
@@ -44,6 +44,14 @@ async function invokeReadOnly(handler,path,request,env,requestId){
  return {ok:response.ok,status:response.status,payload};
 }
 function count(row){return Number(row?.n);}
+async function engageKillSwitch(db,requestId,nowFn){
+ const at=new Date(Number(nowFn())).toISOString();
+ const update=await db.prepare("UPDATE execution_control SET enabled=0,kill_switch=1,updated_at=? WHERE id=1 AND mode='paper'").bind(at).run();
+ if(Number(update?.meta?.changes)!==1)return false;
+ await db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)")
+  .bind("system","PAPER_ACTIVATION_POSTWRITE_VERIFICATION_FAILED","FAIL_CLOSED",requestId,JSON.stringify({requestId,executionEnabled:false,killSwitchEngaged:true})).run();
+ return true;
+}
 function emptyMismatches(value){
  return value&&Array.isArray(value.positions)&&value.positions.length===0&&
   Array.isArray(value.fillDerivedPositions)&&value.fillDerivedPositions.length===0&&
@@ -77,9 +85,8 @@ export async function activatePaperExecution({request,env,dependencies={}}){
  if(missingMigrations.length)return fail("PAPER activation schema is incomplete; no sync or control change was attempted.",503,{missingMigrations});
 
  const nowFn=dependencies.now||Date.now;
- const now=Number(nowFn());
  const runSync=dependencies.runSync||runAccountSync;
- const runFillSync=dependencies.runFillSync||runFillSync;
+ const runFillSync=dependencies.runFillSync||runFillSyncHandler;
  const runReconcile=dependencies.runReconcile||runReadOnlyReconciliation;
  let syncResult,fillResult,reconciliation;
  try{
@@ -125,6 +132,7 @@ export async function activatePaperExecution({request,env,dependencies={}}){
   ]);
  }catch{return fail("Could not verify the full PAPER ledger, strategy approval or equity history; activation blocked.",503);}
  const ledgerCounts={orders:count(orderCount),positions:count(positionCount),pendingIntents:count(pendingIntents)};
+ const now=Number(nowFn());
  const gate=evaluatePaperActivationGate({
   control,strategyApproval,snapshots:snapshots?.results||[],account,configuredAccountId:config.accountId,
   reconciliation:reconciliation.payload,ledgerCounts,claim,quote,clock,now
@@ -163,13 +171,7 @@ export async function activatePaperExecution({request,env,dependencies={}}){
    db.prepare("SELECT actor,action,outcome,request_id FROM execution_audit_log WHERE request_id=? AND action='ENABLE_PAPER_EXECUTION'").bind(requestId).first()
   ]);
  }catch{
-  try{
-   const failAt=new Date(Number(nowFn())).toISOString();
-   await db.batch([
-    db.prepare("UPDATE execution_control SET enabled=0,kill_switch=1,updated_at=? WHERE id=1 AND mode='paper'").bind(failAt),
-    db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_ACTIVATION_POSTWRITE_VERIFICATION_FAILED","FAIL_CLOSED",requestId,JSON.stringify({requestId,executionEnabled:false,killSwitchEngaged:true}))
-   ]);
-  }catch{}
+  try{await engageKillSwitch(db,requestId,nowFn);}catch{}
   return fail("PAPER activation write could not be independently verified. A kill-switch re-engagement was attempted; inspect control and audit state before any further action.",503,{controlStateUnknown:true});
  }
  const verified=Number(controlAfter?.enabled)===1&&controlAfter?.mode==="paper"&&Number(controlAfter?.kill_switch)===0&&
@@ -177,13 +179,7 @@ export async function activatePaperExecution({request,env,dependencies={}}){
   event?.actor===config.approver&&event?.outcome==="SUCCESS"&&audit?.request_id===requestId&&
   audit?.actor===config.approver&&audit?.action==="ENABLE_PAPER_EXECUTION"&&audit?.outcome==="SUCCESS";
  if(!verified){
-  try{
-   const failAt=new Date(Number(nowFn())).toISOString();
-   await db.batch([
-    db.prepare("UPDATE execution_control SET enabled=0,kill_switch=1,updated_at=? WHERE id=1 AND mode='paper'").bind(failAt),
-    db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_ACTIVATION_POSTWRITE_VERIFICATION_FAILED","FAIL_CLOSED",requestId,JSON.stringify({requestId,executionEnabled:false,killSwitchEngaged:true}))
-   ]);
-  }catch{}
+  try{await engageKillSwitch(db,requestId,nowFn);}catch{}
   return fail("PAPER activation state or immutable audit event did not verify. A kill-switch re-engagement was attempted; manually verify before any further action.",503,{controlStateUnknown:true});
  }
  return Response.json({
