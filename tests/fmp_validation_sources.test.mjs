@@ -22,8 +22,8 @@ test("symbol parser normalizes, deduplicates and ignores full-line and trailing 
 });
 test("symbol parser rejects empty, malformed and over-limit lists",()=>{
  assert.throws(()=>parseSymbolsText("# no tickers\n"),/no tickers/);
- assert.throws(()=>parseSymbolsText("AAPL\\nBAD/TICKER"),/Invalid ticker/);
- const many=Array.from({length:501},(_,i)=>"A"+String(i).padStart(3,"0")).join("\\n");
+ assert.throws(()=>parseSymbolsText("AAPL\nBAD/TICKER"),/Invalid ticker/);
+ const many=Array.from({length:501},(_,i)=>"A"+String(i).padStart(3,"0")).join("\n");
  assert.throws(()=>parseSymbolsText(many),/Maximum 500/);
 });
 test("raw acquisition fetches universe, bounded earnings windows and explicit symbol histories without exposing secrets",async()=>{
