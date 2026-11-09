@@ -226,6 +226,16 @@ export async function createResearchCouncilWorkers(env, fetcher=fetch) {
       }
     };
   }
-  workers.risk_committee=async payload=>riskCommittee(payload);
+  workers.risk_committee=async payload=>{
+    const started=Date.now();
+    try {
+      const report=riskCommittee(payload);
+      workers.telemetry.risk_committee={latencyMs:Math.max(0,Date.now()-started),provider:"deterministic",model:"northstar-risk-committee-v1"};
+      return report;
+    } catch(error) {
+      workers.telemetry.risk_committee={latencyMs:Math.max(0,Date.now()-started),provider:"deterministic",model:"northstar-risk-committee-v1",failed:true};
+      throw error;
+    }
+  };
   return workers;
 }
