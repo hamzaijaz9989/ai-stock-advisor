@@ -1008,3 +1008,13 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Cloudflare account audit-log query did not return a Pages project configuration history payload containing previous secret values. Secret values remain write-only/redacted.
 - GitHub connector explicitly does not support GitHub Secrets endpoints. No repository file or deployment artifact should be treated as a safe source for API keys.
 - Therefore the original Preview secret values have not yet been recovered from an authorized connected source. Do not state that the providers are fixed. Continue only with safe, non-destructive recovery paths; otherwise the original secret owner must re-enter values.
+
+
+## 2026-11-10 — Operator login reverted
+
+- User confirmed the login is unnecessary and prioritized restoring Alpaca/FMP connectivity.
+- Reverted `web/trading-lab.html` and `web/trading-lab.js` to their pre-login baseline at commit `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`; removed `web/functions/api/auth/check.js`.
+- This removes the assistant-added login screen and restores the previous Trading Lab client flow. It does **not** restore the missing Preview provider secrets. The baseline client uses the original token-prompt flow for protected operator actions.
+- Commits: `e8c41c88aaf24025258f335c50688d8021b2abce`, `64621115bdf8c7c485760aca9ee35c8909fbac80`, `79388ef24fc27f94f3fd6a54cd1dc404e295b6bf`.
+- No Production deployment, Production secret change, database write/migration, broker order, or execution-control change.
+- Remaining blocker: restore original Preview `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, `FMP_API_KEY2` (and `GEMINI_API_KEY` for Gemini-backed agents) from an authorized secure source. Current Cloudflare API integration cannot read prior secret values. Do not claim APIs are restored until independent read-only tests pass.
