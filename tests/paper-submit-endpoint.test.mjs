@@ -65,3 +65,46 @@ test("paper executor blocks an untracked broker position before writing or submi
   assert.equal(calls.some(x=>x.endsWith("/v2/orders")),false);
  }finally{globalThis.fetch=original;}
 });
+
+
+async function runHistoricalOrderCase({ledgerOrderRows=[],brokerOrderRows=[]}={}){
+ const now=new Date().toISOString(),calls=[];let submitted=false;
+ const db={prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
+  async first(){
+   if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
+   if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY"};
+   return null;
+  },
+  async all(){
+   if(sql.includes("paper_equity_snapshots"))return {results:[{captured_at:now,equity_usd:100000}]};
+   if(sql.includes("paper_orders"))return {results:ledgerOrderRows};
+   return {results:[]};
+  }
+ };},async batch(){throw new Error("order ledger write must not occur when historical orders exist");}};
+ const original=globalThis.fetch;
+ globalThis.fetch=async(url,options={})=>{
+  const u=String(url);calls.push(u);
+  if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE",equity:"100000",last_equity:"100000",buying_power:"400000"});
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:99.9,ap:100,t:now}});
+  if(u.endsWith("/v2/positions"))return Response.json([]);
+  if(u.includes("/v2/orders?status=all"))return Response.json(brokerOrderRows);
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){submitted=true;throw new Error("submission must not occur");}
+  throw new Error("unexpected broker request "+u);
+ };
+ try{
+  const response=await onRequestPost({request:request({"Authorization":"Bearer operator","X-NORTHSTAR-PAPER-APPROVAL":"approval"}),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN:"approval",ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret",NORTHSTAR_DB:db}});
+  return {response,submitted,calls};
+ }finally{globalThis.fetch=original;}
+}
+test("paper executor blocks historical broker orders even when none are open",async()=>{
+ const {response,submitted}=await runHistoricalOrderCase({brokerOrderRows:[{id:"old-order",status:"filled"}]});
+ assert.equal(response.status,409);
+ assert.equal(submitted,false);
+ assert.match((await response.json()).error,/historical|order history/i);
+});
+test("paper executor blocks historical Northstar ledger orders",async()=>{
+ const {response,submitted}=await runHistoricalOrderCase({ledgerOrderRows:[{id:"old-ledger-order",status:"FILLED"}]});
+ assert.equal(response.status,409);
+ assert.equal(submitted,false);
+ assert.match((await response.json()).error,/historical|order history/i);
+});
