@@ -39,6 +39,13 @@ test("paper execution enforces quote freshness, stop, position and risk ceilings
  assert.equal(validatePaperExecutionGate({...base,order:{...base.order,stopPrice:100}}).reason,"INVALID_LONG_ORDER_OR_PROTECTIVE_STOP");
 });
 
+test("paper execution blocks at the exact $20 daily-loss and $80 drawdown caps",()=>{
+ assert.equal(validatePaperExecutionGate({...base,equityHistory:{...base.equityHistory,dailyLossUsd:19.99}}).ok,true);
+ assert.equal(validatePaperExecutionGate({...base,equityHistory:{...base.equityHistory,dailyLossUsd:20}}).reason,"DAILY_LOSS_LIMIT_EXCEEDED");
+ assert.equal(validatePaperExecutionGate({...base,equityHistory:{...base.equityHistory,maxDrawdownUsd:79.99}}).ok,true);
+ assert.equal(validatePaperExecutionGate({...base,equityHistory:{...base.equityHistory,maxDrawdownUsd:80}}).reason,"MAX_DRAWDOWN_LIMIT_EXCEEDED");
+});
+
 test("the virtual allocation cannot silently expand to broker buying power",()=>{
  assert.equal(validatePaperExecutionGate({...base,virtualAllocationUsd:100000}).reason,"VIRTUAL_ALLOCATION_MUST_EQUAL_1000");
 });
