@@ -2,6 +2,14 @@
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 function fifo(fills){
  const lots=new Map(),closed=[],issues=[];
+ for(let i=1;i<fills.length;i++){
+  const previous=fills[i-1],current=fills[i];
+  if(String(previous.symbol||"").toUpperCase()===String(current.symbol||"").toUpperCase()&&
+     String(previous.transaction_time||"")===String(current.transaction_time||"")&&
+     (String(previous.side||"").toLowerCase()!==String(current.side||"").toLowerCase()||Number(previous.price)!==Number(current.price))){
+   issues.push({activityId:current.activity_id,symbol:String(current.symbol||"").toUpperCase(),reason:"AMBIGUOUS_FILL_ORDERING"});
+  }
+ }
  for(const f of fills){
   const symbol=String(f.symbol||"").toUpperCase(),side=String(f.side||"").toLowerCase(),qty=Number(f.qty),price=Number(f.price);
   if(!symbol||!["buy","sell"].includes(side)||!Number.isFinite(qty)||qty<=0||!Number.isFinite(price)||price<=0){issues.push({activityId:f.activity_id,reason:"INVALID_FILL"});continue;}
@@ -84,7 +92,7 @@ export async function onRequestGet({env}){
   if(Number.isFinite(derivedCount)&&derivedCount!==trackedFills.length)derivedLedgerIssues.push({reason:"FILL_DERIVED_TRACKED_COUNT_MISMATCH",derivedTrackedFills:derivedCount,importedTrackedFills:trackedFills.length});
   if(!derivedTruncated&&!openLotsMatch)derivedLedgerIssues.push({reason:"FILL_DERIVED_OPEN_LOTS_MISMATCH"});
   if(!derivedTruncated&&(Math.abs(derivedGross-fifoGross)>0.01||Math.abs(derivedClosedQty-fifoClosedQty)>0.0001||derivedCloseCount!==fifoCloseCount))derivedLedgerIssues.push({reason:"FILL_DERIVED_REALIZED_MATCH_MISMATCH",derivedGrossRealizedPlUsd:Number(derivedGross.toFixed(2)),fifoGrossRealizedPlUsd:fifoGross,derivedClosedQty:Number(derivedClosedQty.toFixed(8)),fifoClosedQty:Number(fifoClosedQty.toFixed(8)),derivedCloseCount,fifoCloseCount});
-  const derivedLedgerConsistent=derivedLedgerIssues.length===0;
+  const derivedLedgerConsistent=derivedLedgerIssues.length===0&&fifoResult.valid;
   const fillAvailable=fills.length>0&&!fillHistoryTruncated&&fifoResult.valid&&derivedLedgerConsistent;
   const fillIssues=[...fifoResult.issues,...derivedLedgerIssues,...(fillHistoryTruncated?[{reason:"FILL_HISTORY_LIMIT_REACHED",limit:5000,loaded:rawFills.length}]:[])];
   const fillStatus=fillHistoryTruncated?"WITHHELD_FILL_HISTORY_LIMIT_REACHED":!fifoResult.valid?"WITHHELD_FILL_DATA_QUALITY":fills.length&&!derivedLedgerConsistent?"WITHHELD_FILL_DERIVED_LEDGER_MISMATCH":fills.length?"WITHHELD_FILL_DATA_QUALITY":"NOT_AVAILABLE_NO_TRACKED_NORTHSTAR_FILLS";
