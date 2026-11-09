@@ -119,3 +119,11 @@ The current implementation is a bounded multi-stage research workflow, not a fre
 - The coordinator passes this immutable inventory through independent analysis, bull/bear debate and portfolio synthesis and includes it in the final result. Role prompts explicitly require specialists to disclose their listed gaps.
 - Coverage status is an observability aid, not an investment-quality score or approval. `PARTIAL` never means complete; missing resources are not replaced with model guesses. The deterministic validation and risk pipeline remains authoritative.
 - Regression tests cover missing resources, partial coverage, and immutable propagation to every specialist stage.
+
+
+### Research Council evaluation scorecards — v1.0.0
+- Added `web/lib/research-council-evaluation.js`, a deterministic evaluator for report-contract observability. It measures claim citation coverage, reference integrity against explicitly supplied fact/evidence IDs, invalid-reference claims, declared resource-coverage status, and optional per-role latency/token/cost/provider/model telemetry.
+- Bull/Bear diagnostics report unique and shared cited evidence IDs. Shared evidence is not a semantic disagreement score and does not claim that the debate is high quality.
+- The evaluator deliberately does not claim that citations support the claims, that cited facts are true, that model reasoning is correct, or that strategy returns are predictive. Accuracy, source correctness, investment performance and strategy approval require separate independently labelled datasets and holdout evaluation.
+- Runtime performance metrics remain null unless explicitly provided by trusted telemetry. No API credentials, provider response content or secret values are recorded by this evaluator.
+- Regression tests cover valid/invalid references, role resource status, optional telemetry, empty denominators and the evaluator's explicit limitations.
