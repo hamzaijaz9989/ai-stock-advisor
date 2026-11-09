@@ -519,6 +519,8 @@
       ["Claim citation coverage",percent(totals.claimCitationCoverage)],
       ["Reference precision",percent(totals.citationPrecision)],
       ["Invalid-reference claims",metricText(totals.invalidReferenceClaims)],
+      ["Measured roles",metricText(totals.telemetryRoles)+" / 9"],
+      ["Failed invocations",metricText(totals.failedInvocations)],
       ["Measured latency",totals.latencyMs===null||totals.latencyMs===undefined?"Incomplete":String(totals.latencyMs)+" ms"],
       ["Provider tokens",metricText(totals.totalTokens)],
       ["Provider cost",totals.costUsd===null||totals.costUsd===undefined?"Not measured":"$"+Number(totals.costUsd).toFixed(4)]
