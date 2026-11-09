@@ -244,6 +244,8 @@ This section supersedes older runtime counts above where they conflict. Evidence
 
 ## 2026-11-10 — Autonomous Stock Brain milestone checkpoint
 
+- Updated the enabled Northstar hourly automation with the user's autonomy instruction: investigate and resolve blockers independently, maintain public-repository accuracy, and request user involvement only for unavoidable permissions, credentials or approvals.
+
 - Repository visibility is **PUBLIC**, explicitly confirmed by the user; GitHub repository metadata also reports public. Do not describe the repository as private or ask the user to resolve a visibility discrepancy.
 - Current main head observed: `d1c9b964204c89639bf1c13d511e75d9c398d51f`.
 - Active combined Stock Brain work is PR #103: https://github.com/hamzaijaz9989/ai-stock-advisor/pull/103, branch `northstar/research-council-status-dashboard`, head `e2bc27a25534150d32546ff10c04553d4e0639e0`. It is open and draft, based on current main, and GitHub reports it mergeable.
