@@ -1,0 +1,65 @@
+name: Northstar read-only paper equity snapshots
+
+on:
+  schedule:
+    # Collect a real broker equity point every three hours.
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/northstar-equity-snapshot.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: northstar-read-only-equity-snapshots
+  cancel-in-progress: false
+
+jobs:
+  snapshot-and-reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify operator secret is present without exposing it
+        env:
+          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
+        run: |
+          if [ -z "$OPERATOR_TOKEN" ]; then
+            echo "::error::Repository secret NORTHSTAR_OPERATOR_TOKEN is missing or empty."
+            exit 1
+          fi
+
+      - name: Verify production policy remains fail-closed
+        run: |
+          set -euo pipefail
+          readiness="$(curl --fail --silent --show-error --max-time 20 "https://ai-stock-advisor.pages.dev/api/paper/readiness")"
+          echo "$readiness" | jq -e '.configured == true and .policyVerified == true and .mode == "paper" and .executionEnabled == false and .killSwitchEngaged == true' >/dev/null
+          echo "$readiness" | jq '{configured, policyVerified, mode, executionEnabled, killSwitchEngaged, limits, checkedAt}'
+
+      - name: Capture a read-only Alpaca Paper equity and position snapshot
+        env:
+          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
+        run: |
+          set -euo pipefail
+          base="https://ai-stock-advisor.pages.dev/api/paper"
+          sync="$(curl --fail --silent --show-error --max-time 30 -X POST \
+            -H "Authorization: Bearer $OPERATOR_TOKEN" \
+            -H "X-Request-ID: northstar-equity-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            -H "Accept: application/json" "$base/sync")"
+          echo "$sync" | jq -e '.ok == true and .synced == true and .execution == false and .mode == "paper"' >/dev/null
+          echo "$sync" | jq '{ok, synced, execution, mode, capturedAt, positions: .snapshot.positions}'
+
+      - name: Run read-only broker-to-ledger reconciliation
+        env:
+          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
+        run: |
+          set -euo pipefail
+          base="https://ai-stock-advisor.pages.dev/api/paper"
+          reconcile="$(curl --silent --show-error --max-time 45 -X POST \
+            -H "Authorization: Bearer $OPERATOR_TOKEN" \
+            -H "X-Request-ID: northstar-equity-reconcile-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            -H "Accept: application/json" "$base/reconcile")"
+          echo "$reconcile" | jq '{ok, reconciled, execution, status, counts, checkedAt}'
+          echo "$reconcile" | jq -e '.ok == true and .reconciled == true and .execution == false and .status == "RECONCILIATION_PASSED_READ_ONLY"' >/dev/null
