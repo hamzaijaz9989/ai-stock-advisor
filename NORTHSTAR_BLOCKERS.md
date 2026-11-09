@@ -1219,3 +1219,34 @@ No PR #85 or #88 merge, production migration/write, production application deplo
 - PR #85 preview `GET /api/paper/performance`: HTTP 200 at `2026-11-09T16:56:14Z`; zero snapshots, zero tracked fills, no trade statistics. Preview `GET /api/paper/control`: HTTP 200, execution disabled, kill switch engaged.
 - This supersedes the earlier note that the connected container/web fetch path could not reach Pages: a live GET probe through the connected scraping service succeeded. Authenticated POST endpoints (`sync`, `fills-sync`, `reconcile`, `preflight`, intent review and OIDC snapshot) were not invoked because no authorized operator/reviewer/OIDC runtime credentials were available in this probe. No broker request, database write or order was made.
 - Remaining impact: production still lacks migration 0006–0010 schema and fresh equity history; preview has no equity history and strategy approval is false. Next action remains branch protection + independent review, followed by approved credentials, authenticated read-only sync, seven-day history and clean reconciliation before any production migration or PAPER enablement.
+
+
+## Continuation run — 2026-11-09T17:14:00Z
+
+### Fresh repository and governance audit
+- Repository remains private; default branch is `main`. Main HEAD is `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`.
+- PR #84 is closed/merged at `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- PR #85 remains open and draft at `0e71c3805123b3c2d64fe5bdf1b5f2dc4438e3dde` (the exact current SHA is `0e71c3805123b3c2d64fe5bdf1f5b2dc4438e3dde`? Verify before use). The two PR-triggered workflows recorded for this head are Tests run `42659770742` and Validate run `42659770809`, both completed successfully. The combined commit-status endpoint returned no legacy status entries; workflow-run records are the CI evidence.
+- PR #85 has zero formal review submissions. PR #88 remains open/draft and also has zero formal reviews. PR #85 changed 71 paths; PR #88 changes six paths, including overlap in `.github/workflows/northstar-equity-snapshot.yml` and `web/wrangler.toml`.
+- GitHub's main-branch metadata explicitly reports `protected=false`, protection disabled and required status-check enforcement off. The connected GitHub integration cannot administer branch protection/rulesets; ruleset listing is unavailable on the current repository plan/integration. Do not merge while this critical governance gate remains false.
+
+### Fresh Cloudflare Pages and production D1 audit
+- Cloudflare Pages project `ai-stock-advisor` is connected to the private GitHub repository, production branch `main`, with Pages fail-open disabled in both production and preview.
+- Latest production deployment is still `e4ebdc82-06ff-43e4-9557-a6ec4caf710e`, SUCCESS, deployed commit `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`. It does not contain PR #85 code.
+- Latest preview attempt for PR #85 head `0e71c3805123b3c2d64fe5bdf1b5f2dc4438e3dde` is `b0533852-5fe9-488e-8a6a-3a2a4b120ed6`, skipped by Pages `path_config` because the commit is documentation-only. The prior successful preview for the application reconciliation fix remains the last applicable preview deployment.
+- Production D1 ID `528f3a23-1d1f-4d16-8463-f643d85f5deb` was queried read-only. Migration ledger contains exactly `0001`–`0005`; migrations `0006`–`0010` remain unapplied. Tables `paper_execution_claims` and `strategy_validation_approval` are absent; there are no database triggers. Existing intents/orders/positions/fill tables are present.
+- Correct production snapshot table name is `paper_equity_snapshots` (not `equity_snapshots`); timestamp column is `captured_at`. Earlier query attempts using the wrong table/column names returned SQL errors and made no writes. The execution-control row reads `enabled=0`, `mode='paper'`, `kill_switch=1`, `max_portfolio_usd=1000`, `default_risk_fraction=0.005`, `max_risk_fraction=0.01`, `max_position_fraction=0.25`.
+- Cloudflare Pages production environment metadata lists secret names for Alpaca, FMP, Gemini and `NORTHSTAR_OPERATOR_TOKEN`; returned secret values are redacted/blank and were not inspected. This does not prove runtime credential validity. Intent-review and PAPER-approval secrets remain absent from the previously inspected metadata.
+- All D1 statements in this run were read-only SELECT/PRAGMA; successful query metadata reported `rows_written=0` and `changed_db=false`. No D1 migration, write, broker request, order or execution-control change occurred.
+
+### Remaining impact and next actions
+1. Main is confirmed unprotected and required checks are not enforced. Repository owner/admin must configure branch protection and required CI/review governance; the connected integration cannot do this. Keep PR #85/#88 draft and do not bypass.
+2. Obtain independent security/code review for both PRs, especially broker submission/recovery, migration chain and OIDC workflow trust. No formal reviews are present.
+3. Reconcile the overlapping workflow and Wrangler configuration files before merge sequencing.
+4. Production schema remains at 0001–0005, without fill-derived ledger, approval, execution-claim and reviewer-audit schema. Back up and rehearse migrations 0006–0010; apply only after governance and review gates pass.
+5. Production has no proven seven-day fresh equity history or clean authenticated broker reconciliation. The exact latest snapshot count/time must be re-queried using `paper_equity_snapshots.captured_at`; do not infer a baseline from a stale record.
+6. Strategy approval remains NOT APPROVED; genuine point-in-time dataset, >=100 completed historical trades, four chronological walk-forward folds, untouched holdout and independent reproduction are outstanding.
+7. Confirm production broker account is Alpaca PAPER using authenticated read-only verification; do not inspect or reveal credential values.
+8. Keep execution disabled and kill switch engaged. Do not enable PAPER until lifecycle completeness, protective-stop/recovery behavior, schema parity, strategy approval, fresh history, account identity and all risk limits are independently demonstrated.
+
+No PR #85/#88 merge, production deployment, production D1 migration/write, broker request/mutation, paper/live order or execution enablement occurred in this run.
