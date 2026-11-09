@@ -5,8 +5,11 @@ import { readFile } from "node:fs/promises";
 async function loadFunction() {
   const helper=await readFile(new URL("../web/lib/paper-execution-policy.js",import.meta.url),"utf8");
   const helperUrl="data:text/javascript;base64,"+Buffer.from(helper).toString("base64");
+  const recoveryHelper=await readFile(new URL("../web/lib/paper-recovery-policy.js",import.meta.url),"utf8");
+  const recoveryHelperUrl="data:text/javascript;base64,"+Buffer.from(recoveryHelper).toString("base64");
   let source=await readFile(new URL("../web/functions/api/paper/reconcile.js",import.meta.url),"utf8");
   source=source.replace('from "../../../lib/paper-execution-policy.js"','from "'+helperUrl+'"');
+  source=source.replace('from "../../../lib/paper-recovery-policy.js"','from "'+recoveryHelperUrl+'"');
   return import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
 }
 const control={enabled:0,mode:"paper",kill_switch:1};
