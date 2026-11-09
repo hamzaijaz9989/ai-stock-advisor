@@ -98,8 +98,8 @@ The append-only `research_council_runs` table is defined in migration `0003_rese
 
 ## 2026-11-10 — Stock Brain integration acceptance status
 
-- The nine-role workspace and authenticated collection flow are present in draft PR #103 (`northstar/research-council-status-dashboard`). The PR includes the read-only readiness endpoint and dashboard status card.
-- Exact PR head `e2bc27a25534150d32546ff10c04553d4e0639e0` passed Tests, Validate AI Stock Advisor and full-history secret scan. The preview Pages deployment succeeded for app-code commit `a068fa60d3df641d424f8e8c258ef770434a5922`; the latest PR head is docs-only and was skipped by Pages path filtering. A direct browser smoke test of the preview endpoint remains outstanding.
+- The nine-role workspace and authenticated collection flow are present in draft PR #103 (`northstar/research-council-status-dashboard`), latest head `4ec91116161274d143dc9a6ab626ad25c7b74655`. The PR includes the read-only readiness endpoint and dashboard status card.
+- Code head `e2bc27a25534150d32546ff10c04553d4e0639e0` passed Tests, Validate AI Stock Advisor and full-history secret scan. Stock Brain preview deployment `c300bbac-6d7a-410c-8f3e-446c194f21ed` succeeded for app-code commit `0742a8b73640619fe0a2300841a6f8e261923495`; latest combined HTML previews are still building. Exact latest-head checks and direct preview HTTP/UI smoke tests remain required.
 - Production D1 confirms the required council migrations are present, but there are 0 durable council runs. The only equity snapshot is `2026-11-08T18:34:38.720Z`, which is stale and does not establish a seven-day baseline.
 - The collector must continue to fail closed until a fresh snapshot, seven-day baseline, reconciled broker state and server-side provider/operator configuration are verified. Missing risk history must never be replaced with zeroes.
 - This milestone is implemented in a draft PR and CI-green, but is not merged or production-accepted. Do not run the production collector as part of this documentation checkpoint.
