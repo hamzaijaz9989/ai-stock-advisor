@@ -1119,3 +1119,44 @@ No broker request or mutation, paper/live order, production migration/write, pro
 - Latest PR-head Validate run `42645402481` completed successfully. Job `129257196586`: Python tests/lint, JavaScript/Pages Function syntax, **44 frontend-analysis tests**, **7 paper-readiness tests**, SEC ingestion checks and synthetic validation CLI smoke test passed. Synthetic strategy validation remains NOT APPROVED.
 - Cloudflare Pages records for commit `58fcfce3e3ad21b348f0269eaa9f867e2c4b45af` were skipped by `path_config` because only `NORTHSTAR_BLOCKERS.md` changed. No application deployment was triggered.
 - The branch remains 0 commits behind main; PR #85 remains open/draft/mergeable with zero formal reviews. Main remains unprotected and required-check enforcement is off. No merge or production release is permitted until the recorded release gates pass.
+
+
+### Run 7 — 2026-11-09T15:53:15.608Z
+
+#### Repository, PR and CI evidence
+- Main branch currently resolves to `ad1dbe01773c4518c9281cf94e9c5b98c6056f3e`. PR #84 remains merged as `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- PR #85 remains open and draft; head `d13ad7e5a9fbcf380064692d5b49fe997cb327ae`, base `ad1dbe01773c4518c9281cf94e9c5b98c6056f3e`, 417 commits ahead / 0 behind, mergeable=true, 71 changed files, 5,556 additions, 220 deletions, zero formal reviews and zero review threads.
+- PR #85 Tests run `42645610488` and Validate run `42645609918` both completed successfully at the inspected head. Evidence from the recorded run: 336/336 JavaScript tests, 95/95 Python tests, Ruff, 44 frontend-analysis tests, 7 paper-readiness tests, SEC ingestion and synthetic CLI smoke checks passed. Synthetic strategy validation remains NOT APPROVED.
+- PR #88 is a separate draft OIDC proposal, head `62ca1021b3b394116d4dccfdab9284ac94aae5bc`, based on `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`; compare against current main shows 13 commits ahead / 1 behind. Its Tests run `42611929156` and Validate run `42611929171` passed on that older head. It has not been independently reviewed, updated to current main, deployed or exercised in production.
+
+#### PR #88 OIDC review and impact
+- Reviewed the six changed files in PR #88. The proposed workflow removes the GitHub Actions repository-secret reference to `NORTHSTAR_OPERATOR_TOKEN`, requests a short-lived GitHub OIDC token, and calls a new `POST /api/paper/github-snapshot` route.
+- The verifier pins GitHub's issuer and fixed JWKS URL, RS256, the exact Pages audience, repository name and immutable IDs, private visibility, main ref, exact workflow path, allowed event types, run identity and token lifetime. The route uses a D1 atomic run-attempt claim and invokes only the existing read-only account sync, fill import and reconciliation handlers sequentially. It has no broker order submit/amend/cancel/flatten or execution-control operation.
+- This is a promising alternative to the missing GitHub Actions secret, but it does **not** remove the need for the Cloudflare Pages server-side `NORTHSTAR_OPERATOR_TOKEN`. The Cloudflare project metadata lists that secret name, but secret values are redacted/returned blank by the API and therefore its runtime presence is not proven. The current public readiness endpoint does not check this operator token. PR #88 must be updated to current main, independently reviewed, and its authenticated route verified in production before relying on it.
+- OIDC trust depends on protecting `main`: the verifier trusts the exact workflow path on main, but does not pin the workflow file's content hash. With branch protection previously observed disabled, an unreviewed workflow change on main could still mint a valid token for that path. Configure required PR review/checks before enabling this trust path.
+
+#### Cloudflare Pages deployment evidence
+- The latest production deployment record for main commit `ad1dbe01773c4518c9281cf94e9c5b98c6056f3e` is `52d21564-5b6c-4716-bcec-5b0c33b00ff0`, marked skipped by `path_config` (all stages idle). It is not a successful application deployment.
+- The last successful production deployment remains `e4efbfd8-43f2-41b0-b01d-fc44e5b2a308`, commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`.
+- The latest successful PR #85 application preview remains `a991fb12-345b-4bcf-938a-52cb65099bab`, commit `964f49a139dc8ca66cd82d619e247925d7f817a0`. The latest preview attempt for documentation-only head `d13ad7e5a9fbcf380064692d5b49fe997cb327ae` was skipped by `path_config` (`0ac78063-1cb2-4f7e-8dc0-48097af9ba34`).
+- Live production GET response bodies were retrieved for readiness, performance and control. Readiness reports configured=true, policyVerified=true, PAPER mode, execution disabled and kill switch engaged. Control independently reports execution disabled and kill switch engaged. Performance reports one old broker-account snapshot dated `2026-11-08T18:34:38.720Z`, $100,000 broker equity/cash, zero positions, no imported fills and unavailable trade statistics. The Firecrawl fetch did not expose an HTTP status, so this entry records the response bodies only rather than asserting a fresh HTTP 200.
+
+#### Production/preview D1 read-only audit
+- Production D1 remains on migrations 0001–0005; preview remains on 0001–0010. Production lacks the fill-derived ledger, strategy-approval and execution-claim tables/columns present in preview.
+- Production counts: 1 equity snapshot, 0 intents, 0 orders, 0 positions, 0 broker fill activities, 2 audit rows. The only snapshot remains `2026-11-08T18:34:38.720Z` (equity/cash $100,000; source `alpaca_paper_read_only_sync`).
+- Preview counts: 0 equity snapshots, 0 intents, 0 orders, 0 positions, 0 fill activities and 0 audit rows. Preview strategy approval row is `approved=0`, with no report hash, report URI, reviewer or approval timestamp. Production has no strategy-approval table yet.
+- Both execution-control rows remain `enabled=0`, `mode='paper'`, `kill_switch=1`, virtual allocation $1,000, default risk fraction 0.005, maximum risk fraction 0.01 and maximum position fraction 0.25.
+- All D1 statements in this audit were SELECT/read-only; the returned query metadata showed zero rows written and `changed_db=false`.
+
+#### Remaining impact and next actions
+1. Main branch protection and required-check governance were previously observed disabled; the connected integration cannot read/manage the required settings. Configure through authorized GitHub administrator access. Do not bypass.
+2. PR #85 remains draft with no independent review. Obtain independent review and resolve findings before merge.
+3. PR #88 is only a proposal. Update its branch to current main, re-run CI, obtain independent security review (especially OIDC trust and branch protection), and verify Cloudflare's server-side operator token at runtime before relying on it.
+4. Production still has only one stale equity snapshot. Restore the authenticated read-only chain only after review and verified configuration, then collect at least seven days of fresh time-separated snapshots and clean broker-to-ledger reconciliation.
+5. Confirm the actual production Alpaca account with authenticated read-only Paper API checks. Readiness/control responses alone do not prove account identity.
+6. Strategy approval remains false. Produce genuine point-in-time data, frozen-rule replay, 100+ completed historical trades, four chronological walk-forward folds, untouched holdout, provenance/survivorship/corporate-action/cost attestations and independent reproduction. Do not substitute synthetic fixtures.
+7. Production migrations 0006–0010 remain unapplied. Back up, inspect compatibility and recovery, then apply in order only after release gates pass and before deploying dependent application code.
+8. Configure distinct intent-review credentials and the separate PAPER execution-approval credential through the approved secret channel; do not expose values.
+9. Independently review the residual external broker-read/POST race and exact protective-stop/position recovery. The full guarded, audited PAPER-only enable procedure remains unimplemented/unverified.
+
+No PR #85 or #88 merge, production migration/write, production application deployment, broker request/mutation, paper/live order, or PAPER enablement occurred during this audit. Keep execution disabled and the kill switch engaged.
