@@ -55,3 +55,30 @@ test("rejects null portfolio risk fields instead of silently converting them to 
  const incomplete={...portfolio,weeklyLossFraction:null};
  assert.throws(()=>buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio:incomplete}),/missing numeric fields/);
 });
+
+
+test("marks future and missing quote/news timestamps as unusable chronology",()=>{
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio,
+  quote:{ticker:"NVDA",price:180,quoteTime:"2026-11-08T20:01:00Z",source:"Provider"},
+  news:{items:[
+   {title:"Future headline",url:"https://example.com/future",publishedAt:"2026-11-08T20:01:00Z"},
+   {title:"Undated headline",url:"https://example.com/undated"}
+  ]}
+ });
+ const quote=result.facts.find(x=>x.type==="QUOTE");
+ assert.equal(quote.value.timestampStatus,"AFTER_AS_OF");
+ const news=result.evidence.filter(x=>x.type==="NEWS_DISCOVERY");
+ assert.equal(news.find(x=>x.value.title==="Future headline").value.timestampStatus,"AFTER_AS_OF");
+ assert.equal(news.find(x=>x.value.title==="Undated headline").value.timestampStatus,"MISSING");
+});
+
+test("does not upgrade SEC filed dates into verified public availability",()=>{
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio,
+  secObservations:[{key:"revenue",value:100,unit:"USD",end:"2025-12-31",filed:"2026-02-01",accession:"0001"}]
+ });
+ const sec=result.facts.find(x=>x.type==="SEC_REPORTED_FACT");
+ assert.equal(sec.value.availabilityTimestampVerified,false);
+ assert.match(sec.value.note,/not an exact public-availability timestamp/);
+});
