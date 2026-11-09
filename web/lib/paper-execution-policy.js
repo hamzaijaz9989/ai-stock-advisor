@@ -62,8 +62,8 @@ export function validatePaperExecutionGate({
   const maxRisk = PAPER_EXECUTION_LIMITS.maxRiskUsd, maxPosition = PAPER_EXECUTION_LIMITS.maxPositionUsd;
   if (!Number.isFinite(notional) || notional > maxPosition) return block("POSITION_LIMIT_EXCEEDED", {notionalUsd:notional,maxPositionUsd:maxPosition});
   if (!Number.isFinite(risk) || risk > maxRisk) return block("PER_TRADE_RISK_LIMIT_EXCEEDED", {plannedRiskUsd:risk,maxRiskUsd:maxRisk});
-  if (Number(equityHistory.dailyLossUsd) > PAPER_EXECUTION_LIMITS.dailyLossCapUsd) return block("DAILY_LOSS_LIMIT_EXCEEDED");
-  if (Number(equityHistory.maxDrawdownUsd) > PAPER_EXECUTION_LIMITS.maxDrawdownUsd) return block("MAX_DRAWDOWN_LIMIT_EXCEEDED");
+  if (Number(equityHistory.dailyLossUsd) >= PAPER_EXECUTION_LIMITS.dailyLossCapUsd) return block("DAILY_LOSS_LIMIT_EXCEEDED");
+  if (Number(equityHistory.maxDrawdownUsd) >= PAPER_EXECUTION_LIMITS.maxDrawdownUsd) return block("MAX_DRAWDOWN_LIMIT_EXCEEDED");
   return {
     ok: true, execution: false, status: "PAPER_EXECUTION_POLICY_PASSED_NOT_SUBMITTED",
     reason: "ALL_PRE_SUBMISSION_POLICY_CHECKS_PASSED",
