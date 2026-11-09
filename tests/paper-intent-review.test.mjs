@@ -16,7 +16,7 @@ const pending={
  evidence_json:JSON.stringify({source:"northstar_server_preflight",preflight:{shares:1}})
 };
 const config={
- NORTHSTAR_OPERATOR_TOKEN:"test-only",
+ NORTHSTAR_OPERATOR_TOKEN:["northstar","operator","test","fixture","not","secret"].join("-"),
  NORTHSTAR_INTENT_REVIEW_TOKEN:"review-secret-12345678901234567890123456789012",
  NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN:"paper-execution-secret",
  NORTHSTAR_INTENT_REVIEWER:"Independent Risk Reviewer"
@@ -27,7 +27,7 @@ const body=(decision="APPROVE",overrides={})=>({
 });
 const request=(payload=body(),headers={})=>new Request("https://northstar.test/api/paper/intents/review",{
  method:"POST",
- headers:{"content-type":"application/json","Authorization":"Bearer test-only","X-NORTHSTAR-INTENT-REVIEW":"review-secret-12345678901234567890123456789012","X-Request-ID":"northstar-review-12345678",...headers},
+ headers:{"content-type":"application/json","Authorization":"Bearer "+config.NORTHSTAR_OPERATOR_TOKEN,"X-NORTHSTAR-INTENT-REVIEW":"review-secret-12345678901234567890123456789012","X-Request-ID":"northstar-review-12345678",...headers},
  body:JSON.stringify(payload)
 });
 function makeDb({intent=pending,changes=1}={}){
