@@ -33,6 +33,8 @@ test("raw acquisition fetches universe, bounded earnings windows and explicit sy
  assert.deepEqual(bundle.metadata.requestedSymbols,["AAPL","SPY"]);
  assert.equal(bundle.coverage.symbolsWithHistory,2);
  assert.equal(bundle.coverage.earningsEvents,1);
+ assert.equal(bundle.metadata.benchmarkSymbol,"SPY");
+ assert.equal(bundle.coverage.benchmarkPriceBars,10);
  assert.equal(calls.filter(x=>x.path==="/api/fmp-earnings").length,1);
  assert.equal(calls.filter(x=>x.path==="/api/fmp-history").length,2);
  assert.equal(calls.find(x=>x.path==="/api/fmp-universe").auth,"Bearer do-not-persist");
@@ -43,11 +45,11 @@ test("raw acquisition fetches universe, bounded earnings windows and explicit sy
 test("raw acquisition records incomplete per-symbol coverage rather than fabricating data",async()=>{
  const {fetchImpl}=fakeFetch({historyOverride:symbol=>({available:true,ticker:symbol,coverage:{priceBars:symbol==="SPY"?10:0,annualIncome:0,quarterIncome:0}})});
  const bundle=await fetchValidationSources({from:"2026-01-01",to:"2026-01-02",symbols:["AAPL","SPY"],baseUrl:"https://northstar.example",operatorToken:"token",fetchImpl});
- assert.deepEqual(bundle.coverage.symbolsWithMissingCoreCoverage,[{symbol:"AAPL",priceBars:0,annualIncome:0,quarterIncome:0}]);
+ assert.deepEqual(bundle.coverage.symbolsWithMissingCoreCoverage,[{symbol:"AAPL",role:"equity",priceBars:0,annualIncome:0,quarterIncome:0}]);
 });
 test("raw acquisition rejects invalid windows, non-HTTPS API bases and mismatched history symbols",async()=>{
  const {fetchImpl}=fakeFetch({historyOverride:()=>({available:true,ticker:"OTHER",coverage:{priceBars:1}})});
  await assert.rejects(fetchValidationSources({from:"2026-02-02",to:"2026-01-01",symbols:["AAPL"],baseUrl:"https://northstar.example",operatorToken:"token",fetchImpl}),/valid ISO/);
  await assert.rejects(fetchValidationSources({from:"2026-01-01",to:"2026-01-02",symbols:["AAPL"],baseUrl:"http://northstar.example",operatorToken:"token",fetchImpl}),/HTTPS/);
- await assert.rejects(fetchValidationSources({from:"2026-01-01",to:"2026-01-02",symbols:["AAPL"],baseUrl:"https://northstar.example",operatorToken:"token",fetchImpl}),/mismatched/);
+ await assert.rejects(fetchValidationSources({from:"2026-01-01",to:"2026-01-02",symbols:["AAPL"],baseUrl:"https://northstar.example",operatorToken:"token",fetchImpl}),/benchmark symbol/);
 });
