@@ -79,6 +79,15 @@ BEGIN
       AND julianday(r.quote_at)>=julianday('now')-(60.0/86400.0)
       AND julianday(r.quote_at)<=julianday('now')
       AND r.account_id IS NOT NULL AND length(trim(r.account_id))>0
+      AND json_extract(r.details_json,'$.accountId')=r.account_id
+      AND json_extract(r.details_json,'$.strategyReportSha256')=r.strategy_report_sha256
+      AND json_extract(r.details_json,'$.executionEnabled')=1
+      AND json_extract(r.details_json,'$.killSwitchEngaged')=0
+      AND json_extract(r.details_json,'$.noBrokerOrderCreated')=1
+      AND json_extract(r.details_json,'$.accountSyncStatus')='READ_ONLY_ACCOUNT_SYNC_PASSED'
+      AND json_extract(r.details_json,'$.fillSyncStatus')='FILL_IMPORT_AND_ORDER_SYNC_PASSED_READ_ONLY'
+      AND json_extract(r.details_json,'$.intentReviewConfigured')=1
+      AND r.latest_snapshot_at=(SELECT MAX(captured_at) FROM paper_equity_snapshots)
       AND r.strategy_report_sha256 IS NOT NULL
       AND json_valid(r.details_json)=1
       AND json_extract(r.details_json,'$.accountStatus')='ACTIVE'
