@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T17:56:05Z
+Last updated: 2026-11-09T17:59:00Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -1402,9 +1402,18 @@ No PR merge, force push, branch-protection bypass, D1 write/migration, productio
 
 
 ### Live-state correction — 2026-11-09T17:57:30Z
-- A newer branch commit arrived after the prior preview-check note: latest PR #85 head is `abd9f865461ed4652bd6fb7d207bc0b04d26f5f6`, not `fac76f44...`. The latest commit changes only `NORTHSTAR_BLOCKERS.md`; application code is unchanged. Compare: 431 ahead / 0 behind main. GitHub currently reports `mergeable=true`, `draft=true`.
+- A newer branch commit arrived after the prior preview-check note: At the start of the next audit, latest PR #85 head had advanced to `cd4a33a11819263934dd146b8232cde2eba9fb25` (a blocker-log-only commit after `abd9f865...`); compare: 432 ahead / 0 behind main. GitHub reported `mergeable=true`, `draft=true`. Application code is unchanged.
 - CI on this exact head passed: Tests run `42669529549` (337/337 JavaScript tests, 95 Python tests, Ruff) and Validate run `42669529759` (95 Python tests, Ruff, 44 frontend-analysis tests, 7 readiness tests, 7 SEC-ingestion tests). Synthetic strategy validation remains intentionally false / NOT APPROVED.
 - PR #85 still has zero formal reviews and zero inline review threads. PR #88 latest head remains `11fd4b0d4392eaf7a4101b4e3fe0745d0d1c394c`, 16 ahead / 0 behind main, draft, with CI runs `42668629110` and `42668629375` passing; zero formal reviews/threads.
 - Main branch remains `protected=false`, required status checks off. A fresh rulesets API read returned HTTP 403 with GitHub's explicit message: `Upgrade to GitHub Pro or make this repository public to enable this feature.` Keep this repository private as instructed; owner/admin must upgrade to GitHub Pro (or an eligible organization plan) and configure a ruleset/branch protection. The connected integration cannot do this.
-- This corrects the preceding 18:05Z note's stale statement that the PR #85 head was `fac76f44...` and mergeability unknown. The current live PR API reports `abd9f865...` and `mergeable=true`; release remains blocked by draft state, missing independent review and missing branch protection.
+- This corrects the preceding 18:05Z note's stale statement that the PR #85 head was `fac76f44...` and mergeability unknown. The current live PR API then reported `cd4a33a...` and `mergeable=true`; release remains blocked by draft state, missing independent review and missing branch protection.
 - No PR merge, branch-protection bypass, D1 write/migration, production deployment, broker request/order or execution enablement occurred.
+
+
+### Current D1 integrity and broker-host verification — 2026-11-09T17:59:00Z
+- Re-ran read-only `PRAGMA foreign_key_check` against both production and preview D1; both returned zero violation rows. `PRAGMA integrity_check` is denied by the Cloudflare D1 query API with `SQLITE_AUTH`; this is a platform permission limitation, not a reported integrity failure.
+- Production D1 remains migrations 0001–0005, one stale snapshot at `2026-11-08T18:34:38.720Z`, zero intents/orders/positions/fills, no migration-0006–0010 tables/triggers, and control `enabled=0`, `mode=paper`, `kill_switch=1`, $1,000 virtual allocation, 0.5% default risk, 1% max risk, 25% max position fraction.
+- Preview D1 remains migrations 0001–0010, zero snapshots/intents/orders/positions/fills, strategy approval `approved=0`, and 11 audit/safety triggers. Both databases' SELECT/PRAGMA query metadata reports zero rows written and `changed_db=false`.
+- Re-read PR #85 broker handlers `sync.js`, `fills-sync.js`, `submit.js`, `recover.js` and `reconcile.js`: all broker fetch hosts are exactly `https://paper-api.alpaca.markets`; no live `https://api.alpaca.markets` host is present in these handlers. Intent and review routes make no broker calls.
+- Current production GET endpoints were previously verified HTTP 200 in this run at 17:51:34–17:51:37Z; current preview GET endpoints were verified HTTP 200 at 17:56:05Z. Both environments remain PAPER, execution disabled and kill switch engaged; preview strategy approval remains NOT APPROVED.
+- No broker API request, authenticated POST, D1 write/migration, production deployment, order, or execution-control mutation occurred during this verification.
