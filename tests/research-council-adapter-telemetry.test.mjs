@@ -8,7 +8,7 @@ test("Gemini worker records provider, model and measured per-role latency withou
  globalThis.fetch=async(url,options={})=>{
   calls.push({url:String(url),headers:options.headers||{}});
   if(String(url).includes("/models?pageSize="))return Response.json({models:[{name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]}]});
-  return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({status:"COMPLETE",findings:[{claim:"A supplied evidence item is available.",factIds:["f1"]}],risks:[]})}]}}]});
+  return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({status:"COMPLETE",findings:[{claim:"A supplied evidence item is available.",factIds:["f1"]}],risks:[]})}]}}],usageMetadata:{promptTokenCount:120,candidatesTokenCount:40,totalTokenCount:160}});
  };
  try{
   const workers=await createResearchCouncilWorkers({GEMINI_API_KEY:"test-secret"});
@@ -18,6 +18,9 @@ test("Gemini worker records provider, model and measured per-role latency withou
   assert.equal(workers.telemetry.market_scanner.model,"models/gemini-2.5-flash");
   assert.ok(Number.isFinite(workers.telemetry.market_scanner.latencyMs));
   assert.ok(workers.telemetry.market_scanner.latencyMs>=0);
+  assert.equal(workers.telemetry.market_scanner.inputTokens,120);
+  assert.equal(workers.telemetry.market_scanner.outputTokens,40);
+  assert.equal(workers.telemetry.market_scanner.totalTokens,160);
   assert.equal(JSON.stringify(workers.telemetry).includes("test-secret"),false);
   assert.equal(calls.length,2);
  }finally{globalThis.fetch=old;}
