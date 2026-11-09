@@ -132,6 +132,8 @@ export async function activatePaperExecution({request,env,dependencies={}}){
   ]);
  }catch{return fail("Could not verify the full PAPER ledger, strategy approval or equity history; activation blocked.",503);}
  const ledgerCounts={orders:count(orderCount),positions:count(positionCount),pendingIntents:count(pendingIntents)};
+ if(String(config.approver).trim().toLowerCase()===String(strategyApproval?.reviewer||"").trim().toLowerCase())
+  return fail("PAPER execution approver must be independent from the strategy-validation reviewer.",409);
  const now=Number(nowFn());
  const gate=evaluatePaperActivationGate({
   control,strategyApproval,snapshots:snapshots?.results||[],account,configuredAccountId:config.accountId,
