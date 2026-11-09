@@ -43,6 +43,26 @@ test("kill switch never reports quiescence while a submission claim remains SUBM
   assert.deepEqual(result,{ok:true,quiesced:false,state:"SUBMITTING"});
 });
 
+test("kill switch returns a retry interval instead of claiming quiescence while a submission remains in flight",async()=>{
+  const {db}=controlDb("SUBMITTING");
+  const originalNow=Date.now,originalTimeout=globalThis.setTimeout;
+  let clock=0;
+  Date.now=()=>{clock+=1000;return clock;};
+  globalThis.setTimeout=callback=>{callback();return 0;};
+  try {
+    const response=await onRequestPost({request:request(),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_DB:db}});
+    const body=await response.json();
+    assert.equal(response.status,202);
+    assert.equal(response.headers.get("Retry-After"),"2");
+    assert.equal(body.killSwitchEngaged,true);
+    assert.equal(body.submissionQuiesced,false);
+    assert.equal(body.submissionState,"SUBMITTING");
+  } finally {
+    Date.now=originalNow;
+    globalThis.setTimeout=originalTimeout;
+  }
+});
+
 test("kill switch drain follows an in-flight claim until an UNKNOWN broker outcome",async()=>{
   let reads=0,clock=0;
   const db={prepare(){return {async first(){reads++;return {state:reads===1?"SUBMITTING":"UNKNOWN"};}};}};
