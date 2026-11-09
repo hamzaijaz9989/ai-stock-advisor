@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {validatePaperExecutionGate,verifyOtoStopLeg} from "../web/lib/paper-execution-policy.js";
+import {validatePaperExecutionGate,verifyOtoStopLeg,verifyStandaloneRecoveryStop} from "../web/lib/paper-execution-policy.js";
 
 const now = Date.parse("2026-11-09T12:00:00Z");
 const base = {
@@ -83,4 +83,48 @@ test("OTO verification fails closed on missing, mismatched, rejected, or malform
 test("paper execution blocks a missing or unapproved strategy validation attestation",()=>{
  assert.equal(validatePaperExecutionGate({...base,strategyValidation:null}).reason,"STRATEGY_VALIDATION_NOT_APPROVED");
  assert.equal(validatePaperExecutionGate({...base,strategyValidation:{ok:false,approved:false}}).reason,"STRATEGY_VALIDATION_NOT_APPROVED");
+});
+
+
+const recoveryStopFixture = () => ({
+  parent:{
+    id:"entry-broker",client_order_id:"entry-ledger",order_class:"oto",
+    symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",status:"canceled",
+    legs:[{id:"child-stop",symbol:"AAPL",side:"sell",type:"stop",qty:"5",filled_qty:"0",stop_price:"95",status:"canceled"}]
+  },
+  parentRow:{id:"entry-ledger",broker_order_id:"entry-broker",symbol:"AAPL",side:"buy",qty:5,stop_price:95},
+  recoveryOrder:{id:"recovery-broker",client_order_id:"recovery-ledger",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",status:"new",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"2"},
+  recoveryRow:{id:"recovery-ledger",idempotency_key:"recovery:entry-ledger",broker_order_id:"recovery-broker",symbol:"AAPL",side:"sell",qty:2,order_type:"stop",time_in_force:"gtc",stop_price:95,status:"ACCEPTED"},
+  brokerPosition:{symbol:"AAPL",qty:"2",side:"long"}
+});
+
+test("standalone recovery stop verifies exact parent, child, ledger, broker order, and position coverage",()=>{
+ const r=verifyStandaloneRecoveryStop(recoveryStopFixture());
+ assert.equal(r.ok,true);
+ assert.equal(r.protected,true);
+ assert.equal(r.reason,"STANDALONE_RECOVERY_STOP_VERIFIED");
+});
+
+test("standalone recovery stop rejects a non-terminal parent or non-terminal OTO child",()=>{
+ const f=recoveryStopFixture();
+ assert.equal(verifyStandaloneRecoveryStop({...f,parent:{...f.parent,status:"partially_filled"}}).reason,"STANDALONE_RECOVERY_PARENT_NOT_TERMINAL");
+ const held={...f.parent,legs:[{...f.parent.legs[0],status:"held"}]};
+ assert.equal(verifyStandaloneRecoveryStop({...f,parent:held}).reason,"STANDALONE_RECOVERY_OTO_CHILD_NOT_TERMINAL");
+});
+
+test("standalone recovery stop rejects mismatched identity, quantity, or position",()=>{
+ const f=recoveryStopFixture();
+ assert.equal(verifyStandaloneRecoveryStop({...f,recoveryOrder:{...f.recoveryOrder,client_order_id:"other"}}).reason,"STANDALONE_RECOVERY_BROKER_FIELDS_OR_STATUS_MISMATCH");
+ assert.equal(verifyStandaloneRecoveryStop({...f,recoveryRow:{...f.recoveryRow,qty:3}}).reason,"STANDALONE_RECOVERY_LEDGER_FIELDS_MISMATCH");
+ assert.equal(verifyStandaloneRecoveryStop({...f,brokerPosition:{symbol:"AAPL",qty:"1",side:"long"}}).reason,"STANDALONE_RECOVERY_STOP_DOES_NOT_COVER_POSITION");
+});
+
+test("a fully filled standalone recovery stop is valid only when the broker position is flat",()=>{
+ const f=recoveryStopFixture();
+ const order={...f.recoveryOrder,qty:"2",filled_qty:"2",leaves_qty:"0",status:"filled"};
+ const row={...f.recoveryRow,status:"FILLED"};
+ const r=verifyStandaloneRecoveryStop({...f,recoveryOrder:order,recoveryRow:row,brokerPosition:null});
+ assert.equal(r.ok,true);
+ assert.equal(r.noExposure,true);
+ assert.equal(verifyStandaloneRecoveryStop({...f,recoveryOrder:order,recoveryRow:row,brokerPosition:{symbol:"AAPL",qty:"1",side:"long"}}).ok,false);
 });
