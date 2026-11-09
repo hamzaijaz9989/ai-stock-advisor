@@ -2,7 +2,7 @@
 // is derived from the server-side live-quote preflight; client-supplied sizing is ignored.
 import {onRequestPost as runPreflight} from "./preflight.js";
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
-const fail=(error,status=400)=>Response.json({ok:false,execution:false,error},{status,headers:H});
+const fail=(error,status=400,extra={})=>Response.json({ok:false,execution:false,error,...extra},{status,headers:H});
 function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)return false;let d=a.length^b.length;for(let i=0;i<Math.max(a.length,b.length);i++)d|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return d===0;}
 function authorized(req,env){return !!env?.NORTHSTAR_OPERATOR_TOKEN&&safeEqual(req.headers.get("Authorization")||"","Bearer "+env.NORTHSTAR_OPERATOR_TOKEN);}
 async function hash(value){const bytes=new TextEncoder().encode(JSON.stringify(value));const digest=await crypto.subtle.digest("SHA-256",bytes);return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");}
@@ -23,6 +23,12 @@ export async function onRequestPost({request,env}){
  if(!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)||!Number.isFinite(stop)||stop<=0)return fail("Provide a valid ticker and positive protective stop.");
  let control;try{control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd FROM execution_control WHERE id=1").first();}catch{return fail("Could not verify execution controls; fail-closed.",503);}
  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==1000)return fail("Proposal journal is locked unless paper mode is disabled and kill-switched.",503);
+ // The idempotency hash binds only the caller's proposal intent, not a moving quote.
+ const requestHash=await hash({symbol,stopPrice:stop,rationale});
+ try{
+  const existing=await db.prepare("SELECT id,request_hash,status FROM paper_trade_intents WHERE idempotency_key=?").bind(key).first();
+  if(existing){if(existing.request_hash!==requestHash)return fail("Idempotency key already exists with a different proposal.",409);return Response.json({ok:true,execution:false,replayed:true,id:existing.id,status:existing.status},{headers:H});}
+ }catch{return fail("Could not verify proposal idempotency; fail-closed.",503);}
  // Re-run trusted preflight here; never trust caller-provided qty, entry, risk or evidence.
  let previewResponse,preview;
  try{
@@ -36,7 +42,7 @@ export async function onRequestPost({request,env}){
  const evidence={source:"northstar_server_preflight",preflight:preview};
  const evidenceJson=JSON.stringify(evidence);
  if(new TextEncoder().encode(evidenceJson).byteLength>10240)return fail("Verified evidence payload exceeds the 10 KB journal limit.",503);
- const payload={symbol,side:"buy",qty,referencePrice:entry,stopPrice:verifiedStop,rationale,evidence},requestHash=await hash(payload),now=new Date().toISOString();
+ const now=new Date().toISOString();
  try{
   const existing=await db.prepare("SELECT id,request_hash,status FROM paper_trade_intents WHERE idempotency_key=?").bind(key).first();
   if(existing){if(existing.request_hash!==requestHash)return fail("Idempotency key already exists with a different server-verified proposal.",409);return Response.json({ok:true,execution:false,replayed:true,id:existing.id,status:existing.status},{headers:H});}
