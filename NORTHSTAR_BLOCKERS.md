@@ -790,3 +790,11 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - The eight model roles still share one selected provider/model configuration and the same immutable collected evidence dossier. Per-role model routing, independent model diversity, durable learning memory, scheduled autonomous research cycles and dashboard integration are not implemented.
 - The council is not yet verified against live Gemini/OpenAI provider responses or real provider data. Existing CI validates orchestration contracts with test workers, not factual accuracy or investment performance.
 - Continue to keep strategy approval false, paper execution disabled and kill switch engaged. Existing blockers remain: seven-day production equity history and clean reconciliation; authenticated scheduled sync; real point-in-time FMP/SEC dataset and strategy validation; independent review and formal branch governance; controlled production migrations/release; paper approval credential and final D1-to-broker boundary race mitigation.
+
+
+### Follow-up CI assertion correction — 2026-11-09 11:27 UTC
+- Final-head CI initially exposed a stale assertion in `tests/paper-submit-endpoint.test.mjs`: the broker-boundary audit action is correctly supplied as a bound SQL parameter, but the test incorrectly searched the SQL text for that parameter value.
+- Updated the assertion to inspect the bound parameter list. No production implementation or safety policy was changed for this test-only correction.
+- Final code/test commit: `4bc8d870b154107410d248e3af9d2c1f0851df1a`.
+- Tests run `42609052397` passed: 304 JavaScript tests, 0 failures; lint passed.
+- Validate run `42609052400` completed successfully, including Python tests/lint, JavaScript syntax and validation smoke checks. The synthetic strategy-validation fixture remains explicitly NOT APPROVED.
