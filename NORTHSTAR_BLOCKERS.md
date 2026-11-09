@@ -881,3 +881,5 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Added mocked-provider regression tests. No live model-provider request, production write, broker mutation, order action, merge or deployment performed.
 - Commits: `154e799b58d46f8715839aa927e150a255e131ce` (initial adapter telemetry), `ca0385620b8ef555d95c102e559165f0f0363e5f` (OpenAI wrapper correction), `5a87dac305489a80a8cb2d9ad6ab578d70bb5dc9` (collector persistence), `1faa52d89807619cab566c0e9581e4e73632a69a` (tests), docs: `98754b7ba055fda1250f55a49cbeaaf65c44f161`.
 - Verify the entire latest PR head in CI before any merge/deploy decision.
+
+- CI surfaced an adapter syntax regression during telemetry instrumentation: the Gemini generator retained an extra closing brace after refactoring. Corrected in `88325fdb47e7d2458477f1085961b24ff97f21ba`. The prior failing run was `42614072539`; its Validate companion passed, but the test workflow failed at module parse before tests ran. Latest syntax-fix commit is awaiting CI confirmation. No runtime provider call was made.
