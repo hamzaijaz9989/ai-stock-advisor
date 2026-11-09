@@ -60,7 +60,7 @@ function buildResourceCoverage(facts, evidence, portfolio, asOf) {
         [...(!sec.length?["SEC company-facts observations are missing."]:[]),
           ...(!fmp.length?["FMP reported-fundamental cross-checks are missing."]:[]),
           ...(!exactAvailability?["Exact public-availability timestamps for SEC facts are not verified."]:[])]),
-      news_analyst:entry(news.length || earnings.length ? "PARTIAL" : "INSUFFICIENT",
+      news_analyst:entry(news.length ? "PARTIAL" : "INSUFFICIENT",
         [...news,...earnings].map(x=>x.id),
         ["News items are discovery evidence; original-source corroboration is not established by collection.",
           "Issuer/regulator source verification is not consistently recorded."]),
