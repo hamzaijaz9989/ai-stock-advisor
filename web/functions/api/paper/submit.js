@@ -82,8 +82,12 @@ export async function onRequestPost({request,env}){
     await db.batch(statements);
     return Response.json({ok:true,execution:false,replayed:true,status:recoveredStatus,brokerOrderId:found.id,protectiveStopVerified:recoveredStatus!=="REJECTED"&&!(recoveredStatus==="CANCELED"&&filled===0),message:"Existing client order recovered and reconciled; no second order was submitted."},{headers:H});
    }
-  }catch(e){if(e?.status!==404)return fail("Existing submission outcome is uncertain. No retry was attempted; reconcile by client_order_id.",503,{orderId:existing.id,status:existing.status});}
-  return fail("An order record already exists. No automatic resubmission is permitted.",409,{orderId:existing.id,status:existing.status});
+  }catch(e){
+   try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:existing.broker_order_id||null,response:{ledgerStatus:existing.status},reason:"EXISTING_ORDER_RECOVERY_LOOKUP_FAILED"});}catch{}
+   return fail("Existing submission outcome could not be verified. Treat it as UNKNOWN; execution kill switch engagement was attempted. No retry was made.",503,{orderId:existing.id,status:"UNKNOWN"});
+  }
+  try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:existing.broker_order_id||null,response:{ledgerStatus:existing.status},reason:"EXISTING_CLIENT_ORDER_ID_NOT_FOUND"});}catch{}
+  return fail("Northstar has an order record that Alpaca cannot confirm. Treat it as UNKNOWN; no resubmission is permitted.",503,{orderId:existing.id,status:"UNKNOWN"});
  }
  // Enforce the global kill switch before considering any proposal or broker state.
  if(!control||control.mode!=="paper"||Number(control.enabled)!==1||Number(control.kill_switch)!==0||Number(control.max_portfolio_usd)!==1000)return fail("Paper execution controls are disabled or kill-switched.",503);
