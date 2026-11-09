@@ -53,6 +53,7 @@ export async function onRequestGet({ env }) {
       executionEnabled,
       killSwitchEngaged,
       strategyValidation,
+      strategyValidationApproved: strategyValidation.ok,
       controlStateVerified,
       limits: {
         virtualCapitalUsd: 1000,
