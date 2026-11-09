@@ -681,3 +681,37 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Next actions: obtain authorized main-branch protection/required-check configuration and formal independent review; restore GitHub Actions operator secret without exposing it; run successful repeated production read-only snapshots/fill import/reconciliation and accrue seven continuous days; complete real strategy validation and independent reproduction; verify the Alpaca PAPER account; configure the separate approval secret only after evidence review; apply migrations 0006–0008 in production before merging/deploying code; then verify production endpoints and only consider PAPER enablement if every gate is proven. Keep paper execution disabled and kill switch engaged.
 - Safety: no live host or credentials, no paper/live orders, and no broker mutation were used. All $1,000/$250/$10/$20/$80 limits remain unchanged.
 - Updated estimate: engineering implementation approximately 80%; production release readiness approximately 25%.
+
+
+## Run 18 — raw FMP acquisition and scheduled-workflow consolidation — 2026-11-09T11:00:27.926Z
+
+### Completed in PR #85
+- Added `scripts/fetch_fmp_validation_sources.mjs` and `tests/fmp_validation_sources.test.mjs`. The CLI accepts an explicit list of up to 500 tickers, retrieves operator-authenticated FMP universe and earnings sources, and sequentially retrieves per-symbol FMP history through Northstar's server-side adapters. It writes a raw source bundle with acquisition metadata, coverage gaps, and point-in-time limitations. It never constructs historical snapshots or marks strategy approval.
+- Added runbook instructions for this raw-source acquisition stage. The output is explicitly labelled `RAW_SOURCE_BUNDLE_NOT_VALIDATION_INPUT`; raw FMP responses remain evidence requiring separate historical availability, corporate-action, symbol identity, universe and licensing review.
+- Added benchmark-aware coverage: benchmark ETFs require price history, while equity symbols require price, annual-income and quarterly-income coverage. Missing data is recorded as a gap rather than fabricated.
+- Found that the PR's new `northstar-paper-snapshot.yml` would create a second three-hourly scheduler alongside main's existing `northstar-equity-snapshot.yml`. Consolidated the complete sequence (readiness gate → secret presence check → read-only account/equity sync → read-only fill import → read-only reconciliation) into the existing workflow and deleted the duplicate scheduler. The concurrency group is shared with the existing workflow; no overlapping second cron remains.
+- Current PR #85 head: `dba11a45477c89dd52ad0720f5c2026f3c9f8424`; OPEN/DRAFT, 296 commits ahead / 0 behind, mergeable=true at this check. Do not mark ready or merge until release blockers and governance gates are resolved.
+- Tests on the preceding source-acquisition head exposed two test expectation/order issues; those were corrected in subsequent commits. Latest-head Tests run 1861 and Validate run 980 were IN PROGRESS when this log entry was written. Do not claim these latest runs passed until their conclusions are checked. The preceding Validate run 979 passed; the preceding Tests run 1859 failed one assertion before the final correction.
+- No real FMP dataset was downloaded in this run. No FMP key or operator token was read, printed, or persisted. The raw acquisition CLI has not yet been exercised against the configured provider.
+
+### Fresh read-only production and preview evidence
+- Production D1 migrations remain 0001–0005; preview D1 migrations remain 0001–0008. No migration was applied.
+- Production counts: 0 intents, 0 paper orders, 0 positions, 0 broker fills, and 1 equity snapshot. The only snapshot remains `2026-11-08T18:34:38.720Z`, equity $100,000, cash $100,000. It is broker account equity, not Northstar's $1,000 virtual strategy allocation.
+- Production controls remain `enabled=0`, `mode='paper'`, `kill_switch=1`, $1,000 virtual allocation, 0.5% default risk, 1% maximum risk, and 25% maximum position fraction. Preview controls also remain disabled with kill switch engaged; preview has zero equity snapshots.
+- Latest production Pages deployment remains `e4efbfd8-43f2-41b0-b01d-fc44e5b2a308`, successfully deployed from main commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`. No PR #85 code was deployed to production.
+- Production D1 reads reported `rows_written=0`; no production sync, broker request, order mutation, or control change was performed.
+- Main's current `.github/workflows/northstar-equity-snapshot.yml` checks the production readiness endpoint and requires the GitHub Actions `NORTHSTAR_OPERATOR_TOKEN` before it can capture snapshots. The last recorded workflow evidence says that secret is missing/empty; the production snapshot has not advanced. The consolidated fill-import workflow is only on PR #85 and has not run against production.
+
+### Still blocked
+1. Seven continuous days of verified production equity snapshots and clean broker-to-ledger reconciliation. The earliest possible seven-day baseline from the existing snapshot is not before 2026-11-15T18:34:38.720Z, and only if successful scheduled runs actually populate each required interval.
+2. Real point-in-time historical data, frozen-rule replay, at least 100 completed trades, four chronological walk-forward folds, an untouched holdout, data provenance/survivorship/corporate-action/cost attestations, and independent reproduction. Strategy validation remains NOT APPROVED.
+3. GitHub Actions operator secret presence/validity and successful production sync/fill-import/reconciliation run. Do not infer secret validity from Cloudflare's masked environment metadata.
+4. Controlled production application of migrations 0006–0008, followed by a safe merge/deploy sequence. Production must not receive new application code before its D1 schema is compatible.
+5. Formal independent PR review and authorized branch-protection/required-check governance. The GitHub integration's branch-protection read remains restricted; no bypass attempted.
+6. Separate paper execution approval credential and a documented audited enablement process remain unavailable/not approved. Keep paper execution disabled and the kill switch engaged.
+
+### Safety and next actions
+- All work in this run was source-control changes, CI inspection, and read-only Cloudflare D1/deployment inspection. No production writes, production deployment, paper/live broker mutation, or real orders occurred.
+- Next: verify latest-head CI 1861/980; if green, verify the Pages preview deployment for the changed server-side code and inspect its D1 compatibility without touching production. Then test the new raw-source CLI against actual FMP data only when the operator endpoint and permitted provider coverage are confirmed; preserve the raw bundle and build a separate auditable point-in-time transformation pipeline.
+- Keep all $1,000/$250/$10/$20/$80 risk limits unchanged. Strategy approval remains false.
+- Engineering implementation estimate: approximately 82%; production release readiness remains approximately 25%.
