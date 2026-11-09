@@ -2,6 +2,10 @@
 
 A research-first prototype for US equities. The Trading Lab specification defines a separate $1,000 paper-simulation allocation and conservative risk controls; it does not represent the user's real holdings, place live orders, or guarantee returns.
 
+## Project continuity and operating workflow
+
+Read [Northstar Project Handbook](docs/NORTHSTAR_PROJECT_HANDBOOK.md) before starting a new work session. It records the current phase, nine-agent research-council roles, ordered next steps, safety boundaries, and the mandatory documentation/testing/handover workflow.
+
 ## Project principles
 
 - Capital preservation and data quality before recommendations.

@@ -80,3 +80,12 @@
 3. Fail closed when critical data is stale, invalid or unavailable.
 4. Do not optimize for win rate alone; evaluate risk, drawdown and returns after costs.
 5. Record material methodology changes and rerun tests.
+
+
+## Status overlay — 2026-11-10
+
+- **Milestone 1 / universe scanning:** complete and tested, confirmed by the user. Do not restart this milestone unless a concrete regression is demonstrated.
+- **Current active milestone / nine-agent Research Council (Stock Brain):** nearly complete. The nine logical roles are Market Scanner, Technical Analyst, Fundamental Analyst, News Analyst, Sentiment Analyst, Bull Researcher, Bear Researcher, Portfolio Analyst and deterministic Risk Committee. Finish end-to-end wiring, durable traces, dashboard visibility, exact-head tests and preview verification.
+- **Strategy validation:** not approved; validated BUY remains disabled. Software tests and agent scorecards do not prove predictive performance.
+- **Paper lifecycle:** not ready; execution remains disabled and kill switch engaged. No paper or live test orders.
+- For the full phase order, acceptance workflow and session handover rules, see [Northstar Project Handbook](NORTHSTAR_PROJECT_HANDBOOK.md).

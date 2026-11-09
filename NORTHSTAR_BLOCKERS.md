@@ -892,3 +892,27 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - A first token-telemetry test exposed a test-only shared-global fetch mock race; adapter now accepts an injected fetch implementation and the test uses an isolated mock, avoiding mutation of global fetch. This is testability-only; production continues using the platform fetch.
 - CI also exposed a stale assertion regex in the scheduled snapshot workflow test: the shell step correctly brackets both sides of its 
 - Corrected telemetry milestone is now CI-green at head `e28fdcab164b6693ceda8c0df09e948f2966ab4f`: Tests run `42615242216` passed **316/316 JavaScript tests**, Python tests and lint; Validate run `42615242133` passed all validation steps (Python tests/lint, JS syntax, frontend analysis, paper readiness, SEC ingestion and synthetic strategy-validation smoke test). GitHub reports PR #85 mergeable=true and draft=true. Synthetic strategy validation remains NOT APPROVED; CI does not authorize merge/deployment.
+
+
+## 2026-11-10 — Project continuity handbook and phase correction
+- User-confirmed project phase: the universe scanning milestone is complete and tested. Do not restart scanner development unless a concrete regression is found.
+- Active priority: finish the nine-role Research Council / Stock Brain milestone (market_scanner, technical_analyst, fundamental_analyst, news_analyst, sentiment_analyst, bull_researcher, bear_researcher, portfolio_analyst, deterministic risk_committee). The implementation already contains orchestration, evidence-ID validation, resource inventory, role packs, evaluation scorecards and runtime telemetry; remaining work is exact-head integration, dashboard/durable-trace verification and preview acceptance.
+- Added `docs/NORTHSTAR_PROJECT_HANDBOOK.md` as the top-level continuity map and operating workflow. README now links to it. The handbook separates user-confirmed scanner completion, near-complete agent council, unapproved strategy validation, and incomplete paper-lifecycle readiness.
+- Documentation branch: `northstar/project-operating-handbook-2026-11-10`; PR #102: https://github.com/hamzaijaz9989/ai-stock-advisor/pull/102 (draft, documentation-only). Commits: `8f25772a6a46aabbee8473aed23484f8cd724b64` (handbook), `18d68c9b85e0f3fe44b82fdf9d122cc1d1e08dbd` (README link).
+- No application code, tests, production deployment, D1 migration/write, broker call, order, secret, or execution-control change was made in this documentation task.
+- Visibility discrepancy: README states the repository must remain private, and the user says it is private; GitHub API metadata returned `private=false / visibility=public` on 2026-11-10. No visibility change was attempted. Confirm directly in GitHub Settings before relying on privacy assumptions.
+- Safety state remains unchanged: validated BUY is not approved; paper execution remains disabled; kill switch remains engaged; no live or paper order was submitted.
+- Next exact action: finish the nine-agent council's end-to-end integration and durable trace/dashboard verification on the latest code head, then run exact-head CI and preview verification. Separately resolve the repository visibility discrepancy through direct GitHub Settings.
+
+
+## 2026-11-10 03:26 PKT — Live production audit refresh
+- Read-only Cloudflare audit confirmed the production Pages deployment `921087a4-6194-4a67-ac61-2f8557edb0bc` serves main `57aa9f0743917401dd0e3e90521fc39c22bd9f55`.
+- Worker `northstar-market-monitor` is scheduled every five minutes. Latest Worker deployment `7326f3e7-f323-4856-badf-aa8b979dffb4` is at 100%.
+- Production D1 contains 17 monitor runs, all `market_closed`; 0 monitor quote rows and 0 monitor event rows. No market-open quote/freshness cycle has yet been verified.
+- Production D1 contains 0 `research_council_runs` and 0 `research_decision_traces`. Main source has the nine-role council and authenticated server-side collector, but the public research dashboard does not call the collector/council endpoints.
+- The collector's portfolio gate is currently unsatisfied: only one production equity snapshot exists (`2026-11-08T18:34:38.720Z`), not a fresh 15-minute snapshot plus seven-day baseline.
+- Paper safety confirmed: execution disabled, paper mode, kill switch engaged; 0 orders, 0 positions, 0 intents, 0 fills, 0 trade events; 1 equity snapshot and 2 audit rows.
+- Attempted remediation: inspected existing endpoint contracts, UI calls, D1 schema and runtime configuration. No production writes, migrations, broker calls or deployments were made.
+- Impact: do not claim nine-agent production dashboard acceptance, market-open monitor acceptance, seven-day portfolio readiness or paper lifecycle completion.
+- Next action: finish a safe read-only Research Council status/dashboard integration and a separately authenticated operator launch flow; collect and verify the seven-day read-only equity history before attempting the collector. Keep paper execution disabled and the kill switch engaged.
+- Governance note: GitHub API metadata reports `private=false / visibility=public`, contrary to the user's statement that the repository is private. No visibility change was attempted; verify directly in GitHub Settings.
