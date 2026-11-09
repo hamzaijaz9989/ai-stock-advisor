@@ -1,7 +1,7 @@
 const BASE="https://financialmodelingprep.com/stable/";
 const INDEX_ENDPOINTS=[
  ["sp500","sp500-constituent","historical-sp500-constituent"],
- ["nasdaq100","nasdaq-constituent","historical-nasdaq-constituent"],
+ ["nasdaq","nasdaq-constituent","historical-nasdaq-constituent"],
  ["dowjones","dowjones-constituent","historical-dowjones-constituent"]
 ];
 async function get(path,key){
