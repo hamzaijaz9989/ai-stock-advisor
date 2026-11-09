@@ -991,3 +991,12 @@ The additional review did not issue broker requests or modify any D1 row. These 
 **State/evidence:** Cloudflare Pages project ai-stock-advisor; preview deployment 436a3f12-0cac-40d7-aaa8-ce5ac83fbed9 (commit da1550fc09db32935b2060f93f52fe58620fd43f) is successfully deployed. The project config read confirms the environment-variable name mismatch; Cloudflare returns secret_text.value as empty/redacted. No secret values were exposed and no project configuration was changed during this audit.
 
 **Unchanged safety gates:** paper mode only, execution disabled, kill switch engaged, no paper/live orders, validated BUY disabled. Production D1 and Production secrets were not modified.
+
+
+## 2026-11-10 — Corrective incident ownership: Preview bindings overwritten
+
+- **Correction to the prior root-cause assessment:** the Preview environment previously had provider API bindings. During the operator-login setup, an authenticated Cloudflare Pages project PATCH was issued with Preview `env_vars` containing only `NORTHSTAR_OPERATOR_TOKEN`. The current project configuration now shows that Preview has only this one binding, while Production still lists Alpaca, FMP and Gemini secrets. The PATCH was not a merge-safe update of the existing Preview map; it replaced the Preview environment-variable map.
+- This change was made during the assistant-led login work. It is therefore a regression introduced by that configuration change, not an unexplained user-side credential failure. The earlier statement that the APIs had simply never been configured in Preview was incorrect.
+- The secret values are write-only/redacted through the connected Cloudflare API. The pre-change Preview values cannot be read back from current project configuration. Do not overwrite the remaining Production secrets or create empty placeholder secrets. No further project-config PATCH should be made until a safe restoration source is found.
+- Recovery investigation: inspect Cloudflare deployment history/config snapshots, any existing CI/CD secret-backed workflows, and any repository-managed environment configuration. Prefer restoring the original Preview secrets from an existing secure source without exposing them. If no recoverable source exists, the credentials must be re-entered by an authorized secret owner; do not claim autonomous restoration is possible when values are irretrievable.
+- Production bindings remain configured by name and were not changed by this Preview PATCH. No orders, execution changes, or production database writes were performed.
