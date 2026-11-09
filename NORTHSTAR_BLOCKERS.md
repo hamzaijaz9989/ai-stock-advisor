@@ -1250,3 +1250,109 @@ No PR #85 or #88 merge, production migration/write, production application deplo
 8. Keep execution disabled and kill switch engaged. Do not enable PAPER until lifecycle completeness, protective-stop/recovery behavior, schema parity, strategy approval, fresh history, account identity and all risk limits are independently demonstrated.
 
 No PR #85/#88 merge, production deployment, production D1 migration/write, broker request/mutation, paper/live order or execution enablement occurred in this run.
+
+
+## Continuation run — 2026-11-09T17:52Z
+
+### Fresh repository / PR / CI evidence
+- Repository visibility is `private`; default branch is `main`; latest main SHA is `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`.
+- PR #84 remains merged at `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- PR #85 head is `403540cd881d195c8c2226cd1eae9db2b7571bee`, 427 commits ahead / 0 behind main, 71 changed files, 5,748 additions / 220 deletions, and GitHub currently reports `mergeable=true`. It remains DRAFT. Formal reviews: 0; inline review threads: 0.
+- PR #85 latest CI on that head: Tests run `42662730058` and Validate run `42662729970`, both completed successfully. Logs show 337/337 JavaScript tests, 95 Python tests, Ruff clean, 44 frontend-analysis tests, 7 readiness tests and 7 SEC-ingestion tests. The synthetic strategy validation CLI intentionally asserts `strategy_validation_passed=false`.
+- PR #88 latest head is `11fd4b0d4392eaf7a4101b4e3fe0745d0d1c394c`, 16 commits ahead / 0 behind main, DRAFT, 6 changed files, 0 formal reviews and 0 review threads. CI runs `42668629110` and `42668629375` both passed: 190/190 JavaScript tests, 94 Python tests, Ruff clean, 43 frontend-analysis tests, 4 readiness tests and 7 SEC-ingestion tests. Regression test `stops before reconciliation when fill import requires manual recovery even if imported is true` passed.
+- PR #85 and #88 both modify `.github/workflows/northstar-equity-snapshot.yml` and `web/wrangler.toml`. Correct sequence remains #85 first, then update/rebase #88 onto #85 and re-run CI/preview. Main's current `fills-sync.js` does not return `safeToContinue` / `requiresManualRecovery`; PR #85's version does. PR #88 now explicitly requires those fields, so it must not be merged ahead of #85.
+- Main branch metadata explicitly reports `protected=false`, protection disabled and required status checks `off`. Reading the dedicated protection endpoint returns 403 from the connected GitHub integration (administration scope unavailable). Do not bypass this gate or merge while it is false.
+
+### PR #88 fail-closed improvement
+- Reviewed `web/functions/api/paper/github-snapshot.js` against PR #85's fills-sync contract. Added a mandatory check after fill import: `safeToContinue === true` and `requiresManualRecovery === false` before reconciliation. Unsafe/manual-recovery state returns HTTP 409 and reconciliation is not called.
+- Code commit: `d33a11acf552cce80cc70608c1e0a2dd77af32b9`.
+- Regression-test commit: `11fd4b0d4392eaf7a4101b4e3fe0745d0d1c394c`.
+- Successful Cloudflare preview deployment for the code fix: `dfa48d0a-e505-4ad0-b226-f9dd5c349408`, URL `https://dfa48d0a.ai-stock-advisor.pages.dev`. The later test-only head `11fd4b0d` was skipped by Pages path filtering. PR #88 description records the dependency on PR #85.
+
+### Fresh Cloudflare Pages and live production endpoint evidence
+- Pages project `ai-stock-advisor` is connected to this private GitHub repository, production branch `main`; `fail_open=false` for production and preview. Production and preview bind separate D1 databases.
+- Latest production deployment is `e4ebdc82-06ff-43e4-9557-a6ec4caf710e`, SUCCESS, commit `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`. No PR #85 application code is deployed.
+- Live production GET endpoint probes at 2026-11-09 17:51:34–17:51:37Z returned HTTP 200 for `/api/paper/readiness`, `/api/paper/performance`, and `/api/paper/control`.
+- Readiness response: configured=true, policyVerified=true, mode=paper, executionEnabled=false, killSwitchEngaged=true; virtual allocation $1,000; default risk $5; max risk $10; max position $250.
+- Performance response: execution=false, mode=paper, virtual allocation $1,000, one broker equity snapshot only (first/last `2026-11-08T18:34:38.720Z`), observed broker equity/cash $100,000, buying power $400,000, no positions, no imported fill activities, and trade statistics `NOT_AVAILABLE_NO_IMPORTED_FILLS`. Broker account equity is not the virtual strategy allocation.
+- Control response: mode=paper, executionEnabled=false, killSwitchEngaged=true, risk fractions 0.005 default / 0.01 maximum / 0.25 maximum position.
+- Cloudflare Pages project metadata lists secret names `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, `FMP_API_KEY2`, `GEMINI_API_KEY`, and `NORTHSTAR_OPERATOR_TOKEN` as secret-text variables. Secret values are redacted/blank in the API response; this run did not inspect or infer their values or prove runtime validity. Preview environment metadata lists no secrets.
+
+### Fresh D1 production/preview parity audit (read-only)
+- Production D1 `528f3a23-1d1f-4d16-8463-f643d85f5deb`: migration ledger exactly `0001`–`0005`. No `northstar_fill_ledger`, `paper_position_lots`, `paper_realized_trades`, `paper_execution_claims`, `northstar_strategy_approval`, or database triggers.
+- Preview D1 `bdffc29f-a4f6-498e-ade7-22c85d9bd373`: migrations `0001`–`0010`; fill-derived ledger, position-lot/realized-trade tables, singleton execution claim, strategy approval tables and 11 safety/audit triggers exist.
+- Production execution control: `enabled=0`, `mode='paper'`, `kill_switch=1`, `max_portfolio_usd=1000`, `default_risk_fraction=0.005`, `max_risk_fraction=0.01`, `max_position_fraction=0.25`. Preview has the same fail-closed controls.
+- Production counts: one snapshot, zero intents, orders, positions and fill activities. Preview counts: zero snapshots, intents, orders, positions and fill activities. Preview strategy approval row is `approved=0`, version `northstar-provisional-gates-v1`, with no report hash/URI, approval timestamp or reviewer.
+- All D1 statements were SELECT/PRAGMA only; query metadata reported zero rows written and `changed_db=false`.
+
+### Scheduled-workflow review
+- PR #85 `.github/workflows/northstar-operations.yml` is read-only: it checks the cached stock scan freshness/data integrity and does not call a broker.
+- PR #85 `.github/workflows/northstar-equity-snapshot.yml` checks PAPER/readiness, then calls account sync, fill import and read-only reconciliation. It stops if fill import reports unsafe exposure or reconciliation fails. It contains no submit/cancel/replace/flatten order call. It still references GitHub Actions secret `NORTHSTAR_OPERATOR_TOKEN`; an earlier run `42583519570` reported this secret missing/empty, but its current presence was not rechecked in this run.
+- PR #88 replaces the GitHub Actions secret dependency with scoped OIDC and a server-side operator token. The OIDC route writes a run-claim audit row to D1 but invokes only account sync, fill import and read-only reconciliation; it never changes broker orders or execution controls. Its Cloudflare-side operator secret name is present in project metadata but actual runtime validity remains unproven.
+
+### Unresolved blockers — evidence, impact and next action
+
+1. **Main branch protection / required checks**
+   - Evidence: main branch object `protected=false`; required status-check enforcement `off`; branch protection read returns 403 to this integration.
+   - Affected: GitHub repository settings, PR #85 and PR #88 release governance.
+   - Attempted: read main branch metadata and branch-protection endpoint; verified repo connection has admin metadata but the managed GitHub integration lacks administration access.
+   - Remaining impact: no enforced required CI or independent review gate; OIDC trust also depends on protecting the exact main workflow.
+   - Next action: an authorized repository owner/admin must enable main branch protection or an equivalent ruleset requiring both CI workflows and at least one independent approval. Do not bypass.
+
+2. **Independent review**
+   - Evidence: PR #85 and #88 each have zero formal reviews and zero inline review threads.
+   - Affected: broker submit/recovery code, D1 migrations 0006–0010, GitHub OIDC verifier/workflow, Pages configuration.
+   - Attempted: inspected PR status, changed-file inventories, workflow patches, OIDC code/tests, paper submit/recovery/fill-sync/reconciliation code and migration SQL.
+   - Remaining impact: self-review and passing CI are not independent security review.
+   - Next action: obtain a qualified reviewer independent of the author for each PR; resolve all findings before marking ready/merging.
+
+3. **PR #88 dependency / overlapping files**
+   - Evidence: PR #85 and #88 both modify the equity-snapshot workflow and Wrangler D1 configuration. Main's current fill-sync handler lacks `safeToContinue` and `requiresManualRecovery`; PR #85 adds them. PR #88 now requires both fields.
+   - Affected: `.github/workflows/northstar-equity-snapshot.yml`, `web/wrangler.toml`, `web/functions/api/paper/github-snapshot.js`, `web/functions/api/paper/fills-sync.js`.
+   - Attempted: updated PR #88 with fail-closed checks and a regression test; its CI and code preview passed.
+   - Remaining impact: PR #88 is not safe/compatible to merge before PR #85.
+   - Next action: merge #85 only after its own release gates pass; then update/rebase #88 onto the new main, resolve the two shared files, re-run CI/preview and obtain independent OIDC review.
+
+4. **Production schema parity / migration release**
+   - Evidence: production D1 is at 0001–0005; preview is at 0001–0010. Production lacks the fill-derived ledger, strategy approval, execution claim, reviewer metadata and triggers.
+   - Affected: production D1, Pages Functions `fills-sync`, `reconcile`, `submit`, `recover`, `intents/review`.
+   - Attempted: reviewed migrations 0006–0010 and verified the complete chain is already applied to preview. Prior SQL review found additive CREATE/INDEX/TRIGGER and ADD COLUMN changes; no production write was made.
+   - Remaining impact: PR #85 application routes cannot be deployed safely to production until schema 0006–0010 is applied.
+   - Next action: after PR review/branch protection, take a D1 export backup, rehearse the ordered migrations against a disposable clone, verify schema and trigger assertions, then apply in a controlled production window before deploying compatible application code.
+
+5. **Seven-day equity history / authenticated read-only sync**
+   - Evidence: production has exactly one snapshot, latest `2026-11-08T18:34:38.720Z`; live performance endpoint reports one snapshot and no fills.
+   - Affected: production D1 `paper_equity_snapshots`, scheduled snapshot workflow, research collector/preflight/readiness.
+   - Attempted: verified production GET health and reviewed both scheduled workflow implementations. OIDC bridge now has a passing fail-closed chain test.
+   - Remaining impact: seven-day baseline is absent; authenticated production sync and clean reconciliation were not executed in this run.
+   - Next action: after PR #85 and the OIDC bridge are deployed in dependency order, verify a real authenticated PAPER account read-only snapshot/fill/reconcile cycle; collect time-separated snapshots for at least seven days. Never synthesize history.
+
+6. **Strategy validation**
+   - Evidence: `docs/STRATEGY_VALIDATION_STATUS.md` remains NOT APPROVED. Only synthetic smoke input exists; no complete point-in-time dataset, >=100 completed actual-strategy trades, four chronological walk-forward folds, untouched holdout, verified benchmark/cost/provenance attestations or independent reproduction.
+   - Affected: strategy-validation pipeline, readiness/preflight, intent creation, submit gate and `northstar_strategy_approval`.
+   - Attempted: inspected validation status/runbook, source-acquisition adapters and CI smoke test. Runtime approval is seeded false in preview; no approval flags changed.
+   - Remaining impact: validated BUY and all execution authorization must remain blocked.
+   - Next action: acquire licensed, complete historical data; freeze strategy rules; assemble point-in-time snapshots; run the full validation and independent reproduction; approve only an evidence-backed report.
+
+7. **Broker PAPER account / execution approval secrets**
+   - Evidence: readiness says PAPER and code uses the Alpaca Paper host; Cloudflare metadata lists Alpaca and operator secret names but redacts values. No authenticated broker account identity/reconciliation was performed in this run. The distinct intent-review and PAPER execution approval credentials are not proven configured.
+   - Affected: Pages production secrets, Alpaca Paper account, `/api/paper/intents/review`, `submit`, `recover`.
+   - Attempted: inspected only secret names/type metadata, never values; live GET health confirms execution disabled and kill switch engaged.
+   - Remaining impact: operator/reviewer identity and actual PAPER account cannot be asserted; no execution-enable authorization is possible.
+   - Next action: configure separate reviewer identity/token and PAPER approval token through secure Cloudflare settings only after independent review; perform authenticated read-only account-mode and reconciliation checks. Never expose values or use live credentials.
+
+8. **Residual broker boundary / single-order lifecycle**
+   - Evidence: PR #85 includes durable singleton claim and atomic D1 compare-and-set at the broker POST boundary, but a non-atomic external broker read-to-POST interval remains. Migration 0008 intentionally never releases the singleton claim, limiting the executor to one Northstar order lifetime.
+   - Affected: `web/functions/api/paper/submit.js`, `recover.js`, migrations 0008–0009, broker reconciliation and kill-switch behavior.
+   - Attempted: fail-closed reconciliation freshness gate and regression tests are present; recovery performs repeated parent/child/position/quote/control checks before POST.
+   - Remaining impact: one-order lifetime only; no general multi-order concurrency/lifecycle. External broker state may still change after final read and before POST.
+   - Next action: independent broker-boundary review, post-submit exact position/stop verification and a separately designed multi-order lifecycle with failure-injection/concurrency tests. Keep execution disabled until resolved.
+
+9. **PAPER-only enablement procedure**
+   - Evidence: production readiness/performance/control all HTTP 200 but executionEnabled=false and killSwitchEngaged=true; production D1 has no PR #85 approval/claim schema; strategy approval is false in preview; no seven-day history or authenticated account confirmation.
+   - Affected: production execution controls, operator workflow and broker.
+   - Attempted: no control mutation, no order and no test trade; verified all production controls remain fail-closed.
+   - Remaining impact: paper execution cannot be enabled safely.
+   - Next action: require every lifecycle, strategy, account, schema, reconciliation, protective-stop and independent-review gate above to pass; then use the audited PAPER-only approval flow without placing a test order. Live trading remains prohibited.
+
+No PR #85/#88 merge, production migration/write, production deployment, broker request/order, execution-control mutation or PAPER enablement occurred in this run.
