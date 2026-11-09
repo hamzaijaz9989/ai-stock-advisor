@@ -359,8 +359,8 @@
     } catch(error) {status.textContent=error?.message||"Could not load durable paper performance.";}
   }
   $("sync-paper-snapshot").addEventListener("click",async()=>{
-    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved in browser storage.");
-    if(!token)return;
+    const token=sessionStorage.getItem("northstar_operator_token");
+    if(!token){location.reload();return;}
     const button=$("sync-paper-snapshot");button.disabled=true;button.textContent="Saving…";
     $("snapshot-status").textContent="Reading Alpaca Paper account and saving a verified snapshot…";
     try{
@@ -374,8 +374,8 @@
   });
 
   $("sync-paper-fills").addEventListener("click",async()=>{
-    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved.");
-    if(!token)return;
+    const token=sessionStorage.getItem("northstar_operator_token");
+    if(!token){location.reload();return;}
     const button=$("sync-paper-fills");button.disabled=true;button.textContent="Importing…";
     $("snapshot-status").textContent="Fetching broker-reported fill activities and importing idempotently…";
     try{
@@ -486,8 +486,8 @@
       status.textContent="Enter a valid US equity ticker.";
       return;
     }
-    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved in browser storage.");
-    if(!token)return;
+    const token=sessionStorage.getItem("northstar_operator_token");
+    if(!token){location.reload();return;}
     const requestId="stockbrain-"+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2));
     button.disabled=true;button.textContent="Researching…";
     status.textContent="Collecting server-side quote, history, fundamentals, filings, news, earnings and reconciled portfolio evidence. This may take a little while.";
