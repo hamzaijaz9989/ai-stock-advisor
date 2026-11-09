@@ -1,0 +1,48 @@
+# Narrow, evidence-backed suppressions for historical generic-api-key false positives.
+# Every entry is constrained by exact commit, path, rule ID, and source-line pattern.
+# Never add broad path-only or rule-wide suppressions.
+
+[[allowlists]]
+description = "Synthetic operator bearer token in a test-only fixture; replaced with an inert sentinel in a later commit."
+condition = "AND"
+commits = ["106ea8d9367d72ce8b013488dca5b9d26d9d2905"]
+paths = ['^tests/paper-intent-review\.test\.mjs$']
+ruleIDs = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['NORTHSTAR_OPERATOR_TOKEN:"operator-secret-[0-9]+"']
+
+[[allowlists]]
+description = "FMP environment binding identifiers, not credential values."
+condition = "AND"
+commits = ["cf74ef6b4947873dadb66ee8111ecfb2132ddaa3"]
+paths = ['^web/functions/api/fmp-health\.js$']
+ruleIDs = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['const key = env\.FMP_API_KEY2 \|\| env\.FMP_API_KEY;']
+
+[[allowlists]]
+description = "FMP environment binding identifiers, not credential values."
+condition = "AND"
+commits = ["a5465bc90bb8024c58df482248e308464373dc57"]
+paths = ['^web/functions/api/fmp-health\.js$']
+ruleIDs = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['const key = env\.FMP_API_KEY2 \|\| env\.FMP_API_KEY;']
+
+[[allowlists]]
+description = "Pagination cursor assignment in read-only reconciliation; not a credential."
+condition = "AND"
+commits = ["4f1256b8b231c58495f9419003dacbeaf2ef8639"]
+paths = ['^web/functions/api/paper/reconcile\.js$']
+ruleIDs = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['pageToken=result\.length===500 \? \(result\[result\.length-1\]\?\.id\|\|null\) : null;']
+
+[[allowlists]]
+description = "Pagination cursor assignment in read-only reconciliation; not a credential."
+condition = "AND"
+commits = ["7a71706c00ef274e601b54dfc73db145f06ffedf"]
+paths = ['^web/functions/api/paper/reconcile\.js$']
+ruleIDs = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['pageToken=result\.length===500 \? \(result\[result\.length-1\]\?\.id\|\|null\) : null;']

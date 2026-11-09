@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/refresh-stock-cache.yml"
       - ".github/scripts/refresh-stock-cache.mjs"
+      - ".github/scripts/validate-stock-cache.mjs"
       - "web/app.js"
   schedule:
     - cron: "7 */3 * * *"
@@ -36,6 +37,46 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Scan the live 253-stock universe and save top ten
         run: node .github/scripts/refresh-stock-cache.mjs
+      - name: Validate scan completeness, enrichment and cache freshness
+        run: node .github/scripts/validate-stock-cache.mjs
+      - name: Publish scan summary
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const data = JSON.parse(fs.readFileSync("web/data/top-stocks-cache.json", "utf8"));
+          const lines = [
+            "# Northstar 253-stock research scan",
+            "",
+            "- Completed: " + data.completedAt,
+            "- Workflow run: " + data.workflowRunId,
+            "- Scanner commit: " + data.sourceCommit,
+            "- Duration: " + data.scanDurationSeconds + " seconds",
+            "- Universe: " + data.universeSize,
+            "- Ranked: " + data.rankedCount,
+            "- Excluded: " + data.excludedCount,
+            "- Top-ten enrichment completed: " + data.enrichedCount + "/" + data.stocks.length,
+            "",
+            "## Research shortlist",
+            "",
+            "| Rank | Symbol | Score | Entry checklist | Fundamental freshness |",
+            "|---:|---|---:|---|---|",
+            ...data.stocks.map((stock, index) =>
+              "| " + (index + 1) + " | " + stock.ticker + " | " + Number(stock.score).toFixed(1) +
+              " | " + (stock.entryReady ? "Provisional checks passed" : "Not entry-ready") +
+              " | " + stock.fundamentalFreshness + " |"
+            ),
+            "",
+            "Research-priority ranking only. Not a validated BUY signal or investment instruction."
+          ];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          NODE
+      - name: Upload validated shortlist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: northstar-stock-scan-${{ github.run_id }}
+          path: web/data/top-stocks-cache.json
+          if-no-files-found: error
+          retention-days: 30
       - name: Commit updated shortlist only when changed
         run: |
           if git diff --quiet -- web/data/top-stocks-cache.json; then

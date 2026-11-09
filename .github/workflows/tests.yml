@@ -24,5 +24,9 @@ jobs:
         run: pytest
       - name: Run JavaScript API and evidence-score tests
         run: node --test tests/*.test.mjs
+      - name: Check scheduled scanner script syntax
+        run: |
+          node --check .github/scripts/refresh-stock-cache.mjs
+          node --check .github/scripts/validate-stock-cache.mjs
       - name: Lint
         run: ruff check .
