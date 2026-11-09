@@ -40,6 +40,9 @@ export function validateStockCache(data, nowMs = Date.now(), maxAgeMs = 30 * 60 
     if (stock?.fundamentalFreshness === "STALE_OR_UNVERIFIED" && !/^BLOCKED:/i.test(stock.entryStatus || "")) {
       errors.push("stock " + ticker + " has stale fundamentals without an explicit blocked status");
     }
+    if (stock?.fundamentalFreshness === "STALE_OR_UNVERIFIED" && stock?.entryReady === true) {
+      errors.push("stock " + ticker + " cannot be entry-ready while fundamentals are stale or unverified");
+    }
   }
   return {
     ok: errors.length === 0,
