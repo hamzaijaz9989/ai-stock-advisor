@@ -18,7 +18,7 @@ test("market-hours gate uses New York time and excludes weekends, exchange holid
  assert.equal(isUsMarketOpen(new Date("2026-04-03T15:00:00Z")),false); // Good Friday
  assert.equal(isUsMarketOpen(new Date("2026-06-19T15:00:00Z")),false); // Juneteenth
  assert.equal(isUsMarketOpen(new Date("2026-12-25T15:00:00Z")),false); // Christmas
- assert.equal(isUsMarketOpen(new Date("2026-11-27T17:30:00Z")),false); // 12:30 p.m. ET, after early close
+ assert.equal(isUsMarketOpen(new Date("2026-11-27T18:30:00Z")),false); // 12:30 p.m. ET, after early close
  assert.equal(isUsMarketOpen(new Date("2026-11-27T17:00:00Z")),true); // noon ET, before early close
 });
 
