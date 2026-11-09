@@ -75,12 +75,12 @@ export async function onRequestPost({request,env}){
     const recoveredIntentStatus=recoveredStatus==="REJECTED"?"REJECTED":recoveredStatus==="CANCELED"?"CANCELLED":null;
     const statements=[
      db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=?").bind(found.id,recoveredStatus,safeJson(recovered),new Date().toISOString(),existing.id),
-     db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(existing.id,"BROKER_ORDER_RECOVERED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:found.id,status:recoveredStatus,protectiveStopVerified:!["REJECTED","CANCELED"].includes(recoveredStatus)})),
+     db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(existing.id,"BROKER_ORDER_RECOVERED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:found.id,status:recoveredStatus,protectiveStopVerified:recoveredStatus!=="REJECTED"&&!(recoveredStatus==="CANCELED"&&filled===0)})),
      db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","ALPACA_PAPER_ORDER_RECOVERY","VERIFIED",existing.id,safeJson({brokerOrderId:found.id,status:recoveredStatus}))
     ];
     if(recoveredIntentStatus)statements.push(db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(recoveredIntentStatus,new Date().toISOString(),intentId));
     await db.batch(statements);
-    return Response.json({ok:true,execution:false,replayed:true,status:recoveredStatus,brokerOrderId:found.id,protectiveStopVerified:!["REJECTED","CANCELED"].includes(recoveredStatus),message:"Existing client order recovered and reconciled; no second order was submitted."},{headers:H});
+    return Response.json({ok:true,execution:false,replayed:true,status:recoveredStatus,brokerOrderId:found.id,protectiveStopVerified:recoveredStatus!=="REJECTED"&&!(recoveredStatus==="CANCELED"&&filled===0),message:"Existing client order recovered and reconciled; no second order was submitted."},{headers:H});
    }
   }catch(e){if(e?.status!==404)return fail("Existing submission outcome is uncertain. No retry was attempted; reconcile by client_order_id.",503,{orderId:existing.id,status:existing.status});}
   return fail("An order record already exists. No automatic resubmission is permitted.",409,{orderId:existing.id,status:existing.status});
@@ -190,13 +190,15 @@ export async function onRequestPost({request,env}){
   }
  }
  const intentStatus=normalized==="REJECTED"?"REJECTED":normalized==="CANCELED"?"CANCELLED":null;
+ const protectiveStopVerified=normalized!=="REJECTED"&&!(normalized==="CANCELED"&&num(verifiedOrder?.filled_qty)===0);
  try{
   const statements=[
    db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=? AND status IN ('SUBMITTING','UNKNOWN')").bind(result.id,normalized,safeJson(verifiedOrder),new Date().toISOString(),id),
-   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED"&&!(normalized==="CANCELED"&&num(verifiedOrder?.filled_qty)===0)}))
+   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result.id,status:normalized,protectiveStopVerified}))
   ];
   if(intentStatus)statements.push(db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(intentStatus,new Date().toISOString(),intentId));
   await db.batch(statements);
  }catch{try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder,reason:"BROKER_RESPONSE_LEDGER_WRITE_FAILED"});}catch{}return fail("Broker response received but ledger update failed. Treat the order as UNKNOWN; execution kill switch engagement was attempted. Reconcile; do not retry.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});}
- return Response.json({ok:normalized!=="REJECTED",execution:false,submittedTo:"alpaca-paper",orderId:id,brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED",qty:intent.qty,symbol:intent.symbol,estimatedNotionalUsd:gate.sizing.notionalUsd,plannedStopRiskUsd:gate.sizing.plannedRiskUsd,message:"Paper order submitted to Alpaca Paper; broker status and protective stop leg were verified. This is not a live-market order."},{status:normalized==="REJECTED"?409:201,headers:H});
+ const canceled=normalized==="CANCELED",rejected=normalized==="REJECTED";
+ return Response.json({ok:!canceled&&!rejected,execution:false,submittedTo:"alpaca-paper",orderId:id,brokerOrderId:result.id,status:normalized,protectiveStopVerified,qty:intent.qty,symbol:intent.symbol,estimatedNotionalUsd:gate.sizing.notionalUsd,plannedStopRiskUsd:gate.sizing.plannedRiskUsd,message:rejected?"Alpaca Paper rejected the order; reconcile before any new action.":canceled?"Alpaca Paper canceled the order; inspect any partial exposure and reconcile before any new action.":"Paper order submitted to Alpaca Paper; broker status and protective stop leg were verified. This is not a live-market order."},{status:canceled||rejected?409:201,headers:H});
 }
