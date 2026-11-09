@@ -2,7 +2,7 @@
 // Requires both the operator token and a separate paper-execution approval secret.
 // This route is dormant while execution_control.enabled=0 / kill_switch=1.
 import {deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
-import {validatePaperExecutionGate} from "../../../lib/paper-execution-policy.js";
+import {validatePaperExecutionGate,verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
 
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail=(error,status=400,extra={})=>Response.json({ok:false,execution:false,error,...extra},{status,headers:H});
@@ -18,6 +18,16 @@ const close=(a,b,t=.0001)=>Math.abs(Number(a)-Number(b))<=t;
 const normalizeStatus=value=>{const s=String(value||"UNKNOWN").toUpperCase();if(["NEW","PENDING_NEW","HELD","ACCEPTED"].includes(s))return "ACCEPTED";return ["PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"].includes(s)?s:"UNKNOWN";};
 const safeJson=v=>JSON.stringify(v??{});
 async function digest(v){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(v)));return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+async function markUnknown(db,{orderId,intentId,brokerOrderId=null,response={},reason}) {
+ const now=new Date().toISOString();
+ await db.batch([
+  db.prepare("UPDATE paper_orders SET broker_order_id=?,status='UNKNOWN',response_json=?,updated_at=? WHERE id=?").bind(brokerOrderId,safeJson({brokerResponse:response,reason}),now,orderId),
+  db.prepare("UPDATE paper_trade_intents SET status='SUBMISSION_UNKNOWN',updated_at=? WHERE id=?").bind(now,intentId),
+  db.prepare("UPDATE execution_control SET enabled=0,kill_switch=1,updated_at=? WHERE id=1").bind(now),
+  db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(orderId,"SUBMISSION_UNKNOWN",now,"northstar",safeJson({intentId,brokerOrderId,reason,execution:false})),
+  db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_ORDER_OUTCOME_UNVERIFIED","UNKNOWN",orderId,safeJson({intentId,brokerOrderId,reason,killSwitchEngaged:true}))
+ ]);
+}
 export async function onRequestPost({request,env}){
  if(!authorized(request,env))return fail("A separate operator and paper-execution approval credential are required.",401);
  const db=env?.NORTHSTAR_DB,key=env?.ALPACA_API_KEY_ID,secret=env?.ALPACA_API_SECRET_KEY;
@@ -55,7 +65,7 @@ export async function onRequestPost({request,env}){
  if(clock?.is_open!==true)return fail("US equity market is closed; no paper market order will be submitted.",409);
  const q=quote?.quote,bid=num(q?.bp),ask=num(q?.ap),timestamp=q?.t;
  const quoteAt=Date.parse(timestamp||""),quoteAge=Date.now()-quoteAt;
- if(!Number.isFinite(bid)||!Number.isFinite(ask)||ask<bid||!Number.isFinite(quoteAt)||quoteAge<0||quoteAge>60000)return fail("Latest Alpaca Paper quote is invalid, future-dated or older than 60 seconds.",503);
+ if(!Number.isFinite(bid)||!Number.isFinite(ask)||bid<=0||ask<=0||ask<bid||!Number.isFinite(quoteAt)||quoteAge<0||quoteAge>60000)return fail("Latest Alpaca Paper quote is invalid, future-dated or older than 60 seconds.",503);
  const spread=(ask-bid)/((ask+bid)/2);
  if(spread>0.01)return fail("Current bid/ask spread exceeds the 1% paper-order limit.",409);
  if(Number(intent.stop_price)>=ask)return fail("Protective stop must remain below the current ask for a long entry.",409);
@@ -72,6 +82,8 @@ export async function onRequestPost({request,env}){
  try{[brokerPositions,brokerOrders]=await Promise.all([broker("/v2/positions",key,secret),broker("/v2/orders?status=all&limit=500&direction=desc",key,secret)]);}
  catch{return fail("Could not verify broker positions and open orders.",503);}
  if(!Array.isArray(brokerPositions)||!Array.isArray(brokerOrders)||brokerPositions.length!==0||brokerOrders.length>0||(orders.results||[]).length>0)return fail("Initial executor requires a fully flat broker and an empty Northstar order history; reconcile first.",409);
+ const orderNotional=Number(intent.qty)*ask,buyingPower=num(account.buying_power);
+ if(!Number.isInteger(Number(intent.qty))||Number(intent.qty)<=0||!Number.isFinite(orderNotional)||!Number.isFinite(buyingPower)||buyingPower<=0||orderNotional>buyingPower)return fail("Current Alpaca Paper buying power is insufficient or the approved quantity is invalid.",409);
  if(intent.qty>Math.floor(250/(ask||Infinity)))return fail("Approved quantity exceeds the $250 virtual position ceiling at the current ask.",409);
  const gate=validatePaperExecutionGate({control,account,reconciliation:{ok:true,reconciled:true,execution:false},equityHistory:history,quote:{bid,ask,timestamp},order:{symbol:intent.symbol,side:"buy",qty:intent.qty,stopPrice:intent.stop_price},virtualAllocationUsd:1000});
  if(!gate.ok)return fail("Deterministic paper execution policy blocked the order: "+gate.reason,409,{policy:gate});
@@ -94,17 +106,54 @@ export async function onRequestPost({request,env}){
   // A timeout or transport error is ambiguous. Query by client_order_id; never blindly retry.
   try{result=await broker("/v2/orders:by_client_order_id?client_order_id="+encodeURIComponent(id),key,secret);}
   catch{
-   await db.prepare("UPDATE paper_orders SET status='UNKNOWN',updated_at=?,response_json=? WHERE id=?").bind(new Date().toISOString(),safeJson({client_order_id:id,outcome:"UNKNOWN_REQUIRES_RECONCILIATION"}),id).run();
-   return fail("Submission outcome is uncertain. Order marked UNKNOWN; no retry was attempted. Reconcile this client_order_id before any further action.",503,{orderId:id,status:"UNKNOWN"});
+   try{await markUnknown(db,{orderId:id,intentId,response:{client_order_id:id},reason:"BROKER_SUBMISSION_OUTCOME_UNVERIFIED"});}catch{}
+   return fail("Submission outcome is uncertain. Order marked UNKNOWN, execution disabled and kill switch engaged; reconcile before any further action.",503,{orderId:id,status:"UNKNOWN"});
   }
  }
- const normalized=normalizeStatus(result?.status);
+ if(!result?.id){
+  try{result=await broker("/v2/orders:by_client_order_id?client_order_id="+encodeURIComponent(id),key,secret);}catch{}
+ }
+ if(!result?.id){
+  try{await markUnknown(db,{orderId:id,intentId,response:result||{},reason:"BROKER_ORDER_ID_MISSING"});}catch{}
+  return fail("Broker response did not include a verifiable order ID. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,status:"UNKNOWN"});
+ }
+ let normalized=normalizeStatus(result.status),verifiedOrder=result;
+ if(normalized==="UNKNOWN"){
+  try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:result,reason:"BROKER_STATUS_UNRECOGNIZED"});}catch{}
+  return fail("Broker returned an unrecognized order state. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+ }
+ if(normalized!=="REJECTED"){
+  const initialFilled=num(result.filled_qty);
+  if(initialFilled===null||initialFilled<0||initialFilled>Number(intent.qty)||
+    (normalized==="FILLED"&&Math.abs(initialFilled-Number(intent.qty))>0.0001)||
+    (normalized==="PARTIALLY_FILLED"&&(initialFilled<=0||initialFilled>=Number(intent.qty)))||
+    (initialFilled>0&&(!num(result.filled_avg_price)||num(result.filled_avg_price)<=0))){
+   try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:result,reason:"BROKER_FILL_SNAPSHOT_INCONSISTENT"});}catch{}
+   return fail("Broker fill snapshot is inconsistent with the approved quantity. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+  }
+  // Alpaca only returns child legs in nested order responses. Verify the actual
+  // stop-loss child before treating the parent OTO order as protected.
+  try{
+   const nested=await broker("/v2/orders?status=all&limit=500&direction=desc&nested=true",key,secret);
+   if(!Array.isArray(nested))throw new Error("NESTED_ORDER_LIST_INVALID");
+   verifiedOrder=nested.find(order=>String(order?.id||"")===String(result.id))||null;
+  }catch{
+   try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:result,reason:"NESTED_OTO_ORDER_LOOKUP_FAILED"});}catch{}
+   return fail("Could not verify the broker's nested OTO stop-loss leg. Order marked UNKNOWN and kill switch engaged.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+  }
+  if(!verifiedOrder||!verifyOtoStopLeg(verifiedOrder,{symbol:intent.symbol,qty:intent.qty,stopPrice:intent.stop_price}).ok){
+   try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder||result,reason:"PROTECTIVE_STOP_LEG_NOT_VERIFIED"});}catch{}
+   return fail("The exact protective stop-loss child was not verified at Alpaca. Order marked UNKNOWN and kill switch engaged; manual reconciliation is required.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});
+  }
+  normalized=normalizeStatus(verifiedOrder.status);
+ }
+ const intentStatus=normalized==="REJECTED"?"REJECTED":"SUBMITTED_TO_PAPER";
  try{
   await db.batch([
-   db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=? AND status IN ('SUBMITTING','UNKNOWN')").bind(result?.id||null,normalized,safeJson(result),new Date().toISOString(),id),
-   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result?.id||null,status:normalized})),
-   db.prepare("UPDATE paper_trade_intents SET status='APPROVED_REVIEW_ONLY',updated_at=? WHERE id=?").bind(new Date().toISOString(),intentId)
+   db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=? AND status IN ('SUBMITTING','UNKNOWN')").bind(result.id,normalized,safeJson(verifiedOrder),new Date().toISOString(),id),
+   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED"})),
+   db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(intentStatus,new Date().toISOString(),intentId)
   ]);
- }catch{return fail("Broker response received but ledger update failed. Treat order as unresolved and reconcile; do not retry.",503,{orderId:id,brokerOrderId:result?.id||null,status:"UNKNOWN"});}
- return Response.json({ok:normalized!=="REJECTED",execution:false,submittedTo:"alpaca-paper",orderId:id,brokerOrderId:result?.id||null,status:normalized,qty:intent.qty,symbol:intent.symbol,estimatedNotionalUsd:gate.sizing.notionalUsd,plannedStopRiskUsd:gate.sizing.plannedRiskUsd,message:"Paper order submitted. This is not a live-market order."},{status:normalized==="REJECTED"?409:201,headers:H});
+ }catch{return fail("Broker response received but ledger update failed. Treat order as unresolved and reconcile; do not retry.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});}
+ return Response.json({ok:normalized!=="REJECTED",execution:false,submittedTo:"alpaca-paper",orderId:id,brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED",qty:intent.qty,symbol:intent.symbol,estimatedNotionalUsd:gate.sizing.notionalUsd,plannedStopRiskUsd:gate.sizing.plannedRiskUsd,message:"Paper order submitted to Alpaca Paper; broker status and protective stop leg were verified. This is not a live-market order."},{status:normalized==="REJECTED"?409:201,headers:H});
 }
