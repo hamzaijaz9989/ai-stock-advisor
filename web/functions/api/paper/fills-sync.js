@@ -18,7 +18,7 @@ export async function onRequestPost({request,env}){
  if(!control||control.mode!=="paper")return fail("Paper mode is required for read-only fill import.",503);
  try{account=await alpaca("/v2/account",key,secret);}catch(e){const m=String(e?.message||"");return fail(m.startsWith("BROKER_HTTP_")?"Alpaca Paper account check failed ("+m.slice(12)+").":"Alpaca Paper account unavailable.",503);}
  if(account?.status!=="ACTIVE"||account?.trading_blocked||account?.account_blocked)return fail("Alpaca Paper account is not active or is blocked.",503);
- let rows=[],token=null,pages=0,brokerOrders=[];
+ let rows=[],token=null,pages=0,brokerOrders=[],brokerPositions=[];
  try{
   do{
    const q=new URLSearchParams({activity_types:"FILL",direction:"asc",page_size:"100"});
@@ -31,8 +31,11 @@ export async function onRequestPost({request,env}){
   }while(token);
   // Fetch the broker's authoritative order state so existing Northstar orders can
   // advance through ACCEPTED / PARTIALLY_FILLED / FILLED / CANCELED / REJECTED.
-  brokerOrders=await alpaca("/v2/orders?status=all&limit=500&direction=desc&nested=true",key,secret);
-  if(!Array.isArray(brokerOrders)||brokerOrders.length>=500)return fail("Broker order history is malformed or reached the safe 500-order limit; no partial lifecycle sync was written.",503);
+  [brokerOrders,brokerPositions]=await Promise.all([
+   alpaca("/v2/orders?status=all&limit=500&direction=desc&nested=true",key,secret),
+   alpaca("/v2/positions",key,secret)
+  ]);
+  if(!Array.isArray(brokerOrders)||brokerOrders.length>=500||!Array.isArray(brokerPositions))return fail("Broker order history or position snapshot is malformed or reached the safe 500-order limit; no partial lifecycle sync was written.",503);
  }catch(e){const m=String(e?.message||"");return fail(m.startsWith("BROKER_HTTP_")?"Alpaca fill/order history request failed ("+m.slice(12)+").":"Alpaca fill/order history unavailable; nothing imported.",503);}
  const clean=[];
  for(const a of rows){
@@ -158,7 +161,28 @@ export async function onRequestPost({request,env}){
   }
   const noExposureTerminal=(status==="REJECTED"&&filled===0)||(status==="CANCELED"&&filled===0);
   const stopPrice=num(row.stop_price);
-  if(!noExposureTerminal){
+  if(String(row.side||"").toLowerCase()==="sell"){
+   const brokerType=String(brokerOrder.type||brokerOrder.order_type||"").toLowerCase();
+   const brokerTif=String(brokerOrder.time_in_force||"").toLowerCase();
+   const brokerStop=num(brokerOrder.stop_price);
+   const leaves=num(brokerOrder.leaves_qty)??(qty-filled);
+   const matchingPositions=brokerPositions.filter(p=>String(p?.symbol||"").toUpperCase()===String(row.symbol||"").toUpperCase());
+   const position=matchingPositions.length===1?matchingPositions[0]:null;
+   const positionQty=position?num(position.qty):0;
+   const positionSide=String(position?.side||"").toLowerCase();
+   const active=["ACCEPTED","PARTIALLY_FILLED"].includes(status);
+   const terminalFlat=["FILLED","CANCELED","REJECTED"].includes(status)&&positionQty===0;
+   const directStopOk=brokerType==="stop"&&brokerTif==="gtc"&&String(brokerOrder.side||"").toLowerCase()==="sell"&&
+    String(brokerOrder.symbol||"").toUpperCase()===String(row.symbol||"").toUpperCase()&&stopPrice!==null&&brokerStop!==null&&
+    Math.abs(brokerStop-stopPrice)<=0.0001;
+   const covered=active&&matchingPositions.length===1&&positionQty!==null&&positionQty>0&&positionSide==="long"&&Math.abs(positionQty-leaves)<=0.0001;
+   if(!directStopOk||!(covered||terminalFlat)){
+    const reason=!directStopOk?"STANDALONE_RECOVERY_STOP_FIELDS_MISMATCH":"STANDALONE_RECOVERY_STOP_DOES_NOT_RECONCILE_TO_POSITION";
+    skippedLifecycle.push({orderId:row.id,reason});
+    flagUnsafe(row,brokerOrder,reason,filled);
+    continue;
+   }
+  }else if(!noExposureTerminal){
    const stopCheck=stopPrice===null?{ok:false,reason:"PROTECTIVE_STOP_PRICE_MISSING"}:verifyOtoStopLeg(brokerOrder,{symbol:row.symbol,qty,stopPrice});
    if(!stopCheck.ok){
     skippedLifecycle.push({orderId:row.id,reason:stopCheck.reason});
