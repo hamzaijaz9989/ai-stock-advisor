@@ -135,5 +135,5 @@ test("repeated recovery verifies the durable standalone stop and never submits a
  assert.equal(body.status,"PROTECTED_BY_STANDALONE_GTC_STOP");
  assert.equal(body.protectiveStopVerified,true);
  assert.equal(calls.some(x=>x.method==="POST"),false);
- assert.ok(db.batches.some(batch=>batch.some(stmt=>stmt.sql.startsWith("UPDATE paper_orders SET broker_order_id=?")));
+ assert.ok(db.batches.some(batch=>batch.some(stmt=>stmt.sql.startsWith("UPDATE paper_orders SET broker_order_id=?"))));
 });
