@@ -95,7 +95,7 @@ Only after the above phases pass their respective gates:
 
 These are the latest facts visible in the documentation/API audit for this handover. Recheck them before relying on them; do not assume they remain current.
 
-- Main branch head observed: `57aa9f0743917401dd0e3e90521fc39c22bd9f55` ("Harden research point-in-time evidence safeguards").
+- Main branch head after the documentation merge: `d1c9b964204c89639bf1c13d511e75d9c398d51f` (Northstar Project Handbook and continuity workflow).
 - Open documentation PR #101: https://github.com/hamzaijaz9989/ai-stock-advisor/pull/101 — draft, blocker-evidence refresh; CI passed for that documentation PR.
 - Earlier PR #85 and #88 are documented as draft and not formally reviewed; inspect their current status before any merge decision.
 - Earlier audit recorded `main.protected=false` and required checks disabled. Recheck with an authorized GitHub administrator path.
@@ -211,10 +211,11 @@ Only after review, strategy approval, paper-lifecycle validation, migration revi
 This section supersedes older runtime counts above where they conflict. Evidence was read directly from the connected Cloudflare account and production D1 database; all D1 statements were SELECT-only and reported zero rows written.
 
 ### GitHub and Pages release state
-- Main: `57aa9f0743917401dd0e3e90521fc39c22bd9f55` (research point-in-time safeguards).
-- Production Pages deployment: `921087a4-6194-4a67-ac61-2f8557edb0bc`, successful, serving main commit `57aa9f0743917401dd0e3e90521fc39c22bd9f55`.
-- The handbook/documentation branch preview was skipped by the Pages path filter because its changes are documentation-only; no production deployment was attempted.
-- PR #102 (this handbook and continuity update) has successful Tests, Validate AI Stock Advisor, and full-history secret-scan workflows at head `18d68c9b85e0f3fe44b82fdf9d122cc1d1e08dbd`. It remains draft pending final documentation review.
+- Main: `d1c9b964204c89639bf1c13d511e75d9c398d51f` (handbook/continuity docs merged).
+- Production Pages deployment remains `921087a4-6194-4a67-ac61-2f8557edb0bc`, successful, serving application commit `57aa9f0743917401dd0e3e90521fc39c22bd9f55`. The docs-only merge did not trigger a deployment under the configured path filter.
+- The handbook/documentation branch preview was skipped by the Pages path filter because its changes were documentation-only; no production deployment was attempted.
+- Follow-up branch `northstar/research-council-status-dashboard` adds a read-only status endpoint, UI card and tests. It is not merged or deployed yet.
+- PR #102 (this handbook and continuity update) was merged after successful Tests, Validate AI Stock Advisor, and full-history secret-scan workflows. Squash merge commit: `d1c9b964204c89639bf1c13d511e75d9c398d51f`.
 - The main branch API response reports `protected=false` and no required status checks. Do not treat green CI as branch governance.
 - Repository visibility discrepancy remains unresolved: the GitHub REST metadata returned `private=false / visibility=public`, while the user states the repository is private. No visibility setting was changed. Confirm in GitHub Settings; do not infer privacy from README text.
 
@@ -228,11 +229,11 @@ This section supersedes older runtime counts above where they conflict. Evidence
 ### Nine-agent Research Council / Stock Brain
 - User-confirmed phase: nearly complete. The nine logical roles are already implemented in source; preserve this phase as active rather than reopening the scanner.
 - Main contains the server-side collector `POST /api/research/collect`, the specialist council endpoint, fact/evidence adapters, and append-only `research_council_runs` storage.
-- The public research page currently calls the older supplemental `/api/ai-research` path; no call to `/api/research/collect` or `/api/research/council` was found in the dashboard scripts. The nine-agent council is therefore not yet proven end-to-end from the user dashboard.
+- The public research page still calls the older supplemental `/api/ai-research` path for ticker analysis. The new PR `northstar/research-council-status-dashboard` adds a read-only `/api/research/council/status` endpoint and a visible nine-role status card; it does not launch `/api/research/collect` or `/api/research/council`. End-to-end dashboard execution remains unproven.
 - Production D1 `research_council_runs`: 0 rows. `research_decision_traces`: 0 rows. This confirms no production council run/decision trace has yet been recorded.
 - The collector is operator-authenticated and requires model credentials, Alpaca Paper read-only credentials, the disabled/kill-switched control row, reconciled empty positions/open orders, a fresh equity snapshot, and a seven-day equity baseline. Do not put `NORTHSTAR_OPERATOR_TOKEN` in browser JavaScript.
 - Current production paper equity history has one snapshot only: `2026-11-08T18:34:38.720Z`. It is neither a fresh 15-minute snapshot nor a seven-day series. The server-side collector therefore cannot currently pass its portfolio gate.
-- Next phase-2 work: safely expose council run status and evidence in the dashboard without exposing secrets or account values; design an authenticated operator launch path; resolve the seven-day portfolio-history gate; run one controlled research-only production collection and verify durable replay. Keep trade submission disabled.
+- Next phase-2 work: finish exact-head CI and Pages preview for the read-only status card; then design a separately authenticated operator launch path, restore fresh read-only equity snapshots and a seven-day baseline, and run one controlled research-only production collection with idempotent replay verification. Keep trade submission disabled.
 
 ### Paper-only safety state
 - Production execution control: `enabled=0`, `mode=paper`, `kill_switch=1`, max planning allocation USD 1,000, default risk 0.5%, hard risk cap 1%, max position 25%.
