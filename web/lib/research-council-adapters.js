@@ -94,7 +94,7 @@ async function createGeminiGenerator(env) {
   const preferred=env.GEMINI_RESEARCH_MODEL;
   const model=(preferred && models.find(x=>x.name===preferred || x.name==="models/"+preferred)) || models[0];
   if(!model) throw new Error("No supported Gemini text model available.");
-  return async ({role,payload})=>{
+  const generate=async ({role,payload})=>{
     const system=[
       "You are a named, narrowly scoped specialist on Northstar's research team. Stay strictly within the role mandate provided in the task. Use roleResourcePack to prioritize relevant resources and disclose its known gaps; the full shared dossier remains available for counter-evidence and cross-checking.",
       "Return JSON only: {status:'COMPLETE',findings:[{claim:string,factIds:string[]}],risks:[{claim:string,factIds:string[]}]}",
@@ -121,6 +121,10 @@ async function createGeminiGenerator(env) {
     const data=await result.json();
     const output=(data.candidates||[]).flatMap(x=>x.content?.parts||[]).map(x=>x.text||"").join("\n");
     return normalizeCouncilModelReport(parseJson(output));
+    };
+    generate.provider="gemini";
+    generate.model=model.name;
+    return generate;
   };
 }
 
@@ -153,6 +157,9 @@ async function createOpenAIGenerator(env) {
     const output=data.output_text||(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==="output_text").map(x=>x.text||"").join("\n");
     return normalizeCouncilModelReport(parseJson(output));
   };
+  generate.provider="openai";
+  generate.model=model;
+  return generate;
 }
 
 function riskCommittee(payload) {
@@ -189,10 +196,20 @@ export async function createResearchCouncilWorkers(env) {
     try { generate=await createOpenAIGenerator(env); } catch { generate=null; }
   }
   const workers={};
+  workers.telemetry={};
+  workers.providerMetadata=generate?{provider:generate.provider||"unknown",model:generate.model||"unknown"}:{provider:"none",model:null};
   for(const role of [...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"]) {
     workers[role]=async payload=>{
       if(!generate) return {status:"UNAVAILABLE",findings:[],risks:[]};
-      return generate({role,payload});
+      const started=Date.now();
+      try {
+        const report=await generate({role,payload});
+        workers.telemetry[role]={latencyMs:Math.max(0,Date.now()-started),provider:generate.provider||"unknown",model:generate.model||"unknown"};
+        return report;
+      } catch(error) {
+        workers.telemetry[role]={latencyMs:Math.max(0,Date.now()-started),provider:generate.provider||"unknown",model:generate.model||"unknown",failed:true};
+        throw error;
+      }
     };
   }
   workers.risk_committee=async payload=>riskCommittee(payload);
