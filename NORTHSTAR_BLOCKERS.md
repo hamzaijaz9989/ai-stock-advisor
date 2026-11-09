@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T15:08:37Z
+Last updated: 2026-11-09T15:26:23Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -1030,4 +1030,32 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - PR #88 (`62ca1021b3b394116d4dccfdab9284ac94aae5bc`) was technically inspected. Its OIDC verifier pins the GitHub issuer/JWKS URL, RS256, fixed audience, private repository name and immutable repository/owner IDs, main ref, exact workflow path, event allowlist, run ID/attempt, token ID and short token lifetime. The bridge atomically claims each workflow attempt in D1, then invokes only account sync, fill import and reconciliation handlers. The three handlers' Alpaca wrappers use GET-only requests; no broker order POST/PATCH/DELETE is present in this chain.
 - PR #88 Tests run `42611929156` and Validate run `42611929171` previously passed. PR #88 remains draft, has no formal review or review threads, and has not been deployed. The bridge still requires the Cloudflare-side `NORTHSTAR_OPERATOR_TOKEN`; its presence/value is not confirmed by secret-name metadata. Keep branch protection and independent review as prerequisites before relying on the workflow.
 - The production/preview endpoint GET checks above confirm route availability and fail-closed state, not broker-account identity, clean reconciliation, or strategy approval. No broker account API call was made in this run.
+
+
+
+#### Automation run 6 follow-up — audited intent review lifecycle — 2026-11-09T15:26:23Z
+
+- Code inspection found a release-blocking gap: `paper_trade_intents` could be created and listed, and `submit.js` required status `APPROVED_REVIEW_ONLY`, but no review/decision route existed. An operator could not safely move a proposal from `PENDING_REVIEW` to the required approved state.
+- Added `web/functions/api/paper/intents/review.js` at `POST /api/paper/intents/review`. It requires the operator bearer token plus a separate `NORTHSTAR_INTENT_REVIEW_TOKEN` (minimum 32 characters) and server-configured `NORTHSTAR_INTENT_REVIEWER`; the reviewer token must differ from the operator and paper-execution approval tokens. Client-supplied reviewer identity is ignored.
+- APPROVE requires exact confirmation, a meaningful note, and a fresh server-side preflight. Quantity, entry estimate, stop, notional and planned risk must still match the stored proposal; stale sizing remains pending and cannot be approved. REJECT records a decision without running preflight. Neither decision calls Alpaca or creates an order.
+- Added migration `0010_paper_intent_review_audit.sql`: reviewer column; DB guards requiring reviewer/timestamp/note on approve/reject; immutable reviewer/timestamp/note; append-only intent records; and an `AFTER UPDATE` trigger that writes reviewer decisions to `execution_audit_log` in the same database transaction.
+- Updated `web/functions/api/paper/intents.js` to return reviewer attribution and `web/functions/api/paper/submit.js` to require a valid reviewer plus decision timestamp before considering an approved intent. The submit endpoint still requires its separate operator and PAPER-execution approval credentials and all existing strategy, account, history, reconciliation and risk gates.
+- Added eight endpoint tests in `tests/paper-intent-review.test.mjs`, one submit regression test, and SQLite migration/trigger test `tests/test_paper_intent_review_migration.py`. Latest CI on PR head `106ea8d9367d72ce8b013488dca5b9d26d9d2905`: Tests run `42644380513` passed **336/336 JavaScript tests**, **95/95 Python tests**, Ruff; Validate run `42644380530` passed Python tests/lint, syntax, **44 frontend-analysis tests**, **7 readiness tests**, SEC ingestion and synthetic validation CLI smoke checks. Synthetic strategy validation remains NOT APPROVED.
+- Preview Pages deployment `a991fb12-345b-4bcf-938a-52cb65099bab` succeeded for application commit `964f49a139dc8ca66cd82d619e247925d7f817a0`. Later test-only commit `106ea8d9367d72ce8b013488dca5b9d26d9d2905` was skipped by Pages `path_config`.
+- Applied migration 0010 only to isolated preview D1, migration row id 10 at `2026-11-09T15:25:34.518Z`. Verified reviewer column and all six review triggers. Preview counts remain 0 intents, 0 orders, 0 execution claims; strategy approval=0; execution enabled=0; kill switch=1. Follow-up D1 checks were read-only and reported zero rows written/no database changes.
+- Preview live GETs at 15:26:23Z: readiness HTTP 200, policy verified, PAPER disabled, kill switch engaged, strategyValidationApproved=false with report/hash/URI/timestamp/independent reviewer missing; control HTTP 200 with execution disabled/kill switch engaged; performance HTTP 200 but zero snapshots/fills/trades and no statistics. `/api/paper/intents` correctly returned 401 without credentials. A no-auth POST route probe was blocked by the Cloudflare execution network policy before reaching the Pages route; route behavior is covered by CI tests. No preview intent or order was created.
+- Production Pages environment metadata lists names `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, `FMP_API_KEY2`, `GEMINI_API_KEY`, and `NORTHSTAR_OPERATOR_TOKEN`; secret values were redacted and never inspected. `NORTHSTAR_INTENT_REVIEW_TOKEN`, `NORTHSTAR_INTENT_REVIEWER`, and `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN` are not listed in production configuration. Preview environment has no configured variables. The separate GitHub Actions `NORTHSTAR_OPERATOR_TOKEN` remains missing/empty in run `42583519570`; account sync and reconciliation were skipped. PR #88's OIDC alternative remains draft, unreviewed and undeployed.
+- Production remains unchanged: D1 migrations 0001–0005; no reviewer column; one old equity snapshot; zero intents, orders, positions and fills; PAPER mode, execution disabled, kill switch engaged. Migration 0010 was not applied to production.
+- No production migration/write, broker API request/mutation, paper/live order, production deployment, merge or PAPER enablement occurred in this follow-up.
+
+#### Updated remaining blockers after intent-review implementation
+1. Configure distinct production `NORTHSTAR_INTENT_REVIEW_TOKEN` (32+ chars) and `NORTHSTAR_INTENT_REVIEWER`; keep values private. Without them the new review endpoint fails closed.
+2. Configure a separate `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN`; it is not present in production Pages configuration. Submit remains disabled without it.
+3. GitHub Actions snapshot run still lacks `NORTHSTAR_OPERATOR_TOKEN`; PR #88 OIDC bridge is not merged/reviewed and still depends on the Cloudflare operator secret being present.
+4. Seven-day production equity history and clean broker-to-ledger reconciliation remain absent; only one snapshot exists. Earliest seven-day baseline from that snapshot is no earlier than 2026-11-15T18:34:38.720Z if the scheduled workflow begins succeeding.
+5. Strategy validation remains NOT APPROVED; real point-in-time data, frozen replay, 100+ completed historical trades, four walk-forward folds, untouched holdout, data provenance/survivorship/corporate-action/cost evidence and independent reproduction remain outstanding.
+6. Production migrations 0006–0010 remain unapplied; do not deploy code requiring the reviewer column before a controlled, verified migration sequence.
+7. PR #85 remains draft with no formal independent reviews. Main branch protection was previously observed false and protection/ruleset API reads returned 403; do not bypass.
+8. The guarded PAPER-only enable procedure remains unimplemented/unverified. Even after all credentials and validation are available, require a separate audited enable path, authenticated Paper account confirmation, fresh history, clean reconciliation and all limits.
+9. The recovery endpoint's final broker recheck narrows but cannot eliminate the non-atomic race between the last external Alpaca read and broker POST. Independent safety review and post-submit exact-position verification remain mandatory.
 
