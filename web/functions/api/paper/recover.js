@@ -50,6 +50,16 @@ async function markUnknown(db,{parentId,recoveryId=null,reason,details={}}){
   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_PARTIAL_FILL_RECOVERY_UNKNOWN","UNKNOWN",parentId,safeJson({reason,details,killSwitchEngaged:true}))
  ]);
 }
+async function rejectRecoveryBeforePost(db,{parentId,recoveryId,requestId,reason,details={}}){
+ const now=new Date().toISOString();
+ const payload={reason,details,execution:false,brokerRequestMade:false};
+ const writes=await db.batch([
+  db.prepare("UPDATE paper_orders SET status='REJECTED',response_json=?,updated_at=? WHERE id=? AND status='SUBMITTING'").bind(safeJson(payload),now,recoveryId),
+  db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(parentId,"PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST",now,"northstar_paper_recovery",safeJson({...payload,recoveryId})),
+  db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST","BLOCKED",requestId,safeJson({...payload,parentId,recoveryId}))
+ ]);
+ return writes.length===3&&writes.every(w=>Number(w?.meta?.changes)===1);
+}
 async function verifyExistingRecovery(db,key,secret,parent,existing){
  let found;
  try{found=await broker("/v2/orders:by_client_order_id?client_order_id="+encodeURIComponent(existing.id),key,secret);}
@@ -208,6 +218,68 @@ export async function onRequestPost({request,env}){
   ]);
   if(writes.some(x=>Number(x?.meta?.changes)!==1))throw new Error("RECOVERY_ORDER_LEDGER_WRITE_FAILED");
  }catch{return fail("Could not persist the idempotent recovery stop before submission. No broker order was submitted.",503);}
+ // Re-query after the durable recovery row is committed. The earlier snapshot
+ // was separated from the POST by D1 writes; never submit a stop whose exact
+ // quantity or protective context changed during that interval.
+ const markNotSubmitted=async(reason,details={})=>{
+  try{
+   if(await rejectRecoveryBeforePost(db,{parentId,recoveryId:clientId,requestId,reason,details}))return true;
+  }catch{}
+  try{await markUnknown(db,{parentId,recoveryId:clientId,reason:"RECOVERY_PRE_POST_REJECTION_NOT_DURABLE",details:{reason,details}});}catch{}
+  return false;
+ };
+ let postParent,postPositions,postQuote;
+ try{
+  [postParent,postPositions,postQuote]=await Promise.all([
+   broker("/v2/orders/"+encodeURIComponent(parentRow.broker_order_id)+"?nested=true",key,secret),
+   broker("/v2/positions",key,secret),
+   broker("/v2/stocks/"+encodeURIComponent(symbol)+"/quotes/latest?feed=iex",key,secret)
+  ]);
+ }catch{
+  const recorded=await markNotSubmitted("FINAL_BROKER_RECHECK_FAILED");
+  return fail("Final broker recheck failed after the recovery ledger row was persisted; no broker POST was made. Reconcile before retrying.",recorded?503:503,{status:recorded?"REJECTED":"UNKNOWN",recoveryOrderId:clientId});
+ }
+ const postParentMatches=String(postParent?.id||"")===String(parentRow.broker_order_id)&&
+  String(postParent?.client_order_id||"")===parentId&&String(postParent?.order_class||"").toLowerCase()==="oto"&&
+  String(postParent?.symbol||"").toUpperCase()===symbol&&String(postParent?.side||"").toLowerCase()==="buy"&&
+  close(num(postParent?.qty),Number(parentRow.qty));
+ const postPosition=positionFor(postPositions,symbol);
+ const postChildResult=childStop(postParent);
+ if(!postParentMatches||!postPosition.ok||postChildResult.ambiguous){
+  const reason=!postParentMatches?"PARENT_CHANGED_AFTER_RECOVERY_LEDGER_WRITE":postPosition.reason||"AMBIGUOUS_STOP_CHILD_AFTER_RECOVERY_LEDGER_WRITE";
+  const recorded=await markNotSubmitted(reason,{position:postPosition.position||null});
+  return fail("Broker parent, child, or position changed after the recovery ledger write; no broker POST was made.",409,{status:recorded?"REJECTED":"UNKNOWN",reason,recoveryOrderId:clientId});
+ }
+ const postDecision=evaluatePartialFillRecovery({
+  parent:postParent,stopChild:postChildResult.child,brokerPosition:postPosition.position,
+  stopPrice:parentRow.stop_price,quote:{bid:postQuote?.quote?.bp,timestamp:postQuote?.quote?.t}
+ });
+ if(postDecision.action==="COMPLETED_NO_EXPOSURE"||postDecision.action==="PROTECTED_BY_EXISTING_OTO_STOP"){
+  const recorded=await markNotSubmitted("STANDALONE_STOP_NO_LONGER_REQUIRED",{action:postDecision.action,protectiveStopOrderId:postDecision.protectiveStopOrderId||null,positionQty:postDecision.positionQty||0});
+  if(!recorded)return fail("The final recovery state changed, and the no-POST ledger outcome could not be durably recorded. Treat as UNKNOWN and reconcile.",503,{status:"UNKNOWN",recoveryOrderId:clientId});
+  if(postDecision.action==="COMPLETED_NO_EXPOSURE")return Response.json({ok:true,recovered:true,execution:false,status:"COMPLETED_NO_EXPOSURE",message:"The post-ledger broker recheck confirms zero exposure; the unused recovery row was closed without a broker POST."},{headers:H});
+  return Response.json({ok:true,recovered:true,execution:false,status:"PROTECTED_BY_EXISTING_OTO_STOP",protectiveStopVerified:true,brokerOrderId:postDecision.protectiveStopOrderId,positionQty:postDecision.positionQty,message:"The post-ledger broker recheck confirms an existing OTO stop covers the exact remaining position; no additional stop was submitted."},{headers:H});
+ }
+ const postOrder=postDecision.order;
+ const exactPostOrder=postDecision.ok&&postDecision.action==="PLACE_STANDALONE_GTC_STOP"&&postOrder&&
+  String(postOrder.symbol||"").toUpperCase()===symbol&&String(postOrder.side||"").toLowerCase()==="sell"&&
+  String(postOrder.type||"").toLowerCase()==="stop"&&String(postOrder.time_in_force||"").toLowerCase()==="gtc"&&
+  close(num(postOrder.qty),Number(order.qty))&&close(num(postOrder.stop_price),Number(order.stop_price));
+ if(!exactPostOrder){
+  const reason=postDecision.reason||"RECOVERY_ORDER_CHANGED_AFTER_LEDGER_WRITE";
+  const recorded=await markNotSubmitted(reason,{expectedQty:order.qty,finalQty:postOrder?.qty??null,position:postPosition.position||null});
+  return fail("The post-ledger broker recheck no longer supports the exact persisted recovery stop; no broker POST was made.",409,{status:recorded?"REJECTED":"UNKNOWN",reason,recoveryOrderId:clientId});
+ }
+ let postControl;
+ try{postControl=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();}
+ catch{
+  const recorded=await markNotSubmitted("RECOVERY_CONTROL_RECHECK_FAILED");
+  return fail("Could not verify the kill switch after the recovery ledger write; no broker POST was made.",503,{status:recorded?"REJECTED":"UNKNOWN",recoveryOrderId:clientId});
+ }
+ if(!postControl||postControl.mode!=="paper"||Number(postControl.enabled)!==0||Number(postControl.kill_switch)!==1){
+  const recorded=await markNotSubmitted("RECOVERY_CONTROL_CHANGED_AFTER_LEDGER_WRITE",{control:postControl||null});
+  return fail("Recovery controls changed after the ledger write; no broker POST was made.",409,{status:recorded?"REJECTED":"UNKNOWN",recoveryOrderId:clientId});
+ }
  let submitted;
  try{submitted=await broker("/v2/orders",key,secret,{method:"POST",body:JSON.stringify(payload)});}
  catch{
