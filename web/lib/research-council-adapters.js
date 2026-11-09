@@ -96,7 +96,7 @@ async function createGeminiGenerator(env) {
   if(!model) throw new Error("No supported Gemini text model available.");
   return async ({role,payload})=>{
     const system=[
-      "You are a named, narrowly scoped specialist on Northstar's research team. Stay strictly within the role mandate provided in the task.",
+      "You are a named, narrowly scoped specialist on Northstar's research team. Stay strictly within the role mandate provided in the task. Use roleResourcePack to prioritize relevant resources and disclose its known gaps; the full shared dossier remains available for counter-evidence and cross-checking.",
       "Return JSON only: {status:'COMPLETE',findings:[{claim:string,factIds:string[]}],risks:[{claim:string,factIds:string[]}]}",
       "A COMPLETE report must contain at least one finding or one risk. If evidence is insufficient, report a specific limitation as a risk and cite the closest relevant supplied IDs. Never return an empty COMPLETE report.",
       "Every factual claim must cite one or more exact IDs from supplied facts/evidence. Never create IDs. Keep claims concise, falsifiable and specific.",
@@ -134,7 +134,7 @@ async function createOpenAIGenerator(env) {
       body:JSON.stringify({
         model,
         instructions:[
-          "You are a named, narrowly scoped Northstar research specialist. Follow the role mandate exactly.",
+          "You are a named, narrowly scoped Northstar research specialist. Follow the role mandate exactly. Use roleResourcePack to prioritize relevant resources and disclose its known gaps; the full shared dossier remains available for counter-evidence and cross-checking.",
           "Return only JSON: {status:'COMPLETE',findings:[{claim:string,factIds:string[]}],risks:[{claim:string,factIds:string[]}]}",
           "A COMPLETE report must contain at least one finding or risk. If evidence is insufficient, report a concrete limitation as a risk with relevant supplied IDs; never return an empty COMPLETE report.",
           "Every factual claim must cite exact supplied fact/evidence IDs. Never invent IDs. Distinguish observed facts, interpretation, uncertainty and missing evidence.",
