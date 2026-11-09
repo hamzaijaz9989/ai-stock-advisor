@@ -14,7 +14,7 @@ export async function onRequestPost({request,env}){
  let control,account;
  try{control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();}
  catch{return fail("Could not verify execution controls; fail-closed.",503);}
- if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1)return fail("Execution controls are not in the required disabled/kill-switched state.",503);
+ if(!control||control.mode!=="paper")return fail("Paper mode is required for read-only fill import.",503);
  try{account=await alpaca("/v2/account",key,secret);}catch(e){const m=String(e?.message||"");return fail(m.startsWith("BROKER_HTTP_")?"Alpaca Paper account check failed ("+m.slice(12)+").":"Alpaca Paper account unavailable.",503);}
  if(account?.status!=="ACTIVE"||account?.trading_blocked||account?.account_blocked)return fail("Alpaca Paper account is not active or is blocked.",503);
  let rows=[],token=null,pages=0,brokerOrders=[];
