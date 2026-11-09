@@ -737,3 +737,26 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Production Pages secret-name inventory confirms `NORTHSTAR_OPERATOR_TOKEN` is configured server-side with the Alpaca PAPER credential names; secret values were not read. `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN` is still absent. The earlier GitHub Actions run reported its separate `NORTHSTAR_OPERATOR_TOKEN` secret missing/empty; current GitHub Actions secret presence is not directly observable through this integration. The readiness endpoint last succeeded in the production workflow at 08:06 UTC; current direct HTTP probing from the available web/runtime tools was inaccessible.
 - Created draft PR #88, `https://github.com/hamzaijaz9989/ai-stock-advisor/pull/88`, branch `northstar/github-oidc-readonly-sync`, to remove the separate GitHub Actions operator-secret dependency securely. It adds an RS256 GitHub OIDC verifier pinned to the exact private repository IDs, audience, main ref, exact workflow path, allowed events and short token lifetime; the route internally invokes only existing account sync, fill import and read-only reconciliation with the Cloudflare Pages operator secret. It does not authorize submit/recovery/control routes or change execution controls. The workflow now requests an ephemeral OIDC token and no longer references the Actions operator secret. A test-fixture typo caused the first CI run to fail (run `42606595552`); it was corrected in commit `484539ebd6208bf3b074849a3ca297eee507e277`. Local focused tests now pass 18/18. Latest CI rerun `42606861835` (Tests) and `42606861729` (Validate) was still in progress at this update; do not claim green until completed.
 - Remaining impact/next actions: finish CI and independent security review of PR #88, then require formal branch governance before any merge; production snapshots/reconciliation remain stalled until the OIDC route and workflow are merged/deployed. Collect at least seven days of genuine production equity snapshots and clean reconciliation; run the new raw FMP acquisition CLI against real provider data and construct a point-in-time dataset with leakage/survivorship/corporate-action/cost controls; complete >=100 historical trades, four chronological folds, untouched holdout and independent reproduction. Keep strategy approval false. The separate PAPER approval secret, broker PAPER account confirmation, migration sequence 0006–0008, formal review/branch protection, audited PAPER-only enablement, and final D1-to-broker submission race mitigation remain unresolved. No paper/live orders, broker mutations, production writes, or production migrations occurred.
+
+
+## Research Council quality hardening — 2026-11-09
+
+### Changes committed to PR #85
+- `web/lib/research-council-adapters.js`: replaced broad generic role descriptions with explicit responsibilities and boundaries for all eight model-driven specialists. The prompts now require role-specific analysis, evidence limitations, counter-evidence preservation and no invented metrics or source verification.
+- Gemini and OpenAI instructions now explicitly require every COMPLETE report to contain at least one evidence-linked finding or cited limitation/risk. They reinforce untrusted-source handling, no trading instructions, and the distinction between observation and interpretation.
+- `web/lib/research-council.js`: bumped council contract to v1.0.2 and added a deterministic validation gate that blocks empty COMPLETE reports. An agent can no longer pass the pipeline by returning an empty success envelope.
+- `tests/research-council.test.mjs`: added a regression test proving an empty COMPLETE specialist report forces NO_TRADE and blocks downstream work.
+- `web/docs/NORTHSTAR_RESEARCH_COUNCIL.md`: documented the team charter, individual responsibilities, resource/permission boundaries, supervisor behavior, evaluation requirements and known limitations.
+
+### Commits
+- `a16ae70e44ec6116c4d67d58371f630070fd1ced` — specialist mandates and prompt quality.
+- `e75107a802320ea2dddbd180e95c796acee06545` — empty successful report rejection.
+- `c47f1ab590772c1acc8ea889c06cae24a1b1871b` — regression test.
+- `585ab5334ef3ac365442cecfe13656838270b938` — team charter documentation.
+
+### Verification and limitations
+- Latest PR head after these changes: `585ab5334ef3ac365442cecfe13656838270b938`; PR #85 remains draft and GitHub currently reports mergeable=false.
+- No CI run was returned for the exact latest head at the time of this log update. The new changes are therefore committed but not yet CI-verified.
+- The eight model roles still share one configured model/provider; no independent per-role model routing has been added. Model workers intentionally have no direct browser, broker, database-write or external market-data tools; trusted server collectors provide their shared evidence dossier.
+- There is no durable learned agent memory or continuous autonomous agent loop yet. The existing endpoint stores run results, which is audit history rather than adaptive memory.
+- No dashboard integration, production deployment, D1 migration/write, provider call or broker action was performed in this run. Production remains on main and paper execution remains disabled with kill switch engaged.
