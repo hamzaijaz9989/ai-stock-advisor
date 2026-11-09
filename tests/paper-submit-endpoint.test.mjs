@@ -38,7 +38,7 @@ test("paper executor blocks an untracked broker position before writing or submi
      if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
      if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY"};
      if(sql.includes("paper_orders"))return null;
-     if(sql.includes("northstar_strategy_approval"))return validStrategyApproval;
+     if(sql.includes("northstar_strategy_approval")){strategyReads++;return strategyReads===1?validStrategyApproval:finalStrategy;}
      return null;
     },
     async all(){
@@ -55,7 +55,7 @@ test("paper executor blocks an untracked broker position before writing or submi
   if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE",equity:"100000",last_equity:"100000",buying_power:"400000"});
   if(u.endsWith("/v2/clock"))return Response.json({is_open:true});
   if(u.endsWith("/v2/clock"))return Response.json({is_open:true});
-  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:99.9,ap:100,t:now}});
+  if(u.includes("/v2/stocks/AAPL/quotes/latest")){quoteReads++;return Response.json(quoteReads===1||!finalQuote?{quote:{bp:99.9,ap:100,t:now}}:finalQuote);}
   if(u.endsWith("/v2/positions"))return Response.json([{symbol:"MSFT",qty:"1",avg_entry_price:"50",market_value:"50"}]);
   if(u.includes("/v2/orders?status=all"))return Response.json([]);
   if(u.endsWith("/v2/orders"))throw new Error("broker order submission must not occur");
@@ -160,8 +160,8 @@ test("paper executor blocks an unapproved strategy before any broker request or 
 });
 
 
-async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enabled:1,mode:"paper",kill_switch:0}}={}){
- const now=new Date().toISOString(),calls=[];let controlReads=0,brokerPost=false;
+async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enabled:1,mode:"paper",kill_switch:0},finalStrategy=validStrategyApproval,finalQuote=null}={}){
+ const now=new Date().toISOString(),calls=[];let controlReads=0,strategyReads=0,quoteReads=0,brokerPost=false;
  const db={
   prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
    async first(){
@@ -206,4 +206,19 @@ test("final kill-switch recheck blocks the broker boundary after the claim is ac
  assert.equal(brokerPost,false);
  assert.equal(controlReads,2);
  assert.match((await response.json()).error,/controls changed/i);
+});
+
+
+test("final strategy revocation blocks the broker boundary after the claim is acquired",async()=>{
+ const {response,brokerPost}=await runClaimBoundaryCase({finalStrategy:{...validStrategyApproval,approved:0}});
+ assert.equal(response.status,409);
+ assert.equal(brokerPost,false);
+ assert.match((await response.json()).error,/strategy approval changed or was revoked/i);
+});
+test("final quote freshness check blocks a stale quote before broker submission",async()=>{
+ const stale={quote:{bp:99.9,ap:100,t:new Date(Date.now()-120000).toISOString()}};
+ const {response,brokerPost}=await runClaimBoundaryCase({finalQuote:stale});
+ assert.equal(response.status,409);
+ assert.equal(brokerPost,false);
+ assert.match((await response.json()).error,/final account, market-open, quote-freshness/i);
 });
