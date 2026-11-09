@@ -123,11 +123,15 @@ export async function onRequestPost({request,env}) {
     if(brokerFilledQty>0 && (brokerFilledAvg===null || ledgerFill.avg===null || !close(brokerFilledAvg,ledgerFill.avg,0.01))) {
       orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"AVERAGE_FILL_PRICE_NOT_RECONCILED",ledgerFilledAvgPrice:ledgerFill.avg,brokerFilledAvgPrice:brokerFilledAvg});
     }
-    const noExposureTerminal=brokerStatus==="REJECTED"||(brokerStatus==="CANCELED"&&brokerFilledQty===0);
+    const noExposureTerminal=(brokerStatus==="REJECTED"&&brokerFilledQty===0)||(brokerStatus==="CANCELED"&&brokerFilledQty===0);
     const stopPrice=num(l.stop_price);
-    if(stopPrice!==null&&!noExposureTerminal){
-      const stopCheck=verifyOtoStopLeg(b,{symbol:l.symbol,qty:lqty,stopPrice});
-      if(!stopCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,expectedStopPrice:stopPrice});
+    if(!noExposureTerminal){
+      if(stopPrice===null){
+        orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_PRICE_MISSING",brokerFilledQty});
+      }else{
+        const stopCheck=verifyOtoStopLeg(b,{symbol:l.symbol,qty:lqty,stopPrice});
+        if(!stopCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,expectedStopPrice:stopPrice});
+      }
     }
   }
   for(const b of brokerOrders) {
