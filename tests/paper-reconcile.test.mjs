@@ -10,10 +10,10 @@ async function loadFunction() {
   return import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
 }
 const control={enabled:0,mode:"paper",kill_switch:1};
-function mockDb({positions=[],orders=[]}={}) {
+function mockDb({positions=[],orders=[],fillDerivedPositions=[]}={}) {
   return {prepare(sql) {
     return {async first(){assert.match(sql,/execution_control/);return control;},
-      async all(){if(/paper_positions/.test(sql))return {results:positions};if(/paper_orders/.test(sql)){assert.match(sql,/response_json/,"reconciliation must read the stored fill snapshot");return {results:orders};}throw new Error("unexpected SQL");}};
+      async all(){if(/paper_position_lots/.test(sql))return {results:fillDerivedPositions};if(/paper_positions/.test(sql))return {results:positions};if(/paper_orders/.test(sql)){assert.match(sql,/response_json/,"reconciliation must read the stored fill snapshot");return {results:orders};}throw new Error("unexpected SQL");}};
   }};
 }
 function request(token="secret") {
@@ -41,7 +41,7 @@ test("reconciliation rejects missing operator authentication",async()=>{
 test("reconciliation passes when broker and ledger positions and orders match",async()=>{
   const positions=[{symbol:"AAPL",qty:"2",avg_entry_price:"100"}];
   const orders=[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"2",status:"filled",filled_qty:"2",filled_avg_price:"100",order_class:"oto",legs:[{order_group_role:"stop_loss",type:"stop",status:"new",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]}];
-  const db=mockDb({positions,orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:2,stop_price:98,status:"FILLED",response_json:JSON.stringify({filled_qty:"2",filled_avg_price:"100"})}]});
+  const db=mockDb({positions,fillDerivedPositions:positions,orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:2,stop_price:98,status:"FILLED",response_json:JSON.stringify({filled_qty:"2",filled_avg_price:"100"})}]});
   const response=await run({db,broker:{positions,orders}});
   const body=await response.json();
   assert.equal(response.status,200);
@@ -144,4 +144,22 @@ test("reconciliation does not exempt rejected broker orders with nonzero fills f
   const body=await response.json();
   assert.equal(response.status,409);
   assert.ok(body.mismatches.orders.some(x=>x.reason==="PROTECTIVE_STOP_LEG_NOT_RECONCILED"));
+});
+
+
+test("reconciliation rejects broker positions that are absent from the independent fill-derived ledger",async()=>{
+ const positions=[{symbol:"AAPL",qty:2,avg_entry_price:100}];
+ const response=await run({db:mockDb({positions,fillDerivedPositions:[]}),broker:{positions,orders:[]}});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.ok(body.mismatches.fillDerivedPositions.some(x=>x.reason==="BROKER_FILL_DERIVED_POSITION_MISMATCH"&&x.symbol==="AAPL"));
+});
+
+test("reconciliation passes only when broker, snapshot mirror and fill-derived positions agree",async()=>{
+ const positions=[{symbol:"AAPL",qty:2,avg_entry_price:100}];
+ const response=await run({db:mockDb({positions,fillDerivedPositions:positions}),broker:{positions,orders:[]}});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(body.counts.fillDerivedPositions,1);
+ assert.deepEqual(body.mismatches.fillDerivedPositions,[]);
 });
