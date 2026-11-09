@@ -22,6 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
+      - name: Verify production policy remains fail-closed
+        run: |
+          set -euo pipefail
+          readiness="$(curl --fail --silent --show-error --max-time 20 "https://ai-stock-advisor.pages.dev/api/paper/readiness")"
+          echo "$readiness" | jq -e '.configured == true and .policyVerified == true and .mode == "paper" and .executionEnabled == false and .killSwitchEngaged == true' >/dev/null
+          echo "$readiness" | jq '{configured, policyVerified, mode, executionEnabled, killSwitchEngaged, limits, checkedAt}'
+
       - name: Verify operator secret is present without exposing it
         env:
           OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
@@ -30,13 +37,6 @@ jobs:
             echo "::error::Repository secret NORTHSTAR_OPERATOR_TOKEN is missing or empty."
             exit 1
           fi
-
-      - name: Verify production policy remains fail-closed
-        run: |
-          set -euo pipefail
-          readiness="$(curl --fail --silent --show-error --max-time 20 "https://ai-stock-advisor.pages.dev/api/paper/readiness")"
-          echo "$readiness" | jq -e '.configured == true and .policyVerified == true and .mode == "paper" and .executionEnabled == false and .killSwitchEngaged == true' >/dev/null
-          echo "$readiness" | jq '{configured, policyVerified, mode, executionEnabled, killSwitchEngaged, limits, checkedAt}'
 
       - name: Capture a read-only Alpaca Paper equity and position snapshot
         env:

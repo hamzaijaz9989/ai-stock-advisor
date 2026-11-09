@@ -517,3 +517,11 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - PR #85's application preview for merge head `6df3509a2046bbbd32cbeda6bea215bc5d8e558a` succeeded as deployment `a08807f6-dfd6-4170-bd87-83e0b80772ab`. The subsequent `b322829` change only updates this blocker log; no application source or migration changed.
 - Main-branch Tests `42582785547` and Validate AI Stock Advisor `42582785537` after PR #86's merge also completed successfully.
 - Production Pages canonical deployment is `65ff23d9-85b7-473c-920d-0c14d423623b`, SUCCESS, commit `ef6c87c40853c8ef46454bddd2448ea7b3cbd5bc`. Production D1 recheck still reports migrations 0001–0005, one equity snapshot, zero intents/orders/positions, and unchanged disabled/kill-switched paper controls. The snapshot workflow failure occurred before any endpoint request, so it did not alter D1.
+
+
+### Run 11 production readiness verification — 2026-11-09T08:06:30Z
+- PR #87 (workflow-only reorder) passed Tests `42583448719` and Validate AI Stock Advisor `42583457137`, then merged as `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`.
+- Production Pages deployment `e4efbfd8-43f2-41b0-b01d-fc44e5b2a308` completed SUCCESS on main commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`.
+- The new workflow's production readiness GET succeeded in run `42583519570` at `2026-11-09T08:06:06Z`: `configured=true`, `policyVerified=true`, `mode=paper`, `executionEnabled=false`, `killSwitchEngaged=true`, virtual allocation $1,000, default risk $5, max risk $10, max position $250. This is direct production endpoint evidence from the GitHub Actions runner.
+- The same run then failed at the GitHub Actions operator-secret preflight because `NORTHSTAR_OPERATOR_TOKEN` is empty/missing. Snapshot and reconciliation were skipped; no broker request was made and no equity snapshot was written. Main push Tests `42583519613` and Validate `42583519420` passed.
+- PR #85 is now being synchronized to main commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`; no PR #85 application code is being released.
