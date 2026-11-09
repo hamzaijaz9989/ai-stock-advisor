@@ -137,3 +137,13 @@ test("repeated recovery verifies the durable standalone stop and never submits a
  assert.equal(calls.some(x=>x.method==="POST"),false);
  assert.ok(db.batches.some(batch=>batch.some(stmt=>stmt.sql.startsWith("UPDATE paper_orders SET broker_order_id=?"))));
 });
+
+
+test("unsupported stop-price precision blocks recovery before any broker order mutation",async()=>{
+ const db=makeDb({row:{...parentRow,stop_price:95.001}});
+ const {response,calls}=await run({db});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.reason,"STOP_PRICE_PRECISION_UNSUPPORTED");
+ assert.equal(calls.some(x=>x.method==="POST"||x.method==="DELETE"),false);
+});
