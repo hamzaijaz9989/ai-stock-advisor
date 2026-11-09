@@ -43,12 +43,12 @@ The core nine-role backend is implemented on `main`:
 - An authenticated server-side `POST /api/research/collect` route that gathers provider data itself and reconciles read-only Alpaca Paper portfolio context before running the council.
 - An authenticated `POST /api/research/council` route for trusted pre-collected context.
 
-The current dashboard integration gap is now being addressed in the separate PR `northstar/research-council-status-dashboard`: a public, read-only `GET /api/research/council/status` endpoint and a status card on `research.html`. The card shows the nine roles, durable production run count, known collection preconditions and safety state. It never returns secret values, broker balances, positions or raw portfolio data. It does not launch a council run.
+The dashboard integration is now implemented in PR `#103` on branch `northstar/research-council-status-dashboard`: Trading Lab includes a Stock Brain workspace that calls the protected server-side `POST /api/research/collect` endpoint and renders all nine roles, reports, veto reasons and durable-trace confirmation. The operator token is requested at run time and is not stored in browser storage. The research page also has a public read-only `GET /api/research/council/status` card showing aggregate run count and readiness gates without secret values, broker balances, positions or raw portfolio data. Neither UI path enables order submission.
 
 ### Remaining work, in order
 
-1. Complete and merge the read-only status panel only after exact-head CI, secret scan and Pages preview checks pass.
-2. Build a separately authenticated operator launch path. Never place `NORTHSTAR_OPERATOR_TOKEN` in browser JavaScript or local storage.
+1. Complete exact-head CI, secret scan and Pages preview checks for the Stock Brain workspace and read-only status panel before merge.
+2. Review the interim operator-token prompt flow. The token is not persisted, but a Cloudflare Access or equivalent authenticated operator session is preferable before broader use. Never put `NORTHSTAR_OPERATOR_TOKEN` in local storage or source code.
 3. Restore a fresh, reconciled read-only equity snapshot and accumulate a genuine seven-day history. Current production D1 has only one old snapshot, so the collector's 15-minute freshness and seven-day baseline gates fail closed.
 4. Verify broker status, open orders, positions and D1 reconciliation through the protected operator workflow before any production collection attempt.
 5. Run one research-only production council collection with a stable request ID; verify all nine roles, source/fact references, stored result, replay idempotency and no order side effects.
@@ -61,7 +61,7 @@ At the 2026-11-10 read-only audit:
 - `research_council_runs` and `research_decision_traces` both contain zero rows.
 - Production D1 has one equity snapshot dated `2026-11-08T18:34:38.720Z`; it is not fresh and does not provide a seven-day history.
 - Paper execution is disabled and the kill switch is engaged.
-- The public status panel is observability only. A green configuration indicator is not proof that the broker state, data, or strategy is valid.
+- The public status panel is observability only. The Trading Lab run button is a protected research-only launch path, not proof that the broker state, data, or strategy is valid. The token prompt is an interim operator UX and should be replaced with a proper authenticated session.
 
 ## Connected worker API (v1)
 
