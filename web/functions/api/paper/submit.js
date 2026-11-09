@@ -50,7 +50,7 @@ export async function onRequestPost({request,env}){
  try{
   [control,intent,existing,snapshots,positions,orders]=await Promise.all([
    db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first(),
-   db.prepare("SELECT id,symbol,side,qty,reference_price,stop_price,status,request_hash FROM paper_trade_intents WHERE id=?").bind(intentId).first(),
+   db.prepare("SELECT id,symbol,side,qty,reference_price,stop_price,status,request_hash,reviewer,decided_at FROM paper_trade_intents WHERE id=?").bind(intentId).first(),
    db.prepare("SELECT id,idempotency_key,client_request_hash,status,broker_order_id,response_json FROM paper_orders WHERE idempotency_key=?").bind("intent:"+intentId).first(),
    db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all(),
    db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all(),
@@ -113,7 +113,7 @@ export async function onRequestPost({request,env}){
  if(!strategyValidation.ok)return fail("Strategy validation is not approved; no new paper BUY order may be submitted.",409,{strategyValidation});
  // Enforce the global kill switch before considering any proposal or broker state.
  if(!control||control.mode!=="paper"||Number(control.enabled)!==1||Number(control.kill_switch)!==0||Number(control.max_portfolio_usd)!==1000)return fail("Paper execution controls are disabled or kill-switched.",503);
- if(!intent||intent.status!=="APPROVED_REVIEW_ONLY"||intent.side!=="buy")return fail("Only a specifically approved, long-only review intent can be considered.",409);
+ if(!intent||intent.status!=="APPROVED_REVIEW_ONLY"||intent.side!=="buy"||!String(intent.reviewer||"").trim()||!Number.isFinite(Date.parse(intent.decided_at||"")))return fail("Only a specifically reviewed, timestamped, long-only intent can be considered.",409);
  if((positions.results||[]).length!==0||(orders.results||[]).length!==0)return fail("Initial executor requires an empty position ledger and no prior Northstar order history; reconcile first.",409);
  let account,quote,clock;
  try{[account,quote,clock]=await Promise.all([broker("/v2/account",key,secret),broker("/v2/stocks/"+encodeURIComponent(intent.symbol)+"/quotes/latest?feed=iex",key,secret),broker("/v2/clock",key,secret)]);}
