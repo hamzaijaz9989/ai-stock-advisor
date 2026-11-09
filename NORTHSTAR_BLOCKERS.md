@@ -949,3 +949,12 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Paper control remains `enabled=0`, `mode=paper`, `kill_switch=1`. No production write, migration, broker call, order or deployment occurred.
 - Visibility discrepancy: user says private; connected GitHub metadata reports public. No visibility setting changed. Treat as publicly accessible until Settings confirms otherwise.
 - Next: verify exact-head CI and preview, merge the combined PR when safe, then restore the scheduled read-only equity snapshot workflow and accumulate the seven-day baseline before attempting a controlled research-only run.
+
+
+## 2026-11-10 — Latest autonomous Stock Brain acceptance checkpoint
+- User reconfirmed repository visibility is intentionally PUBLIC. README and handbook reflect this; never place secrets or sensitive data in the public repository.
+- PR #103 is open, non-draft and mergeable at exact head `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`; all exact-head checks are green: Cloudflare Pages, full-history secret scan, Python tests, and two JavaScript test jobs. Workflow IDs: `42713848132`, `42713848158`, `42713848025`, `42713844411`.
+- Cloudflare preview deployment `a1c5704f-7bea-4ca4-a252-c6b049b5857b` successfully deployed that exact head at https://a1c5704f.ai-stock-advisor.pages.dev.
+- Direct HTTP smoke test for homepage and `/api/research/council/status` could not be completed because the web browsing layer could not access the Pages host. This is a tooling reachability limitation; do not mark the app broken or runtime verified.
+- No merge, production deployment, production DB write/migration, broker call, order or execution-control change was performed. Production council run count remains 0; fresh and seven-day equity history gates remain unmet; collector was not run.
+- **Open acceptance blocker:** runtime smoke test of preview dashboard/status route and protected collector auth/failure behavior. Then complete review and safe merge decision. The research council code milestone is CI-green and preview-deployed, but not yet accepted as production-ready.
