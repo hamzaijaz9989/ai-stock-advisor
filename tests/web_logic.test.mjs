@@ -37,12 +37,18 @@ function loadAppFunctions(fetchImpl = null) {
   return context;
 }
 
+function marketDateOnly(date=new Date()) {
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+  const values=Object.fromEntries(parts.map(part=>[part.type,part.value]));
+  return values.year+"-"+values.month+"-"+values.day;
+}
+
 function obs(key, value, start, end, form = "10-K", unit = "USD", filed = end) {
   return { key, value, start, end, form, unit, filed, tag: key, metric: key };
 }
 
 function shareFacts(value = 90e6) {
-  const today = new Date().toISOString().slice(0,10);
+  const today = marketDateOnly();
   return {facts:{"us-gaap":{EntityCommonStockSharesOutstanding:{units:{shares:[
     {val:value,end:today,filed:today,form:"10-Q"}
   ]}}}}};
@@ -63,7 +69,7 @@ function annualFixtures({ includeShares = true } = {}) {
     if (includeShares) rows.push(obs("dilutedShares", y.shares * 1e6, y.start, y.end, "10-K", "shares", y.filed));
   }
   if(includeShares) {
-    const today=new Date().toISOString().slice(0,10);
+    const today=marketDateOnly();
     rows.push(obs("commonShares",90e6,null,today,"10-Q","shares",today));
   }
   return rows;
@@ -202,7 +208,7 @@ test("buildDcfEstimate uses recent shares outstanding and produces ordered scena
   const result = app.buildDcfEstimate(annualFixtures(), shareFacts());
   assert.equal(result.available, true);
   assert.equal(result.shares, 90e6);
-  assert.equal(result.sharesFiled, new Date().toISOString().slice(0,10));
+  assert.equal(result.sharesFiled, marketDateOnly());
   assert.ok(result.bear > 0);
   assert.ok(result.bear < result.base);
   assert.ok(result.base < result.bull);
@@ -275,7 +281,7 @@ test("quarterly snapshot returns latest-quarter revenue growth and net income", 
 
 test("decision panel surfaces a qualifying setup as unvalidated and never calls it validated BUY", () => {
   const app = loadAppFunctions();
-  const today=new Date().toISOString().slice(0,10);
+  const today=marketDateOnly();
   const observations = [...annualFixtures().filter(row=>row.key!=="commonShares"), ...quarterlyFixtures(), obs("commonShares",90e9,null,today,"10-Q","shares",today)];
   const testFacts = shareFacts(90e9);
   const valuation = app.buildDcfEstimate(observations, testFacts);
@@ -625,7 +631,7 @@ test("research quote eligibility allows only a small five-minute future clock sk
 
 test("SEC-classified financial institutions are not penalized by industrial FCF or assigned an industrial DCF", () => {
   const app=loadAppFunctions();
-  const observations=[...annualFixtures().filter(row=>row.key!=="commonShares"),...quarterlyFixtures(),obs("commonShares",90e6,null,new Date().toISOString().slice(0,10),"10-Q","shares",new Date().toISOString().slice(0,10))];
+  const observations=[...annualFixtures().filter(row=>row.key!=="commonShares"),...quarterlyFixtures(),obs("commonShares",90e6,null,marketDateOnly(),"10-Q","shares",marketDateOnly())];
   for(const row of observations) {
     if(row.key==="operatingCashFlow") row.value=-Math.abs(row.value);
     if(row.key==="capex") row.value=0;
