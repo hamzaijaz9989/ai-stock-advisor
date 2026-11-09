@@ -79,3 +79,34 @@ test("fill sync engages the kill switch when filled exposure has no verified sto
  assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders SET status='UNKNOWN'")),true);
  assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
 });
+
+test("fill sync fails closed for a live zero-fill entry whose OTO stop child is missing",async()=>{
+ const row={id:"northstar-order-zero-fill",broker_order_id:"ord-zero",symbol:"AAPL",qty:5,stop_price:98,status:"SUBMITTING",response_json:'{"filled_qty":"0"}'};
+ const brokerOrder={id:"ord-zero",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"0",status:"new",order_class:"oto",legs:[]};
+ const {response,db}=await run({activities:[],brokerOrders:[brokerOrder],ledgerRows:[row]});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.ok,false);
+ assert.equal(body.safeToContinue,false);
+ assert.equal(body.requiresManualRecovery,true);
+ assert.equal(body.unsafeExposureCount,0);
+ assert.equal(body.unsafeOrderCount,1);
+ assert.equal(body.unsafeExposure[0].exposurePresent,false);
+ assert.equal(body.unsafeExposure[0].reason,"NESTED_ORDER_LEGS_UNAVAILABLE");
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders SET status='UNKNOWN'")),true);
+ assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
+});
+
+test("fill sync fails closed when a tracked ledger order is absent from broker history",async()=>{
+ const row={id:"northstar-order-missing",broker_order_id:"ord-missing",symbol:"AAPL",qty:5,stop_price:98,status:"UNKNOWN",response_json:'{"filled_qty":"0"}'};
+ const {response,db}=await run({activities:[],brokerOrders:[],ledgerRows:[row]});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.ok,false);
+ assert.equal(body.safeToContinue,false);
+ assert.equal(body.requiresManualRecovery,true);
+ assert.equal(body.unsafeOrderCount,1);
+ assert.equal(body.unsafeExposure[0].reason,"LEDGER_ORDER_MISSING_FROM_BROKER_HISTORY");
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders SET status='UNKNOWN'")),true);
+ assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
+});
