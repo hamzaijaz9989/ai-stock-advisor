@@ -11,6 +11,7 @@ test("Trading Lab exposes the Stock Brain nine-agent workspace", () => {
   assert.match(html, /id="stock-brain-ticker"/);
   assert.match(html, /id="run-stock-brain"/);
   assert.match(html, /id="stock-brain-agents"/);
+  assert.match(html, /id="stock-brain-scorecard"/);
   assert.match(html, /9-AGENT STOCK BRAIN/);
 });
 
@@ -20,6 +21,8 @@ test("Stock Brain client uses authenticated server-side collection without persi
   assert.match(client, /body:JSON\.stringify\(\{ticker,requestId\}\)/);
   assert.match(client, /COUNCIL_DISPLAY_ROLES/);
   assert.match(client, /stock-brain-trace/);
+  assert.match(client, /parseStockBrainResponse\(response\)/);
+  assert.match(client, /renderCouncilEvaluation\(result\.evaluation,result\.agents,coverage\)/);
   assert.doesNotMatch(client, /localStorage\.setItem\([^\n]*token/i);
 });
 
@@ -58,4 +61,15 @@ test("Stock Brain agent role labels are human-readable", () => {
   const formatter = runInNewContext("(" + line.trim().replace(/^const roleTitle = /, "").replace(/;$/, "") + ")");
   assert.equal(formatter("market_scanner"), "Market Scanner");
   assert.equal(formatter("risk_committee"), "Risk Committee");
+});
+
+test("Stock Brain scorecard exposes role coverage and renders untrusted values as text", () => {
+  const start = client.indexOf("function renderCouncilEvaluation");
+  const end = client.indexOf('$("run-stock-brain").addEventListener', start);
+  assert.ok(start >= 0 && end > start, "scorecard renderer must exist");
+  const renderer = client.slice(start, end);
+  assert.match(renderer, /COUNCIL_DISPLAY_ROLES/);
+  assert.match(renderer, /resource\.status/);
+  assert.match(renderer, /\.textContent\s*=/);
+  assert.doesNotMatch(renderer, /\.innerHTML\s*=/);
 });
