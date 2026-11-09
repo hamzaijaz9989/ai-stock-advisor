@@ -80,3 +80,12 @@
 3. Fail closed when critical data is stale, invalid or unavailable.
 4. Do not optimize for win rate alone; evaluate risk, drawdown and returns after costs.
 5. Record material methodology changes and rerun tests.
+
+
+## 2026-11-10 active milestone update
+
+- Universe scanning: complete and tested, user-confirmed. No scanner rebuild planned.
+- Active: complete the nine-agent Stock Brain integration. The orchestrator now emits all nine role statuses, including explicit blocked states; Trading Lab includes an authenticated Stock Brain workspace connected to the server-side research collector; durable trace metadata is consistent across stored and returned results.
+- New CI coverage validates the nine-role matrix and dashboard contract. Final exact-head CI and Cloudflare preview verification are pending.
+- After Stock Brain acceptance: move to point-in-time strategy validation, then paper-lifecycle safety and release readiness. Keep validated BUY and all execution disabled until their independent gates pass.
+- See [Northstar Project Handbook](NORTHSTAR_PROJECT_HANDBOOK.md) for the complete ordered workflow and handover process.
