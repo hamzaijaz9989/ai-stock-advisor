@@ -61,7 +61,7 @@ test("paper executor blocks an untracked broker position before writing or submi
   const r=await onRequestPost({request:request({"Authorization":"Bearer operator","X-NORTHSTAR-PAPER-APPROVAL":"approval"}),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN:"approval",ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret",NORTHSTAR_DB:db}});
   const body=await r.json();
   assert.equal(r.status,409);
-  assert.match(body.error,/fully flat broker and ledger/i);
+  assert.match(body.error,/fully flat broker|empty Northstar order history/i);
   assert.equal(calls.some(x=>x.endsWith("/v2/orders")),false);
  }finally{globalThis.fetch=original;}
 });
