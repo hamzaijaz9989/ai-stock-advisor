@@ -1,5 +1,5 @@
 // Authenticated, read-only import of Alpaca Paper fill activities into an idempotent D1 ledger.
-import {verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
+import {verifyOtoStopLeg,verifyStandaloneRecoveryStop} from "../../../lib/paper-execution-policy.js";
 import {derivePaperPositionLedger} from "../../../lib/paper-position-ledger.js";
 // Does not submit, amend, or cancel broker orders.
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
@@ -186,10 +186,28 @@ export async function onRequestPost({request,env}){
    }
   }else if(!noExposureTerminal){
    const stopCheck=stopPrice===null?{ok:false,reason:"PROTECTIVE_STOP_PRICE_MISSING"}:verifyOtoStopLeg(brokerOrder,{symbol:row.symbol,qty,stopPrice});
-   if(!stopCheck.ok){
-    skippedLifecycle.push({orderId:row.id,reason:stopCheck.reason});
-    flagUnsafe(row,brokerOrder,stopCheck.reason,filled);
+   const linkedRecovery=ledgerRows.find(x=>x.idempotency_key==="recovery:"+row.id)||null;
+   const linkedRecoveryBroker=linkedRecovery?byBrokerId.get(String(linkedRecovery.broker_order_id||""))||null:null;
+   const linkedRecoveryStatus=String(linkedRecoveryBroker?.status||"").toLowerCase();
+   const linkedRecoveryActive=["new","accepted","pending_new","accepted_for_bidding","partially_filled"].includes(linkedRecoveryStatus);
+   if(stopCheck.ok&&linkedRecoveryActive){
+    const reason="DUPLICATE_ACTIVE_OTO_AND_STANDALONE_PROTECTIVE_STOPS";
+    skippedLifecycle.push({orderId:row.id,reason});
+    flagUnsafe(row,brokerOrder,reason,filled);
     continue;
+   }
+   if(!stopCheck.ok){
+    const matchingPositions=brokerPositions.filter(p=>String(p?.symbol||"").toUpperCase()===String(row.symbol||"").toUpperCase());
+    const recoveryCheck=verifyStandaloneRecoveryStop({
+     parent:brokerOrder,parentRow:row,recoveryOrder:linkedRecoveryBroker,recoveryRow:linkedRecovery,
+     brokerPosition:matchingPositions.length===1?matchingPositions[0]:null
+    });
+    if(!recoveryCheck.ok){
+     const reason=recoveryCheck.reason||stopCheck.reason;
+     skippedLifecycle.push({orderId:row.id,reason,otoStopReason:stopCheck.reason});
+     flagUnsafe(row,brokerOrder,reason,filled);
+     continue;
+    }
    }
   }
   const changed=status!==previousStatus||filled!==previousFilled||(filled>0&&prior.avg!==avg);
