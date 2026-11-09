@@ -1,0 +1,72 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {onRequestPost,waitForSubmissionQuiescence} from "../web/functions/api/paper/control.js";
+
+function request(body={action:"ENGAGE_KILL_SWITCH"},headers={}) {
+  return new Request("https://northstar.test/api/paper/control",{
+    method:"POST",
+    headers:{"content-type":"application/json","Authorization":"Bearer operator",...headers},
+    body:JSON.stringify(body)
+  });
+}
+
+function controlDb(state) {
+  const writes=[];
+  const db={
+    prepare(sql) {
+      const statement={sql,args:[],bind(...args){this.args=args;return this;},async first(){return {state};}};
+      return statement;
+    },
+    async batch(statements) { writes.push(...statements); return statements.map(()=>({meta:{changes:1}})); }
+  };
+  return {db,writes};
+}
+
+test("kill switch acknowledgement waits until an already-claimed submission is terminal",async()=>{
+  const {db,writes}=controlDb("SUBMITTED");
+  const response=await onRequestPost({request:request(),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_DB:db}});
+  const body=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(body.ok,true);
+  assert.equal(body.executionEnabled,false);
+  assert.equal(body.killSwitchEngaged,true);
+  assert.equal(body.submissionQuiesced,true);
+  assert.equal(body.submissionState,"SUBMITTED");
+  assert.ok(writes.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")));
+  assert.ok(writes.some(x=>x.sql.includes("ENGAGE_KILL_SWITCH")));
+  assert.match(body.warnings.join(" "),/Existing broker orders are not cancelled/);
+});
+
+test("kill switch never reports quiescence while a submission claim remains SUBMITTING",async()=>{
+  const db={prepare(){return {async first(){return {state:"SUBMITTING"};}};}};
+  const result=await waitForSubmissionQuiescence(db,{timeoutMs:0,now:()=>100,pause:async()=>{}});
+  assert.deepEqual(result,{ok:true,quiesced:false,state:"SUBMITTING"});
+});
+
+test("kill switch drain follows an in-flight claim until its terminal state",async()=>{
+  let reads=0,clock=0;
+  const db={prepare(){return {async first(){reads++;return {state:reads===1?"SUBMITTING":"UNKNOWN"};}};}};
+  const result=await waitForSubmissionQuiescence(db,{timeoutMs:1000,pollMs:100,now:()=>clock+=10,pause:async()=>{}});
+  assert.equal(result.ok,true);
+  assert.equal(result.quiesced,true);
+  assert.equal(result.state,"UNKNOWN");
+  assert.equal(reads,2);
+});
+
+test("kill switch fails closed when claim state cannot be read",async()=>{
+  const db={prepare(){return {async first(){throw new Error("missing migration or D1 failure");}};}};
+  const result=await waitForSubmissionQuiescence(db,{timeoutMs:0});
+  assert.deepEqual(result,{ok:false,quiesced:false,state:"UNVERIFIED"});
+});
+
+test("kill switch treats an unknown claim state as unverified, not quiesced",async()=>{
+  const db={prepare(){return {async first(){return {state:"PAUSED"};}};}};
+  const result=await waitForSubmissionQuiescence(db,{timeoutMs:0});
+  assert.deepEqual(result,{ok:false,quiesced:false,state:"PAUSED"});
+});
+
+test("kill switch treats an absent singleton claim as no in-flight submission",async()=>{
+  const db={prepare(){return {async first(){return null;}};}};
+  const result=await waitForSubmissionQuiescence(db,{timeoutMs:0});
+  assert.deepEqual(result,{ok:true,quiesced:true,state:"NO_IN_FLIGHT_SUBMISSION"});
+});
