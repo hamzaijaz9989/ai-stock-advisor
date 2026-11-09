@@ -5,8 +5,11 @@ import {readFile} from "node:fs/promises";
 async function load(){
  const helper=await readFile(new URL("../web/lib/strategy-validation-gate.js",import.meta.url),"utf8");
  const helperUrl="data:text/javascript;base64,"+Buffer.from(helper).toString("base64");
+ const policy=await readFile(new URL("../web/lib/paper-execution-policy.js",import.meta.url),"utf8");
+ const policyUrl="data:text/javascript;base64,"+Buffer.from(policy).toString("base64");
  let source=await readFile(new URL("../web/functions/api/paper/readiness.js",import.meta.url),"utf8");
  source=source.replace('from "../../../lib/strategy-validation-gate.js"','from "'+helperUrl+'"');
+ source=source.replace('from "../../../lib/paper-execution-policy.js"','from "'+policyUrl+'"');
  return import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
 }
 const control={enabled:0,mode:"paper",kill_switch:1,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
@@ -66,4 +69,14 @@ test("missing control row fails closed",async()=>{
  const body=await response.json();
  assert.equal(response.status,503);
  assert.equal(body.executionEnabled,false);
+});
+
+test("readiness reports every immutable risk cap",async()=>{
+ const {onRequestGet}=await load();
+ const response=await onRequestGet({env:{NORTHSTAR_DB:db({approved:0,strategy_version:"northstar-provisional-gates-v1"})}});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.deepEqual(body.limits,{virtualCapitalUsd:1000,defaultRiskUsd:5,maxRiskUsd:10,maxPositionUsd:250,dailyLossCapUsd:20,maxDrawdownUsd:80});
+ assert.equal(body.executionEnabled,false);
+ assert.equal(body.killSwitchEngaged,true);
 });
