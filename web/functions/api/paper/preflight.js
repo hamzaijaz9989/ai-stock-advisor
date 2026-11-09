@@ -1,5 +1,6 @@
 // Read-only, authenticated paper-trade preflight. This route NEVER submits orders.
 import {evaluatePortfolioRisk,deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
+import {evaluateStrategyApproval} from "../../../lib/strategy-validation-gate.js";
 const H = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail = (error,status=400,extra={}) => Response.json({ok:false,execution:false,error,...extra},{status,headers:H});
 function safeEqual(a,b) {
@@ -34,13 +35,16 @@ export async function onRequestPost({request,env}) {
   const stop=Number(body?.stopPrice);
   if(!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol)) return fail("Invalid ticker symbol.");
   if(!Number.isFinite(stop)||stop<=0) return fail("stopPrice must be a positive number.");
-  let control,ledgerPositions,equitySnapshots;
+  let control,ledgerPositions,equitySnapshots,strategyApproval;
   try {
     control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first();
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price,market_value FROM paper_positions ORDER BY symbol").all();
     equitySnapshots=await db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all();
+    strategyApproval=await db.prepare("SELECT approved,strategy_version,report_version,report_sha256,report_uri,approved_at,reviewer FROM northstar_strategy_approval WHERE id=1").first();
   } catch { return fail("Could not verify ledger policy or positions; fail-closed.",503); }
   if(!control||control.mode!=="paper"||Number(control.max_portfolio_usd)!==1000) return fail("Paper-only allocation policy is unavailable or invalid.",503);
+  const strategyValidation=evaluateStrategyApproval(strategyApproval);
+  if(!strategyValidation.ok) return fail("Strategy validation is not approved; Northstar cannot create or preflight a BUY intent.",409,{strategyValidation});
   let account,brokerPositions,quote,clock;
   try {
     [account,brokerPositions,quote,clock]=await Promise.all([
@@ -109,6 +113,7 @@ export async function onRequestPost({request,env}) {
     exposure:{existingUsd:Number(currentExposure.toFixed(2)),afterProposedUsd:Number((currentExposure+shares*ask).toFixed(2)),maxPortfolioUsd:capital,maxPositionUsd},
     broker:{accountStatus:account.status,equityUsd:equity,buyingPowerUsd:buyingPower,positionsReconciled:true},
     risk:{status:portfolioRisk.status,dailyLossUsd:history.dailyLossUsd,maxDrawdownUsd:history.maxDrawdownUsd,history:history.history,virtualAllocationUsd:capital},
+    strategyValidation,
     warnings:["Read-only preflight. No order was submitted or stored.","Quote is IEX latest-quote data; this is not a guaranteed execution price.","Prices can move between preflight and any future order submission.","Execution remains disabled and kill switch remains engaged."],
     checkedAt:new Date().toISOString()
   },{headers:H});
