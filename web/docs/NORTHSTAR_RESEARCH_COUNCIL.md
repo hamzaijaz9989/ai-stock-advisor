@@ -43,11 +43,11 @@ The core nine-role backend is implemented on `main`:
 - An authenticated server-side `POST /api/research/collect` route that gathers provider data itself and reconciles read-only Alpaca Paper portfolio context before running the council.
 - An authenticated `POST /api/research/council` route for trusted pre-collected context.
 
-The dashboard integration is now implemented in PR `#103` on branch `northstar/research-council-status-dashboard`: Trading Lab includes a Stock Brain workspace that calls the protected server-side `POST /api/research/collect` endpoint and renders all nine roles, reports, veto reasons and durable-trace confirmation. The operator token is requested at run time and is not stored in browser storage. The research page also has a public read-only `GET /api/research/council-status` card showing aggregate run count and readiness gates without secret values, broker balances, positions or raw portfolio data. Neither UI path enables order submission.
+The dashboard integration is implemented in PR `#103` on branch `northstar/research-council-status-dashboard`: Trading Lab includes a Stock Brain workspace that calls the protected server-side `POST /api/research/collect` endpoint and renders all nine roles, reports, veto reasons and durable-trace confirmation. The operator token is requested at run time and is not stored in browser storage. A separate public readiness endpoint/card was removed before merge because preview function routing was inconsistent and the public card would expose unnecessary configuration-presence metadata. The protected Trading Lab workspace is the single user-facing launch surface; it never enables order submission.
 
 ### Remaining work, in order
 
-1. Complete exact-head CI, secret scan and Pages preview checks for the Stock Brain workspace and read-only status panel before merge.
+1. Complete exact-head CI, secret scan and static Pages preview checks for the Stock Brain workspace before merge; then verify the protected collector route in production.
 2. Review the interim operator-token prompt flow. The token is not persisted, but a Cloudflare Access or equivalent authenticated operator session is preferable before broader use. Never put `NORTHSTAR_OPERATOR_TOKEN` in local storage or source code.
 3. Restore a fresh, reconciled read-only equity snapshot and accumulate a genuine seven-day history. Current production D1 has only one old snapshot, so the collector's 15-minute freshness and seven-day baseline gates fail closed.
 4. Verify broker status, open orders, positions and D1 reconciliation through the protected operator workflow before any production collection attempt.
@@ -61,7 +61,7 @@ At the 2026-11-10 read-only audit:
 - `research_council_runs` and `research_decision_traces` both contain zero rows.
 - Production D1 has one equity snapshot dated `2026-11-08T18:34:38.720Z`; it is not fresh and does not provide a seven-day history.
 - Paper execution is disabled and the kill switch is engaged.
-- The public status panel is observability only. The Trading Lab run button is a protected research-only launch path, not proof that the broker state, data, or strategy is valid. The token prompt is an interim operator UX and should be replaced with a proper authenticated session.
+- The Trading Lab run button is a protected research-only launch path, not proof that the broker state, data, or strategy is valid. The token prompt is an interim operator UX and should be replaced with a proper authenticated session.
 
 ## Connected worker API (v1)
 
@@ -93,12 +93,12 @@ Request shape:
 
 The endpoint accepts up to 500 fact/evidence records and a 64 KiB body. IDs must be unique across both arrays. Each model specialist receives the same immutable context and must cite exact IDs. News and filing text is treated as untrusted input. Specialist workers do not fetch data, browse the web, calculate financial metrics, or submit orders. The deterministic risk committee independently checks portfolio limits (2% aggregate open risk, 100% gross exposure, 2% daily loss stop, 4% weekly loss stop, 8% drawdown pause, 40% sector exposure, and the initial one-position limit). Missing model credentials, malformed reports, unavailable workers, or risk-limit breaches result in `NO_TRADE`.
 
-The append-only `research_council_runs` table is defined in migration `0003_research_council_runs.sql` and is present in production D1. The authenticated API remains server-side. The research page's new status card is read-only and does not call the collector or council run endpoint. Caller-supplied facts must come from trusted Northstar collectors; do not send raw browser-supplied claims as authoritative facts.
+The append-only `research_council_runs` table is defined in migration `0003_research_council_runs.sql` and is present in production D1. The authenticated API remains server-side. No separate public status endpoint/card is shipped; the protected Trading Lab workspace displays run results only after an authenticated collection request. Caller-supplied facts must come from trusted Northstar collectors; do not send raw browser-supplied claims as authoritative facts.
 
 
 ## 2026-11-10 — Stock Brain integration acceptance status
 
-- The nine-role workspace and authenticated collection flow are present in draft PR #103 (`northstar/research-council-status-dashboard`), latest head `4ec91116161274d143dc9a6ab626ad25c7b74655`. The PR includes the read-only readiness endpoint and dashboard status card.
+- The nine-role workspace and authenticated collection flow are present in ready-for-review PR #103 (`northstar/research-council-status-dashboard`), exact head `f318d329a4043ca6920e12ec970549737cc8e8fd`. The PR does not include a separate public status endpoint/card.
 - Code head `e2bc27a25534150d32546ff10c04553d4e0639e0` passed Tests, Validate AI Stock Advisor and full-history secret scan. Stock Brain preview deployment `c300bbac-6d7a-410c-8f3e-446c194f21ed` succeeded for app-code commit `0742a8b73640619fe0a2300841a6f8e261923495`; latest combined HTML previews are still building. Exact latest-head checks and direct preview HTTP/UI smoke tests remain required.
 - Production D1 confirms the required council migrations are present, but there are 0 durable council runs. The only equity snapshot is `2026-11-08T18:34:38.720Z`, which is stale and does not establish a seven-day baseline.
 - The collector must continue to fail closed until a fresh snapshot, seven-day baseline, reconciled broker state and server-side provider/operator configuration are verified. Missing risk history must never be replaced with zeroes.
