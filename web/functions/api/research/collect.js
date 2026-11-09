@@ -132,7 +132,7 @@ export async function onRequestPost({request,env}){
   if(existing){if(existing.input_sha256!==inputHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(existing.result_json),createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});}
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
-  const evaluation=evaluateResearchCouncilRun(result,{factIds:context.facts.map(x=>x.id),evidenceIds:context.evidence.map(x=>x.id),evaluatedAt:new Date().toISOString()});
+  const evaluation=evaluateResearchCouncilRun(result,{factIds:context.facts.map(x=>x.id),evidenceIds:context.evidence.map(x=>x.id),evaluatedAt:new Date().toISOString(),roles:workers.telemetry||{}});
   const storedResult={...result,evaluation,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING").bind(requestId,inputHash,ticker,result.status,JSON.stringify(storedResult)).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
