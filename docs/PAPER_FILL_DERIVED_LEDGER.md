@@ -12,6 +12,7 @@ Migration `0006_northstar_fill_position_ledger.sql` adds an append-only Northsta
 4. The pure `derivePaperPositionLedger` function sorts immutable tracked activities by transaction timestamp and activity ID, builds long-only FIFO lots, matches sell fills against the oldest open lots, and computes gross realized P&L.
 5. The fill-sync endpoint rebuilds `paper_position_lots` and `paper_realized_trades` in the same D1 batch as newly imported Northstar fills. A sell exceeding tracked open shares, a conflicting activity ID, invalid side/symbol, unavailable migration, or exceeded safe ledger/batch cap fails closed and engages the paper kill switch.
 6. Reconciliation compares broker positions against both the latest `paper_positions` account snapshot mirror and the independent fill-derived FIFO positions.
+7. The read-only performance endpoint cross-checks broker-fill FIFO calculations against `northstar_fill_ledger`, `paper_position_lots`, and `paper_realized_trades`; it withholds statistics when tracked counts, open lots, realized quantity/P&L, or history completeness disagree.
 
 ## Limits and interpretation
 
@@ -24,6 +25,10 @@ Migration `0006_northstar_fill_position_ledger.sql` adds an append-only Northsta
 ## Remaining lifecycle gap
 
 The FIFO ledger improves exposure accounting, but it does not solve Alpaca OTO partial-fill protection. A partially filled entry can still have a held stop child. The current code detects this and fails closed, but does not cancel the remaining entry or establish a standalone protective stop/flatten the filled quantity. That separate operator-only recovery workflow remains a release blocker.
+
+## Preview isolation
+
+The Cloudflare Pages preview environment is configured separately from production. The `preview` Wrangler environment and Pages preview binding point to the isolated `northstar-preview` D1 database; its schema is migrated through 0006 and its execution control is seeded disabled with the kill switch engaged. Preview has no broker/operator secrets. Production remains bound to `northstar-paper-ledger`.
 
 ## Safety
 
