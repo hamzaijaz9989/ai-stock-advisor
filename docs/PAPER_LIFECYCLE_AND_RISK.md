@@ -93,3 +93,14 @@ curl --fail --silent --show-error -X POST "$NORTHSTAR_API_BASE/api/paper/recover
 ```
 
 This route is branch/preview code only until formal review and release gates pass. It is not authorization to enable paper execution. Production remains disabled and kill-switched.
+
+
+## Separate human review of paper intents
+
+A proposal remains `PENDING_REVIEW` until the nested `POST /api/paper/intents/review` endpoint records a decision. Review requires the operator bearer credential plus a distinct `NORTHSTAR_INTENT_REVIEW_TOKEN` header (`X-NORTHSTAR-INTENT-REVIEW`) and a server-configured `NORTHSTAR_INTENT_REVIEWER` identity. The review token must differ from both the operator token and the paper-execution approval token.
+
+An APPROVE decision requires the exact `REVIEW_THIS_PAPER_INTENT` confirmation, a meaningful review note, and a fresh server-side preflight. The live preflight sizing, entry estimate, stop, notional and planned risk must still match the stored proposal; otherwise the intent stays pending and a new proposal must be created. REJECT does not call the broker or preflight. Both decisions are conditional updates from `PENDING_REVIEW`, so concurrent or repeated decisions fail closed.
+
+Migration `0010_paper_intent_review_audit.sql` adds the reviewer field and database guards. Reviewer, review timestamp and decision note become immutable; a status transition to APPROVED_REVIEW_ONLY or REJECTED requires all review metadata; an SQLite trigger writes the reviewer decision to `execution_audit_log` in the same transaction; and intent records cannot be deleted. The submit endpoint additionally requires a valid reviewer and decision timestamp. Review is not execution authorization: the separate paper-execution approval credential, approved strategy attestation, enabled PAPER controls, fresh equity history, clean reconciliation, account checks and all risk limits remain independently required. The review route never creates, submits, amends, cancels or flattens a broker order.
+
+Required server configuration names (values must never be committed): `NORTHSTAR_OPERATOR_TOKEN`, `NORTHSTAR_INTENT_REVIEW_TOKEN`, `NORTHSTAR_INTENT_REVIEWER`, and the separate `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN`. Missing or reused credentials cause the review route to fail closed.
