@@ -12,7 +12,7 @@ const {onRequestPost}=await import("data:text/javascript;base64,"+Buffer.from(so
 const control={enabled:0,mode:"paper",kill_switch:1};
 const request=(token="secret")=>new Request("https://northstar.test/api/paper/fills-sync",{method:"POST",headers:{"Authorization":"Bearer "+token,"X-Request-ID":"fill-test"}});
 function db(ledgerRows=[],controlRow=control,trackedFills=[]){const state={batch:[]};return {state,prepare(sql){return {sql,bind(...args){return {sql,args};},async first(){return controlRow;},async all(){return {results:/northstar_fill_ledger/.test(sql)?trackedFills:ledgerRows};}};},async batch(items){state.batch=items;return items.map((x,i)=>({meta:{changes:i===0?1:0}}));}};}
-async function run({token="secret",activities=[{id:"act-1",order_id:"ord-1",symbol:"AAPL",side:"buy",qty:"2",price:"100",cum_qty:"2",leaves_qty:"0",order_status:"filled",transaction_time:"2026-01-01T10:00:00Z"}],brokerOrders=[],ledgerRows=[],trackedFills=[],controlRow=control}={}){const dbx=db(ledgerRows,controlRow,trackedFills),old=globalThis.fetch;globalThis.fetch=async url=>{const u=String(url);if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE"});if(u.includes("/v2/account/activities"))return Response.json(activities);if(u.includes("/v2/orders?"))return Response.json(brokerOrders);throw Error("unexpected "+u);};try{return {response:await onRequestPost({request:request(token),env:{NORTHSTAR_DB:dbx,NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}}),db:dbx};}finally{globalThis.fetch=old;}}
+async function run({token="secret",activities=[{id:"act-1",order_id:"ord-1",symbol:"AAPL",side:"buy",qty:"2",price:"100",cum_qty:"2",leaves_qty:"0",order_status:"filled",transaction_time:"2026-01-01T10:00:00Z"}],brokerOrders=[],brokerPositions=[],ledgerRows=[],trackedFills=[],controlRow=control}={}){const dbx=db(ledgerRows,controlRow,trackedFills),old=globalThis.fetch;globalThis.fetch=async url=>{const u=String(url);if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE"});if(u.includes("/v2/account/activities"))return Response.json(activities);if(u.includes("/v2/orders?"))return Response.json(brokerOrders);if(u.endsWith("/v2/positions"))return Response.json(brokerPositions);throw Error("unexpected "+u);};try{return {response:await onRequestPost({request:request(token),env:{NORTHSTAR_DB:dbx,NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}}),db:dbx};}finally{globalThis.fetch=old;}}
 test("fill import requires operator authentication",async()=>{const {response,db}=await run({token:"wrong"});assert.equal(response.status,401);assert.equal(db.state.batch.length,0);});
 test("fill import validates and writes broker fills idempotently with audit",async()=>{const {response,db}=await run();const b=await response.json();assert.equal(response.status,200);assert.equal(b.imported,true);assert.equal(b.brokerRecords,1);assert.equal(db.state.batch.length,2);assert.match(db.state.batch[0].sql,/ON CONFLICT\(activity_id\) DO NOTHING/);assert.match(db.state.batch[1].sql,/execution_audit_log/);});
 test("fill import rejects invalid activity without partial writes",async()=>{const {response,db}=await run({activities:[{id:"bad",order_id:"ord",symbol:"AAPL",side:"buy",qty:"NaN",price:"10",transaction_time:"2026-01-01"}]});assert.equal(response.status,503);assert.equal(db.state.batch.length,0);});
@@ -178,4 +178,27 @@ test("fill sync idempotently rebuilds a previously imported terminal fill withou
  assert.equal(body.positionLedger.positions[0].qty,2);
  assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control")),false);
  assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
+});
+
+
+test("fill sync accepts a verified standalone recovery GTC stop with exact position coverage",async()=>{
+ const row={id:"recovery-order-ledger",broker_order_id:"recovery-order-broker",symbol:"AAPL",side:"sell",qty:2,stop_price:95,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
+ const brokerOrder={id:"recovery-order-broker",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",status:"new",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"2"};
+ const {response,db}=await run({activities:[],brokerOrders:[brokerOrder],brokerPositions:[{symbol:"AAPL",qty:"2",side:"long"}],ledgerRows:[row]});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(body.safeToContinue,true);
+ assert.equal(body.requiresManualRecovery,false);
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders SET status='UNKNOWN'")),false);
+});
+test("fill sync flags a standalone recovery stop whose leaves do not cover the broker position",async()=>{
+ const row={id:"recovery-order-ledger",broker_order_id:"recovery-order-broker",symbol:"AAPL",side:"sell",qty:2,stop_price:95,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
+ const brokerOrder={id:"recovery-order-broker",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",status:"new",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"1"};
+ const {response,db}=await run({activities:[],brokerOrders:[brokerOrder],brokerPositions:[{symbol:"AAPL",qty:"2",side:"long"}],ledgerRows:[row]});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.safeToContinue,false);
+ assert.equal(body.requiresManualRecovery,true);
+ assert.ok(body.skippedLifecycle.some(x=>x.reason==="STANDALONE_RECOVERY_STOP_DOES_NOT_RECONCILE_TO_POSITION"));
+ assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
 });
