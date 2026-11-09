@@ -55,7 +55,7 @@ test("paper executor blocks an untracked broker position before writing or submi
   if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE",equity:"100000",last_equity:"100000",buying_power:"400000"});
   if(u.endsWith("/v2/clock"))return Response.json({is_open:true});
   if(u.endsWith("/v2/clock"))return Response.json({is_open:true});
-  if(u.includes("/v2/stocks/AAPL/quotes/latest")){quoteReads++;return Response.json(quoteReads===1||!finalQuote?{quote:{bp:99.9,ap:100,t:now}}:finalQuote);}
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:99.9,ap:100,t:now}});
   if(u.endsWith("/v2/positions"))return Response.json([{symbol:"MSFT",qty:"1",avg_entry_price:"50",market_value:"50"}]);
   if(u.includes("/v2/orders?status=all"))return Response.json([]);
   if(u.endsWith("/v2/orders"))throw new Error("broker order submission must not occur");
@@ -184,7 +184,7 @@ async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enable
   const u=String(url);calls.push({url:u,method:options.method||"GET"});
   if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE",equity:"100000",last_equity:"100000",buying_power:"400000"});
   if(u.endsWith("/v2/clock"))return Response.json({is_open:true});
-  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:99.9,ap:100,t:now}});
+  if(u.includes("/v2/stocks/AAPL/quotes/latest")){quoteReads++;return Response.json(quoteReads===1||!finalQuote?{quote:{bp:99.9,ap:100,t:now}}:finalQuote);}
   if(u.endsWith("/v2/positions"))return Response.json([]);
   if(u.includes("/v2/orders?status=all"))return Response.json([]);
   if(u.endsWith("/v2/orders")&&options.method==="POST"){brokerPost=true;return Response.json({id:"broker-order",status:"new",filled_qty:"0"});}
