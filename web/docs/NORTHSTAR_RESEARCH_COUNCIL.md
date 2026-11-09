@@ -43,7 +43,7 @@ The core nine-role backend is implemented on `main`:
 - An authenticated server-side `POST /api/research/collect` route that gathers provider data itself and reconciles read-only Alpaca Paper portfolio context before running the council.
 - An authenticated `POST /api/research/council` route for trusted pre-collected context.
 
-The dashboard integration is now implemented in PR `#103` on branch `northstar/research-council-status-dashboard`: Trading Lab includes a Stock Brain workspace that calls the protected server-side `POST /api/research/collect` endpoint and renders all nine roles, reports, veto reasons and durable-trace confirmation. The operator token is requested at run time and is not stored in browser storage. The research page also has a public read-only `GET /api/research/council/status` card showing aggregate run count and readiness gates without secret values, broker balances, positions or raw portfolio data. Neither UI path enables order submission.
+The dashboard integration is now implemented in PR `#103` on branch `northstar/research-council-status-dashboard`: Trading Lab includes a Stock Brain workspace that calls the protected server-side `POST /api/research/collect` endpoint and renders all nine roles, reports, veto reasons and durable-trace confirmation. The operator token is requested at run time and is not stored in browser storage. The research page also has a public read-only `GET /api/research/council-status` card showing aggregate run count and readiness gates without secret values, broker balances, positions or raw portfolio data. Neither UI path enables order submission.
 
 ### Remaining work, in order
 
