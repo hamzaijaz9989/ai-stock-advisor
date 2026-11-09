@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T18:25:00Z
+Last updated: 2026-11-09T18:31:00Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -1509,4 +1509,13 @@ No PR #85 merge, production deployment, D1 migration/write, broker request, orde
 - Inspected the latest main-branch Northstar snapshot workflow runs. Runs `42582785410` (2026-11-09T07:59:30Z) and `42583519570` (2026-11-09T08:06:00Z) both failed at the explicit secret-presence guard: `Repository secret NORTHSTAR_OPERATOR_TOKEN is missing or empty.` The readiness-policy step passed in run `42583519570`; snapshot sync and reconciliation were skipped. The secret value was not read or logged. This directly explains why the production equity snapshot has not advanced.
 - Affected: GitHub Actions repository secret `NORTHSTAR_OPERATOR_TOKEN`, production `/api/paper/sync` and `/api/paper/reconcile`, production equity-history coverage. Next: set the GitHub Actions repository secret securely to the existing production operator token, without printing it, or after independent review and release of PR #88 use its scoped OIDC bridge. The OIDC path is not currently deployed and must not be assumed active.
 - On exact PR #85 head `a2e1b869cb53832efa6c73521f7a6bae8e8d8962`, Tests run `42673662232` completed SUCCESS with job `129350859826`: Python `95 passed`, JavaScript `337 passed / 0 failed`, Ruff passed. Validate run `42673662325` completed FAILURE with zero jobs and no job logs. GitHub's retry endpoint rejected the no-job run with 403 `This workflow run cannot be retried`. This is another workflow-level orchestration failure, not a test assertion failure; Validate is not green on this exact head.
-- A final documentation-only log update is being pushed to request another fresh CI pair. No application-code, production, database, secret, broker or order state was changed.
+- That documentation-only update was pushed as commit `4afa4549adb4f23df14495eff99ccf934a8e3190`; its latest CI result is recorded below. No application-code, production, database, secret, broker or order state was changed.
+
+
+### Latest exact-head CI result — 2026-11-09T18:31:00Z
+- PR #85 exact head `4afa4549adb4f23df14495eff99ccf934a8e3190` has 440 commits / 71 changed files, remains DRAFT, and GitHub reports mergeable=true against main `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`. There are still no formal reviews or inline review threads.
+- Tests run `42673984129` and Validate run `42673983552` both ended FAILURE with zero jobs (`total_count=0` from the raw Actions jobs endpoints); both workflow-run log downloads were empty. Rerun attempts for both were rejected with 403 `This workflow run cannot be retried`. There is no job/test assertion failure to diagnose or fix.
+- The latest confirmed full green pair remains `7c9628942fd1b34145597838f480c4ea4b9e0e41` (Tests `42670852623`, Validate `42670852604`). On later documentation-only heads, successful individual checks alternate with workflow-level failures that have no jobs. The application code has not changed in these log-only commits.
+- Affected: GitHub Actions workflow dispatch/check creation for PR #85. Attempts: repeated fresh push/PR triggers, raw run/job/log inspection, and rerun requests. Remaining impact: latest exact head has no green check pair, and branch protection is still disabled. Next: owner/maintainer must inspect GitHub Actions/billing/repository policy in GitHub UI, restore job creation, and obtain both successful checks on the exact release head.
+- The production snapshot workflow blocker is independently confirmed by failed main runs `42582785410` and `42583519570`: the repository secret `NORTHSTAR_OPERATOR_TOKEN` is missing or empty. The scheduled sync and reconciliation did not execute; production equity history remains stale.
+- No merge, production deploy, migration, D1 write, secret read/write, broker request/order or execution-control mutation occurred. PAPER remains disabled and the kill switch engaged.
