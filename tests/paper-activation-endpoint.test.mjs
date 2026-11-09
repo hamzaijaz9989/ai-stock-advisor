@@ -170,7 +170,7 @@ test("unsafe fill import blocks reconciliation and activation",async()=>{
 test("non-clean reconciliation blocks before account quote checks or control changes",async()=>{
  const db=makeDb(),{deps,calls}=dependencies();
  deps.runReconcile=async()=>{calls.reconcile++;return response({ok:false,reconciled:false,execution:false,status:"RECONCILIATION_MISMATCH_FAIL_CLOSED"},409);};
- const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:deps});
+ const result=await activatePaperExecution({request:makeRequest(),env:env(db),dependencies:deps});
  assert.equal(result.status,409);
  assert.equal(calls.reconcile,1);
  assert.equal(calls.broker.length,0);
@@ -180,7 +180,7 @@ test("non-clean reconciliation blocks before account quote checks or control cha
 test("strategy approval and seven-day history are checked before the atomic enable",async()=>{
  const db=makeDb({strategyApproval:{approved:0}});
  const {deps,calls}=dependencies();
- const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:{...deps,db}});
+ const result=await activatePaperExecution({request:makeRequest(),env:env(db),dependencies:deps});
  const body=await result.json();
  assert.equal(result.status,409);
  assert.equal(body.gateReason,"STRATEGY_VALIDATION_NOT_APPROVED");
@@ -197,7 +197,7 @@ test("strategy approval and seven-day history are checked before the atomic enab
 
 test("compare-and-set race cannot report PAPER activation",async()=>{
  const db=makeDb({casChanges:0}),{deps}=dependencies();
- const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:{...deps,db}});
+ const result=await activatePaperExecution({request:makeRequest(),env:env(db),dependencies:deps});
  const body=await result.json();
  assert.equal(result.status,409);
  assert.equal(body.ok,false);
