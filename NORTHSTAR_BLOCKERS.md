@@ -117,3 +117,31 @@ No paper order, real-money order, or broker mutation was performed during this r
 - Cloudflare Pages production and preview fail_open settings were both changed to false using a minimal deployment-config PATCH. Read-back confirmed both false and the production deployment remained commit 74fb9a293c66bd4cac38d36e29ec294cc58cc80c. Environment variable names were read back; no secret values were read or changed. This is fail-closed configuration hardening, not an application deployment.
 - Production currently has ALPACA_API_KEY_ID, ALPACA_API_SECRET_KEY, FMP_API_KEY2, GEMINI_API_KEY and NORTHSTAR_OPERATOR_TOKEN configured by name. NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN is absent. Do not enable paper execution until its purpose and secure provisioning are resolved.
 - Read-only D1 recheck: execution enabled=0, mode=paper, kill_switch=1, allocation=$1,000, risk fraction=0.5%, max risk fraction=1%, max position fraction=25%; one equity snapshot (2026-11-08T18:34:38.720Z), zero paper orders, zero positions, zero imported fills, zero intents, zero council runs, zero decision traces; five migrations 0001–0005 applied.
+
+
+## Run 3 — 2026-11-09T03:24:22.405Z
+
+### Changes submitted to PR #85
+- `web/functions/api/paper/fills-sync.js`: known filled exposure is no longer silently skipped when broker fill state, cumulative quantity, lifecycle transition, stop price, or nested OTO stop child is inconsistent. The row is marked `UNKNOWN`, a `UNPROTECTED_EXPOSURE_REQUIRES_MANUAL_RECOVERY` event and audit entry are written, and execution is disabled with the kill switch engaged. The endpoint does not cancel, amend, submit, or flatten broker orders; manual recovery is still required to protect an already-filled position.
+- `tests/paper-fills-sync.test.mjs`: corrected the prior test fixture that incorrectly expected a HELD OTO stop child to be accepted for a partially filled parent. The positive lifecycle test now requires a fully filled parent and active stop child. Added/updated cases asserting that backwards cumulative fills, a missing stop child, and an inconsistent FILLED status block lifecycle advancement and engage the kill switch.
+- `.github/workflows/northstar-paper-snapshot.yml`: after a completed fill import, the workflow now runs read-only reconciliation even if fill sync reports a manual-recovery condition; the workflow then fails unless fill sync is safe and reconciliation is clean.
+
+### CI and preview evidence
+- Commit `6eb43bf33e067db46c359fb130b4f9d5c6d0cfc6` passed both GitHub Actions workflows: JavaScript tests 202/202, Python tests 94/94, and lint passed. The earlier CI failure at commit `92480d0c2ff8d9ea8290d9be349adcac78335c5b` was a stale warning-string assertion in the enabled-paper-mode read-only test; the wording and assertion were corrected.
+- Cloudflare Pages preview for application-code commit `cebf9d912f9b50f1034c2c2effd7e64e7b2064b4` completed successfully (deployment check `128962037727`). The final `6eb43bf` commit only changed tests and did not trigger a new Pages preview build.
+- PR #85 remains open and draft. Latest checked head: `6eb43bf33e067db46c359fb130b4f9d5c6d0cfc6`; GitHub currently reports `mergeable=true`, but draft status remains true and no formal review submissions are recorded. Branch protection/ruleset requirements still cannot be independently read by the connected GitHub integration.
+
+### Production recheck
+- PR #84 remains merged as `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`; `main` points to that commit. Latest production Pages deployment remains `2c92c7b3-5447-440e-b3f2-066270f54b8a`, successfully deployed from the same commit. No PR #85 code is in production.
+- Production D1 remains paper mode, execution disabled (`enabled=0`), kill switch engaged (`kill_switch=1`), $1,000 allocation, 0.5% default risk, 1% maximum risk, and 25% maximum position fraction. Counts remain 0 intents, 0 orders, 0 positions, 0 fills, 0 paper trade events, 2 audit rows, and 1 equity snapshot. Migrations 0001–0005 are applied.
+- The only snapshot remains `2026-11-08T18:34:38.720Z`; no seven-day baseline exists. Production Pages environment-variable names still do not include `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN`; no secret values were read.
+
+### Remaining critical blockers
+1. Partial-fill recovery is not complete. Fill sync now detects known unprotected exposure, marks it UNKNOWN and engages the kill switch, but it still does not cancel the unfilled remainder or establish a standalone stop/flatten the already-filled shares. The kill switch is not protection for an existing position.
+2. No independent fill-derived position ledger or complete realized-P&L accounting exists; `paper_positions` remains a broker snapshot mirror.
+3. Strategy validation remains NOT APPROVED; no point-in-time dataset, >=100 completed-trade sample, chronological walk-forward folds, untouched holdout, and independent review are evidenced.
+4. Seven-day equity baseline is absent. Earliest possible baseline from the sole existing snapshot is no earlier than 2026-11-15T18:34:38.720Z, and only if valid snapshots are collected and retained meanwhile.
+5. The authenticated scheduled production workflow has not been run; presence of the GitHub repository secret `NORTHSTAR_OPERATOR_TOKEN` is not verifiable through this integration. The separate paper-approval secret is absent from production Pages configuration.
+6. PR #85 remains draft. Formal review is absent and branch protection/ruleset configuration is inaccessible to this GitHub integration; do not merge or deploy until release gates are independently verified.
+
+No paper order, live order, or broker mutation was performed. Production execution remains disabled and the kill switch remains engaged. Project-wide completion estimate remains **58%**; this run improved fail-closed detection and tests but did not complete the partial-fill recovery or strategy-validation gates.
