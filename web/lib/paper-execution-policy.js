@@ -61,29 +61,44 @@ export function validatePaperExecutionGate({
 
 
 // Verify the broker's nested OTO response contains the exact protective stop
-// child for the shares currently exposed by the parent order.
+// for any shares currently exposed by the parent order. Alpaca holds the child
+// while the entry is unfilled; a HELD child is not protection for a partial fill.
 export function verifyOtoStopLeg(order,{symbol,qty,stopPrice}={}) {
-  const block=reason=>({ok:false,reason});
+  const block=reason=>({ok:false,protected:false,reason});
   if(!order||String(order.order_class||"").toLowerCase()!=="oto") return block("OTO_ORDER_CLASS_NOT_CONFIRMED");
   if(!Array.isArray(order.legs)) return block("NESTED_ORDER_LEGS_UNAVAILABLE");
-  const parentQty=Number(qty),filled=finite(order.filled_qty)?Number(order.filled_qty):0;
-  const expectedQty=filled>0?filled:parentQty;
-  if(!Number.isFinite(expectedQty)||expectedQty<=0) return block("PARENT_ORDER_QUANTITY_INVALID");
+  if(!finite(order.filled_qty)) return block("PARENT_FILLED_QUANTITY_UNAVAILABLE");
+  const parentQty=Number(qty),brokerQty=Number(order.qty),filled=Number(order.filled_qty);
+  if(!Number.isFinite(parentQty)||parentQty<=0||!Number.isFinite(brokerQty)||Math.abs(brokerQty-parentQty)>0.0001||filled<0||filled>parentQty) return block("PARENT_ORDER_QUANTITY_INVALID");
   const expectedSymbol=String(symbol||"").toUpperCase();
   const expectedStop=Number(stopPrice);
+  const expectedQty=filled>0?filled:parentQty;
   const leg=order.legs.find(item=>{
-    const role=String(item?.order_group_role||item?.role||"").toLowerCase();
+    const role=String(item?.order_group_role||item?.group_role||item?.role||"").toLowerCase();
     const type=String(item?.type||item?.order_type||"").toLowerCase();
-    const status=String(item?.status||"").toLowerCase();
     const legStop=Number(item?.stop_price);
     const legQty=Number(item?.qty);
     return (role==="stop_loss"||type==="stop"||type==="stop_limit") &&
       String(item?.symbol||"").toUpperCase()===expectedSymbol &&
       String(item?.side||"").toLowerCase()==="sell" &&
       Number.isFinite(legQty)&&Math.abs(legQty-expectedQty)<=0.0001 &&
-      Number.isFinite(legStop)&&Math.abs(legStop-expectedStop)<=0.0001 &&
-      ["new","pending_new","accepted","accepted_for_bidding","held","partially_filled","filled"].includes(status);
+      Number.isFinite(legStop)&&Math.abs(legStop-expectedStop)<=0.0001;
   });
   if(!leg) return block("PROTECTIVE_STOP_LEG_MISSING_OR_MISMATCHED");
-  return {ok:true,reason:"PROTECTIVE_STOP_LEG_VERIFIED",legStatus:String(leg.status||"").toUpperCase(),legQty:Number(leg.qty),stopPrice:Number(leg.stop_price)};
+  const status=String(leg.status||"").toLowerCase();
+  const active=["new","pending_new","accepted","accepted_for_bidding","partially_filled","filled"];
+  if(filled===0) {
+    if(!active.includes(status)&&status!=="held") return block("UNFILLED_OTO_STOP_CHILD_NOT_ACCEPTED");
+    return {
+      ok:true,protected:active.includes(status),
+      reason:status==="held"?"OTO_STOP_HELD_WITH_NO_EXPOSURE":"OTO_STOP_LEG_VERIFIED",
+      legStatus:status.toUpperCase(),legQty:Number(leg.qty),stopPrice:Number(leg.stop_price),exposedQty:0
+    };
+  }
+  if(status==="held") return block("PARTIAL_FILL_WITH_HELD_STOP_CHILD");
+  if(!active.includes(status)) return block("EXPOSED_POSITION_STOP_CHILD_NOT_ACTIVE");
+  return {
+    ok:true,protected:true,reason:"PROTECTIVE_STOP_LEG_VERIFIED",
+    legStatus:status.toUpperCase(),legQty:Number(leg.qty),stopPrice:Number(leg.stop_price),exposedQty:filled
+  };
 }
