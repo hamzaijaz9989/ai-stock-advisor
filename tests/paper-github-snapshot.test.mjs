@@ -14,8 +14,8 @@ const validIdentity = { ok: true, runId: "12345678", runAttempt: "1", eventName:
 const fakeDb = { prepare: () => ({ bind: () => ({ first: async () => null, run: async () => ({ meta: { changes: 1 } }) }) }) };
 const baseHandlers = calls => ({
   syncAccount: async ({ request: req, env }) => { calls.push(["sync", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, synced: true, capturedAt: "2026-11-09T10:00:00.000Z", snapshot: { positions: 0 } }); },
-  importFills: async ({ request: req, env }) => { calls.push(["fills-sync", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, imported: true, safeToContinue: true, requiresManualRecovery: false, brokerRecords: 0, newRecords: 0, alreadyKnown: 0, pages: 1 }); },
-  reconcileAccount: async ({ request: req, env }) => { calls.push(["reconcile", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, reconciled: true, status: "RECONCILIATION_PASSED_READ_ONLY", counts: { brokerPositions: 0, ledgerPositions: 0, brokerOrders: 0, ledgerOrders: 0 }, checkedAt: "2026-11-09T10:01:00.000Z" }); }
+  importFills: async ({ request: req, env }) => { calls.push(["fills-sync", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, imported: true, safeToContinue: true, requiresManualRecovery: false, status: "FILL_IMPORT_AND_ORDER_SYNC_PASSED_READ_ONLY", brokerRecords: 0, newRecords: 0, alreadyKnown: 0, pages: 1 }); },
+  reconcileAccount: async ({ request: req, env }) => { calls.push(["reconcile", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, reconciled: true, status: "RECONCILIATION_PASSED_READ_ONLY", counts: { brokerPositions: 0, ledgerPositions: 0, fillDerivedPositions: 0, brokerOrders: 0, ledgerOrders: 0 }, mismatches: { positions: [], fillDerivedPositions: [], orders: [] }, checkedAt: "2026-11-09T10:01:00.000Z" }); }
 });
 
 test("runs sync, fill import and reconciliation sequentially using the server-side operator token", async () => {
