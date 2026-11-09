@@ -2,7 +2,7 @@ name: Northstar Paper Ledger Snapshots
 
 on:
   schedule:
-    # Collect a read-only broker equity/position snapshot every three hours.
+    # Collect a read-only broker snapshot and reconcile it every three hours.
     - cron: "17 */3 * * *"
   workflow_dispatch:
 
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   snapshot:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Verify required operator secret
         env:
@@ -27,16 +27,28 @@ jobs:
             exit 1
           fi
 
-      - name: Collect read-only Alpaca Paper snapshot
+      - name: Run read-only account sync, fill import, and reconciliation
         env:
           OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
         run: |
           set -euo pipefail
-          response="$(curl --fail --silent --show-error \
-            --max-time 30 \
-            --request POST \
-            --header "Authorization: Bearer $OPERATOR_TOKEN" \
-            --header "X-Request-ID: northstar-snapshot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
-            "https://ai-stock-advisor.pages.dev/api/paper/sync")"
-          echo "$response" | jq -e '.ok == true and .synced == true and .execution == false' >/dev/null
-          echo "$response" | jq '{ok, synced, execution, mode, capturedAt, snapshot}'
+          base="https://ai-stock-advisor.pages.dev/api/paper"
+          headers=(-H "Authorization: Bearer $OPERATOR_TOKEN" -H "Accept: application/json")
+
+          sync="$(curl --fail --silent --show-error --max-time 30 -X POST "${headers[@]}" \
+            -H "X-Request-ID: northstar-sync-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            "$base/sync")"
+          echo "$sync" | jq -e '.ok == true and .synced == true and .execution == false' >/dev/null
+          echo "$sync" | jq '{ok, synced, execution, mode, capturedAt, snapshot}'
+
+          fills="$(curl --fail --silent --show-error --max-time 45 -X POST "${headers[@]}" \
+            -H "X-Request-ID: northstar-fills-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            "$base/fills-sync")"
+          echo "$fills" | jq -e '.ok == true and .imported == true and .execution == false' >/dev/null
+          echo "$fills" | jq '{ok, imported, execution, brokerRecords, newRecords, alreadyKnown, orderRowsUpdated, skippedLifecycleCount, checkedAt}'
+
+          reconcile="$(curl --fail --silent --show-error --max-time 45 -X POST "${headers[@]}" \
+            -H "X-Request-ID: northstar-reconcile-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            "$base/reconcile")"
+          echo "$reconcile" | jq -e '.ok == true and .reconciled == true and .execution == false and .status == "RECONCILIATION_PASSED_READ_ONLY"' >/dev/null
+          echo "$reconcile" | jq '{ok, reconciled, execution, status, counts, checkedAt}'
