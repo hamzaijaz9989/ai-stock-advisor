@@ -4,7 +4,7 @@
  * No LLM calls, data fetching, persistence, broker access, or order execution here.
  * Every factual claim must cite supplied fact IDs.
  */
-export const COUNCIL_VERSION = "1.0.1";
+export const COUNCIL_VERSION = "1.0.2";
 export const COUNCIL_ROLES = Object.freeze({
   independent: ["market_scanner", "technical_analyst", "fundamental_analyst", "news_analyst", "sentiment_analyst"],
   debate: ["bull_researcher", "bear_researcher"],
@@ -28,6 +28,11 @@ function validateReport(report, validFactIds, role) {
     const clean = report.findings.length === 0 && report.risks.length === 0 &&
       report.decision === undefined && report.vetoReasons === undefined;
     return {ok:clean, reason:role+" is unavailable or returned data with an unavailable status."};
+  }
+  // A worker cannot satisfy its responsibility with an empty success envelope.
+  // If evidence is missing, it must explain that limitation as a cited risk.
+  if (report.findings.length + report.risks.length === 0) {
+    return {ok:false, reason:role+" returned an empty COMPLETE report; a cited finding or limitation is required."};
   }
   for (const item of [...report.findings, ...report.risks]) {
     if (!validText(item?.claim) || !Array.isArray(item.factIds) || item.factIds.length===0 ||
