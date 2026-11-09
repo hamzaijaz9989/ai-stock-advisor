@@ -145,3 +145,11 @@ No paper order, real-money order, or broker mutation was performed during this r
 6. PR #85 remains draft. Formal review is absent and branch protection/ruleset configuration is inaccessible to this GitHub integration; do not merge or deploy until release gates are independently verified.
 
 No paper order, live order, or broker mutation was performed. Production execution remains disabled and the kill switch remains engaged. Project-wide completion estimate remains **58%**; this run improved fail-closed detection and tests but did not complete the partial-fill recovery or strategy-validation gates.
+
+
+### Run 3 addendum — 2026-11-09T03:28:06.976Z
+- `web/functions/api/paper/performance.js`: the fill query now fetches 5,001 rows to detect whether the 5,000-activity FIFO cap was exceeded. If truncated, realized P&L/win-rate/profit-factor and partial lot outputs are withheld, `historyComplete=false` is returned, and a `FILL_HISTORY_LIMIT_REACHED` data-quality issue is exposed. This prevents a truncated fill ledger from being presented as complete performance.
+- `tests/paper-performance.test.mjs`: added a 5,001-fill regression test that verifies statistics remain withheld.
+- Latest PR #85 head `f73ac432df3ef123ada289fffdbc6362fe11f67c`: GitHub Actions passed — 203 JavaScript tests, 94 Python tests, and Ruff lint all passed. Cloudflare Pages preview for application-code commit `3d30ad610988a74a03bd66f33e0315686cd6515f` completed successfully (deployment check `128963163847`). The final head commit `f73ac43` is test-only and has no new preview build.
+- PR #85 remains open and draft, based on merged main commit `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`. No PR #85 code has been merged or deployed to production. The strategy, seven-day history, partial-fill recovery, position-ledger, paper approval secret, authenticated workflow and branch-protection/review blockers remain unchanged.
+- Production execution remains disabled and kill switch engaged; no broker orders or mutations were performed. Completion estimate remains **58%**.
