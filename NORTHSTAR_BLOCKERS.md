@@ -1160,3 +1160,13 @@ No broker request or mutation, paper/live order, production migration/write, pro
 9. Independently review the residual external broker-read/POST race and exact protective-stop/position recovery. The full guarded, audited PAPER-only enable procedure remains unimplemented/unverified.
 
 No PR #85 or #88 merge, production migration/write, production application deployment, broker request/mutation, paper/live order, or PAPER enablement occurred during this audit. Keep execution disabled and the kill switch engaged.
+
+
+### Continuation review — 2026-11-09T16:19:45.163Z
+- Re-fetched PR #85 and PR #88. PR #85 remains open/draft at `27ef9dde174e35c4716aa5cf1b5f2dc4438e3dde`; PR #88 remains open/draft at `62ca1021b3b394116d4dccfdab9284ac94aae5bc`.
+- Re-checked current-head CI: PR #85 Tests `42649195539` and Validate `42649195587` both completed successfully; PR #88 Tests `42611929156` and Validate `42611929171` both completed successfully. These are software CI results, not independent security approval or production verification.
+- Reviewed PR #88's OIDC verifier, workflow, snapshot route and tests. It pins the issuer/JWKS, RS256, audience, private repository identity and immutable IDs, main ref, exact workflow path, allowed event types and token lifetime. The new route calls only read-only account sync, fill import and reconciliation, uses a server-side Cloudflare operator token, and claims the workflow run/attempt before invoking handlers. No order/control mutation path is added.
+- PR #85 and PR #88 overlap in exactly two paths: `.github/workflows/northstar-equity-snapshot.yml` and `web/wrangler.toml`. Their branch integration must be reconciled explicitly before merging either PR; preserve the OIDC workflow changes and the preview D1 binding together.
+- Added a review note to PR #88 (GitHub comment ID `6745131650`) documenting the verified scope, CI evidence, overlap and the fact that it is not an independent security approval.
+- Release blockers remain: main branch is not protected/required checks are off; independent review absent; PR #88 not updated to current main or production-tested; Cloudflare-side operator secret runtime presence not verified; production D1 migrations 0006–0010 unapplied; seven-day equity history absent; strategy validation NOT APPROVED; production PAPER account identity and full lifecycle safety not independently verified.
+- No merge, production deployment, D1 migration/write, broker request/mutation, paper/live order or execution enablement was performed. Execution remains disabled and kill switch engaged.
