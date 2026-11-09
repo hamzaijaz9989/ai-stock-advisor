@@ -89,3 +89,14 @@
 - **Strategy validation:** not approved; validated BUY remains disabled. Software tests and agent scorecards do not prove predictive performance.
 - **Paper lifecycle:** not ready; execution remains disabled and kill switch engaged. No paper or live test orders.
 - For the full phase order, acceptance workflow and session handover rules, see [Northstar Project Handbook](NORTHSTAR_PROJECT_HANDBOOK.md).
+
+
+## Current execution checkpoint — 2026-11-10
+
+- Repository visibility is public, owner-confirmed.
+- Universe scanning remains complete and tested; do not rebuild it without a demonstrated regression.
+- Nine-agent Stock Brain code and dashboard integration are combined in draft PR #103. Exact-head CI passed (Tests, Validate AI Stock Advisor and full-history secret scan). Cloudflare preview deployment succeeded for application-code commit `a068fa60d3df641d424f8e8c258ef770434a5922`; live preview endpoint/UI smoke test remains outstanding.
+- PR #103 is not merged or production-deployed. Do not treat CI or preview deployment as production acceptance.
+- Production D1 currently has zero Research Council runs and one stale equity snapshot. The collector's fresh-snapshot and seven-day-history requirements are not satisfied. Controls remain paper mode, execution disabled, kill switch engaged.
+- **Next goal:** finish PR #103 review and preview smoke tests, verify authentication/provider configuration safely, establish fresh scheduled read-only equity snapshots and a seven-day baseline, then complete one controlled research-only run with durable replay verification. No orders.
+- **After Stock Brain acceptance:** begin the point-in-time strategy-validation milestone. Validated BUY remains disabled until independent evidence gates pass.
