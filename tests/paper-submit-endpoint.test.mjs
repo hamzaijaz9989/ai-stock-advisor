@@ -38,7 +38,7 @@ test("paper executor blocks an untracked broker position before writing or submi
      if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
      if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY"};
      if(sql.includes("paper_orders"))return null;
-     if(sql.includes("northstar_strategy_approval")){strategyReads++;return strategyReads===1?validStrategyApproval:finalStrategy;}
+     if(sql.includes("northstar_strategy_approval"))return validStrategyApproval;
      return null;
     },
     async all(){
@@ -165,7 +165,8 @@ async function runClaimBoundaryCase({claimChanges=[1,1,1,1],finalControl={enable
  const db={
   prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
    async first(){
-    if(sql.includes("execution_control")){controlReads++;return controlReads===1?{enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25}:finalControl;}
+    if(sql.includes("execution_control")&&sql.includes("northstar_strategy_approval")){controlReads++;return {...finalControl,...finalStrategy};}
+    if(sql.includes("execution_control")){controlReads++;return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};}
     if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY"};
     if(sql.includes("paper_orders"))return null;
     if(sql.includes("northstar_strategy_approval"))return validStrategyApproval;
