@@ -51,3 +51,36 @@ Migration `0008_paper_execution_single_flight.sql` adds a durable singleton clai
 Immediately before the broker POST, the route re-reads `execution_control` and refuses submission if paper mode is not active, execution is disabled, or the kill switch is engaged. This narrows the control race window but cannot make a D1 read and an external broker request atomic. The route remains paper-only; no LIVE URL or fallback exists. The final-control and singleton-claim tests use broker mocks only.
 
 Migration 0008 is branch/preview scope until reviewed and applied through the normal release process. Do not apply it to production or enable paper execution while the strategy, recovery, equity-history, credential, governance and end-to-end verification gates remain open.
+
+
+## Operator partial-fill recovery route — 2026-11-09
+
+The branch now implements `POST /api/paper/recover`. It is intentionally separate from normal order submission and is allowed only when `execution_control.mode='paper'`, `enabled=0`, and `kill_switch=1`. It requires the operator token and exact per-request confirmation:
+
+```json
+{
+  "orderId": "the-existing-Northstar-paper-order-UUID",
+  "confirmation": "RECOVER_THIS_PAPER_ORDER"
+}
+```
+
+The route is limited to a broker-linked Northstar BUY parent and has a two-phase workflow:
+
+1. If the parent can still execute, request cancellation and return. A later invocation must re-query until the parent is terminal; no protective stop is submitted while the entry can still add exposure.
+2. If an OTO child is HELD, first reconcile cumulative entry/child fills to the broker position, request cancellation of that non-protective child, and return. Re-query on a later invocation.
+3. Once the parent and child are terminal, reconcile the exact remaining long quantity. If an existing OTO stop is active and covers that exact quantity, do not add another order.
+4. Otherwise require a bid no older than 60 seconds and strictly above the intended stop, persist an idempotent recovery-order ledger row, and submit only a SELL stop with GTC time-in-force for the exact remaining shares.
+5. Query the broker order and positions again. Accept the recovery only if the client order ID, symbol, side, type, quantity, stop price, GTC setting and remaining-position coverage all match. An ambiguous result is UNKNOWN; never blindly retry.
+
+The route never submits a BUY, market sell, short sale, or flatten request. A stop-market trigger does not guarantee the eventual execution price. All cancellation and order submission behavior is covered with mocked broker calls; no broker mutation has been used as a test. The read-only fill importer and reconciliation endpoint recognize standalone recovery-stop rows and compare their fills and leaves against the independent FIFO ledger and broker position.
+
+Example operator request (use a private authenticated client; never paste the token into source control):
+
+```bash
+curl --fail --silent --show-error -X POST "$NORTHSTAR_API_BASE/api/paper/recover" \
+  -H "Authorization: Bearer $NORTHSTAR_OPERATOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"orderId":"<existing-order-uuid>","confirmation":"RECOVER_THIS_PAPER_ORDER"}'
+```
+
+This route is branch/preview code only until formal review and release gates pass. It is not authorization to enable paper execution. Production remains disabled and kill-switched.
