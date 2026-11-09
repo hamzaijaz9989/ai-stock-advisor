@@ -23,6 +23,10 @@ test("fill import refreshes only matching Northstar order rows from broker cumul
  assert.ok(update);
  assert.deepEqual(update.args.slice(0,1),["PARTIALLY_FILLED"]);
  assert.equal(update.args[3],"northstar-order-1");
+ const event=db.state.batch.find(x=>x.sql.startsWith("INSERT INTO paper_trade_events"));
+ assert.ok(event);
+ assert.equal(event.args[1],"ORDER_STATUS_UPDATED");
+ assert.equal(event.args[3],"alpaca_paper_fill_sync");
 });
 test("fill import does not move an order backwards or invent a ledger row",async()=>{
  const row={id:"northstar-order-1",broker_order_id:"ord-1",qty:5,status:"PARTIALLY_FILLED",response_json:'{"filled_qty":"3","filled_avg_price":"100"}'};
@@ -32,4 +36,15 @@ test("fill import does not move an order backwards or invent a ledger row",async
  assert.equal(response.status,200);
  assert.equal(body.orderRowsUpdated,0);
  assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
+});
+
+test("fill sync refuses to mark an order FILLED when cumulative quantity is below order quantity",async()=>{
+ const row={id:"northstar-order-1",broker_order_id:"ord-1",qty:5,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
+ const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"3",filled_avg_price:"100",status:"filled"};
+ const {response,db}=await run({brokerOrders:[brokerOrder],ledgerRows:[row]});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(body.orderRowsUpdated,0);
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("INSERT INTO paper_trade_events")),false);
 });
