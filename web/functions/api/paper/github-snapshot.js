@@ -87,6 +87,16 @@ export async function runReadOnlySnapshotChain({ request, env, verify = verifyGi
 
   const fills = await invoke(activeHandlers.importFills, "fills-sync", env, operatorToken, `${suppliedRequestId}-fills`, "imported");
   if (!fills.ok) return response("Read-only fill import failed; reconciliation was not claimed.", 503, { stage: "fills-sync", detail: fills.error, snapshotCapturedAt: sync.body.capturedAt || null });
+  // Treat the explicit safety fields as mandatory, not merely advisory. A fill
+  // importer may have persisted raw activities while marking an order unsafe;
+  // reconciliation must not be reported as the next healthy stage in that case.
+  if (fills.body.safeToContinue !== true || fills.body.requiresManualRecovery !== false) {
+    return response("Fill import requires manual recovery; reconciliation was not run.", 409, {
+      stage: "fills-sync",
+      detail: "MANUAL_RECOVERY_REQUIRED",
+      snapshotCapturedAt: sync.body.capturedAt || null
+    });
+  }
 
   const reconciliation = await invoke(activeHandlers.reconcileAccount, "reconcile", env, operatorToken, `${suppliedRequestId}-reconcile`, "reconciled");
   if (!reconciliation.ok || reconciliation.body.reconciled !== true || reconciliation.body.status !== "RECONCILIATION_PASSED_READ_ONLY") {
