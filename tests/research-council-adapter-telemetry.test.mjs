@@ -1,3 +1,4 @@
+// Regression coverage for both supported model-provider telemetry paths and fail-safe outages.
 import test from "node:test";
 import assert from "node:assert/strict";
 import {createResearchCouncilWorkers} from "../web/lib/research-council-adapters.js";
