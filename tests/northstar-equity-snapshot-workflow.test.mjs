@@ -13,3 +13,11 @@ test("scheduled snapshot stops if read-only fill import is incomplete or unsafe"
   assert.match(fillsStep, /if \[ "\$fills_ok" != "true" \] \|\| \[ "\$fills_safe" != "true" \]; then[\s\S]*?exit 1[\s\S]*?fi/);
   assert.doesNotMatch(fillsStep, /reconciliation will still run/);
 });
+
+test("read-only scheduled snapshots permit either internally consistent PAPER control state", () => {
+  const readinessStep = workflow.split("- name: Verify production policy remains fail-closed\n")[1]?.split("\n      - name:")[0] || "";
+  assert.ok(readinessStep, "readiness guard must exist");
+  assert.match(readinessStep, /\.configured == true and \.policyVerified == true and \.mode == "paper"/);
+  assert.doesNotMatch(readinessStep, /\.executionEnabled == false/);
+  assert.doesNotMatch(readinessStep, /\.killSwitchEngaged == true/);
+});
