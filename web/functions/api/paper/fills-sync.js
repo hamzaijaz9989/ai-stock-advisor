@@ -165,6 +165,7 @@ export async function onRequestPost({request,env}){
    const brokerType=String(brokerOrder.type||brokerOrder.order_type||"").toLowerCase();
    const brokerTif=String(brokerOrder.time_in_force||"").toLowerCase();
    const brokerStop=num(brokerOrder.stop_price);
+   const brokerQty=num(brokerOrder.qty);
    const leaves=num(brokerOrder.leaves_qty)??(qty-filled);
    const matchingPositions=brokerPositions.filter(p=>String(p?.symbol||"").toUpperCase()===String(row.symbol||"").toUpperCase());
    const position=matchingPositions.length===1?matchingPositions[0]:null;
@@ -173,8 +174,9 @@ export async function onRequestPost({request,env}){
    const active=["ACCEPTED","PARTIALLY_FILLED"].includes(status);
    const terminalFlat=["FILLED","CANCELED","REJECTED"].includes(status)&&matchingPositions.length===0&&positionQty===0;
    const directStopOk=brokerType==="stop"&&brokerTif==="gtc"&&String(brokerOrder.side||"").toLowerCase()==="sell"&&
-    String(brokerOrder.symbol||"").toUpperCase()===String(row.symbol||"").toUpperCase()&&stopPrice!==null&&brokerStop!==null&&
-    Math.abs(brokerStop-stopPrice)<=0.0001;
+    String(brokerOrder.symbol||"").toUpperCase()===String(row.symbol||"").toUpperCase()&&
+    String(brokerOrder.client_order_id||"")===String(row.id)&&brokerQty!==null&&Math.abs(brokerQty-qty)<=0.0001&&
+    stopPrice!==null&&brokerStop!==null&&Math.abs(brokerStop-stopPrice)<=0.0001;
    const covered=active&&matchingPositions.length===1&&positionQty!==null&&positionQty>0&&positionSide==="long"&&Math.abs(positionQty-leaves)<=0.0001;
    if(!directStopOk||!(covered||terminalFlat)){
     const reason=!directStopOk?"STANDALONE_RECOVERY_STOP_FIELDS_MISMATCH":"STANDALONE_RECOVERY_STOP_DOES_NOT_RECONCILE_TO_POSITION";
