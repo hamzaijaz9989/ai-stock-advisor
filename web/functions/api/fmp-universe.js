@@ -52,7 +52,7 @@ export async function onRequestGet({request,env}){
  const delistedResult=settled[6];
  const delistedCompanies=delistedResult.status==="fulfilled"?delistedResult.value:null;
  if(delistedResult.status==="rejected")errors.push({dataset:"delisted_companies",error:String(delistedResult.reason?.message||"FMP request failed").slice(0,160)});
- const available=Object.values(indexes).some(x=>Array.isArray(x.current)||Array.isArray(x.historicalChanges))||Array.isArray(delistedCompanies);
+ const available=Object.values(indexes).some(x=>(Array.isArray(x.current)&&x.current.length>0)||(Array.isArray(x.historicalChanges)&&x.historicalChanges.length>0))||(Array.isArray(delistedCompanies)&&delistedCompanies.length>0);
  return Response.json({
   available,configured:true,provider:"Financial Modeling Prep",retrievedAt:new Date().toISOString(),
   historicalChangesSince:from,indexes,delistedCompanies,delistedCompanyCount:delistedCompanies?.length??null,errors,
