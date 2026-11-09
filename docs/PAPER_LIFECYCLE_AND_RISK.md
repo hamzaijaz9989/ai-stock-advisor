@@ -13,8 +13,8 @@ This module is deliberately pure: it performs no broker calls, network requests,
 ## Portfolio risk
 The pure evaluator checks total gross marked exposure including open-order exposure, position concentration, configured daily loss/drawdown thresholds, and broker account restrictions. It fails closed if daily loss or drawdown inputs are missing. Do not treat a passing calculation as trade approval: quote freshness, liquidity, correlation/sector concentration, corporate actions, and independent strategy validation are separate gates.
 
-## Not implemented intentionally
-No order submission, modification, cancellation, D1 mutation, automatic strategy selection, or live execution is implemented by these guards. The current production system remains paper-only, disabled, and kill-switched.
+## Boundary of the pure guards
+The functions in this module perform no broker calls, network requests, database writes, or control changes. Separate authenticated endpoints persist read-only broker snapshots, imported fill activities, and the deterministic fill-derived FIFO ledger. Those maintenance endpoints do not submit, amend, cancel, or flatten broker orders. The current production system remains paper-only, disabled, and kill-switched.
 
 ## Validation required before any live-money discussion
 1. Add durable, append-only order event persistence and transactional compare-and-set state updates.
