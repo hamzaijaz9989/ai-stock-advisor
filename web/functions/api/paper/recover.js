@@ -164,6 +164,36 @@ export async function onRequestPost({request,env}){
  if(decision.action==="PROTECTED_BY_EXISTING_OTO_STOP")return Response.json({ok:true,recovered:true,execution:false,status:"PROTECTED_BY_EXISTING_OTO_STOP",protectiveStopVerified:true,brokerOrderId:decision.protectiveStopOrderId,positionQty:decision.positionQty,message:"The existing OTO stop is active and covers the exact remaining position."},{headers:H});
  if(decision.action!=="PLACE_STANDALONE_GTC_STOP")return fail("Recovery policy returned an unsupported action; no broker mutation was made.",409,{reason:decision.reason});
 
+ // The first broker snapshot precedes the quote request. Re-read the parent,
+ // nested stop child, and exact position after the quote and immediately before
+ // the durable recovery-order claim. Never submit a stop sized from stale fills.
+ let finalParent,finalPositions,finalQuote;
+ try{
+  [finalParent,finalPositions,finalQuote]=await Promise.all([
+   broker("/v2/orders/"+encodeURIComponent(parentRow.broker_order_id)+"?nested=true",key,secret),
+   broker("/v2/positions",key,secret),
+   broker("/v2/stocks/"+encodeURIComponent(symbol)+"/quotes/latest?feed=iex",key,secret)
+  ]);
+ }catch{return fail("Could not refresh the broker parent, child, position, and quote immediately before recovery; no stop was submitted.",503);}
+ const finalParentMatches=String(finalParent?.id||"")===String(parentRow.broker_order_id)&&
+  String(finalParent?.client_order_id||"")===parentId&&String(finalParent?.order_class||"").toLowerCase()==="oto"&&
+  String(finalParent?.symbol||"").toUpperCase()===symbol&&String(finalParent?.side||"").toLowerCase()==="buy"&&
+  close(num(finalParent?.qty),Number(parentRow.qty));
+ const finalPosition=positionFor(finalPositions,symbol);
+ const finalChildResult=childStop(finalParent);
+ if(!finalParentMatches||!finalPosition.ok||finalChildResult.ambiguous)return fail("Broker parent/child identity or position changed during recovery; no standalone stop was submitted.",409,{reason:!finalParentMatches?"PARENT_CHANGED_BEFORE_RECOVERY_POST":finalPosition.reason||"AMBIGUOUS_STOP_CHILD"});
+ const finalDecision=evaluatePartialFillRecovery({
+  parent:finalParent,stopChild:finalChildResult.child,brokerPosition:finalPosition.position,
+  stopPrice:parentRow.stop_price,quote:{bid:finalQuote?.quote?.bp,timestamp:finalQuote?.quote?.t}
+ });
+ if(finalDecision.action==="COMPLETED_NO_EXPOSURE")return Response.json({ok:true,recovered:true,execution:false,status:"COMPLETED_NO_EXPOSURE",message:"The final broker recheck confirms zero exposure; no stop was needed."},{headers:H});
+ if(finalDecision.action==="PROTECTED_BY_EXISTING_OTO_STOP")return Response.json({ok:true,recovered:true,execution:false,status:"PROTECTED_BY_EXISTING_OTO_STOP",protectiveStopVerified:true,brokerOrderId:finalDecision.protectiveStopOrderId,positionQty:finalDecision.positionQty,message:"The final broker recheck confirms the existing OTO stop covers the exact remaining position."},{headers:H});
+ if(!finalDecision.ok||finalDecision.action!=="PLACE_STANDALONE_GTC_STOP")return fail("The final broker recheck no longer permits a standalone recovery stop; no stop was submitted.",409,{reason:finalDecision.reason||finalDecision.action,details:finalDecision.details||{}});
+ let finalControl;
+ try{finalControl=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();}catch{return fail("Could not recheck the paper kill switch immediately before recovery; no stop was submitted.",503);}
+ if(!finalControl||finalControl.mode!=="paper"||Number(finalControl.enabled)!==0||Number(finalControl.kill_switch)!==1)return fail("Paper execution controls changed during recovery; no standalone stop was submitted.",409,{reason:"RECOVERY_REQUIRES_DISABLED_PAPER_EXECUTION_AND_ENGAGED_KILL_SWITCH"});
+ decision=finalDecision;
+
  const order=decision.order,clientId=crypto.randomUUID(),now=new Date().toISOString(),idempotencyKey="recovery:"+parentId;
  const precision=Number(order.stop_price)>=1?2:4;
  const formattedStop=Number(order.stop_price).toFixed(precision);
