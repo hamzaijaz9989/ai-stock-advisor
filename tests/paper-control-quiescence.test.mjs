@@ -43,14 +43,24 @@ test("kill switch never reports quiescence while a submission claim remains SUBM
   assert.deepEqual(result,{ok:true,quiesced:false,state:"SUBMITTING"});
 });
 
-test("kill switch drain follows an in-flight claim until its terminal state",async()=>{
+test("kill switch drain follows an in-flight claim until an UNKNOWN broker outcome",async()=>{
   let reads=0,clock=0;
   const db={prepare(){return {async first(){reads++;return {state:reads===1?"SUBMITTING":"UNKNOWN"};}};}};
   const result=await waitForSubmissionQuiescence(db,{timeoutMs:1000,pollMs:100,now:()=>clock+=10,pause:async()=>{}});
   assert.equal(result.ok,true);
-  assert.equal(result.quiesced,true);
+  assert.equal(result.quiesced,false);
   assert.equal(result.state,"UNKNOWN");
   assert.equal(reads,2);
+});
+
+test("kill switch does not acknowledge quiescence for an UNKNOWN broker outcome",async()=>{
+  const {db}=controlDb("UNKNOWN");
+  const response=await onRequestPost({request:request(),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_DB:db}});
+  const body=await response.json();
+  assert.equal(response.status,503);
+  assert.equal(body.killSwitchEngaged,true);
+  assert.equal(body.submissionQuiesced,false);
+  assert.equal(body.manualReconciliationRequired,true);
 });
 
 test("kill switch fails closed when claim state cannot be read",async()=>{
