@@ -143,7 +143,7 @@ export async function onRequestPost({request,env}) {
       const position=bp.find(p=>p.symbol===String(l.symbol||"").toUpperCase())||null;
       const activeStop=["ACCEPTED","PARTIALLY_FILLED"].includes(brokerStatus);
       const terminalNoExposure=["FILLED","CANCELED","REJECTED"].includes(brokerStatus)&&brokerFilledQty===lqty;
-      if(directStopType!=="stop"||directStopTif!=="gtc"||stopPrice===null||directStopPrice===null||!close(directStopPrice,stopPrice)){
+      if(directStopType!=="stop"||directStopTif!=="gtc"||String(b.client_order_id||"")!==String(l.id)||stopPrice===null||directStopPrice===null||!close(directStopPrice,stopPrice)){
         orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"STANDALONE_RECOVERY_STOP_FIELDS_MISMATCH"});
       }else if(activeStop&&(!position||position.qty===null||position.qty<=0||!close(position.qty,leaves)||String(b.side||"").toLowerCase()!=="sell")){
         orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"STANDALONE_RECOVERY_STOP_DOES_NOT_COVER_POSITION",leaves,brokerPosition:position});
