@@ -82,6 +82,10 @@ test("paper sizing preview rejects risk above configured maximum", async () => {
 test("operator control rejects unauthenticated requests without changing the ledger", async () => {
   const { onRequestPost } = await loadFunction("../web/functions/api/paper/control.js");
   const { db, calls } = mockDb({});
+  db.batch = async statements => {
+    calls.push({ type: "batch", statements });
+    return statements.map(() => ({ meta: { changes: 1 } }));
+  };
   const response = await onRequestPost({
     request: new Request("https://northstar.test/api/paper/control", {
       method: "POST", headers: { "Content-Type": "application/json" },
