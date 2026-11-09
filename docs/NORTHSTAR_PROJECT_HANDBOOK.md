@@ -283,3 +283,12 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - Preview also lacks GEMINI_API_KEY; research-council model adapters may consequently be unable to call Gemini even after Alpaca/FMP are restored. Confirm the model-provider adapter's required env bindings before a full council smoke test.
 - No broker order, paper order, live order, production D1 write/migration, production secret mutation, or execution-control change was made during this audit. Paper execution remains disabled, kill switch engaged, and validated BUY disabled.
 - Active PR #103 branch northstar/research-council-status-dashboard; provider root-cause audit performed against branch head da1550fc09db32935b2060f93f52fe58620fd43f. The code preview deployment 436a3f12-0cac-40d7-aaa8-ce5ac83fbed9 succeeded, but provider-dependent runtime operation is not possible until preview secrets are configured.
+
+
+## 2026-11-10 — Assistant-caused Preview provider regression and recovery
+
+- During the login setup, the assistant sent a Cloudflare Pages project PATCH that set Preview `env_vars` to only `NORTHSTAR_OPERATOR_TOKEN`. The project API's resulting configuration shows Preview now contains only that binding, whereas Production still contains the Alpaca, FMP and Gemini secret bindings. This explains why previously working provider calls stopped in Preview.
+- The assistant owns this regression. The previous diagnosis that Preview credentials were simply never configured was wrong; the operator-token update replaced the Preview environment-variable map.
+- The API masks secret values. Current configuration cannot restore prior values, and the connected Cloudflare integration cannot read them back. No further config overwrite should occur. Recovery investigation is to inspect deployment snapshots, CI/CD secrets, and other existing secure sources. Do not modify Production credentials or place secrets in source control.
+- If no secure copy exists, restoration requires an authorized secret owner to re-enter the original values. The assistant must be transparent about this limitation and not claim the API credentials have been restored.
+- No trading execution, paper/live orders, production D1 writes/migrations or production secret changes were made.
