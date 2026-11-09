@@ -40,7 +40,7 @@ export async function onRequestPost({request,env}) {
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price,market_value FROM paper_positions ORDER BY symbol").all();
     equitySnapshots=await db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all();
   } catch { return fail("Could not verify ledger policy or positions; fail-closed.",503); }
-  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) return fail("Paper execution controls are not in the required disabled/kill-switched state.",503);
+  if(!control||control.mode!=="paper"||Number(control.max_portfolio_usd)!==1000) return fail("Paper-only allocation policy is unavailable or invalid.",503);
   let account,brokerPositions,quote,clock;
   try {
     [account,brokerPositions,quote,clock]=await Promise.all([
