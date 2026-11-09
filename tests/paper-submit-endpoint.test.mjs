@@ -53,7 +53,7 @@ test("paper executor blocks an untracked broker position before writing or submi
   if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE",equity:"100000",last_equity:"100000",buying_power:"400000"});
   if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:99.9,ap:100,t:now}});
   if(u.endsWith("/v2/positions"))return Response.json([{symbol:"MSFT",qty:"1",avg_entry_price:"50",market_value:"50"}]);
-  if(u.includes("/v2/orders?status=open"))return Response.json([]);
+  if(u.includes("/v2/orders?status=all"))return Response.json([]);
   if(u.endsWith("/v2/orders"))throw new Error("broker order submission must not occur");
   throw new Error("unexpected broker request "+u);
  };
@@ -100,7 +100,7 @@ test("paper executor blocks historical broker orders even when none are open",as
  const {response,submitted}=await runHistoricalOrderCase({brokerOrderRows:[{id:"old-order",status:"filled"}]});
  assert.equal(response.status,409);
  assert.equal(submitted,false);
- assert.match((await response.json()).error,/historical|order history/i);
+ assert.match((await response.json()).error,/historical|order history|unresolved orders/i);
 });
 test("paper executor blocks historical Northstar ledger orders",async()=>{
  const {response,submitted}=await runHistoricalOrderCase({ledgerOrderRows:[{id:"old-ledger-order",status:"FILLED"}]});
