@@ -33,10 +33,9 @@ test("Stock Brain report renderer writes untrusted specialist text with textCont
 });
 
 test("Stock Brain parser returns JSON and replaces proxy HTML/parser details with a safe error", async () => {
-  const start = client.indexOf("async function parseStockBrainResponse");
-  const end = client.indexOf("\\n  }", start);
-  assert.ok(start >= 0 && end > start, "safe response parser must exist");
-  const parser = runInNewContext("(" + client.slice(start, end + 4) + ")");
+  const parserMatch = client.match(/async function parseStockBrainResponse\(response\) \{[\s\S]*?^  \}/m);
+  assert.ok(parserMatch, "safe response parser must exist");
+  const parser = runInNewContext("(" + parserMatch[0] + ")");
   const valid = await parser({status:200, text:async () => JSON.stringify({ok:true, result:{status:"NO_TRADE"}})});
   assert.equal(valid.ok, true);
   await assert.rejects(
@@ -54,7 +53,7 @@ test("Stock Brain parser returns JSON and replaces proxy HTML/parser details wit
 });
 
 test("Stock Brain agent role labels are human-readable", () => {
-  const line = client.split("\\n").find(value => value.includes("const roleTitle ="));
+  const line = client.split(/\r?\n/).find(value => value.includes("const roleTitle ="));
   assert.ok(line, "role label formatter must exist");
   const formatter = runInNewContext("(" + line.trim().replace(/^const roleTitle = /, "").replace(/;$/, "") + ")");
   assert.equal(formatter("market_scanner"), "Market Scanner");
