@@ -183,7 +183,7 @@ test("fill sync idempotently rebuilds a previously imported terminal fill withou
 
 test("fill sync accepts a verified standalone recovery GTC stop with exact position coverage",async()=>{
  const row={id:"recovery-order-ledger",broker_order_id:"recovery-order-broker",symbol:"AAPL",side:"sell",qty:2,stop_price:95,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
- const brokerOrder={id:"recovery-order-broker",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",status:"new",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"2"};
+ const brokerOrder={id:"recovery-order-broker",client_order_id:"recovery-order-ledger",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",status:"new",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"2"};
  const {response,db}=await run({activities:[],brokerOrders:[brokerOrder],brokerPositions:[{symbol:"AAPL",qty:"2",side:"long"}],ledgerRows:[row]});
  const body=await response.json();
  assert.equal(response.status,200);
@@ -193,7 +193,7 @@ test("fill sync accepts a verified standalone recovery GTC stop with exact posit
 });
 test("fill sync flags a standalone recovery stop whose leaves do not cover the broker position",async()=>{
  const row={id:"recovery-order-ledger",broker_order_id:"recovery-order-broker",symbol:"AAPL",side:"sell",qty:2,stop_price:95,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
- const brokerOrder={id:"recovery-order-broker",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",status:"new",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"1"};
+ const brokerOrder={id:"recovery-order-broker",client_order_id:"recovery-order-ledger",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",status:"new",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"1"};
  const {response,db}=await run({activities:[],brokerOrders:[brokerOrder],brokerPositions:[{symbol:"AAPL",qty:"2",side:"long"}],ledgerRows:[row]});
  const body=await response.json();
  assert.equal(response.status,409);
