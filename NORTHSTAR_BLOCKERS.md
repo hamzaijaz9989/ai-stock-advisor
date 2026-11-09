@@ -1625,3 +1625,40 @@ No PR #85 merge, production deployment, D1 migration/write, broker request, orde
 - PR #84 remains merged as `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`. PR #85 has green exact-head CI but remains DRAFT/unreviewed and main is unprotected. Do not merge or deploy until private/public repository intent is resolved, branch protection is configured, an independent reviewer approves, migrations are rehearsed, production endpoint checks succeed, seven-day history and strategy validation pass, and the actual PAPER account/reconciliation is confirmed.
 - PR #88 is a separate OIDC bridge candidate and remains DRAFT/unreviewed; do not merge it before #85. Its visibility claim currently requires public, which conflicts with the user's stated private-repository expectation.
 - No production deployment, D1 write/migration, secret read/write, broker request, order submission or execution-control mutation occurred. Keep PAPER execution disabled and the kill switch engaged.
+
+
+### Automation run 3 — read-only schedule and OIDC hardening — 2026-11-09T20:00:59Z (2026-11-10 01:00:59 PKT)
+
+#### Fixes committed and exact-head CI
+- PR #85 branch commits:
+  - `f39d5fc1f6e84a2bdcf587850314e9a975a9e37d`: the scheduled equity/fill/reconciliation workflow no longer requires execution to be disabled and the kill switch engaged. It now requires `configured=true`, `policyVerified=true`, and `mode=paper`. The readiness endpoint's `policyVerified` already enforces the valid, mutually consistent PAPER control state (disabled+kill-switch engaged, or enabled+kill-switch disengaged); therefore the workflow remains fail-closed without silently stopping read-only monitoring when guarded PAPER execution is enabled.
+  - `c66bc5b2a258afafb922bed63bc9ab8b94426544`: added a regression test for this workflow guard.
+- PR #85 exact-head CI on `c66bc5b2a258afafb922bed63bc9ab8b94426544`:
+  - Tests run `42688558266`: SUCCESS; 338/338 JavaScript tests, 95/95 Python tests, Ruff passed.
+  - Validate run `42688558540`: SUCCESS; 95/95 Python tests, Ruff, 44/44 frontend-analysis tests, 7/7 readiness tests and 7/7 SEC-ingestion tests passed. The synthetic strategy-validation test continues to assert NOT APPROVED.
+- PR #88 OIDC branch commits:
+  - `18d92b72bf4e3f25e5c71d5b43a26d572816061c`: same PAPER-safe readiness guard for the read-only OIDC snapshot workflow.
+  - `656cb8aefa1ed4dbf40d2e39f6116d71cdfc8ce1`: regression test that permits read-only sync while PAPER execution is consistently enabled.
+  - `6833e786cbde959b6e6831f70c663f7a5a748cf2`: OIDC verifier now accepts either GitHub's `private` or `public` visibility claim while continuing to pin exact repository name, immutable repository ID, owner ID, main ref, workflow ref, issuer, audience, event, run identity, token lifetime and signature. This avoids breaking the OIDC bridge if the repository is returned to private visibility; it does not change the repository's actual visibility.
+  - `8a92b7a7b5aa3d03606698492c1b81f29befbc3e`: added tests accepting the pinned repository under private/public visibility and rejecting invalid visibility.
+- PR #88 exact-head CI on `8a92b7a7b5aa3d03606698492c1b81f29befbc3e`:
+  - Tests run `42688581768`: SUCCESS; 193/193 JavaScript tests, 94/94 Python tests, Ruff passed.
+  - Validate run `42688581766`: SUCCESS; 94/94 Python tests, Ruff, 43/43 frontend-analysis tests, 4/4 readiness tests and 7/7 SEC-ingestion tests passed.
+- The previously reported GitHub hosted-runner allocation issue is resolved on both current heads; all four exact-head workflow runs above have real assigned runners and successful completed steps. Do not continue reporting the old runner-allocation failure as a current blocker.
+
+#### Preview deployment verification
+- PR #85 Pages preview deployment `a29a60b2-2d48-4c1b-b28c-da7ff02dfab5` completed SUCCESS for commit `f39d5fc1f6e84a2bdcf587850314e9a975a9e37d`; latest test-only head `c66bc5b2...` was skipped by `path_config`. The preview includes the workflow guard change.
+- PR #88 Pages preview deployments `6b2a0e08-8341-4210-aaa0-f0cd0340b689` (workflow guard, SUCCESS) and `cc4055b0-d0bb-49ac-a9b8-a2013236d547` (OIDC validator, SUCCESS). The latest test-only head `8a92b7a7...` was skipped by `path_config`; the latest application-code preview is `cc4055b0...`.
+- Production deployment remains `e4ebdc82-06ff-43e4-9557-a6ec4caf710e`, commit `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`. No PR #85/#88 application code has been deployed to production.
+- Production Pages endpoint probes for readiness, performance, control and preflight still return 403 from the connected runtime's outbound path (no application body). No fresh endpoint-health claim is made. Run authenticated/read-only checks from an authorized external environment after governance and release review.
+
+#### New implementation blocker: no guarded PAPER enable route
+- Inspected `web/functions/api/paper/control.js`: GET is read-only and POST supports only `ENGAGE_KILL_SWITCH`; comments explicitly state that releasing the switch or enabling execution is not implemented. This is fail-safe, but it means there is currently no supported, audited API path to enable PAPER execution after all prerequisites pass.
+- Affected: operator controls, paper execution activation and audit trail. No control mutation was attempted.
+- Next: implement a separate, fail-closed PAPER-only activation procedure (distinct approval credential, fresh PAPER-account read-only verification, fresh quote/equity history, seven-day baseline, clean reconciliation, approved strategy attestation, flat/known broker and ledger state, exact immutable risk limits, atomic D1 compare-and-set plus durable audit); add negative/positive mocked tests and independent maintainer review. Do not activate it now: production and preview strategy approval are false, production history is stale, production migrations 0006–0010 are unapplied, and the approval credential is absent from Pages variable-name metadata. Never enable via direct ad-hoc D1 writes.
+
+#### Current release and safety state
+- PR #84 remains merged as `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`. PR #85 remains Draft and unreviewed; PR #88 remains Draft and unreviewed. Main is unprotected with required checks off. Do not merge until repository visibility intent is resolved, main branch protection is configured, independent review is recorded, production migrations are rehearsed, authenticated PAPER account/reconciliation and seven-day history are proven, strategy validation is independently approved, endpoint health is verified and the guarded activation procedure is reviewed.
+- Repository metadata still reports `visibility=public`, which conflicts with the user's stated private-repository expectation. PR #88's validator now supports private/public claims, but the repository remains publicly accessible. The connected tool has no repository-visibility mutation capability; owner action remains necessary.
+- Production/preview D1 results remain as recorded above: production migrations 0001–0005, preview 0001–0010; production 1 snapshot and no intents/orders/positions/fills; preview zero snapshots/intents/orders/positions/fills; both controls remain PAPER, execution disabled and kill switch engaged; strategy approval remains false in preview. All D1 reads were read-only and reported zero rows written.
+- No production migration/write, production deployment, secret read/write, broker request/mutation, paper/live order or execution-control change occurred. Keep PAPER execution disabled and kill switch engaged.
