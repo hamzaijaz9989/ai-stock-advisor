@@ -1399,3 +1399,12 @@ No PR #85/#88 merge, production migration/write, production deployment, broker r
 6. Keep PAPER execution disabled and kill switch engaged. Do not enable until all gates in this document are independently demonstrated.
 
 No PR merge, force push, branch-protection bypass, D1 write/migration, production deployment, broker API request, paper/live order or execution enablement occurred in this run.
+
+
+### Live-state correction — 2026-11-09T17:57:30Z
+- A newer branch commit arrived after the prior preview-check note: latest PR #85 head is `abd9f865461ed4652bd6fb7d207bc0b04d26f5f6`, not `fac76f44...`. The latest commit changes only `NORTHSTAR_BLOCKERS.md`; application code is unchanged. Compare: 431 ahead / 0 behind main. GitHub currently reports `mergeable=true`, `draft=true`.
+- CI on this exact head passed: Tests run `42669529549` (337/337 JavaScript tests, 95 Python tests, Ruff) and Validate run `42669529759` (95 Python tests, Ruff, 44 frontend-analysis tests, 7 readiness tests, 7 SEC-ingestion tests). Synthetic strategy validation remains intentionally false / NOT APPROVED.
+- PR #85 still has zero formal reviews and zero inline review threads. PR #88 latest head remains `11fd4b0d4392eaf7a4101b4e3fe0745d0d1c394c`, 16 ahead / 0 behind main, draft, with CI runs `42668629110` and `42668629375` passing; zero formal reviews/threads.
+- Main branch remains `protected=false`, required status checks off. A fresh rulesets API read returned HTTP 403 with GitHub's explicit message: `Upgrade to GitHub Pro or make this repository public to enable this feature.` Keep this repository private as instructed; owner/admin must upgrade to GitHub Pro (or an eligible organization plan) and configure a ruleset/branch protection. The connected integration cannot do this.
+- This corrects the preceding 18:05Z note's stale statement that the PR #85 head was `fac76f44...` and mergeability unknown. The current live PR API reports `abd9f865...` and `mergeable=true`; release remains blocked by draft state, missing independent review and missing branch protection.
+- No PR merge, branch-protection bypass, D1 write/migration, production deployment, broker request/order or execution enablement occurred.
