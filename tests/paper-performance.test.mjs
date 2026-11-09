@@ -57,3 +57,21 @@ test("performance excludes unrelated Alpaca fills and includes recorded OTO chil
  assert.equal(b.tradeStatistics.grossRealizedPlUsd,20);
  assert.equal(b.fillLedger.openLots[0].qty,1);
 });
+
+
+test("performance withholds FIFO statistics when independent derived lots disagree",async()=>{
+ const fills=[{activity_id:"buy-1",broker_order_id:"test-order",symbol:"AAPL",side:"buy",qty:2,price:100,transaction_time:"2026-01-01T10:00:00Z"}];
+ const ledger=db({fills});
+ const prepare=ledger.prepare.bind(ledger);
+ ledger.prepare=sql=>{
+  if(sql.includes("paper_position_lots"))return {async all(){return {results:[]};}};
+  return prepare(sql);
+ };
+ const r=await onRequestGet({env:{NORTHSTAR_DB:ledger}});
+ const b=await r.json();
+ assert.equal(r.status,200);
+ assert.equal(b.fillLedger.available,false);
+ assert.equal(b.tradeStatistics.status,"WITHHELD_FILL_DERIVED_LEDGER_MISMATCH");
+ assert.ok(b.fillLedger.dataQualityIssues.some(x=>x.reason==="FILL_DERIVED_OPEN_LOTS_MISMATCH"));
+ assert.equal(b.tradeStatistics.grossRealizedPlUsd??null,null);
+});
