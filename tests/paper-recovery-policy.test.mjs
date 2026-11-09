@@ -82,3 +82,19 @@ test("invalid cumulative fills fail closed",()=>{
   const result=evaluate({parent:parent({filled_qty:"6"})});
   assert.equal(result.action,"MANUAL_RECOVERY_REQUIRED");
 });
+
+test("non-buy parent orders are never eligible for long-position recovery",()=>{
+  const result=evaluate({parent:parent({side:"sell"})});
+  assert.equal(result.action,"MANUAL_RECOVERY_REQUIRED");
+  assert.equal(result.reason,"PARENT_ORDER_OR_STOP_FIELDS_INVALID");
+});
+test("new parent with a nonzero fill snapshot is inconsistent and blocked",()=>{
+  const result=evaluate({parent:parent({status:"new",filled_qty:"1"})});
+  assert.equal(result.action,"MANUAL_RECOVERY_REQUIRED");
+  assert.equal(result.reason,"UNFILLED_PARENT_STATUS_HAS_NONZERO_CUMULATIVE_QUANTITY");
+});
+test("partially filled parent with zero cumulative fills is inconsistent and blocked",()=>{
+  const result=evaluate({parent:parent({status:"partially_filled",filled_qty:"0"}),brokerPosition:null});
+  assert.equal(result.action,"MANUAL_RECOVERY_REQUIRED");
+  assert.equal(result.reason,"PARTIAL_PARENT_HAS_INVALID_CUMULATIVE_QUANTITY");
+});
