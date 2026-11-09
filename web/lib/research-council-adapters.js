@@ -120,6 +120,12 @@ async function createGeminiGenerator(env) {
     if(!result.ok) throw new Error("Gemini specialist request failed with HTTP "+result.status+".");
     const data=await result.json();
     const output=(data.candidates||[]).flatMap(x=>x.content?.parts||[]).map(x=>x.text||"").join("\n");
+    const usage=data.usageMetadata||{};
+    generate.usageByRole[role]={
+      inputTokens:Number.isFinite(Number(usage.promptTokenCount))?Number(usage.promptTokenCount):null,
+      outputTokens:Number.isFinite(Number(usage.candidatesTokenCount))?Number(usage.candidatesTokenCount):null,
+      totalTokens:Number.isFinite(Number(usage.totalTokenCount))?Number(usage.totalTokenCount):null
+    };
     return normalizeCouncilModelReport(parseJson(output));
     };
     generate.provider="gemini";
@@ -154,10 +160,17 @@ async function createOpenAIGenerator(env) {
     if(!response.ok) throw new Error("OpenAI specialist request failed with HTTP "+response.status+".");
     const data=await response.json();
     const output=data.output_text||(data.output||[]).flatMap(x=>x.content||[]).filter(x=>x.type==="output_text").map(x=>x.text||"").join("\n");
+    const usage=data.usage||{};
+    generate.usageByRole[role]={
+      inputTokens:Number.isFinite(Number(usage.input_tokens))?Number(usage.input_tokens):null,
+      outputTokens:Number.isFinite(Number(usage.output_tokens))?Number(usage.output_tokens):null,
+      totalTokens:Number.isFinite(Number(usage.total_tokens))?Number(usage.total_tokens):null
+    };
     return normalizeCouncilModelReport(parseJson(output));
   };
   generate.provider="openai";
   generate.model=model;
+  generate.usageByRole={};
   return generate;
 }
 
@@ -203,10 +216,10 @@ export async function createResearchCouncilWorkers(env) {
       const started=Date.now();
       try {
         const report=await generate({role,payload});
-        workers.telemetry[role]={latencyMs:Math.max(0,Date.now()-started),provider:generate.provider||"unknown",model:generate.model||"unknown"};
+        workers.telemetry[role]={latencyMs:Math.max(0,Date.now()-started),provider:generate.provider||"unknown",model:generate.model||"unknown",...(generate.usageByRole?.[role]||{})};
         return report;
       } catch(error) {
-        workers.telemetry[role]={latencyMs:Math.max(0,Date.now()-started),provider:generate.provider||"unknown",model:generate.model||"unknown",failed:true};
+        workers.telemetry[role]={latencyMs:Math.max(0,Date.now()-started),provider:generate.provider||"unknown",model:generate.model||"unknown",...(generate.usageByRole?.[role]||{}),failed:true};
         throw error;
       }
     };
