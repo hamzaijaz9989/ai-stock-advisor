@@ -52,7 +52,7 @@ export async function onRequestPost({request,env}){
  for(const row of ledgerRows){
   const parentId=String(row.broker_order_id||"");
   if(!parentId)continue;
-  trackedOrderByBrokerId.set(parentId,{row,kind:String(row.side||"").toLowerCase()==="buy"?"entry":"standalone_sell"});
+  trackedOrderByBrokerId.set(parentId,{row,kind:String(row.side||"buy").toLowerCase()==="buy"?"entry":"standalone_sell"});
   let storedResponse={};
   try{storedResponse=JSON.parse(row.response_json||"{}");}catch{}
   const parent=byBrokerId.get(parentId)||storedResponse.brokerResponse||storedResponse;
