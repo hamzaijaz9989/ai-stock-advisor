@@ -103,3 +103,31 @@ test("kill switch treats an absent singleton claim as no in-flight submission",a
   const result=await waitForSubmissionQuiescence(db,{timeoutMs:0});
   assert.deepEqual(result,{ok:true,quiesced:true,state:"NO_IN_FLIGHT_SUBMISSION"});
 });
+
+
+test("kill switch fails closed when the execution-control singleton is missing",async()=>{
+  const db={
+    prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;}};},
+    async batch(){return [{meta:{changes:0}},{meta:{changes:0}}];}
+  };
+  const response=await onRequestPost({request:request(),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_DB:db}});
+  const body=await response.json();
+  assert.equal(response.status,503);
+  assert.equal(body.ok,false);
+  assert.equal(body.controlStateVerified,false);
+  assert.equal(body.submissionQuiesced,false);
+  assert.equal(body.killSwitchEngaged,undefined);
+});
+
+test("kill switch does not acknowledge success without a durable audit event",async()=>{
+  const db={
+    prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;}};},
+    async batch(){return [{meta:{changes:1}},{meta:{changes:0}}];}
+  };
+  const response=await onRequestPost({request:request(),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_DB:db}});
+  const body=await response.json();
+  assert.equal(response.status,503);
+  assert.equal(body.ok,false);
+  assert.equal(body.controlStateVerified,false);
+  assert.equal(body.submissionQuiesced,false);
+});
