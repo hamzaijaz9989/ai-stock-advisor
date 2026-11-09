@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T17:55:00Z
+Last updated: 2026-11-09T17:56:05Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -1356,3 +1356,12 @@ No PR #85/#88 merge, production deployment, production D1 migration/write, broke
    - Next action: require every lifecycle, strategy, account, schema, reconciliation, protective-stop and independent-review gate above to pass; then use the audited PAPER-only approval flow without placing a test order. Live trading remains prohibited.
 
 No PR #85/#88 merge, production migration/write, production deployment, broker request/order, execution-control mutation or PAPER enablement occurred in this run.
+
+
+### PR #85 preview runtime verification — 2026-11-09T17:56:05Z
+- Latest successful PR #85 application preview is `https://bf57e76c.ai-stock-advisor.pages.dev`, deployed from application commit `0e87cca418ede2d2f230543fc299b0521be8ac6f`. The subsequent blocker-log-only preview deployments are idle/skipped by Pages path filtering.
+- Preview GET `/api/paper/readiness`, `/api/paper/performance`, and `/api/paper/control` each returned HTTP 200.
+- Preview readiness confirms PAPER, policy verified, execution disabled, kill switch engaged, strategy approval false / `STRATEGY_VALIDATION_NOT_APPROVED`, and all requested limits: $1,000 virtual capital, $5 default risk, $10 maximum risk, $250 max position, $20 daily loss cap and $80 max drawdown.
+- Preview performance reports zero snapshots and zero tracked fills; the fill-derived ledger is structurally complete but empty; trade statistics are withheld as `NOT_AVAILABLE_NO_TRACKED_NORTHSTAR_FILLS`.
+- Preview control confirms execution disabled and kill switch engaged. No POST endpoint, broker API, order, execution-control mutation or D1 write was invoked.
+- The latest PR #85 documentation-only head is `e07b9baf7a0334522f7bde7afb847d2fb5dddb40`; CI runs `42669305835` and `42669305023` completed successfully. GitHub reports mergeable=true but PR remains DRAFT. Main is still unprotected and formal reviews remain absent.
