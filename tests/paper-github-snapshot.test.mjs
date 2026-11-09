@@ -10,7 +10,7 @@ function jsonResponse(body, status = 200) {
 }
 
 const validIdentity = { ok: true, runId: "12345678", runAttempt: "1", eventName: "schedule", tokenId: "unit-test-token-id-0001" };
-const fakeDb = { prepare: () => ({ bind: () => ({ first: async () => null }) }) };
+const fakeDb = { prepare: () => ({ bind: () => ({ first: async () => null, run: async () => ({ meta: { changes: 1 } }) }) }) };
 const baseHandlers = calls => ({
   syncAccount: async ({ request: req, env }) => { calls.push(["sync", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, synced: true, capturedAt: "2026-11-09T10:00:00.000Z", snapshot: { positions: 0 } }); },
   importFills: async ({ request: req, env }) => { calls.push(["fills-sync", req.headers.get("Authorization"), env]); return jsonResponse({ ok: true, execution: false, imported: true, brokerRecords: 0, newRecords: 0, alreadyKnown: 0, pages: 1 }); },
@@ -107,13 +107,43 @@ test("does not report success when reconciliation is not clean", async () => {
   assert.equal((await result.json()).stage, "reconcile");
 });
 
-test("rejects a replayed workflow run attempt before invoking any internal handler", async () => {
+test("rejects a replayed workflow run attempt when the atomic D1 claim already exists", async () => {
   const calls = [];
-  const duplicateDb = { prepare: () => ({ bind: () => ({ first: async () => ({ id: 7, action: "READ_ONLY_ACCOUNT_SYNC" }) }) }) };
+  const duplicateDb = { prepare: () => ({ bind: () => ({ run: async () => ({ meta: { changes: 0 } }) }) }) };
   const result = await runReadOnlySnapshotChain({ request: request({ Authorization: "Bearer signed-oidc-token", "X-Request-ID": "northstar-equity-12345678-1" }), env: { NORTHSTAR_OPERATOR_TOKEN: "server-side-operator-token", NORTHSTAR_DB: duplicateDb }, verify: async () => validIdentity, handlers: baseHandlers(calls) });
   assert.equal(result.status, 409);
   assert.equal((await result.json()).stage, "idempotency");
   assert.equal(calls.length, 0);
+});
+
+test("only one concurrent request can claim the same workflow run attempt", async () => {
+  let claimed = false;
+  const atomicDb = {
+    prepare: () => ({
+      bind: () => ({
+        run: async () => {
+          if (claimed) return { meta: { changes: 0 } };
+          claimed = true;
+          return { meta: { changes: 1 } };
+        }
+      })
+    })
+  };
+  const calls = [];
+  const handlers = baseHandlers(calls);
+  const makeRequest = () => request({
+    Authorization: "Bearer signed-oidc-token",
+    "X-Request-ID": "northstar-equity-12345678-1"
+  });
+  const invoke = () => runReadOnlySnapshotChain({
+    request: makeRequest(),
+    env: { NORTHSTAR_OPERATOR_TOKEN: "server-side-operator-token", NORTHSTAR_DB: atomicDb },
+    verify: async () => validIdentity,
+    handlers
+  });
+  const results = await Promise.all([invoke(), invoke()]);
+  assert.deepEqual(results.map(result => result.status).sort(), [200, 409]);
+  assert.deepEqual(calls.map(call => call[0]), ["sync", "fills-sync", "reconcile"]);
 });
 
 test("requires the request identifier to match the signed workflow run identity", async () => {
