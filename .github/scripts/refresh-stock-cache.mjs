@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const url = process.env.NORTHSTAR_URL || "https://ai-stock-advisor.pages.dev/research.html";
+const scanStartedAt = Date.now();
 const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -12,8 +13,20 @@ try {
   await page.locator("#run-live-screen").evaluate(button => button.click());
   await page.waitForFunction(() => {
     const status = document.querySelector("#screen-status")?.textContent || "";
-    const cards = document.querySelectorAll("#screen-results .screen-card").length;
-    return /\d+ ranked|Screen interrupted/i.test(status) && (cards > 0 || /interrupted/i.test(status));
+    const completed = /^(\d+) ranked · (\d+) excluded from 253$/.exec(status.trim());
+    if (!completed) return false;
+    const ranked = Number(completed[1]);
+    const expected = Math.min(10, ranked);
+    const cards = [...document.querySelectorAll("#screen-results .screen-card:not(.screen-best-pick)")];
+    const plans = cards.slice(0, expected).map(card => card.querySelector(".candidate-plan"));
+    return ranked > 0 &&
+      cards.length >= expected &&
+      plans.length === expected &&
+      plans.every(plan =>
+        plan &&
+        (plan.dataset.ready === "true" || plan.dataset.ready === "false") &&
+        !/Checking latest quote and valuation inputs/i.test(plan.querySelector("p")?.textContent || "")
+      );
   }, null, { timeout: 12 * 60 * 1000 });
   const scanStatus = await page.locator("#screen-status").textContent();
   const completed = /^(\d+) ranked · (\d+) excluded from 253$/.exec((scanStatus || "").trim());
@@ -33,7 +46,9 @@ try {
         display: cell.querySelector("strong")?.textContent || ""
       }));
       const period = card.querySelector(".screen-card-header .muted")?.textContent || "";
-      const entryStatus = card.querySelector(".candidate-plan p")?.textContent || "Entry eligibility not verified in cache.";
+      const plan = card.querySelector(".candidate-plan");
+      const entryStatus = plan?.querySelector("p")?.textContent || "Entry eligibility not verified in cache.";
+      const entryReady = plan?.dataset.ready === "true";
       const financialPeriod = (period.match(/Annual financial period:\s*([^·]+)/)||[])[1]?.trim() || null;
       const periodTime = financialPeriod ? Date.parse(financialPeriod + "T00:00:00Z") : NaN;
       const ageDays = Number.isFinite(periodTime) ? Math.floor((Date.now() - periodTime) / 86400000) : null;
@@ -47,6 +62,7 @@ try {
         fundamentalFreshness: fundamentalsFresh ? "CURRENT_WITHIN_18_MONTHS" : "STALE_OR_UNVERIFIED",
         historyPeriod: (period.match(/Price data:\s*([^·]+)/)||[])[1]?.trim() || null,
         components,
+        entryReady: fundamentalsFresh && entryReady,
         entryStatus: fundamentalsFresh ? entryStatus : "BLOCKED: annual fundamentals are stale or unverified; refresh and reconcile the latest reported period before any entry decision."
       };
     }).filter(x => x.ticker);
@@ -68,6 +84,15 @@ try {
   if (result.rankedCount !== rankedCount || result.excludedCount !== excludedCount) throw new Error("Cached result counts do not match the completed scan status; refusing to overwrite the previous cache.");
   if (result.stocks.length !== Math.min(10, rankedCount)) throw new Error("Expected " + Math.min(10, rankedCount) + " shortlist cards but extracted " + result.stocks.length + "; refusing to overwrite the previous cache.");
   if (result.stocks.length > 10) throw new Error("Shortlist exceeded the ten-candidate cache limit; refusing to overwrite the previous cache.");
+  if (result.stocks.some(stock => typeof stock.entryReady !== "boolean" || !stock.entryStatus || /Checking latest quote and valuation inputs/i.test(stock.entryStatus))) {
+    throw new Error("At least one cached candidate has incomplete enrichment; preserving the previous cache.");
+  }
+  result.generatedAt = new Date().toISOString();
+  result.completedAt = result.generatedAt;
+  result.workflowRunId = process.env.GITHUB_RUN_ID || null;
+  result.sourceCommit = process.env.GITHUB_SHA || null;
+  result.scanDurationSeconds = Math.max(0, Math.round((Date.now() - scanStartedAt) / 1000));
+  result.enrichedCount = result.stocks.length;
   const target = path.resolve("web/data/top-stocks-cache.json");
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, JSON.stringify(result, null, 2) + "\n");
