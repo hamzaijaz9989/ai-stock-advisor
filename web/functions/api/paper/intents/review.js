@@ -10,7 +10,6 @@ function equal(a,b){
  for(let i=0;i<Math.max(a.length,b.length);i++)d|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);
  return d===0;
 }
-const num=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v):null;
 const close=(a,b,t=.01)=>Number.isFinite(Number(a))&&Number.isFinite(Number(b))&&Math.abs(Number(a)-Number(b))<=t;
 function reviewConfiguration(env){
  const operator=env?.NORTHSTAR_OPERATOR_TOKEN;
@@ -78,7 +77,7 @@ export async function onRequestPost({request,env}){
  const status=decision==="APPROVE"?"APPROVED_REVIEW_ONLY":"REJECTED";
  const evidence=safeEvidence(intent.evidence_json);
  evidence.review={
-  reviewer,decision,note,reviewedAt:decidedAt,
+  reviewer,decision,note,reviewedAt:decidedAt,requestId,
   preflight:preview?{
    checkedAt:preview.checkedAt||null,
    shares:preview.shares,
