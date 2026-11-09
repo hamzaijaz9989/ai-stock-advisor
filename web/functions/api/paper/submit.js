@@ -171,7 +171,7 @@ export async function onRequestPost({request,env}){
  }
  const finalQ=finalQuote?.quote,finalBid=Number(finalQ?.bp),finalAsk=Number(finalQ?.ap),finalQuoteAt=Date.parse(finalQ?.t||"");
  const finalQty=Number(intent.qty),finalStop=Number(intent.stop_price);
- const finalQuoteValid=Number.isFinite(finalBid)&&Number.isFinite(finalAsk)&&finalBid>0&&finalAsk>=finalBid&&
+ const finalQuoteValid=Number.isInteger(finalQty)&&finalQty>0&&Number.isFinite(finalStop)&&Number.isFinite(finalBid)&&Number.isFinite(finalAsk)&&finalBid>0&&finalAsk>=finalBid&&
   Number.isFinite(finalQuoteAt)&&finalQuoteAt<=Date.now()&&Date.now()-finalQuoteAt<=60000&&
   finalStop>0&&finalStop<finalBid&&finalQty*finalAsk<=250&&finalQty*(finalAsk-finalStop)<=10;
  if(finalAccount?.status!=="ACTIVE"||finalAccount?.trading_blocked||finalAccount?.account_blocked||
