@@ -129,3 +129,5 @@ The current implementation is a bounded multi-stage research workflow, not a fre
 - Regression tests cover valid/invalid references, role resource status, optional telemetry, empty denominators and the evaluator's explicit limitations.
 
 - The authenticated server-side `/api/research/collect` path now computes and persists this scorecard inside each durable Research Council result using the exact canonical fact/evidence IDs collected for that run. Runtime latency/token/cost fields remain null because the current adapter does not yet expose trustworthy per-role telemetry.
+
+- The deterministic Risk Committee is also represented in the inventory. It is marked `SUFFICIENT_FOR_DETERMINISTIC_GATES` only when the canonical adapter has validated all eight required portfolio risk inputs; the exact required field names are listed in its resource entry. This status means the gate has its required inputs, not that it approves a candidate or enables execution.
