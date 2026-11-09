@@ -1662,3 +1662,16 @@ No PR #85 merge, production deployment, D1 migration/write, broker request, orde
 - Repository metadata still reports `visibility=public`, which conflicts with the user's stated private-repository expectation. PR #88's validator now supports private/public claims, but the repository remains publicly accessible. The connected tool has no repository-visibility mutation capability; owner action remains necessary.
 - Production/preview D1 results remain as recorded above: production migrations 0001–0005, preview 0001–0010; production 1 snapshot and no intents/orders/positions/fills; preview zero snapshots/intents/orders/positions/fills; both controls remain PAPER, execution disabled and kill switch engaged; strategy approval remains false in preview. All D1 reads were read-only and reported zero rows written.
 - No production migration/write, production deployment, secret read/write, broker request/mutation, paper/live order or execution-control change occurred. Keep PAPER execution disabled and kill switch engaged.
+
+
+### Final exact-head verification — 2026-11-09T20:02:24Z (2026-11-10 01:02:24 PKT)
+
+- PR #85 blocker-log commit is `6ea8ec0bd10b7507a1ab0495daee8c67ec1827a2`. Fresh exact-head Actions runs completed SUCCESS:
+  - Validate `42688923065`: 95/95 Python tests, Ruff, 44/44 frontend-analysis tests, 7/7 readiness tests and 7/7 SEC-ingestion tests passed.
+  - Tests `42688923415`: 338/338 JavaScript tests, 95/95 Python tests and Ruff passed.
+  - Earlier duplicate push-triggered Tests run `42688913331` also succeeded on the same SHA. No current CI failure remains on this head.
+- PR #85 remains Draft, mergeable=true, 449 commits, 71 files, 0 behind main. Formal reviews and review threads remain zero. Main is still `fed9d402187b3e4e6e4a4b22d53580ea04ee191c`, explicitly unprotected with required checks off.
+- Re-scanned all 15 `web/functions/api/paper/*.js` handlers on the PR #85 branch. Every handler that calls Alpaca hard-codes `https://paper-api.alpaca.markets`; no live Alpaca host was found in those handlers. `submit.js` and `recover.js` contain broker POST/DELETE operations only on that PAPER host and only in their separately authenticated/guarded flows. Sync, fill import, reconciliation, preflight and readiness contain no broker order-submission path.
+- Re-read `.github/workflows/northstar-equity-snapshot.yml`: it performs readiness GET, account/position sync, fill import and read-only reconciliation, and fails closed unless fill import explicitly returns `safeToContinue=true` and `requiresManualRecovery=false`. Re-read `.github/workflows/northstar-operations.yml`: it only checks out code and runs `scripts/verify-stock-cache.mjs`; it does not call a broker or mutate controls.
+- No production endpoint response could be obtained from the connected runtime (403 egress result remains); Cloudflare deployment records and D1 read-only queries are the available current evidence. Production remains on `e4ebdc82-06ff-43e4-9557-a6ec4caf710e` / commit `fed9d402...`; no production migration or deployment.
+- No broker request, order, secret read/write, D1 write, execution-control mutation or merge occurred. Keep execution disabled and kill switch engaged.
