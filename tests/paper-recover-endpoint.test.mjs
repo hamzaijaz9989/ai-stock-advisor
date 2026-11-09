@@ -261,3 +261,83 @@ test("final recovery recheck subtracts newly reported OTO child fills before siz
  assert.equal(posts,1);
  assert.equal(posted.qty,"1");
 });
+
+
+test("post-ledger recovery recheck blocks a broker position change before any standalone stop POST",async()=>{
+ const db=makeDb();
+ let positionReads=0,posts=0;
+ const {response}=await run({db,fetchOverride:async(url,options={})=>{
+  const u=String(url);
+  if(u.includes("/v2/orders/parent-broker?nested=true"))return Response.json(parent());
+  if(u.endsWith("/v2/positions")){
+   positionReads++;
+   return Response.json([{symbol:"AAPL",qty:positionReads<=2?"2":"3",side:"long"}]);
+  }
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:"99",ap:"99.1",t:new Date().toISOString()}});
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){posts++;throw new Error("must not submit after position drift");}
+  throw new Error("unexpected "+u);
+ }});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.status,"REJECTED");
+ assert.equal(body.reason,"BROKER_POSITION_DOES_NOT_MATCH_ENTRY_MINUS_STOP_FILLS");
+ assert.equal(positionReads,3);
+ assert.equal(posts,0);
+ assert.equal(db.batches.length,2);
+ assert.match(db.batches[1][0].sql,/status='REJECTED'/);
+ assert.ok(db.batches[1].some(stmt=>stmt.sql.includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
+});
+
+test("post-ledger recovery recheck blocks a changed parent fill quantity instead of posting a stale stop",async()=>{
+ const db=makeDb();
+ let parentReads=0,positionReads=0,posts=0;
+ const {response}=await run({db,fetchOverride:async(url,options={})=>{
+  const u=String(url);
+  if(u.includes("/v2/orders/parent-broker?nested=true")){
+   parentReads++;
+   return Response.json(parent({filled_qty:parentReads<=2?"2":"3"}));
+  }
+  if(u.endsWith("/v2/positions")){
+   positionReads++;
+   return Response.json([{symbol:"AAPL",qty:positionReads<=2?"2":"3",side:"long"}]);
+  }
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:"99",ap:"99.1",t:new Date().toISOString()}});
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){posts++;throw new Error("must not submit a stale stop");}
+  throw new Error("unexpected "+u);
+ }});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.status,"REJECTED");
+ assert.equal(parentReads,3);
+ assert.equal(positionReads,3);
+ assert.equal(posts,0);
+ assert.ok(db.batches[1].some(stmt=>stmt.sql.includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
+});
+
+test("post-ledger recovery recheck blocks if the PAPER kill switch state changes before the stop POST",async()=>{
+ const db=makeDb();
+ const originalPrepare=db.prepare.bind(db);
+ let controlReads=0,posts=0;
+ db.prepare=sql=>{
+  if(sql.includes("execution_control"))return {async first(){
+   controlReads++;
+   return controlReads<3?{enabled:0,mode:"paper",kill_switch:1}:{enabled:1,mode:"paper",kill_switch:0};
+  }};
+  return originalPrepare(sql);
+ };
+ const {response}=await run({db,fetchOverride:async(url,options={})=>{
+  const u=String(url);
+  if(u.includes("/v2/orders/parent-broker?nested=true"))return Response.json(parent());
+  if(u.endsWith("/v2/positions"))return Response.json([{symbol:"AAPL",qty:"2",side:"long"}]);
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:"99",ap:"99.1",t:new Date().toISOString()}});
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){posts++;throw new Error("must not submit after control change");}
+  throw new Error("unexpected "+u);
+ }});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.status,"REJECTED");
+ assert.equal(body.reason,"RECOVERY_CONTROL_CHANGED_AFTER_LEDGER_WRITE");
+ assert.equal(controlReads,3);
+ assert.equal(posts,0);
+ assert.ok(db.batches[1].some(stmt=>stmt.sql.includes("PAPER_RECOVERY_STOP_BLOCKED_BEFORE_POST")));
+});
