@@ -13,8 +13,8 @@ test("fill import rejects invalid activity without partial writes",async()=>{con
 test("fill import does not write when execution policy is unsafe",async()=>{const {onRequestPost}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));const dbx={prepare(){return {first:async()=>({...control,kill_switch:0})};},batch:async()=>{throw Error("must not write");}};const old=globalThis.fetch;globalThis.fetch=async()=>Response.json({status:"ACTIVE"});try{const r=await onRequestPost({request:request(),env:{NORTHSTAR_DB:dbx,NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});assert.equal(r.status,503);}finally{globalThis.fetch=old;}});
 
 test("fill import refreshes only matching Northstar order rows from broker cumulative state",async()=>{
- const row={id:"northstar-order-1",broker_order_id:"ord-1",qty:5,status:"ACCEPTED",response_json:'{"filled_qty":"1","filled_avg_price":"99"}'};
- const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"3",filled_avg_price:"100.5",status:"partially_filled"};
+ const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"ACCEPTED",response_json:'{"filled_qty":"1","filled_avg_price":"99"}'};
+ const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"3",filled_avg_price:"100.5",status:"partially_filled",order_class:"oto",legs:[{order_group_role:"stop_loss",type:"stop",status:"held",symbol:"AAPL",side:"sell",qty:"3",stop_price:"98"}]};
  const {response,db}=await run({brokerOrders:[brokerOrder],ledgerRows:[row]});
  const body=await response.json();
  assert.equal(response.status,200);
@@ -29,7 +29,7 @@ test("fill import refreshes only matching Northstar order rows from broker cumul
  assert.equal(event.args[3],"alpaca_paper_fill_sync");
 });
 test("fill import does not move an order backwards or invent a ledger row",async()=>{
- const row={id:"northstar-order-1",broker_order_id:"ord-1",qty:5,status:"PARTIALLY_FILLED",response_json:'{"filled_qty":"3","filled_avg_price":"100"}'};
+ const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"PARTIALLY_FILLED",response_json:'{"filled_qty":"3","filled_avg_price":"100"}'};
  const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",filled_avg_price:"100",status:"partially_filled"};
  const {response,db}=await run({brokerOrders:[brokerOrder],ledgerRows:[row]});
  const body=await response.json();
@@ -47,4 +47,16 @@ test("fill sync refuses to mark an order FILLED when cumulative quantity is belo
  assert.equal(body.orderRowsUpdated,0);
  assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
  assert.equal(db.state.batch.some(x=>x.sql.startsWith("INSERT INTO paper_trade_events")),false);
+});
+
+test("fill sync does not advance lifecycle when the nested protective stop leg is missing",async()=>{
+ const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
+ const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",filled_avg_price:"100",status:"partially_filled",order_class:"oto",legs:[]};
+ const {response,db}=await run({brokerOrders:[brokerOrder],ledgerRows:[row]});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(body.orderRowsUpdated,0);
+ assert.equal(body.skippedLifecycleCount,1);
+ assert.equal(body.skippedLifecycle[0].reason,"PROTECTIVE_STOP_LEG_MISSING_OR_MISMATCHED");
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
 });
