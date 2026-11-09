@@ -11,6 +11,7 @@ export function evaluateResearchCouncilRun(run, telemetry = {}) {
   }
   const coverage = run.resourceCoverage?.roles || {};
   const reports = run.reports;
+  const agentsByRole = new Map((Array.isArray(run.agents) ? run.agents : []).map(agent => [agent.role, agent]));
   const knownIds = new Set([
     ...(Array.isArray(telemetry.factIds) ? telemetry.factIds : []),
     ...(Array.isArray(telemetry.evidenceIds) ? telemetry.evidenceIds : [])
@@ -35,7 +36,7 @@ export function evaluateResearchCouncilRun(run, telemetry = {}) {
     }
     const roleTelemetry = telemetry.roles?.[role] || {};
     byRole[role] = {
-      status: item.status || "UNKNOWN",
+      status: item.status || agentsByRole.get(role)?.status || "UNKNOWN",
       resourceStatus: coverage[role]?.status || "NOT_REPORTED",
       claimCount: claims.length,
       claimsWithValidCitation,
