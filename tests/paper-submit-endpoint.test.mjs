@@ -209,7 +209,7 @@ test("final kill-switch recheck blocks the broker boundary after the claim is ac
  const {response,brokerPost,controlReads}=await runClaimBoundaryCase({finalControl:{enabled:0,mode:"paper",kill_switch:1}});
  assert.equal(response.status,409);
  assert.equal(brokerPost,false);
- assert.equal(controlReads,2);
+ assert.equal(controlReads,3);
  assert.match((await response.json()).error,/controls changed/i);
 });
 
