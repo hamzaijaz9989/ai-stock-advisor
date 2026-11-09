@@ -29,9 +29,10 @@ function validateReport(report, validFactIds, role) {
       report.decision === undefined && report.vetoReasons === undefined;
     return {ok:clean, reason:role+" is unavailable or returned data with an unavailable status."};
   }
-  // A worker cannot satisfy its responsibility with an empty success envelope.
-  // If evidence is missing, it must explain that limitation as a cited risk.
-  if (report.findings.length + report.risks.length === 0) {
+  // Model specialists must provide evidence-linked work. The deterministic
+  // Risk Committee is different: its authoritative output is a decision plus
+  // explicit veto reasons, so empty findings/risks are valid for that role.
+  if (role !== "risk_committee" && report.findings.length + report.risks.length === 0) {
     return {ok:false, reason:role+" returned an empty COMPLETE report; a cited finding or limitation is required."};
   }
   for (const item of [...report.findings, ...report.risks]) {
