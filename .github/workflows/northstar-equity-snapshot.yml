@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           readiness="$(curl --fail --silent --show-error --max-time 20 "https://ai-stock-advisor.pages.dev/api/paper/readiness")"
-          echo "$readiness" | jq -e '.configured == true and .policyVerified == true and .mode == "paper"' >/dev/null
+          echo "$readiness" | jq -e '.configured == true and .policyVerified == true and .mode == "paper" and .executionEnabled == false and .killSwitchEngaged == true' >/dev/null
           echo "$readiness" | jq '{configured, policyVerified, mode, executionEnabled, killSwitchEngaged, limits, checkedAt}'
 
       - name: Request short-lived GitHub OIDC token and run read-only snapshot chain
