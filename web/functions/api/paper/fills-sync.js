@@ -1,5 +1,6 @@
 // Authenticated, read-only import of Alpaca Paper fill activities into an idempotent D1 ledger.
-import {verifyOtoStopLeg,verifyStandaloneRecoveryStop} from "../../../lib/paper-execution-policy.js";
+import {verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
+import {verifyStandaloneRecoveryStop} from "../../../lib/paper-recovery-policy.js";
 import {derivePaperPositionLedger} from "../../../lib/paper-position-ledger.js";
 // Does not submit, amend, or cancel broker orders.
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
