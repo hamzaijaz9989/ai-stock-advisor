@@ -278,7 +278,7 @@ export async function onRequestPost({request,env}){
  }
  if(!postControl||postControl.mode!=="paper"||Number(postControl.enabled)!==0||Number(postControl.kill_switch)!==1){
   const recorded=await markNotSubmitted("RECOVERY_CONTROL_CHANGED_AFTER_LEDGER_WRITE",{control:postControl||null});
-  return fail("Recovery controls changed after the ledger write; no broker POST was made.",409,{status:recorded?"REJECTED":"UNKNOWN",recoveryOrderId:clientId});
+  return fail("Recovery controls changed after the ledger write; no broker POST was made.",409,{status:recorded?"REJECTED":"UNKNOWN",reason:"RECOVERY_CONTROL_CHANGED_AFTER_LEDGER_WRITE",recoveryOrderId:clientId});
  }
  let submitted;
  try{submitted=await broker("/v2/orders",key,secret,{method:"POST",body:JSON.stringify(payload)});}
