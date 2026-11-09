@@ -25,7 +25,7 @@ async function token(overrides = {}, headerOverrides = {}) {
     repository: repo,
     repository_id: "1436259839",
     repository_owner_id: "114642033",
-    repository_visibility: "private",
+    repository_visibility: "public",
     ref: "refs/heads/main",
     workflow_ref: workflowRef,
     job_workflow_ref: workflowRef,
@@ -86,7 +86,7 @@ test("rejects wrong repository, immutable repository ID, owner ID, visibility an
     [{ repository: "attacker/other" }, "REPOSITORY_MISMATCH"],
     [{ repository_id: "1" }, "REPOSITORY_ID_MISMATCH"],
     [{ repository_owner_id: "2" }, "OWNER_ID_MISMATCH"],
-    [{ repository_visibility: "public" }, "REPOSITORY_VISIBILITY_MISMATCH"],
+    [{ repository_visibility: "private" }, "REPOSITORY_VISIBILITY_MISMATCH"],
     [{ ref: "refs/heads/feature" }, "REF_MISMATCH"],
     [{ sub: "repo:hamzaijaz9989/ai-stock-advisor:pull_request" }, "SUBJECT_MISMATCH"]
   ];
