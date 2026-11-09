@@ -51,5 +51,5 @@ test("raw acquisition rejects invalid windows, non-HTTPS API bases and mismatche
  const {fetchImpl}=fakeFetch({historyOverride:()=>({available:true,ticker:"OTHER",coverage:{priceBars:1}})});
  await assert.rejects(fetchValidationSources({from:"2026-02-02",to:"2026-01-01",symbols:["AAPL"],baseUrl:"https://northstar.example",operatorToken:"token",fetchImpl}),/valid ISO/);
  await assert.rejects(fetchValidationSources({from:"2026-01-01",to:"2026-01-02",symbols:["AAPL"],baseUrl:"http://northstar.example",operatorToken:"token",fetchImpl}),/HTTPS/);
- await assert.rejects(fetchValidationSources({from:"2026-01-01",to:"2026-01-02",symbols:["AAPL"],baseUrl:"https://northstar.example",operatorToken:"token",fetchImpl}),/benchmark symbol/);
+ await assert.rejects(fetchValidationSources({from:"2026-01-01",to:"2026-01-02",symbols:["AAPL","SPY"],baseUrl:"https://northstar.example",operatorToken:"token",fetchImpl}),/mismatched/);
 });
