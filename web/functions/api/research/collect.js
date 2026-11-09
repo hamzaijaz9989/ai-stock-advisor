@@ -19,7 +19,7 @@ function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)retu
 function stable(v){if(Array.isArray(v))return "["+v.map(stable).join(",")+"]";if(v&&typeof v==="object")return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stable(v[k])).join(",")+"}";return JSON.stringify(v);}
 async function sha256(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");}
 async function endpoint(handler,origin,path,env){const r=await handler({request:new Request(origin+path),env});if(!r.ok)throw new Error(path.split("?")[0]+" unavailable (HTTP "+r.status+")");return r.json();}
-async function secFacts(ticker,asOf){
+async function secFacts(ticker,collectionStartedAt){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
  const mapResponse=await fetch("https://www.sec.gov/files/company_tickers.json",{headers,signal:AbortSignal.timeout(8000)});
  if(!mapResponse.ok)throw new Error("SEC ticker directory unavailable (HTTP "+mapResponse.status+")");
@@ -29,7 +29,7 @@ async function secFacts(ticker,asOf){
  const cik=String(row.cik_str).padStart(10,"0");
  const response=await fetch("https://data.sec.gov/api/xbrl/companyfacts/CIK"+cik+".json",{headers,signal:AbortSignal.timeout(12000)});
  if(!response.ok)throw new Error("SEC company facts unavailable (HTTP "+response.status+")");
- const payload=await response.json(),cutoff=asOf.slice(0,10),out=[];
+ const payload=await response.json(),cutoff=collectionStartedAt.slice(0,10),out=[];
  for(const [taxonomy,concepts] of Object.entries(payload.facts||{}))for(const [key,concept] of Object.entries(concepts||{})){
   for(const [unit,rows] of Object.entries(concept.units||{})){
    for(const fact of rows||[]){
@@ -95,17 +95,19 @@ export async function onRequestPost({request,env}){
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
   const portfolio=await portfolioSnapshot(env);
-  // Establish the research as-of time only after the refreshed portfolio snapshot,
-  // so its timestamp cannot be later than the context timestamp.
-  const asOf=new Date().toISOString();
+  // Record the collection start for date-bounded provider requests. The final as-of
+  // timestamp is set after all providers return, so a fresh quote retrieved during
+  // collection is not incorrectly marked as occurring after the research snapshot.
+  const collectionStartedAt=new Date().toISOString();
   const [quote,fundamentals,history,news,earnings,sec]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
    endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+asOf.slice(0,10),env),
+   endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+collectionStartedAt.slice(0,10),env),
    endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env),
    endpoint(getEarnings,origin,"/api/earnings?ticker="+encodeURIComponent(ticker),env),
-   secFacts(ticker,asOf)
+   secFacts(ticker,collectionStartedAt)
   ]);
+  const asOf=new Date().toISOString();
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   if(!history?.available||!Array.isArray(history.prices)||history.prices.length<60)throw new Error("At least 60 valid daily price bars are required for research.");
   if(!fundamentals?.available)throw new Error("Fundamental data provider did not return usable statements.");
