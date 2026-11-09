@@ -5,6 +5,7 @@ import {evaluateResearchCouncilRun} from "../web/lib/research-council-evaluation
 const run={
  version:"1.0.4",requestId:"evaluation-test-001",status:"NO_TRADE",
  resourceCoverage:{roles:{technical_analyst:{status:"PARTIAL"},sentiment_analyst:{status:"MISSING"}}},
+ agents:[{role:"bull_researcher",status:"COMPLETE"},{role:"bear_researcher",status:"COMPLETE"},{role:"technical_analyst",status:"COMPLETE"}],
  reports:[
   {role:"bull_researcher",report:{findings:[{claim:"Upside evidence.",factIds:["f1","e1"]}],risks:[]}},
   {role:"bear_researcher",report:{findings:[],risks:[{claim:"Downside evidence.",factIds:["e1","bad-id"]}]}},
