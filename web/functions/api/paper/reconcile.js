@@ -168,7 +168,7 @@ export async function onRequestPost({request,env}) {
             const matchingPositions=bp.filter(p=>p.symbol===String(l.symbol||"").toUpperCase());
             const recoveryCheck=verifyStandaloneRecoveryStop({
               parent:b,parentRow:l,recoveryOrder:linkedRecoveryBroker,recoveryRow:linkedRecovery,
-              brokerPosition:matchingPositions.length===1?matchingPositions[0]:null
+              brokerPosition:matchingPositions.length===1?matchingPositions[0]:null,brokerPositionCount:matchingPositions.length
             });
             if(!recoveryCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,recoveryReason:recoveryCheck.reason||null,expectedStopPrice:stopPrice});
           }
