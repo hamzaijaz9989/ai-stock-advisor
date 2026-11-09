@@ -1,5 +1,5 @@
 // Authenticated, read-only broker-to-ledger reconciliation. Never submits or mutates orders.
-import {verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
+import {verifyOtoStopLeg,verifyStandaloneRecoveryStop} from "../../../lib/paper-execution-policy.js";
 const H = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail = (error,status=400,extra={}) => Response.json({ok:false,reconciled:false,execution:false,error,...extra},{status,headers:H});
 function safeEqual(a,b) {
@@ -50,7 +50,7 @@ export async function onRequestPost({request,env}) {
   try {
     control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all();
-    ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,stop_price,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
+    ledgerOrders=await db.prepare("SELECT id,idempotency_key,broker_order_id,symbol,side,qty,order_type,time_in_force,stop_price,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
     fillDerivedPositions=await db.prepare("SELECT symbol,SUM(open_qty) AS qty,SUM(open_qty*entry_price)/SUM(open_qty) AS avg_entry_price FROM paper_position_lots WHERE open_qty>0 GROUP BY symbol ORDER BY symbol").all();
   } catch { return fail("Could not read the complete paper ledger and fill-derived position ledger; fail-closed. Verify migration 0006.",503); }
   if(!control||control.mode!=="paper") return fail("Paper mode is required for read-only reconciliation.",503);
@@ -79,7 +79,7 @@ export async function onRequestPost({request,env}) {
   const posRows=Array.isArray(ledgerPositions?.results)?ledgerPositions.results:[];
   const orderRows=Array.isArray(ledgerOrders?.results)?ledgerOrders.results:[];
   const derivedRows=Array.isArray(fillDerivedPositions?.results)?fillDerivedPositions.results:[];
-  const normPos=rows=>rows.map(p=>({symbol:String(p.symbol||"").toUpperCase(),qty:num(p.qty),avg:num(p.avg_entry_price)})).sort((a,b)=>a.symbol.localeCompare(b.symbol));
+  const normPos=rows=>rows.map(p=>({symbol:String(p.symbol||"").toUpperCase(),qty:num(p.qty),avg:num(p.avg_entry_price),side:String(p.side||"").toLowerCase()})).sort((a,b)=>a.symbol.localeCompare(b.symbol));
   const bp=normPos(brokerPositions), lp=normPos(posRows), dp=normPos(derivedRows);
   const positionMismatches=[];
   const fillDerivedPositionMismatches=[];
@@ -157,7 +157,20 @@ export async function onRequestPost({request,env}) {
           orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_PRICE_MISSING",brokerFilledQty});
         }else{
           const stopCheck=verifyOtoStopLeg(b,{symbol:l.symbol,qty:lqty,stopPrice});
-          if(!stopCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,expectedStopPrice:stopPrice});
+          const linkedRecovery=orderRows.find(x=>x.idempotency_key==="recovery:"+l.id)||null;
+          const linkedRecoveryBroker=linkedRecovery?brokerById.get(String(linkedRecovery.broker_order_id||""))||null:null;
+          const linkedRecoveryStatus=String(linkedRecoveryBroker?.status||"").toLowerCase();
+          const linkedRecoveryActive=["new","accepted","pending_new","accepted_for_bidding","partially_filled"].includes(linkedRecoveryStatus);
+          if(stopCheck.ok&&linkedRecoveryActive){
+            orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"DUPLICATE_ACTIVE_OTO_AND_STANDALONE_PROTECTIVE_STOPS"});
+          }else if(!stopCheck.ok){
+            const matchingPositions=bp.filter(p=>p.symbol===String(l.symbol||"").toUpperCase());
+            const recoveryCheck=verifyStandaloneRecoveryStop({
+              parent:b,parentRow:l,recoveryOrder:linkedRecoveryBroker,recoveryRow:linkedRecovery,
+              brokerPosition:matchingPositions.length===1?matchingPositions[0]:null
+            });
+            if(!recoveryCheck.ok)orderMismatches.push({ledgerOrderId:l.id,brokerOrderId:id,reason:"PROTECTIVE_STOP_LEG_NOT_RECONCILED",stopReason:stopCheck.reason,recoveryReason:recoveryCheck.reason||null,expectedStopPrice:stopPrice});
+          }
         }
       }
     }
