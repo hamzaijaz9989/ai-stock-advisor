@@ -70,7 +70,7 @@ test("pending parent cancellation is observed without another mutation",async()=
 test("held OTO child is canceled only after position reconciliation",async()=>{
  const db=makeDb();
  const {response,calls}=await run({db,brokerParent:parent({legs:[child()]})});
- assert.equal(response.status,202,JSON.stringify(await response.clone().json()));
+ assert.equal(response.status,202,JSON.stringify(body));
  assert.equal((await response.json()).status,"HELD_CHILD_CANCEL_REQUEST_ACCEPTED");
  assert.ok(calls.some(x=>x.method==="DELETE"&&x.url.endsWith("/v2/orders/child-broker")));
  assert.equal(calls.some(x=>x.method==="POST"),false);
