@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {onRequestGet} from "../web/functions/api/research/council/status.js";
+import {onRequestGet} from "../web/functions/api/research/council-status.js";
 
 function makeDb({migrations,control,runs,equity}) {
   return {
