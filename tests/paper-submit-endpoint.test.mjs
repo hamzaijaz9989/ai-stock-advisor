@@ -224,7 +224,7 @@ test("atomic broker POST boundary loses to a concurrent kill-switch transaction 
  assert.equal(boundaryBatch.length,2);
  assert.match(boundaryBatch[0].sql,/EXISTS \(SELECT 1 FROM execution_control/);
  assert.match(boundaryBatch[0].sql,/EXISTS \(SELECT 1 FROM northstar_strategy_approval/);
- assert.ok(boundaryBatch[1].sql.includes("PAPER_BROKER_POST_BOUNDARY_ACQUIRED"));
+ assert.ok((boundaryBatch[1].args||[]).includes("PAPER_BROKER_POST_BOUNDARY_ACQUIRED"));
 });
 
 test("final strategy revocation blocks the broker boundary after the claim is acquired",async()=>{
