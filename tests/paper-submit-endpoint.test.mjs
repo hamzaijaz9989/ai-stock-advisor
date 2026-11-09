@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {onRequestPost} from "../web/functions/api/paper/submit.js";
 
+const validStrategyApproval={approved:1,strategy_version:"northstar-provisional-gates-v1",report_version:3,report_sha256:"a".repeat(64),report_uri:"https://github.com/hamzaijaz9989/ai-stock-advisor/blob/main/docs/strategy-validation-report.md",approved_at:"2026-11-09T05:00:00.000Z",reviewer:"independent-reviewer"};
 function request(headers={},body={intentId:"123e4567-e89b-12d3-a456-426614174000",confirmation:"SUBMIT_THIS_PAPER_ORDER"}){
  return new Request("https://northstar.test/api/paper/submit",{method:"POST",headers:{"content-type":"application/json",...headers},body:JSON.stringify(body)});
 }
@@ -18,7 +19,7 @@ test("paper executor requires exact per-order confirmation",async()=>{
 test("disabled execution controls stop before any broker request",async()=>{
  const original=globalThis.fetch;
  globalThis.fetch=async()=>{throw new Error("BROKER_MUST_NOT_BE_CALLED");};
- const db={prepare(sql){const stmt={bind(){return stmt;},first:async()=>sql.includes("execution_control")?({enabled:0,mode:"paper",kill_switch:1,max_portfolio_usd:1000}):null,all:async()=>({results:[]}),run:async()=>({meta:{changes:1}})};return stmt;}};
+ const db={prepare(sql){const stmt={bind(){return stmt;},first:async()=>sql.includes("execution_control")?({enabled:0,mode:"paper",kill_switch:1,max_portfolio_usd:1000}):sql.includes("northstar_strategy_approval")?validStrategyApproval:null,all:async()=>({results:[]}),run:async()=>({meta:{changes:1}})};return stmt;}};
  try{
   const r=await onRequestPost({request:request({"Authorization":"Bearer operator","X-NORTHSTAR-PAPER-APPROVAL":"approval"}),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN:"approval",ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret",NORTHSTAR_DB:db}});
   assert.equal(r.status,503);
@@ -37,6 +38,7 @@ test("paper executor blocks an untracked broker position before writing or submi
      if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
      if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY"};
      if(sql.includes("paper_orders"))return null;
+     if(sql.includes("northstar_strategy_approval"))return validStrategyApproval;
      return null;
     },
     async all(){
@@ -69,12 +71,13 @@ test("paper executor blocks an untracked broker position before writing or submi
 });
 
 
-async function runHistoricalOrderCase({ledgerOrderRows=[],brokerOrderRows=[]}={}){
+async function runHistoricalOrderCase({ledgerOrderRows=[],brokerOrderRows=[],strategyApproval=validStrategyApproval}={}){
  const now=new Date().toISOString(),calls=[];let submitted=false;
  const db={prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
   async first(){
    if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
    if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY"};
+   if(sql.includes("northstar_strategy_approval"))return strategyApproval;
    return null;
   },
   async all(){
@@ -144,4 +147,13 @@ test("ambiguous existing order recovery engages the kill switch and never resubm
   assert.ok(state.batch.some(x=>(x.args||[]).includes("PAPER_ORDER_OUTCOME_UNVERIFIED")));
   assert.equal(state.batch.some(x=>x.sql.includes("UPDATE paper_trade_intents SET status='SUBMISSION_UNKNOWN'")),false);
  }finally{globalThis.fetch=original;}
+});
+
+test("paper executor blocks an unapproved strategy before any broker request or order write",async()=>{
+ const {response,submitted,calls}=await runHistoricalOrderCase({strategyApproval:{approved:0,strategy_version:"northstar-provisional-gates-v1"}});
+ const body=await response.json();
+ assert.equal(response.status,409);
+ assert.equal(body.strategyValidation.approved,false);
+ assert.equal(submitted,false);
+ assert.equal(calls.length,0);
 });
