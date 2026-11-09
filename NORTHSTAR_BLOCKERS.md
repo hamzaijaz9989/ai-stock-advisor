@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T12:18:10.647Z
+Last updated: 2026-11-09T15:02:19Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -988,3 +988,38 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Branch protection and ruleset access remain blocked: GET `/branches/main/protection` returned 403 `Resource not accessible by integration`; repository rulesets returned 403 because the connected GitHub API reports the plan does not support rulesets. The earlier run observed `main.protected=false`. Do not merge or bypass protections without authorized branch-protection configuration.
 - Production remains on Pages commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e` and D1 migrations 0001–0005. Production execution remains disabled, PAPER mode, kill switch engaged; one old equity snapshot and zero intents/orders/positions/fills. Preview application code with the recovery pre-submit recheck is deployed successfully at `02efc81a-404e-4e49-81f1-5ba5bc8d2d82` for commit `60e1b60444a8844f133d6ebc1da2cbbb1f33ac0a`; the later blocker-log-only head is not a new app deployment.
 - No production migration, D1 write, broker request, order mutation, paper order, live order, production deployment, merge or PAPER enablement occurred in this run.
+
+
+### Automation run 6 — 2026-11-09T15:02:19Z
+
+#### Recovery safety change and CI evidence
+- PR #85 current head: `f2086f3d90fc1efa2310616e6f4dd26802b438d9`; application-code commit: `53ea478fe2a2052d6093b1adac6ce039161e313a`; base/main: `ad1dbe01773c4518c9281cf94e9c5b98c6056f3e`.
+- Hardened `web/functions/api/paper/recover.js`: after the idempotent recovery-stop row is durably inserted, the route now re-queries the exact Alpaca Paper parent with nested child, the exact broker position, and a fresh quote; re-evaluates the recovery policy; compares the resulting stop side/type/TIF/quantity/price to the persisted request; and re-reads controls requiring PAPER mode, execution disabled, and kill switch engaged immediately before the broker POST.
+- If the post-ledger broker snapshot, quote, exact stop quantity, or control state changes, the route does not issue a broker POST. It records a REJECTED no-POST outcome plus trade event and audit event; if that outcome cannot be recorded, it attempts to mark the recovery UNKNOWN and keep the kill switch engaged.
+- Added three failure-injection tests in `tests/paper-recover-endpoint.test.mjs`: broker position changes after the durable ledger write; parent cumulative fills change after the durable write; and PAPER kill-switch state changes before the recovery POST. Updated prior read-count expectations to include the additional final snapshot.
+- First CI attempt on intermediate commit `6b1b4ba10ba091f0df0e85b9e8def90175a4c247` failed because existing tests still expected two parent reads and three position reads, and new test assertions looked for an event name in SQL rather than bound parameters. Corrected the test expectations and response reason field in `53ea478fe2a2052d6093b1adac6ce039161e313a` and `f2086f3d90fc1efa2310616e6f4dd26802b438d9`.
+- Latest Tests run `42640508108` passed **327/327 JavaScript tests**, **94/94 Python tests**, and Ruff lint. Latest Validate run `42640508128` passed **94 Python tests**, Ruff, JavaScript/Pages Function syntax, **44 frontend-analysis tests**, **7 paper-readiness tests**, SEC ingestion checks, and synthetic validation CLI smoke checks. The synthetic validation fixture still explicitly reports NOT APPROVED; this is not strategy evidence.
+- Cloudflare preview deployment `ce2babc8-ccf1-4d16-8aa6-3e036e09df50` succeeded for application commit `53ea478fe2a2052d6093b1adac6ce039161e313a`. The later test-only commit `f2086f3d90fc1efa2310616e6f4dd26802b438d9` was skipped by Pages `path_config`, as expected.
+- PR #85 remains open and draft, mergeable, **397 commits ahead / 0 behind** main, with 67 changed files, no deleted or renamed files in the PR diff, zero formal reviews and zero review threads.
+
+#### Production/preview read-only audit
+- Production Pages deployment remains successful deployment `e4efbfd8-43f2-41b0-b01d-fc44e5b2a308`, deployed commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`. The later main commit `ad1dbe01773c4518c9281cf94e9c5b98c6056f3e` is documentation-only and its Pages deployment was skipped by path configuration.
+- Production D1 migration ledger still contains only `0001`–`0005`; preview D1 contains `0001`–`0009`. No production migration was applied.
+- Production D1 read-only counts: 1 equity snapshot, 0 intents, 0 orders, 0 positions, 0 broker fill activities, 0 trade events, 2 audit rows, and 0 Research Council runs. The only snapshot remains `2026-11-08T18:34:38.720Z`, account equity/cash $100,000/$100,000 (broker account equity, not the $1,000 virtual allocation).
+- Production controls remain `enabled=0`, `mode='paper'`, `kill_switch=1`, virtual allocation $1,000, default risk 0.5%, maximum risk 1%, and maximum position fraction 25%.
+- Preview D1 controls are also disabled with kill switch engaged. Preview has zero equity snapshots, intents, orders, positions, broker fills, fill-ledger rows, position lots, realized trades, and execution claims. Its strategy approval record remains `approved=0` with no report hash, URI, reviewer, or approval timestamp.
+- All D1 audit queries were read-only: `rows_written=0`, `changed_db=false`.
+- Direct web HTTP probes for production readiness/performance and preview readiness were inaccessible from the connected web runtime. No fresh endpoint health check is claimed for this run; use the last successful production readiness response recorded earlier, and verify endpoints again from an authorized network before release.
+- No production D1 writes/migrations, broker requests, broker mutations, paper/live orders, production deployment, PR merge, or PAPER enablement occurred in this run.
+
+#### Remaining blockers and next actions
+1. Branch protection/required-check governance remains unverified and was previously reported as `main.protected=false`; the connected GitHub integration previously returned 403 for branch-protection and ruleset reads. Obtain authorized administrator configuration and verify required checks; do not bypass.
+2. PR #85 still has no independent formal review. Keep it draft until independent review and resolution of all findings.
+3. The prior stale-state gap between the initial recovery snapshot and durable ledger insert is now addressed by the post-ledger recheck and three regression tests. A residual race remains between the last external Alpaca read and the broker POST because D1 cannot transact atomically with Alpaca. Keep PAPER execution disabled; obtain independent review of this external-state race and preserve post-submit exact-quantity coverage verification.
+4. Production D1 migrations `0006`–`0009` remain unapplied; perform backup, schema-compatibility, migration-order and rollback/recovery checks before any production migration.
+5. Production still has only one old equity snapshot. Establish at least seven days of fresh, time-separated snapshots and clean broker-to-ledger reconciliation. The separate GitHub Actions `NORTHSTAR_OPERATOR_TOKEN` was previously reported missing/empty by workflow run `42583519570`; PR #88 proposes scoped GitHub OIDC for read-only sync but remains draft, unreviewed and undeployed.
+6. Confirm the actual production Alpaca account is PAPER using authenticated read-only checks. Current production environment configuration exposes only secret names; values were not inspected.
+7. Strategy validation remains NOT APPROVED. A real point-in-time dataset, frozen-rule replay, at least 100 completed historical trades, four chronological walk-forward folds, untouched holdout, provenance/survivorship/corporate-action/cost attestations and independent reproduction are outstanding.
+8. The separate `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN` and guarded, audited PAPER-only enable procedure are not configured/verified. Strategy approval remains false; do not enable execution.
+9. Direct production/preview endpoint verification must be repeated from an authorized network before release.
+
