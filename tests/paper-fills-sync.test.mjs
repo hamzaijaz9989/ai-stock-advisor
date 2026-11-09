@@ -202,3 +202,17 @@ test("fill sync flags a standalone recovery stop whose leaves do not cover the b
  assert.ok(body.skippedLifecycle.some(x=>x.reason==="STANDALONE_RECOVERY_STOP_DOES_NOT_RECONCILE_TO_POSITION"));
  assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
 });
+
+
+test("fill sync accepts a canceled OTO parent when its linked standalone recovery stop covers exposure",async()=>{
+ const parentRow={id:"entry-ledger",idempotency_key:"intent:entry",broker_order_id:"entry-broker",symbol:"AAPL",side:"buy",qty:5,stop_price:95,status:"CANCELED",response_json:'{"filled_qty":"2","filled_avg_price":"100"}'};
+ const recoveryRow={id:"recovery-ledger",idempotency_key:"recovery:entry-ledger",broker_order_id:"recovery-broker",symbol:"AAPL",side:"sell",qty:2,order_type:"stop",time_in_force:"gtc",stop_price:95,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
+ const parentOrder={id:"entry-broker",client_order_id:"entry-ledger",order_class:"oto",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",filled_avg_price:"100",status:"canceled",legs:[{id:"child-stop",symbol:"AAPL",side:"sell",type:"stop",qty:"5",filled_qty:"0",stop_price:"95",status:"canceled"}]};
+ const recoveryOrder={id:"recovery-broker",client_order_id:"recovery-ledger",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",status:"new",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"2"};
+ const {response,db}=await run({activities:[],brokerOrders:[parentOrder,recoveryOrder],brokerPositions:[{symbol:"AAPL",qty:"2",side:"long"}],ledgerRows:[parentRow,recoveryRow]});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(body.safeToContinue,true);
+ assert.equal(body.requiresManualRecovery,false);
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE execution_control SET enabled=0,kill_switch=1")),false);
+});
