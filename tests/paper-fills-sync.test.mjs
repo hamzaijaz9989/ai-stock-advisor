@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-const source=await readFile(new URL("../web/functions/api/paper/fills-sync.js",import.meta.url),"utf8");
+const helper=await readFile(new URL("../web/lib/paper-execution-policy.js",import.meta.url),"utf8");
+const helperUrl="data:text/javascript;base64,"+Buffer.from(helper).toString("base64");
+let source=await readFile(new URL("../web/functions/api/paper/fills-sync.js",import.meta.url),"utf8");
+source=source.replace('from "../../../lib/paper-execution-policy.js"','from "'+helperUrl+'"');
 const {onRequestPost}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
 const control={enabled:0,mode:"paper",kill_switch:1};
 const request=(token="secret")=>new Request("https://northstar.test/api/paper/fills-sync",{method:"POST",headers:{"Authorization":"Bearer "+token,"X-Request-ID":"fill-test"}});
