@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           base="https://ai-stock-advisor.pages.dev/api/paper"
-          fills="$(curl --silent --show-error --max-time 45 -X POST \
+          fills="$(curl --fail --silent --show-error --max-time 45 -X POST \
             -H "Authorization: Bearer $OPERATOR_TOKEN" \
             -H "X-Request-ID: northstar-fills-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
             -H "Accept: application/json" "$base/fills-sync")"
@@ -66,7 +66,8 @@ jobs:
           fills_safe="$(echo "$fills" | jq -r '.safeToContinue == true and .requiresManualRecovery == false')"
           echo "$fills" | jq '{ok, imported, execution, safeToContinue, requiresManualRecovery, status, unsafeExposureCount, unsafeOrderCount, brokerRecords, newRecords, alreadyKnown, orderRowsUpdated, skippedLifecycleCount, checkedAt}'
           if [ "$fills_ok" != "true" ] || [ "$fills_safe" != "true" ]; then
-            echo "::warning::Fill import reported an unsafe lifecycle state; reconciliation will still run."
+            echo "::error::Fill import is incomplete or reports unsafe exposure; stop before reconciliation and require operator review."
+            exit 1
           fi
 
       - name: Run read-only broker-to-ledger reconciliation
