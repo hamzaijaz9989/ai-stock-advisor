@@ -35,7 +35,7 @@ export async function onRequestGet({request,env}){
   ["quarterIncome",`income-statement?symbol=${ticker}&period=quarter&limit=40`],
   ["quarterBalance",`balance-sheet-statement?symbol=${ticker}&period=quarter&limit=40`],
   ["quarterCashflow",`cash-flow-statement?symbol=${ticker}&period=quarter&limit=40`],
-  ["news",`news/stock?symbols=${ticker}&from=${from}&to=${to}&limit=5&page=0`]
+  ["news",`news/stock?symbols=${ticker}&from=${from}&to=${to}&limit=100&page=0`]
  ];
  const settled=await Promise.allSettled(tasks.map(([,path])=>get(path,fmpKey)));
  const raw={},errors=[];
