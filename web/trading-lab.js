@@ -422,6 +422,7 @@
     $("stock-brain-evidence-count").textContent=String(Number(collection.factCount||0)+Number(collection.evidenceCount||0));
     $("stock-brain-trace").textContent=payload.traceDurable===true&&result.traceDurable===true?"CONFIRMED":"NOT CONFIRMED";
 
+    const coverage=result.resourceCoverage?.roles||{};
     const agentRoot=$("stock-brain-agents");
     agentRoot.replaceChildren();
     const byRole=new Map((Array.isArray(result.agents)?result.agents:[]).map(agent=>[agent.role,agent]));
@@ -431,9 +432,13 @@
       const left=document.createElement("div");
       const title=document.createElement("strong");title.textContent=roleTitle(role);
       const reason=document.createElement("div");reason.className="muted tiny";
-      reason.textContent=String(agent.reason||(
-        agent.status==="COMPLETE"?"Specialist report completed.":"This role did not complete."
-      ));
+      const roleCoverage=coverage[role]||{};
+      const reasonParts=[
+        agent.reason||(agent.status==="COMPLETE"?"Specialist report completed.":"This role did not complete."),
+        roleCoverage.status?"Resources: "+roleCoverage.status:null,
+        ...(Array.isArray(roleCoverage.gaps)?roleCoverage.gaps.slice(0,2):[])
+      ].filter(Boolean);
+      reason.textContent=reasonParts.join(" · ");
       left.append(title,reason);
       const status=document.createElement("span");
       status.className="state"+(agent.status==="COMPLETE"?" good":" bad");
@@ -487,6 +492,74 @@
       }
       reportRoot.appendChild(card);
     }
+    renderCouncilEvaluation(result.evaluation,result.agents,coverage);
+  }
+  function renderCouncilEvaluation(evaluation,agents,coverage={}) {
+    const summary=$("stock-brain-scorecard-summary");
+    const rolesRoot=$("stock-brain-scorecard-roles");
+    const limitations=$("stock-brain-scorecard-limitations");
+    const scorecard=$("stock-brain-scorecard");
+    scorecard.hidden=false;
+    summary.replaceChildren();
+    rolesRoot.replaceChildren();
+    if(!evaluation||evaluation.evaluationScope!=="REPORT_CONTRACT_AND_DECLARED_TELEMETRY_ONLY"){
+      const note=document.createElement("p");
+      note.className="muted small";
+      note.textContent="No deterministic scorecard was returned for this run. Research quality and provider telemetry are not verified.";
+      summary.appendChild(note);
+      limitations.textContent="A missing scorecard is not a zero score and does not imply approval.";
+      return;
+    }
+    const totals=evaluation.totals||{};
+    const percent=value=>typeof value==="number"&&Number.isFinite(value)?(value*100).toFixed(1)+"%":"Not available";
+    const metricText=value=>value===null||value===undefined?"Not reported":String(value);
+    const cards=[
+      ["Role reports",metricText(totals.roleReports)+" / 9"],
+      ["Claims",metricText(totals.claims)],
+      ["Claim citation coverage",percent(totals.claimCitationCoverage)],
+      ["Reference precision",percent(totals.citationPrecision)],
+      ["Invalid-reference claims",metricText(totals.invalidReferenceClaims)],
+      ["Measured latency",totals.latencyMs===null||totals.latencyMs===undefined?"Incomplete":String(totals.latencyMs)+" ms"],
+      ["Provider tokens",metricText(totals.totalTokens)],
+      ["Provider cost",totals.costUsd===null||totals.costUsd===undefined?"Not measured":"$"+Number(totals.costUsd).toFixed(4)]
+    ];
+    for(const [label,value] of cards){
+      const card=document.createElement("div");card.className="stat";
+      const name=document.createElement("label");name.textContent=label;
+      const result=document.createElement("strong");result.textContent=value;
+      card.append(name,result);summary.appendChild(card);
+    }
+    const roleMetrics=evaluation.roles||{};
+    const agentByRole=new Map((Array.isArray(agents)?agents:[]).map(agent=>[agent.role,agent]));
+    for(const role of COUNCIL_DISPLAY_ROLES){
+      const metric=roleMetrics[role]||{};
+      const agent=agentByRole.get(role)||{};
+      const resource=coverage[role]||{};
+      const status=String(metric.status||agent.status||"UNKNOWN");
+      const refs=Number(metric.validReferences||0)+"/"+Number(metric.totalReferences||0)+" valid references";
+      const latency=metric.latencyMs===null||metric.latencyMs===undefined?"latency not reported":String(metric.latencyMs)+" ms";
+      const provider=metric.provider?String(metric.provider)+(metric.model?" / "+String(metric.model):""):"provider not reported";
+      const tokens=metric.totalTokens===null||metric.totalTokens===undefined?"tokens not reported":String(metric.totalTokens)+" tokens";
+      const details=[
+        "Resources: "+String(metric.resourceStatus||resource.status||"NOT_REPORTED"),
+        String(metric.claimCount||0)+" claims",
+        refs,
+        latency,
+        provider,
+        tokens,
+        metric.failed===true?"invocation failed":null
+      ].filter(Boolean);
+      const row=document.createElement("div");row.className="journal-row";
+      const left=document.createElement("div");
+      const title=document.createElement("strong");title.textContent=roleTitle(role);
+      const detail=document.createElement("div");detail.className="muted tiny";detail.textContent=details.join(" · ");
+      left.append(title,detail);
+      const badge=document.createElement("span");badge.className="state"+(status==="COMPLETE"?" good":" bad");badge.textContent=status;
+      row.append(left,badge);rolesRoot.appendChild(row);
+    }
+    const scope=String(evaluation.evaluationScope||"UNKNOWN");
+    const notes=Array.isArray(evaluation.limitations)?evaluation.limitations.slice(0,5):[];
+    limitations.textContent="Scope: "+scope+". Valid references establish ID integrity, not factual truth or whether a source supports a claim. No investment performance, predictive accuracy or strategy approval is inferred. "+notes.join(" ");
   }
   $("run-stock-brain").addEventListener("click",async()=>{
     const button=$("run-stock-brain");
@@ -505,6 +578,10 @@
     $("stock-brain-agents").replaceChildren();
     $("stock-brain-vetoes").replaceChildren();
     $("stock-brain-reports").replaceChildren();
+    $("stock-brain-scorecard").hidden=true;
+    $("stock-brain-scorecard-summary").replaceChildren();
+    $("stock-brain-scorecard-roles").replaceChildren();
+    $("stock-brain-scorecard-limitations").textContent="";
     try{
       const response=await fetch("/api/research/collect",{
         method:"POST",
