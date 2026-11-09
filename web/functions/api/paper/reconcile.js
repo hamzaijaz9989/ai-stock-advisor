@@ -95,7 +95,7 @@ export async function onRequestPost({request,env}) {
     const broker=bp.find(x=>x.symbol===symbol), derived=dp.find(x=>x.symbol===symbol);
     if(!broker||!derived||broker.qty===null||derived.qty===null||broker.avg===null||derived.avg===null||
        !close(broker.qty,derived.qty)||!close(broker.avg,derived.avg,0.01)) {
-      fillDerivedPositionMismatches.push({symbol,broker:broker||null,fillDerived:derived||null});
+      fillDerivedPositionMismatches.push({symbol,reason:"BROKER_FILL_DERIVED_POSITION_MISMATCH",broker:broker||null,fillDerived:derived||null});
     }
   }
   const brokerById=new Map();
