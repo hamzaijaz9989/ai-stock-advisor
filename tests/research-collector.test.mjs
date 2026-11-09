@@ -37,7 +37,7 @@ test("collector reconciles the broker against the existing ledger before sync ca
   throw new Error("unexpected external request "+u);
  };
  try{
-  const response=await onRequestPost({request:collectorRequest({ticker:"NVDA",requestId:"collector-mismatch-0001"}),env:{
+  const response=await onRequestPost({request:new Request("https://northstar.test/api/research/collect",{method:"POST",headers:{Authorization:"Bearer secret","Content-Type":"application/json"},body:JSON.stringify({ticker:"NVDA",requestId:"collector-mismatch-0001"})}),env:{
    NORTHSTAR_OPERATOR_TOKEN:"secret",NORTHSTAR_DB:db,ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret"
   }});
   const body=await response.json();
