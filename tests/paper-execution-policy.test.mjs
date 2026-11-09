@@ -10,6 +10,7 @@ const base = {
   equityHistory:{ok:true,dailyLossUsd:0,maxDrawdownUsd:0},
   quote:{bid:99.9,ask:100,timestamp:new Date(now-1000).toISOString()},
   order:{symbol:"AAPL",side:"buy",qty:2,stopPrice:98},
+  strategyValidation:{ok:true,approved:true},
   virtualAllocationUsd:1000,now
 };
 
@@ -77,4 +78,9 @@ test("OTO verification fails closed on missing, mismatched, rejected, or malform
  assert.equal(verifyOtoStopLeg({...good,order_class:"simple"},{symbol:"AAPL",qty:2,stopPrice:98}).ok,false);
  assert.equal(verifyOtoStopLeg({...good,filled_qty:"NaN"},{symbol:"AAPL",qty:2,stopPrice:98}).reason,"PARENT_FILLED_QUANTITY_UNAVAILABLE");
  assert.equal(verifyOtoStopLeg({...good,qty:"3"},{symbol:"AAPL",qty:2,stopPrice:98}).reason,"PARENT_ORDER_QUANTITY_INVALID");
+});
+
+test("paper execution blocks a missing or unapproved strategy validation attestation",()=>{
+ assert.equal(validatePaperExecutionGate({...base,strategyValidation:null}).reason,"STRATEGY_VALIDATION_NOT_APPROVED");
+ assert.equal(validatePaperExecutionGate({...base,strategyValidation:{ok:false,approved:false}}).reason,"STRATEGY_VALIDATION_NOT_APPROVED");
 });
