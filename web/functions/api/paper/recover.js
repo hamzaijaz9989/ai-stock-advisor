@@ -123,7 +123,7 @@ export async function onRequestPost({request,env}){
  let parent;
  try{parent=await broker("/v2/orders/"+encodeURIComponent(parentRow.broker_order_id)+"?nested=true",key,secret);}
  catch(e){return fail("Could not retrieve the original Alpaca Paper parent order; no recovery mutation was made.",503,{brokerStatus:e.status||null});}
- if(String(parent?.id||"")!==String(parentRow.broker_order_id)||String(parent.symbol||"").toUpperCase()!==symbol||String(parent.side||"").toLowerCase()!=="buy"||!close(num(parent.qty),Number(parentRow.qty)))return fail("Broker parent order does not match the Northstar ledger; manual recovery is required.",409);
+ if(String(parent?.id||"")!==String(parentRow.broker_order_id)||String(parent.client_order_id||"")!==parentId||String(parent.order_class||"").toLowerCase()!=="oto"||String(parent.symbol||"").toUpperCase()!==symbol||String(parent.side||"").toLowerCase()!=="buy"||!close(num(parent.qty),Number(parentRow.qty)))return fail("Broker parent order does not match the Northstar OTO ledger; manual recovery is required.",409);
  if(existing)return verifyExistingRecovery(db,key,secret,{...parent,id:parentId},existing);
 
  let brokerPositions;
