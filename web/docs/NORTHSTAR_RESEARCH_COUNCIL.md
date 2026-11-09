@@ -72,3 +72,36 @@ Request shape:
 The endpoint accepts up to 500 fact/evidence records and a 64 KiB body. IDs must be unique across both arrays. Each model specialist receives the same immutable context and must cite exact IDs. News and filing text is treated as untrusted input. Specialist workers do not fetch data, browse the web, calculate financial metrics, or submit orders. The deterministic risk committee independently checks portfolio limits (2% aggregate open risk, 100% gross exposure, 2% daily loss stop, 4% weekly loss stop, 8% drawdown pause, 40% sector exposure, and the initial one-position limit). Missing model credentials, malformed reports, unavailable workers, or risk-limit breaches result in `NO_TRADE`.
 
 The append-only `research_council_runs` table is defined in migration `0003_research_council_runs.sql`. Apply that migration to D1 before using the endpoint in production. The endpoint is currently an authenticated API, not yet wired to the dashboard's ticker-analysis flow. Caller-supplied facts must come from trusted Northstar collectors; do not send raw browser-supplied claims as authoritative facts.
+
+
+## Team operating charter — v1.1
+
+### Responsibilities and handoffs
+- **Market Scanner:** data quality, ticker identity, quote freshness, coverage, liquidity evidence and missing/stale inputs. It does not invent a universe or claim relative strength without supplied measurements.
+- **Technical Analyst:** supplied price/volume structure, trend, volatility and invalidation. It does not calculate indicators or price levels from raw bars.
+- **Fundamental Analyst:** reported financial statements, periods, units, filing provenance, FMP cross-checks and estimates-vs-reported separation. It does not invent valuation or forecasts.
+- **News & Catalyst Analyst:** event chronology, publication timestamps, original-source quality, corroboration and materiality. Headlines are discovery evidence, not verified facts.
+- **Sentiment Analyst:** explicit, timestamped sentiment/positioning evidence only. It must say when such evidence is absent and never infer sentiment from price action.
+- **Bull Researcher:** strongest defensible upside thesis, counter-evidence and falsification conditions.
+- **Bear Researcher:** strongest defensible downside thesis, weak assumptions, invalidation and evidence that would change its view.
+- **Portfolio Analyst:** portfolio fit, concentration, sector/correlation evidence, existing exposure and missing risk inputs. It has no sizing or order authority.
+- **Risk Committee:** deterministic, independent policy veto. It is not an LLM agent and cannot be overridden by the supervisor, analysts or dashboard.
+
+### Resource and permission model
+- Provider collectors—not model workers—retrieve quotes, price history, SEC facts, FMP data, news and earnings evidence. The shared evidence bundle is immutable and point-in-time bounded.
+- The model workers currently have no direct browser, broker, database-write or market-data tools. This is intentional least privilege: they reason over collected evidence and cannot fetch, mutate or execute.
+- Role prompts define specialist scope and require each role to explain missing, stale or conflicting inputs. The full dossier is passed between stages so counter-evidence is not hidden; the task mandate narrows each specialist's responsibility rather than silently deleting evidence.
+- Gemini is preferred when configured; OpenAI is the fallback. The workers currently share the selected provider/model configuration; per-role model routing, separate retrieval tools and independent model diversity are future enhancements, not capabilities to assume.
+- No persistent agent memory or autonomous background workers are currently provided by this council. Durable run results are stored by the authenticated endpoint; this is audit history, not a verified learning memory.
+
+### Supervisor and quality gates
+- The coordinator is the deterministic supervisor: it controls stage order, freezes inputs, validates report schemas and citations, blocks downstream stages after failures, preserves bull/bear disagreement and invokes the Risk Committee only after a complete dossier.
+- A specialist cannot count an empty `COMPLETE` envelope as work. It must return at least one evidence-linked finding or a cited limitation/risk; otherwise the report is blocked.
+- Missing workers, provider failures, invalid references, malformed reports and any risk veto result in `NO_TRADE`.
+- The supervisor never changes the risk policy, approves strategy validation, enables paper execution or submits an order.
+
+### Evaluation standard
+Each release should test individual role boundaries, evidence attribution, prompt-injection resistance, freshness handling, empty/invalid reports, specialist outages, disagreement preservation, duplicate requests, provider timeouts, risk vetoes and end-to-end audit reconstruction. Measure role-level completion, unsupported-claim rate, citation validity, handoff integrity, disagreement coverage, latency and provider cost. A green unit-test suite does not prove investment performance.
+
+### Known limitations
+The current implementation is a bounded multi-stage research workflow, not a free-chat agent society. Specialists share one configured model provider/model and the same collected evidence context; they do not independently browse or hold distinct external tool credentials. Dashboard integration, per-role model selection, durable evaluation dashboards and autonomous scheduled research cycles remain separate work. Production use is still gated by the strategy-validation, seven-day equity-history, authenticated collection and release blockers documented in the project blocker log.
