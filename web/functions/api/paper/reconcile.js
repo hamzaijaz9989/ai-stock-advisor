@@ -46,12 +46,13 @@ export async function onRequestPost({request,env}) {
   if(!authorized(request,env)) return fail("Unauthorized.",401);
   const db=env?.NORTHSTAR_DB, key=env?.ALPACA_API_KEY_ID, secret=env?.ALPACA_API_SECRET_KEY;
   if(!db||!key||!secret) return fail("Paper ledger or Alpaca Paper credentials unavailable; reconciliation blocked.",503);
-  let control,ledgerPositions,ledgerOrders;
+  let control,ledgerPositions,ledgerOrders,fillDerivedPositions;
   try {
     control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();
     ledgerPositions=await db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all();
     ledgerOrders=await db.prepare("SELECT id,broker_order_id,symbol,side,qty,stop_price,status,response_json FROM paper_orders ORDER BY updated_at DESC").all();
-  } catch { return fail("Could not read the complete paper ledger; fail-closed.",503); }
+    fillDerivedPositions=await db.prepare("SELECT symbol,SUM(open_qty) AS qty,SUM(open_qty*entry_price)/SUM(open_qty) AS avg_entry_price FROM paper_position_lots WHERE open_qty>0 GROUP BY symbol ORDER BY symbol").all();
+  } catch { return fail("Could not read the complete paper ledger and fill-derived position ledger; fail-closed. Verify migration 0006.",503); }
   if(!control||control.mode!=="paper") return fail("Paper mode is required for read-only reconciliation.",503);
   let account,brokerPositions,brokerOrders=[],pageToken=null,pages=0;
   try {
@@ -77,14 +78,24 @@ export async function onRequestPost({request,env}) {
   if(!Array.isArray(brokerPositions)) return fail("Alpaca returned an invalid positions payload.",503);
   const posRows=Array.isArray(ledgerPositions?.results)?ledgerPositions.results:[];
   const orderRows=Array.isArray(ledgerOrders?.results)?ledgerOrders.results:[];
+  const derivedRows=Array.isArray(fillDerivedPositions?.results)?fillDerivedPositions.results:[];
   const normPos=rows=>rows.map(p=>({symbol:String(p.symbol||"").toUpperCase(),qty:num(p.qty),avg:num(p.avg_entry_price)})).sort((a,b)=>a.symbol.localeCompare(b.symbol));
-  const bp=normPos(brokerPositions), lp=normPos(posRows);
+  const bp=normPos(brokerPositions), lp=normPos(posRows), dp=normPos(derivedRows);
   const positionMismatches=[];
+  const fillDerivedPositionMismatches=[];
   const posSymbols=[...new Set([...bp.map(x=>x.symbol),...lp.map(x=>x.symbol)])].sort();
   for(const symbol of posSymbols) {
     const b=bp.find(x=>x.symbol===symbol), l=lp.find(x=>x.symbol===symbol);
     if(!b||!l||b.qty===null||l.qty===null||b.avg===null||l.avg===null||!close(b.qty,l.qty)||!close(b.avg,l.avg,0.01)) {
       positionMismatches.push({symbol,broker:b||null,ledger:l||null});
+    }
+  }
+  const derivedSymbols=[...new Set([...bp.map(x=>x.symbol),...dp.map(x=>x.symbol)])].sort();
+  for(const symbol of derivedSymbols) {
+    const broker=bp.find(x=>x.symbol===symbol), derived=dp.find(x=>x.symbol===symbol);
+    if(!broker||!derived||broker.qty===null||derived.qty===null||broker.avg===null||derived.avg===null||
+       !close(broker.qty,derived.qty)||!close(broker.avg,derived.avg,0.01)) {
+      fillDerivedPositionMismatches.push({symbol,broker:broker||null,fillDerived:derived||null});
     }
   }
   const brokerById=new Map();
@@ -137,14 +148,14 @@ export async function onRequestPost({request,env}) {
   for(const b of brokerOrders) {
     if(!ledgerByBrokerId.has(String(b.id))) orderMismatches.push({brokerOrderId:String(b.id),reason:"BROKER_ORDER_MISSING_FROM_LEDGER",symbol:b.symbol,status:b.status});
   }
-  const mismatches=positionMismatches.length+orderMismatches.length;
+  const mismatches=positionMismatches.length+fillDerivedPositionMismatches.length+orderMismatches.length;
   return Response.json({
     ok:mismatches===0,reconciled:mismatches===0,execution:false,
     status:mismatches===0?"RECONCILIATION_PASSED_READ_ONLY":"RECONCILIATION_MISMATCH_FAIL_CLOSED",
     account:{status:account.status,currency:account.currency},
-    counts:{brokerPositions:bp.length,ledgerPositions:lp.length,brokerOrders:brokerOrders.length,ledgerOrders:orderRows.length,orderHistoryPages:pages},
-    mismatches:{positions:positionMismatches,orders:orderMismatches},
-    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Order status, cumulative filled quantity, and average fill price are compared; missing fill snapshots are treated as mismatches.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","This endpoint never changes execution-control settings or broker orders."],
+    counts:{brokerPositions:bp.length,ledgerPositions:lp.length,fillDerivedPositions:dp.length,brokerOrders:brokerOrders.length,ledgerOrders:orderRows.length,orderHistoryPages:pages},
+    mismatches:{positions:positionMismatches,fillDerivedPositions:fillDerivedPositionMismatches,orders:orderMismatches},
+    warnings:["Read-only reconciliation. No broker orders were submitted, modified, or cancelled.","No ledger rows were changed.","Broker positions are compared against both the latest account snapshot mirror and the independent FIFO position ledger derived from Northstar-tracked fills.","Order status, cumulative filled quantity, and average fill price are compared; missing fill snapshots are treated as mismatches.","Order history is limited to the broker's most recent 2,500 orders; older ledger references may be reported missing.","This endpoint never changes execution-control settings or broker orders."],
     checkedAt:new Date().toISOString()
   },{status:mismatches===0?200:409,headers:H});
 }
