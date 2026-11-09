@@ -60,6 +60,7 @@ export function evaluatePartialFillRecovery({
     return blocked("PARENT_STATUS_NOT_RECOGNIZED_AS_SAFE_TERMINAL",{parentStatus});
   }
   let childFilled=0;
+  let heldChild=false;
   if (stopChild) {
     const childStatus=String(stopChild.status || "").toLowerCase();
     const childSymbol=String(stopChild.symbol || "").toUpperCase();
@@ -73,10 +74,8 @@ export function evaluatePartialFillRecovery({
         childFilled>childQty || childStop===null || !close(childStop,stop,0.0001)) {
       return blocked("OTO_STOP_CHILD_FIELDS_INVALID_OR_MISMATCHED",{childStatus,childSymbol,childSide,childType,childQty,childFilled,childStop});
     }
-    if (childStatus==="held") {
-      return blocked("OTO_STOP_CHILD_REMAINS_HELD_AFTER_PARENT_TERMINAL",{parentStatus,childStatus,parentFilled,childFilled});
-    }
-    if (!ACTIVE_STOP.has(childStatus) && !TERMINAL_STOP.has(childStatus)) {
+    heldChild=childStatus==="held";
+    if (!heldChild && !ACTIVE_STOP.has(childStatus) && !TERMINAL_STOP.has(childStatus)) {
       return blocked("OTO_STOP_CHILD_STATUS_UNVERIFIED",{childStatus});
     }
   }
@@ -92,6 +91,15 @@ export function evaluatePartialFillRecovery({
   }
   if (!close(positionQty,expectedRemaining)) {
     return blocked("BROKER_POSITION_DOES_NOT_MATCH_ENTRY_MINUS_STOP_FILLS",{expectedRemaining,positionQty,parentFilled,childFilled});
+  }
+
+  if (heldChild) {
+    return {
+      ok:true, execution:false, action:"CANCEL_HELD_STOP_CHILD",
+      reason:"HELD_OTO_CHILD_IS_NOT_PROTECTIVE_AND_MUST_BE_REMOVED_BEFORE_STANDALONE_RECOVERY",
+      symbol, parentStatus, parentFilledQty:parentFilled, stopChildFilledQty:childFilled,
+      positionQty:expectedRemaining, heldStopOrderId:String(stopChild?.id || "")
+    };
   }
 
   if (expectedRemaining===0) {
