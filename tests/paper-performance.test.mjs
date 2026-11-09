@@ -3,8 +3,34 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 const source=await readFile(new URL("../web/functions/api/paper/performance.js",import.meta.url),"utf8");
 const {onRequestGet}=await import("data:text/javascript;base64,"+Buffer.from(source).toString("base64"));
+import {derivePaperPositionLedger} from "../web/lib/paper-position-ledger.js";
 const control={enabled:0,mode:"paper",kill_switch:1,max_portfolio_usd:1000};
-function db({snapshots=[],positions=[],fills=[],orders=[{broker_order_id:"test-order",response_json:"{}"}]}={}){return {prepare(sql){return {async first(){return control;},async all(){if(sql.includes("paper_equity_snapshots"))return {results:snapshots};if(sql.includes("paper_positions"))return {results:positions};if(sql.includes("broker_fill_activities"))return {results:fills};if(sql.includes("FROM paper_orders"))return {results:orders};throw Error("unexpected SQL");}};}};}
+function trackedIds(orders){
+ const ids=new Set();
+ for(const row of orders){
+  if(row?.broker_order_id)ids.add(String(row.broker_order_id));
+  let data;try{data=JSON.parse(row?.response_json||"{}");}catch{continue;}
+  const roots=[data,data?.brokerResponse,data?.order,data?.response];
+  for(const root of roots){
+   if(!root||typeof root!=="object")continue;
+   if(root.id)ids.add(String(root.id));
+   for(const leg of Array.isArray(root.legs)?root.legs:[])if(leg?.id)ids.add(String(leg.id));
+   for(const child of Array.isArray(root.child_orders)?root.child_orders:[])if(child?.id)ids.add(String(child.id));
+  }
+ }
+ return ids;
+}
+function db({snapshots=[],positions=[],fills=[],orders=[{broker_order_id:"test-order",response_json:"{}"}]}={}){
+ const ids=trackedIds(orders);
+ const tracked=fills.filter(fill=>ids.has(String(fill?.broker_order_id||"")));
+ const derived=tracked.length<=5000?derivePaperPositionLedger(tracked.map(fill=>({...fill,order_id:"northstar-test-order"}))):{ok:false,lots:[],realized:[]};
+ const lots=(derived.ok?derived.lots:[]).map(lot=>({lot_id:lot.lotId,symbol:lot.symbol,open_qty:lot.openQty,entry_price:lot.entryPrice,opened_at:lot.openedAt}));
+ const realized=(derived.ok?derived.realized:[]).map(row=>({close_activity_id:row.closeActivityId,open_activity_id:row.openActivityId,symbol:row.symbol,qty:row.qty,entry_price:row.entryPrice,exit_price:row.exitPrice,realized_pl_usd:row.realizedPl,closed_at:row.closedAt}));
+ return {prepare(sql){return {
+  async first(){if(sql.includes("execution_control"))return control;if(sql.includes("northstar_fill_ledger"))return {tracked_fill_count:tracked.length};throw Error("unexpected first SQL: "+sql);},
+  async all(){if(sql.includes("paper_equity_snapshots"))return {results:snapshots};if(sql.includes("paper_position_lots"))return {results:lots};if(sql.includes("paper_realized_trades"))return {results:realized};if(sql.includes("paper_positions"))return {results:positions};if(sql.includes("broker_fill_activities"))return {results:fills};if(sql.includes("FROM paper_orders"))return {results:orders};throw Error("unexpected SQL: "+sql);}
+ };}};
+}
 test("performance is unavailable with no durable snapshots and does not invent P&L",async()=>{const r=await onRequestGet({env:{NORTHSTAR_DB:db()}});const b=await r.json();assert.equal(r.status,200);assert.equal(b.available,false);assert.equal(b.snapshotCount,0);assert.equal(b.observedChange.returnPct,null);assert.equal(b.tradeStatistics.realizedPlUsd,null);assert.equal(b.execution,false);});
 test("performance calculates observed return and peak drawdown from stored snapshots",async()=>{const snapshots=[{captured_at:"2026-01-01T00:00:00Z",equity_usd:100000,cash_usd:90000,day_pl_usd:0},{captured_at:"2026-01-02T00:00:00Z",equity_usd:105000,cash_usd:90000,day_pl_usd:5000},{captured_at:"2026-01-03T00:00:00Z",equity_usd:95000,cash_usd:90000,day_pl_usd:-10000}];const r=await onRequestGet({env:{NORTHSTAR_DB:db({snapshots})}});const b=await r.json();assert.equal(r.status,200);assert.equal(b.observedChange.amountUsd,-5000);assert.equal(b.observedChange.returnPct,-5);assert.equal(b.observedChange.maxDrawdownPct,-9.5238);assert.equal(b.tradeStatistics.winRatePct,null);assert.equal(b.equityCurve.length,3);});
 test("performance fails closed outside paper mode",async()=>{const bad=db();bad.prepare=()=>({first:async()=>({...control,mode:"live",enabled:1,kill_switch:0}),all:async()=>({results:[]})});const r=await onRequestGet({env:{NORTHSTAR_DB:bad}});assert.equal(r.status,503);});
