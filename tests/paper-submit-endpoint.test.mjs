@@ -40,7 +40,7 @@ test("paper executor blocks an untracked broker position before writing or submi
      return null;
     },
     async all(){
-     if(sql.includes("paper_equity_snapshots"))return {results:[{captured_at:now,equity_usd:100000}]};
+     if(sql.includes("paper_equity_snapshots"))return {results:[{captured_at:now,equity_usd:100000},{captured_at:new Date(Date.now()-8*86400000).toISOString(),equity_usd:100000}]};
      return {results:[]};
     }
    };return stmt;
@@ -51,6 +51,7 @@ test("paper executor blocks an untracked broker position before writing or submi
  globalThis.fetch=async url=>{
   const u=String(url);calls.push(u);
   if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE",equity:"100000",last_equity:"100000",buying_power:"400000"});
+  if(u.endsWith("/v2/clock"))return Response.json({is_open:true});
   if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:99.9,ap:100,t:now}});
   if(u.endsWith("/v2/positions"))return Response.json([{symbol:"MSFT",qty:"1",avg_entry_price:"50",market_value:"50"}]);
   if(u.includes("/v2/orders?status=all"))return Response.json([]);
