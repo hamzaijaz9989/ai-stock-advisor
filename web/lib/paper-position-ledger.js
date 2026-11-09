@@ -27,6 +27,13 @@ export function derivePaperPositionLedger(input) {
     fills.push({activityId,orderId,brokerOrderId,symbol,side,qty,price,transactionTime,at});
   }
   fills.sort((a,b)=>a.at-b.at || a.activityId.localeCompare(b.activityId));
+  for(let i=1;i<fills.length;i++){
+    const previous=fills[i-1],current=fills[i];
+    if(previous.symbol===current.symbol&&previous.at===current.at&&
+       (previous.side!==current.side||previous.price!==current.price)){
+      return {ok:false,reason:"AMBIGUOUS_FILL_ORDERING",activityIds:[previous.activityId,current.activityId],symbol:current.symbol,execution:false};
+    }
+  }
   const lots = [];
   const realized = [];
   for (const fill of fills) {
