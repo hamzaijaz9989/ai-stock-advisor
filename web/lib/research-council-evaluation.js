@@ -101,6 +101,7 @@ export function evaluateResearchCouncilRun(run, telemetry = {}) {
       "Citation coverage does not measure whether a citation actually supports the associated claim.",
       "Bull/bear shared-evidence counts do not measure reasoning quality, independence or meaningful disagreement.",
       "Latency, token and cost values are null unless explicitly supplied by trusted runtime telemetry.",
+      "Aggregate latency is the sum of measured role invocation durations, not end-to-end wall-clock time; independent stages may run in parallel.",
       "No investment performance, predictive accuracy or strategy approval is inferred."
     ]
   };
