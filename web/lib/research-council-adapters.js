@@ -131,7 +131,7 @@ async function createGeminiGenerator(env) {
 async function createOpenAIGenerator(env) {
   if(!env?.OPENAI_API_KEY) return null;
   const model=env.OPENAI_RESEARCH_MODEL||"gpt-5";
-  return async ({role,payload})=>{
+  const generate=async ({role,payload})=>{
     const response=await fetch("https://api.openai.com/v1/responses",{
       method:"POST",
       headers:{"Authorization":"Bearer "+env.OPENAI_API_KEY,"Content-Type":"application/json"},
