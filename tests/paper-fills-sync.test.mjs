@@ -21,7 +21,7 @@ test("fill import remains read-only while paper execution is enabled and does no
  assert.equal(body.execution,false);
  assert.equal(db.state.batch.length,1);
  assert.equal(db.state.batch.some(x=>x.sql.includes("execution_control")),false);
- assert.ok(body.warnings.some(x=>/never changes execution-control settings/i.test(x)));
+ assert.ok(body.warnings.some(x=>/when no unsafe exposure is detected.*never changes execution-control settings/i.test(x)));
 });
 test("fill import advances a fully filled order only after its active stop child is verified",async()=>{
  const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"ACCEPTED",response_json:'{"filled_qty":"1","filled_avg_price":"99"}'};
