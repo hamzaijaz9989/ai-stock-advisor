@@ -1,5 +1,6 @@
 // Safe, read-only status for the durable paper-trading ledger.
 import {evaluateStrategyApproval} from "../../../lib/strategy-validation-gate.js";
+import {PAPER_EXECUTION_LIMITS} from "../../../lib/paper-execution-policy.js";
 // This endpoint never submits, cancels, or modifies broker orders.
 const HEADERS = {
   "Cache-Control": "no-store",
@@ -34,10 +35,10 @@ export async function onRequestGet({ env }) {
     }
 
     const policyConfigurationVerified = result.mode === "paper" &&
-      Number(result.max_portfolio_usd) === 1000 &&
-      Number(result.default_risk_fraction) === 0.005 &&
-      Number(result.max_risk_fraction) === 0.01 &&
-      Number(result.max_position_fraction) === 0.25;
+      Number(result.max_portfolio_usd) === PAPER_EXECUTION_LIMITS.virtualCapitalUsd &&
+      Number(result.default_risk_fraction) === PAPER_EXECUTION_LIMITS.defaultRiskFraction &&
+      Number(result.max_risk_fraction) === PAPER_EXECUTION_LIMITS.maxRiskFraction &&
+      Number(result.max_position_fraction) === PAPER_EXECUTION_LIMITS.maxPositionFraction;
     const enabled = Number(result.enabled) === 1;
     const killSwitchEngaged = Number(result.kill_switch) === 1;
     const controlStateVerified = (enabled === false && killSwitchEngaged === true) ||
@@ -56,10 +57,12 @@ export async function onRequestGet({ env }) {
       strategyValidationApproved: strategyValidation.ok,
       controlStateVerified,
       limits: {
-        virtualCapitalUsd: 1000,
-        defaultRiskUsd: 5,
-        maxRiskUsd: 10,
-        maxPositionUsd: 250
+        virtualCapitalUsd: PAPER_EXECUTION_LIMITS.virtualCapitalUsd,
+        defaultRiskUsd: PAPER_EXECUTION_LIMITS.defaultRiskUsd,
+        maxRiskUsd: PAPER_EXECUTION_LIMITS.maxRiskUsd,
+        maxPositionUsd: PAPER_EXECUTION_LIMITS.maxPositionUsd,
+        dailyLossCapUsd: PAPER_EXECUTION_LIMITS.dailyLossCapUsd,
+        maxDrawdownUsd: PAPER_EXECUTION_LIMITS.maxDrawdownUsd
       },
       message: !policyConfigurationVerified
         ? "Paper allocation or risk limits do not match the required policy."
