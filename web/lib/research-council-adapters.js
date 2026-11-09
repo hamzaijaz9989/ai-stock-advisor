@@ -200,6 +200,7 @@ function riskCommittee(payload) {
   };
 }
 
+// fetcher injection keeps provider tests isolated; production defaults to the platform fetch.
 export async function createResearchCouncilWorkers(env, fetcher=fetch) {
   let generate=null;
   if(env?.GEMINI_API_KEY) {
