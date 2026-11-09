@@ -249,3 +249,46 @@ test("paper executor rejects an approved status without immutable reviewer attri
  assert.equal(submitted,false);
  assert.equal(calls.length,0);
 });
+
+
+test("paper executor blocks submission when fresh read-only reconciliation finds an untracked broker order",async()=>{
+ const now=new Date().toISOString();let brokerPost=false,ledgerWrites=0;
+ const db={
+  prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
+   async first(){
+    if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
+    if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY",reviewer:"independent-reviewer",decided_at:"2026-11-09T05:00:00.000Z"};
+    if(sql.includes("paper_orders")&&sql.includes("idempotency_key"))return null;
+    if(sql.includes("northstar_strategy_approval"))return validStrategyApproval;
+    return null;
+   },
+   async all(){
+    if(sql.includes("paper_equity_snapshots"))return {results:[{captured_at:now,equity_usd:100000},{captured_at:new Date(Date.now()-8*86400000).toISOString(),equity_usd:100000}]};
+    return {results:[]};
+   }
+  };},
+  async batch(){ledgerWrites++;throw new Error("reconciliation failure must block before order ledger writes");}
+ };
+ const original=globalThis.fetch;
+ globalThis.fetch=async(url,options={})=>{
+  const u=String(url);
+  if(u.endsWith("/v2/account"))return Response.json({status:"ACTIVE",equity:"100000",last_equity:"100000",buying_power:"400000"});
+  if(u.endsWith("/v2/clock"))return Response.json({is_open:true});
+  if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json({quote:{bp:99.9,ap:100,t:now}});
+  if(u.endsWith("/v2/positions"))return Response.json([]);
+  if(u.includes("/v2/orders?status=all")){
+   if(u.includes("nested=true"))return Response.json([{id:"untracked-broker-order",symbol:"AAPL",side:"buy",qty:"1",status:"new",filled_qty:"0"}]);
+   return Response.json([]);
+  }
+  if(u.endsWith("/v2/orders")&&options.method==="POST"){brokerPost=true;throw new Error("broker order submission must not occur");}
+  throw new Error("unexpected broker request "+u);
+ };
+ try{
+  const r=await onRequestPost({request:request({"Authorization":"Bearer operator","X-NORTHSTAR-PAPER-APPROVAL":"approval"}),env:{NORTHSTAR_OPERATOR_TOKEN:"operator",NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN:"approval",ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret",NORTHSTAR_DB:db}});
+  const body=await r.json();
+  assert.equal(r.status,409);
+  assert.match(body.error,/reconciliation/i);
+  assert.equal(brokerPost,false);
+  assert.equal(ledgerWrites,0);
+ }finally{globalThis.fetch=original;}
+});
