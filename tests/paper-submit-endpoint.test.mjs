@@ -36,7 +36,7 @@ test("paper executor blocks an untracked broker position before writing or submi
    const stmt={sql,args:[],bind(...args){this.args=args;return this;},
     async first(){
      if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
-     if(sql.includes("paper_trade_intents"))return {...{id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY",reviewer:"independent-reviewer",decided_at:"2026-11-09T05:00:00.000Z"},...intentOverrides};
+     if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY",reviewer:"independent-reviewer",decided_at:"2026-11-09T05:00:00.000Z"};
      if(sql.includes("paper_orders"))return null;
      if(sql.includes("northstar_strategy_approval"))return validStrategyApproval;
      return null;
@@ -76,7 +76,7 @@ async function runHistoricalOrderCase({ledgerOrderRows=[],brokerOrderRows=[],str
  const db={prepare(sql){return {sql,args:[],bind(...args){this.args=args;return this;},
   async first(){
    if(sql.includes("execution_control"))return {enabled:1,mode:"paper",kill_switch:0,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
-   if(sql.includes("paper_trade_intents"))return {id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY",reviewer:"independent-reviewer",decided_at:"2026-11-09T05:00:00.000Z"};
+   if(sql.includes("paper_trade_intents"))return {...{id:"123e4567-e89b-12d3-a456-426614174000",symbol:"AAPL",side:"buy",qty:1,reference_price:100,stop_price:95,status:"APPROVED_REVIEW_ONLY",reviewer:"independent-reviewer",decided_at:"2026-11-09T05:00:00.000Z"},...intentOverrides};
    if(sql.includes("northstar_strategy_approval"))return strategyApproval;
    return null;
   },
