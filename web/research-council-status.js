@@ -41,7 +41,7 @@
     set("research-council-status-badge", "CHECKING");
     set("research-council-status-summary", "Checking the nine-agent service and its production audit trail.");
     try {
-      const response = await fetch("/api/research/council/status", {
+      const response = await fetch("/api/research/council-status", {
         headers:{Accept:"application/json"},
         cache:"no-store",
         signal:AbortSignal.timeout(8000)
