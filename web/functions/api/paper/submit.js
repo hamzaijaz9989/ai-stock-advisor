@@ -18,6 +18,16 @@ const num=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(
 const close=(a,b,t=.0001)=>Math.abs(Number(a)-Number(b))<=t;
 const normalizeStatus=value=>{const s=String(value||"UNKNOWN").toUpperCase();if(["NEW","PENDING_NEW","HELD","ACCEPTED"].includes(s))return "ACCEPTED";return ["PARTIALLY_FILLED","FILLED","CANCELED","REJECTED","UNKNOWN"].includes(s)?s:"UNKNOWN";};
 const safeJson=v=>JSON.stringify(v??{});
+async function rejectClaimedSubmission(db,id,reason,eventType){
+ const now=new Date().toISOString();
+ const writes=await db.batch([
+  db.prepare("UPDATE paper_orders SET status='REJECTED',response_json=?,updated_at=? WHERE id=? AND status='SUBMITTING'").bind(safeJson({reason,execution:false}),now,id),
+  db.prepare("UPDATE paper_execution_claims SET state='REJECTED',updated_at=? WHERE id=1 AND order_id=?").bind(now,id),
+  db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,eventType,now,"northstar",safeJson({reason,execution:false})),
+  db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_SUBMISSION_FINAL_GATE","BLOCKED",id,safeJson({reason,execution:false}))
+ ]);
+ return writes.length===4&&writes.every(w=>Number(w?.meta?.changes)===1);
+}
 async function digest(v){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(v)));return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function markUnknown(db,{orderId,intentId,brokerOrderId=null,response={},reason}) {
  const now=new Date().toISOString();
@@ -149,18 +159,53 @@ export async function onRequestPost({request,env}){
   ]);
   if(writes.length!==4||writes.some(w=>Number(w?.meta?.changes)!==1))throw new Error("SINGLE_FLIGHT_CLAIM_NOT_ACQUIRED");
  }catch{return fail("Another paper execution claim exists or the durable single-flight ledger could not be acquired; no broker request was made.",409);}
- // Re-read the kill switch immediately before the external broker mutation.
+ // Recheck the independent strategy attestation and market/account state after
+ // the durable claim, then make the kill-switch read the last DB read before POST.
+ let finalStrategy;
+ try{finalStrategy=await db.prepare("SELECT approved,strategy_version,report_version,report_sha256,report_uri,approved_at,reviewer FROM northstar_strategy_approval WHERE id=1").first();}
+ catch{
+  try{await rejectClaimedSubmission(db,id,"FINAL_STRATEGY_APPROVAL_READ_FAILED","SUBMISSION_BLOCKED_FINAL_STRATEGY_CHECK");}catch{}
+  return fail("Final strategy approval check failed; no broker request was made.",503,{orderId:id,status:"REJECTED"});
+ }
+ const finalStrategyValidation=evaluateStrategyApproval(finalStrategy);
+ const sameStrategy=finalStrategyValidation.ok&&
+  String(finalStrategy.strategy_version)===String(strategyApproval.strategy_version)&&
+  String(finalStrategy.report_version)===String(strategyApproval.report_version)&&
+  String(finalStrategy.report_sha256)===String(strategyApproval.report_sha256)&&
+  String(finalStrategy.report_uri)===String(strategyApproval.report_uri)&&
+  String(finalStrategy.approved_at)===String(strategyApproval.approved_at)&&
+  String(finalStrategy.reviewer)===String(strategyApproval.reviewer);
+ if(!sameStrategy){
+  try{await rejectClaimedSubmission(db,id,"FINAL_STRATEGY_APPROVAL_CHANGED_OR_REVOKED","SUBMISSION_BLOCKED_FINAL_STRATEGY_CHECK");}catch{}
+  return fail("Strategy approval changed or was revoked before the broker boundary; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
+ }
+ let finalAccount,finalQuote,finalClock;
+ try{[finalAccount,finalQuote,finalClock]=await Promise.all([
+  broker("/v2/account",key,secret),
+  broker("/v2/stocks/"+encodeURIComponent(intent.symbol)+"/quotes/latest?feed=iex",key,secret),
+  broker("/v2/clock",key,secret)
+ ]);}catch{
+  try{await rejectClaimedSubmission(db,id,"FINAL_BROKER_ACCOUNT_QUOTE_OR_CLOCK_CHECK_FAILED","SUBMISSION_BLOCKED_FINAL_BROKER_CHECK");}catch{}
+  return fail("Final broker account, quote, or market-clock check failed; no paper order was submitted.",503,{orderId:id,status:"REJECTED"});
+ }
+ const finalQ=finalQuote?.quote,finalBid=Number(finalQ?.bp),finalAsk=Number(finalQ?.ap),finalQuoteAt=Date.parse(finalQ?.t||"");
+ const finalQty=Number(intent.qty),finalStop=Number(intent.stop_price);
+ const finalQuoteValid=Number.isFinite(finalBid)&&Number.isFinite(finalAsk)&&finalBid>0&&finalAsk>=finalBid&&
+  Number.isFinite(finalQuoteAt)&&finalQuoteAt<=Date.now()&&Date.now()-finalQuoteAt<=60000&&
+  finalStop>0&&finalStop<finalBid&&finalQty*finalAsk<=250&&finalQty*(finalAsk-finalStop)<=10;
+ if(finalAccount?.status!=="ACTIVE"||finalAccount?.trading_blocked||finalAccount?.account_blocked||
+    finalClock?.is_open!==true||!finalQuoteValid){
+  try{await rejectClaimedSubmission(db,id,"FINAL_ACCOUNT_MARKET_OR_QUOTE_RISK_CHECK_FAILED","SUBMISSION_BLOCKED_FINAL_BROKER_CHECK");}catch{}
+  return fail("Final account, market-open, quote-freshness, position-size, or risk check failed; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
+ }
  let finalControl;
  try{finalControl=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();}
- catch{return fail("Final execution-control check failed after claim acquisition; no broker request was made. Reconcile the durable claim.",503);}
+ catch{
+  try{await rejectClaimedSubmission(db,id,"FINAL_EXECUTION_CONTROL_READ_FAILED","SUBMISSION_BLOCKED_FINAL_CONTROL_CHECK");}catch{}
+  return fail("Final execution-control check failed after claim acquisition; no broker request was made.",503,{orderId:id,status:"REJECTED"});
+ }
  if(!finalControl||finalControl.mode!=="paper"||Number(finalControl.enabled)!==1||Number(finalControl.kill_switch)!==0){
-  const stoppedAt=new Date().toISOString();
-  try{await db.batch([
-   db.prepare("UPDATE paper_orders SET status='REJECTED',response_json=?,updated_at=? WHERE id=? AND status='SUBMITTING'").bind(safeJson({reason:"FINAL_EXECUTION_CONTROL_CHECK_BLOCKED",execution:false}),stoppedAt,id),
-   db.prepare("UPDATE paper_execution_claims SET state='REJECTED',updated_at=? WHERE id=1 AND order_id=?").bind(stoppedAt,id),
-   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"SUBMISSION_BLOCKED_FINAL_CONTROL_CHECK",stoppedAt,"northstar",safeJson({execution:false})),
-   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_SUBMISSION_FINAL_CONTROL_CHECK","BLOCKED",id,safeJson({execution:false}))
-  ]);}catch{}
+  try{await rejectClaimedSubmission(db,id,"FINAL_EXECUTION_CONTROL_CHECK_BLOCKED","SUBMISSION_BLOCKED_FINAL_CONTROL_CHECK");}catch{}
   return fail("Execution controls changed before the broker boundary; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
  }
  let result;
