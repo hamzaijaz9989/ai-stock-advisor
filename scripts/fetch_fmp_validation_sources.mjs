@@ -11,7 +11,7 @@ function validDate(value){
 }
 export function parseSymbolsText(content){
  if(typeof content!=="string")throw new TypeError("Symbols file must be text.");
- const tokens=content.split(/[\\s,;]+/).map(x=>x.trim().toUpperCase()).filter(x=>x&&!x.startsWith("#"));
+ const withoutComments=content.split(/\\r?\\n/).map(line=>line.replace(/#.*/,"")).join("\\n");\n const tokens=withoutComments.split(/[\\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
  const symbols=[...new Set(tokens)];
  if(!symbols.length)throw new Error("Symbols file contains no tickers.");
  if(symbols.length>500)throw new Error("Maximum 500 unique tickers per acquisition run.");
