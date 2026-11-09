@@ -4,6 +4,7 @@ import {readFile} from "node:fs/promises";
 
 const html = await readFile(new URL("../web/trading-lab.html", import.meta.url), "utf8");
 const client = await readFile(new URL("../web/trading-lab.js", import.meta.url), "utf8");
+const statusClient = await readFile(new URL("../web/research-council-status.js", import.meta.url), "utf8");
 
 test("Trading Lab exposes the Stock Brain nine-agent workspace", () => {
   assert.match(html, /id="stock-brain"/);
@@ -29,4 +30,13 @@ test("Stock Brain report renderer writes untrusted specialist text with textCont
   const renderer = client.slice(start, end);
   assert.match(renderer, /\.textContent\s*=/);
   assert.doesNotMatch(renderer, /\.innerHTML\s*=/);
+});
+
+test("dashboard API clients fail gracefully on HTML or malformed API responses", () => {
+  assert.match(client, /async function readJsonResponse/);
+  assert.match(client, /content-type/);
+  assert.equal((client.match(/await response\.json\(\)/g) || []).length, 1);
+  assert.match(statusClient, /async function readJsonResponse/);
+  assert.match(statusClient, /status endpoint is unavailable in this deployment/);
+  assert.equal((statusClient.match(/await response\.json\(\)/g) || []).length, 1);
 });
