@@ -117,3 +117,13 @@ Immediate next sequence: merge PR #103 after exact-head CI and static preview ve
 - PR #103 is open and non-draft at head `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`; exact-head CI is green and Cloudflare preview deployment succeeded at https://a1c5704f.ai-stock-advisor.pages.dev.
 - Live HTTP/UI smoke testing remains outstanding due to the connected browsing layer's inability to reach the Pages host. Deployment success is not runtime acceptance.
 - Next task: verify preview dashboard/status/auth paths in an authorized browser, then complete review and safe merge decision. No production deployment or DB mutation has been made.
+
+
+## Provider configuration incident — 2026-11-10
+
+- Confirmed the current preview deployment is missing provider secrets that exist in Production. Production declares Alpaca key ID/secret, FMP_API_KEY2 and GEMINI_API_KEY; Preview declares only NORTHSTAR_OPERATOR_TOKEN.
+- This is why the preview Alpaca read-only sync fails and why FMP requests cannot authenticate. The research collector attempts Alpaca sync first and exits on failure before it reaches FMP.
+- Do not infer provider credentials are broken in Production. The audit did not modify or expose Production secrets.
+- Next: provision the existing provider secret values into Cloudflare Pages Preview, redeploy, then validate read-only Alpaca and FMP endpoints independently. Gemini must also be configured for the council model adapter if required.
+- Secret values are write-only/redacted in the Cloudflare API and cannot be cloned automatically by this connection. Keep them out of GitHub, chat, logs and documentation.
+- No trading or execution changes. Paper execution remains disabled and kill switch engaged.
