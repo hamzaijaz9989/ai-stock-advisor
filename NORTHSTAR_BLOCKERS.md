@@ -1426,3 +1426,12 @@ No PR merge, force push, branch-protection bypass, D1 write/migration, productio
 - This is test-only after the previously successful code preview deployment `dfa48d0a-e505-4ad0-b226-f9dd5c349408`; Pages path filtering skips test-only changes.
 - PR #88 remains dependent on PR #85: main's current fill-sync implementation lacks the explicit safety fields, so after #85 merges this branch must be updated onto the new main and the combined workflow/ Wrangler diff reviewed and retested.
 - No production deployment, D1 migration/write, broker request/order or execution-control change occurred.
+
+
+### Fresh production health check — 2026-11-09T18:05:00Z
+- Live production GET `/api/paper/readiness`, `/api/paper/performance`, and `/api/paper/control` all returned HTTP 200.
+- Production readiness confirms PAPER, policyVerified=true, executionEnabled=false and killSwitchEngaged=true. It reports $1,000 virtual capital, $5 default risk, $10 maximum risk and $250 maximum position. It does **not** expose the $20 daily-loss cap or $80 max-drawdown limit that the PR #85 preview reports; production is still on main's older deployed code, not PR #85.
+- Production performance still reports one stale broker equity/cash snapshot from `2026-11-08T18:34:38.720Z`, $100,000 observed broker equity/cash, $400,000 buying power, no positions, no imported fills and `NOT_AVAILABLE_NO_IMPORTED_FILLS` trade statistics. The $100,000 broker account value is not the virtual $1,000 strategy allocation.
+- Production control confirms `mode=paper`, `executionEnabled=false`, `killSwitchEngaged=true`; the endpoint explicitly cannot enable execution.
+- **Additional production-risk blocker:** current production code does not yet expose the daily-loss/drawdown controls demonstrated in PR #85 preview. Affected services: production Pages Functions `readiness.js`, `preflight.js`, `submit.js` and D1 schema. Impact: those limits cannot be claimed as deployed/verified in production. Next action: deploy PR #85 only after governance/review gates and compatible production migrations; verify the $20/$80 limits on production before any PAPER enablement.
+- No POST endpoint, broker API, order, D1 write/migration, execution-control mutation or production deployment occurred.
