@@ -4,7 +4,7 @@ import {onRequestPost} from "../web/functions/api/paper/recover.js";
 
 const PARENT_ID="123e4567-e89b-12d3-a456-426614174000";
 const parentRow={id:PARENT_ID,broker_order_id:"parent-broker",symbol:"AAPL",side:"buy",qty:5,stop_price:95,status:"PARTIALLY_FILLED",response_json:"{}"};
-const parent=(overrides={})=>({id:"parent-broker",client_order_id:PARENT_ID,order_class:"oto",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",status:"canceled",...overrides});
+const parent=(overrides={})=>({id:"parent-broker",client_order_id:PARENT_ID,order_class:"oto",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",status:"canceled",legs:[],...overrides});
 const child=(overrides={})=>({id:"child-broker",symbol:"AAPL",side:"sell",type:"stop",qty:"5",filled_qty:"0",leaves_qty:"5",stop_price:"95",status:"held",...overrides});
 const request=(headers={},body={orderId:PARENT_ID,confirmation:"RECOVER_THIS_PAPER_ORDER"})=>new Request("https://northstar.test/api/paper/recover",{method:"POST",headers:{"content-type":"application/json",...headers},body:JSON.stringify(body)});
 function makeDb({control={enabled:0,mode:"paper",kill_switch:1},row=parentRow,existing=null}={}){
@@ -146,4 +146,13 @@ test("unsupported stop-price precision blocks recovery before any broker order m
  assert.equal(response.status,409);
  assert.equal(body.reason,"STOP_PRICE_PRECISION_UNSUPPORTED");
  assert.equal(calls.some(x=>x.method==="POST"||x.method==="DELETE"),false);
+});
+
+test("terminal partial-fill recovery refuses an incomplete nested OTO response",async()=>{
+ const f=fixture();
+ f.brokerParent=parent({legs:undefined});
+ const {response,calls}=await run(f);
+ assert.equal(response.status,503);
+ assert.match((await response.json()).error,/nested OTO child list/i);
+ assert.equal(calls.some(x=>x.method==="DELETE"||x.method==="POST"),false);
 });
