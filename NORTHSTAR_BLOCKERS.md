@@ -271,3 +271,9 @@ PR #85 now adds:
 - Continue chronological strategy validation and keep the approval row NOT APPROVED until independent evidence/review is complete.
 - Collect real production equity snapshots through a verified read-only scheduled workflow; do not fabricate historical snapshots.
 - Keep production execution disabled and the kill switch engaged. Do not merge/deploy PR #85 until recovery, strategy approval, migrations, credentials, review and all required checks are verified.
+
+### Final verification addendum — 2026-11-09 10:57 PKT
+- Latest PR #85 head is `16a3582292379579556f2d7dc6a6f75e354e9e8a` (the preceding application-code head `52a27e638d70065422dfc3c334e5971e2914c217` is included in its ancestry).
+- Tests workflow `42570259653` passed: 232 JavaScript tests, 94 Python tests, and lint.
+- Validation workflow `42570259737` passed: 43 frontend analysis tests, 6 paper-readiness tests, 7 synthetic CLI checks, and SEC ingestion checks.
+- PR #85 remains open/draft/mergeable; formal review submissions remain zero. Do not mark ready or merge while the partial-fill recovery and strategy-evidence gates remain open.
