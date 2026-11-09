@@ -41,10 +41,15 @@ test("active OTO stop with undercoverage is manual recovery",()=>{
   assert.equal(result.action,"MANUAL_RECOVERY_REQUIRED");
   assert.equal(result.reason,"ACTIVE_OTO_STOP_DOES_NOT_COVER_EXACT_REMAINING_POSITION");
 });
-test("held OTO child never counts as protection",()=>{
+test("held OTO child is explicitly canceled only after broker exposure reconciles",()=>{
   const result=evaluate({stopChild:child({status:"held"})});
+  assert.equal(result.action,"CANCEL_HELD_STOP_CHILD");
+  assert.equal(result.heldStopOrderId,"child-1");
+});
+test("held OTO child with a broker-position mismatch remains manual recovery",()=>{
+  const result=evaluate({stopChild:child({status:"held"}),brokerPosition:{qty:"3",side:"long"}});
   assert.equal(result.action,"MANUAL_RECOVERY_REQUIRED");
-  assert.equal(result.reason,"OTO_STOP_CHILD_REMAINS_HELD_AFTER_PARENT_TERMINAL");
+  assert.equal(result.reason,"BROKER_POSITION_DOES_NOT_MATCH_ENTRY_MINUS_STOP_FILLS");
 });
 test("position mismatch blocks standalone stop placement",()=>{
   const result=evaluate({brokerPosition:{qty:"3",side:"long"}});
