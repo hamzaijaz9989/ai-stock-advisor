@@ -216,3 +216,23 @@ def test_valid_activation_creates_immutable_event_and_audit_without_creating_ord
     )
     assert db.execute("SELECT enabled, kill_switch FROM execution_control WHERE id=1").fetchone() == (0, 1)
     db.close()
+
+def test_github_oidc_snapshot_claim_is_unique_per_workflow_attempt():
+    db = database()
+    db.execute(
+        """
+        INSERT INTO execution_audit_log(actor, action, outcome, request_id, details_json)
+        VALUES ('github-actions', 'GITHUB_OIDC_SNAPSHOT_CLAIMED', 'STARTED', 'northstar-equity-12345-1', '{}')
+        """
+    )
+    try:
+        db.execute(
+            """
+            INSERT INTO execution_audit_log(actor, action, outcome, request_id, details_json)
+            VALUES ('github-actions', 'GITHUB_OIDC_SNAPSHOT_CLAIMED', 'STARTED', 'northstar-equity-12345-1', '{}')
+            """
+        )
+        raise AssertionError("duplicate OIDC workflow-run claim must be rejected")
+    except sqlite3.IntegrityError:
+        pass
+    db.close()
