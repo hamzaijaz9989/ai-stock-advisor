@@ -24,6 +24,7 @@ async function markUnknown(db,{orderId,intentId,brokerOrderId=null,response={},r
  await db.batch([
   db.prepare("UPDATE paper_orders SET broker_order_id=?,status='UNKNOWN',response_json=?,updated_at=? WHERE id=?").bind(brokerOrderId,safeJson({brokerResponse:response,reason}),now,orderId),
   db.prepare("UPDATE execution_control SET enabled=0,kill_switch=1,updated_at=? WHERE id=1").bind(now),
+  db.prepare("UPDATE paper_execution_claims SET state='UNKNOWN',updated_at=? WHERE id=1 AND order_id=?").bind(now,orderId),
   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(orderId,"SUBMISSION_UNKNOWN",now,"northstar",safeJson({intentId,brokerOrderId,reason,execution:false})),
   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_ORDER_OUTCOME_UNVERIFIED","UNKNOWN",orderId,safeJson({intentId,brokerOrderId,reason,killSwitchEngaged:true}))
  ]);
@@ -138,13 +139,30 @@ export async function onRequestPost({request,env}){
  const payload={symbol:intent.symbol,qty:intent.qty,side:"buy",type:"market",time_in_force:"day",order_class:"oto",stop_loss:{stop_price:Number(intent.stop_price).toFixed(2)},client_order_id:id};
  const requestHash=await digest(payload);
  try{
+  // The singleton claim serializes distinct intents across concurrent requests.
+  // D1 batch is transactional; each subsequent write is conditional on acquiring it.
   const writes=await db.batch([
-   db.prepare("INSERT INTO paper_orders(id,idempotency_key,client_request_hash,symbol,side,qty,order_type,time_in_force,stop_price,status,submitted_at,updated_at,response_json) VALUES(?,?,?,?,?,?,?,?,?,'SUBMITTING',?,?,?)").bind(id,idem,requestHash,intent.symbol,"buy",intent.qty,"market","day",intent.stop_price,now,now,safeJson({client_order_id:id,requestHash,virtualAllocationUsd:1000,policy:gate.status})),
-   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"SUBMISSION_STARTED",now,"northstar",safeJson({intentId,requestHash,executionMode:"paper"})),
-   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("operator","ALPACA_PAPER_ORDER_SUBMISSION","SUBMITTING",id,safeJson({intentId,symbol:intent.symbol,qty:intent.qty,virtualAllocationUsd:1000}))
+   db.prepare("INSERT INTO paper_orders(id,idempotency_key,client_request_hash,symbol,side,qty,order_type,time_in_force,stop_price,status,submitted_at,updated_at,response_json) SELECT ?,?,?,?,?,?,?,?,?,'SUBMITTING',?,?,? WHERE NOT EXISTS (SELECT 1 FROM paper_execution_claims WHERE id=1)").bind(id,idem,requestHash,intent.symbol,"buy",intent.qty,"market","day",intent.stop_price,now,now,safeJson({client_order_id:id,requestHash,virtualAllocationUsd:1000,policy:gate.status})),
+   db.prepare("INSERT INTO paper_execution_claims(id,order_id,intent_id,claimed_at,updated_at,state) SELECT 1,?,?,?,?,'SUBMITTING' WHERE EXISTS (SELECT 1 FROM paper_orders WHERE id=?) AND NOT EXISTS (SELECT 1 FROM paper_execution_claims WHERE id=1)").bind(id,intentId,now,now,id),
+   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM paper_execution_claims WHERE id=1 AND order_id=?)").bind(id,"SUBMISSION_STARTED",now,"northstar",safeJson({intentId,requestHash,executionMode:"paper"}),id),
+   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM paper_execution_claims WHERE id=1 AND order_id=?)").bind("operator","ALPACA_PAPER_ORDER_SUBMISSION","SUBMITTING",id,safeJson({intentId,symbol:intent.symbol,qty:intent.qty,virtualAllocationUsd:1000}),id)
   ]);
-  if(writes.some(w=>Number(w?.meta?.changes)!==1))throw new Error("ORDER_LEDGER_WRITE_FAILED");
- }catch{return fail("Could not atomically persist the order intent before submission; no broker request was made.",503);}
+  if(writes.length!==4||writes.some(w=>Number(w?.meta?.changes)!==1))throw new Error("SINGLE_FLIGHT_CLAIM_NOT_ACQUIRED");
+ }catch{return fail("Another paper execution claim exists or the durable single-flight ledger could not be acquired; no broker request was made.",409);}
+ // Re-read the kill switch immediately before the external broker mutation.
+ let finalControl;
+ try{finalControl=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();}
+ catch{return fail("Final execution-control check failed after claim acquisition; no broker request was made. Reconcile the durable claim.",503);}
+ if(!finalControl||finalControl.mode!=="paper"||Number(finalControl.enabled)!==1||Number(finalControl.kill_switch)!==0){
+  const stoppedAt=new Date().toISOString();
+  try{await db.batch([
+   db.prepare("UPDATE paper_orders SET status='REJECTED',response_json=?,updated_at=? WHERE id=? AND status='SUBMITTING'").bind(safeJson({reason:"FINAL_EXECUTION_CONTROL_CHECK_BLOCKED",execution:false}),stoppedAt,id),
+   db.prepare("UPDATE paper_execution_claims SET state='REJECTED',updated_at=? WHERE id=1 AND order_id=?").bind(stoppedAt,id),
+   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"SUBMISSION_BLOCKED_FINAL_CONTROL_CHECK",stoppedAt,"northstar",safeJson({execution:false})),
+   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_SUBMISSION_FINAL_CONTROL_CHECK","BLOCKED",id,safeJson({execution:false}))
+  ]);}catch{}
+  return fail("Execution controls changed before the broker boundary; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
+ }
  let result;
  try{
   result=await broker("/v2/orders",key,secret,{method:"POST",body:JSON.stringify(payload)});
@@ -210,6 +228,7 @@ export async function onRequestPost({request,env}){
  try{
   const statements=[
    db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=? AND status IN ('SUBMITTING','UNKNOWN')").bind(result.id,normalized,safeJson(verifiedOrder),new Date().toISOString(),id),
+   db.prepare("UPDATE paper_execution_claims SET state=?,updated_at=? WHERE id=1 AND order_id=?").bind(normalized==="REJECTED"?"REJECTED":"SUBMITTED",new Date().toISOString(),id),
    db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result.id,status:normalized,protectiveStopVerified}))
   ];
   if(intentStatus)statements.push(db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(intentStatus,new Date().toISOString(),intentId));
