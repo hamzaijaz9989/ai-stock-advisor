@@ -110,6 +110,45 @@
     calculate();
   });
 
+  const monitorTime = value => {const d=new Date(value||"");return Number.isFinite(d.getTime())?d.toLocaleString():"Not recorded";};
+  function monitorMetric(id,value){const el=$(id);if(el)el.textContent=String(value??"—");}
+  function renderMonitorEvents(events){
+    const root=$("monitor-events");root.replaceChildren();
+    if(!Array.isArray(events)||!events.length){const p=document.createElement("p");p.className="muted small";p.textContent="No monitor alerts recorded yet. This is not evidence of a buy or sell signal.";root.appendChild(p);return;}
+    for(const event of events.slice(0,20)){
+      const row=document.createElement("div");row.className="journal-row";
+      const left=document.createElement("div");
+      const title=document.createElement("strong");title.textContent=String(event.symbol||"—")+" · "+String(event.event_type||"EVENT").replaceAll("_"," ");left.appendChild(title);
+      const message=document.createElement("div");message.className="muted tiny";message.textContent=String(event.message||"No event detail");left.appendChild(message);
+      const meta=document.createElement("div");meta.className="muted tiny";meta.textContent=monitorTime(event.observed_at)+" · "+String(event.source||"Source not recorded")+(Number.isFinite(Number(event.price))?" · $"+Number(event.price).toFixed(2):"");left.appendChild(meta);
+      const severity=document.createElement("span");severity.className="state";severity.textContent=String(event.severity||"INFO").toUpperCase();
+      row.append(left,severity);root.appendChild(row);
+    }
+  }
+  async function loadMonitor(){
+    const status=$("monitor-status"),button=$("refresh-monitor");
+    if(status)status.textContent="Refreshing monitor ledger…";
+    if(button)button.disabled=true;
+    try{
+      const response=await fetch("/api/monitor?limit=20",{headers:{Accept:"application/json"},cache:"no-store"});
+      const data=await response.json();
+      if(!response.ok||data.ok!==true)throw new Error(data.error||"Monitor ledger unavailable");
+      const run=data.latestRun||{};
+      monitorMetric("monitor-run-status",String(run.status||"NO RUN").replaceAll("_"," ").toUpperCase());
+      monitorMetric("monitor-run-time",run.completed_at?"Completed "+monitorTime(run.completed_at):"No completed run");
+      monitorMetric("monitor-symbols",Number.isFinite(Number(run.symbols_checked))?run.symbols_checked:"—");
+      monitorMetric("monitor-errors",Number.isFinite(Number(run.errors))?run.errors:"—");
+      monitorMetric("monitor-alert-count",data.unacknowledgedEvents??0);
+      renderMonitorEvents(data.events);
+      if(status)status.textContent="Ledger connected · checked "+monitorTime(data.checkedAt)+" · "+String(data.cadence||"scheduled cadence");
+    }catch(error){
+      if(status)status.textContent="Monitor unavailable · "+(error?.message||"request failed");
+      renderMonitorEvents([]);
+      monitorMetric("monitor-run-status","UNAVAILABLE");
+      monitorMetric("monitor-run-time","No verified status");
+      monitorMetric("monitor-symbols","—");monitorMetric("monitor-errors","—");monitorMetric("monitor-alert-count","—");
+    }finally{if(button)button.disabled=false;}
+  }
   async function loadCandidates() {
     const status = $("scanner-state");
     const root = $("candidates");
@@ -402,4 +441,7 @@
   loadDurablePerformance();
   loadCandidates();
   loadLedgerReadiness();
+  $("refresh-monitor").addEventListener("click",loadMonitor);
+  loadMonitor();
+  window.setInterval(loadMonitor,60000);
 })();
