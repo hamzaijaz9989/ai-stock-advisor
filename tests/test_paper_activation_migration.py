@@ -62,6 +62,14 @@ def seed_snapshots(db, now, weekly=True):
 
 def activation_details():
     return {
+        "accountId": "11111111-1111-4111-8111-111111111111",
+        "strategyReportSha256": "a" * 64,
+        "executionEnabled": True,
+        "killSwitchEngaged": False,
+        "noBrokerOrderCreated": True,
+        "accountSyncStatus": "READ_ONLY_ACCOUNT_SYNC_PASSED",
+        "fillSyncStatus": "FILL_IMPORT_AND_ORDER_SYNC_PASSED_READ_ONLY",
+        "intentReviewConfigured": True,
         "accountStatus": "ACTIVE",
         "currency": "USD",
         "paperApiHost": "paper-api.alpaca.markets",
