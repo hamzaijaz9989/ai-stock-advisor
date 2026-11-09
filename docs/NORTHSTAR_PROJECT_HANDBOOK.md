@@ -204,3 +204,38 @@ Only after review, strategy approval, paper-lifecycle validation, migration revi
 - [Continuous market monitor](CONTINUOUS_MARKET_MONITOR.md)
 - [News and signal policy](NEWS_AND_SIGNAL_POLICY.md)
 - [Market data and recommendations policy](MARKET_DATA_AND_RECOMMENDATIONS.md)
+
+
+## 4. Live production audit — 2026-11-10 03:26 PKT
+
+This section supersedes older runtime counts above where they conflict. Evidence was read directly from the connected Cloudflare account and production D1 database; all D1 statements were SELECT-only and reported zero rows written.
+
+### GitHub and Pages release state
+- Main: `57aa9f0743917401dd0e3e90521fc39c22bd9f55` (research point-in-time safeguards).
+- Production Pages deployment: `921087a4-6194-4a67-ac61-2f8557edb0bc`, successful, serving main commit `57aa9f0743917401dd0e3e90521fc39c22bd9f55`.
+- The handbook/documentation branch preview was skipped by the Pages path filter because its changes are documentation-only; no production deployment was attempted.
+- PR #102 (this handbook and continuity update) has successful Tests, Validate AI Stock Advisor, and full-history secret-scan workflows at head `18d68c9b85e0f3fe44b82fdf9d122cc1d1e08dbd`. It remains draft pending final documentation review.
+- The main branch API response reports `protected=false` and no required status checks. Do not treat green CI as branch governance.
+- Repository visibility discrepancy remains unresolved: the GitHub REST metadata returned `private=false / visibility=public`, while the user states the repository is private. No visibility setting was changed. Confirm in GitHub Settings; do not infer privacy from README text.
+
+### Scanner and market-monitor status
+- Scanner phase: user-confirmed COMPLETE and tested. Do not restart scanner implementation absent a concrete regression.
+- Worker `northstar-market-monitor` has a production cron trigger `*/5 * * * *` and latest deployed Worker deployment `7326f3e7-f323-4856-badf-aa8b979dffb4` (version `2739d49a-4182-423f-8113-616252c5ddd6`, 100%).
+- Production D1 `monitor_runs`: 17 rows; all 17 have status `market_closed`, zero symbols checked, zero errors. Latest run began `2026-11-09T22:25:52.931Z` and completed `2026-11-09T22:25:53.110Z`.
+- Production `monitor_quotes`: 0 rows. Production `monitor_events`: 0 rows. This is consistent with all observed runs being outside the US regular session; it is not evidence of a successful market-open quote cycle.
+- Next monitor acceptance check: during the next US regular session, verify at least one completed run with symbols checked, timestamped quote rows, event deduplication, and dashboard rendering. Do not weaken freshness gates to make this pass.
+
+### Nine-agent Research Council / Stock Brain
+- User-confirmed phase: nearly complete. The nine logical roles are already implemented in source; preserve this phase as active rather than reopening the scanner.
+- Main contains the server-side collector `POST /api/research/collect`, the specialist council endpoint, fact/evidence adapters, and append-only `research_council_runs` storage.
+- The public research page currently calls the older supplemental `/api/ai-research` path; no call to `/api/research/collect` or `/api/research/council` was found in the dashboard scripts. The nine-agent council is therefore not yet proven end-to-end from the user dashboard.
+- Production D1 `research_council_runs`: 0 rows. `research_decision_traces`: 0 rows. This confirms no production council run/decision trace has yet been recorded.
+- The collector is operator-authenticated and requires model credentials, Alpaca Paper read-only credentials, the disabled/kill-switched control row, reconciled empty positions/open orders, a fresh equity snapshot, and a seven-day equity baseline. Do not put `NORTHSTAR_OPERATOR_TOKEN` in browser JavaScript.
+- Current production paper equity history has one snapshot only: `2026-11-08T18:34:38.720Z`. It is neither a fresh 15-minute snapshot nor a seven-day series. The server-side collector therefore cannot currently pass its portfolio gate.
+- Next phase-2 work: safely expose council run status and evidence in the dashboard without exposing secrets or account values; design an authenticated operator launch path; resolve the seven-day portfolio-history gate; run one controlled research-only production collection and verify durable replay. Keep trade submission disabled.
+
+### Paper-only safety state
+- Production execution control: `enabled=0`, `mode=paper`, `kill_switch=1`, max planning allocation USD 1,000, default risk 0.5%, hard risk cap 1%, max position 25%.
+- Production D1 migrations: `0001`–`0005` only. Migration `0006_continuous_market_monitor.sql` is not recorded in this paper-ledger database; monitor tables are present in the same schema, but verify the migration ledger before making any schema assumptions.
+- Counts: 0 paper orders, 0 paper positions, 0 trade intents, 0 broker fill activities, 0 paper trade events, 1 equity snapshot, 2 audit rows.
+- No paper or live order was submitted; no production D1 write or migration was performed during this audit.
