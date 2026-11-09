@@ -1,6 +1,8 @@
 const CACHE_URL = "https://ai-stock-advisor.pages.dev/data/top-stocks-cache.json";
 const QUOTE_HOSTS = ["query1.finance.yahoo.com","query2.finance.yahoo.com"];
 const MAX_CACHE_AGE_MS = 4 * 60 * 60 * 1000;
+const MAX_QUOTE_AGE_MS = 15 * 60 * 1000;
+const MAX_FUTURE_QUOTE_SKEW_MS = 2 * 60 * 1000;
 const MAX_SYMBOLS = 10;
 const MAX_CONCURRENCY = 3;
 const MOVE_ALERT_PCT = 3;
@@ -13,6 +15,10 @@ export function isUsMarketOpen(date = new Date()) {
   const day = parts.weekday;
   const minutes = Number(parts.hour)*60+Number(parts.minute);
   return !["Sat","Sun"].includes(day) && minutes >= 570 && minutes < 960;
+}
+export function isQuoteFresh(quoteTime, now = Date.now()) {
+  const timestamp = Date.parse(quoteTime || "");
+  return Number.isFinite(timestamp) && timestamp <= now + MAX_FUTURE_QUOTE_SKEW_MS && now - timestamp <= MAX_QUOTE_AGE_MS;
 }
 export function parseWatchZone(text) {
   if (typeof text !== "string") return null;
@@ -38,7 +44,9 @@ async function getQuote(symbol) {
       const price=idx>=0?closes[idx]:meta.regularMarketPrice;
       const prev=meta.chartPreviousClose??meta.previousClose??null;
       if(!Number.isFinite(price)||price<=0) throw new Error("No usable price");
-      return {symbol,price,previousClose:Number.isFinite(prev)?prev:null,changePct:Number.isFinite(prev)&&prev>0?(price/prev-1)*100:null,quoteTime:idx>=0&&times[idx]?new Date(times[idx]*1000).toISOString():meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null,fetchedAt:new Date().toISOString(),source:"Yahoo Finance chart API"};
+      const quoteTime=idx>=0&&times[idx]?new Date(times[idx]*1000).toISOString():meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null;
+      if(!isQuoteFresh(quoteTime)) throw new Error("Quote timestamp missing, stale, or unexpectedly in the future");
+      return {symbol,price,previousClose:Number.isFinite(prev)?prev:null,changePct:Number.isFinite(prev)&&prev>0?(price/prev-1)*100:null,quoteTime,fetchedAt:new Date().toISOString(),source:"Yahoo Finance chart API"};
     } catch(error) { last=error; }
   }
   throw last||new Error("Quote unavailable");
