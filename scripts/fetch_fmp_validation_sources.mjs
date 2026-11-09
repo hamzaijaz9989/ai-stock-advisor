@@ -5,13 +5,14 @@ import {fetchEarningsHistory} from "./fetch_fmp_earnings.mjs";
 
 const TICKER_RE=/^[A-Z][A-Z0-9.-]{0,11}$/;
 function validDate(value){
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return false;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
  const d=new Date(value+"T00:00:00Z");
  return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===value;
 }
 export function parseSymbolsText(content){
  if(typeof content!=="string")throw new TypeError("Symbols file must be text.");
- const withoutComments=content.split(/\\r?\\n/).map(line=>line.replace(/#.*/,"")).join("\\n");\n const tokens=withoutComments.split(/[\\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
+ const withoutComments=content.split(/\r?\n/).map(line=>line.replace(/#.*/,"")).join("\n");
+ const tokens=withoutComments.split(/[\s,;]+/).map(x=>x.trim().toUpperCase()).filter(Boolean);
  const symbols=[...new Set(tokens)];
  if(!symbols.length)throw new Error("Symbols file contains no tickers.");
  if(symbols.length>500)throw new Error("Maximum 500 unique tickers per acquisition run.");
@@ -34,9 +35,9 @@ export async function fetchValidationSources({from,to,symbols,baseUrl,operatorTo
  if(!Array.isArray(symbols)||!symbols.length)throw new Error("An explicit non-empty ticker list is required.");
  const normalized=[...new Set(symbols.map(x=>String(x).trim().toUpperCase()))].sort();
  if(normalized.length>500||normalized.some(x=>!TICKER_RE.test(x)))throw new Error("Ticker list is invalid or exceeds 500 unique symbols.");
- if(typeof baseUrl!=="string"||!/^https:\\/\\//.test(baseUrl))throw new Error("A valid HTTPS NORTHSTAR_API_BASE is required.");
+ if(typeof baseUrl!=="string"||!/^https:\/\//.test(baseUrl))throw new Error("A valid HTTPS NORTHSTAR_API_BASE is required.");
  if(typeof operatorToken!=="string"||!operatorToken)throw new Error("NORTHSTAR_OPERATOR_TOKEN is required.");
- const base=baseUrl.replace(/\\/$/,"");
+ const base=baseUrl.replace(/\/$/,"");
  const auth={Authorization:"Bearer "+operatorToken,Accept:"application/json"};
  const universeUrl=new URL("/api/fmp-universe",base);universeUrl.searchParams.set("from",from);
  const universe=await getJson(fetchImpl,universeUrl,auth,"FMP universe acquisition");
@@ -55,8 +56,8 @@ export async function fetchValidationSources({from,to,symbols,baseUrl,operatorTo
   if(priceBars===0||annual===0||quarterly===0)gaps.push({symbol,priceBars,annualIncome:annual,quarterIncome:quarterly});
   historyBySymbol[symbol]=history;
  }
- const allSymbols=[...new Set([...normalized])];
- const output={
+ const allSymbols=[...normalized];
+ return {
   metadata:{
    provider:"Financial Modeling Prep via Northstar server-side adapters",
    requestedWindow:{from,to},
@@ -86,7 +87,6 @@ export async function fetchValidationSources({from,to,symbols,baseUrl,operatorTo
    ]
   }
  };
- return output;
 }
 function parseArgs(argv){
  const out={};for(let i=0;i<argv.length;i++){if(argv[i].startsWith("--"))out[argv[i].slice(2)]=argv[++i];}
@@ -98,7 +98,7 @@ async function main(){
  const symbols=parseSymbolsText(await fs.readFile(args["symbols-file"],"utf8"));
  const result=await fetchValidationSources({from:args.from,to:args.to,symbols,baseUrl:process.env.NORTHSTAR_API_BASE,operatorToken:process.env.NORTHSTAR_OPERATOR_TOKEN});
  await fs.mkdir(path.dirname(path.resolve(args.output)),{recursive:true});
- await fs.writeFile(args.output,JSON.stringify(result,null,2)+"\\n",{flag:"wx"});
+ await fs.writeFile(args.output,JSON.stringify(result,null,2)+"\n",{flag:"wx"});
  console.log("Saved raw source bundle for "+result.metadata.symbolCount+" tickers; "+result.coverage.symbolsWithMissingCoreCoverage.length+" symbols have incomplete core coverage. No validation approval was created.");
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
