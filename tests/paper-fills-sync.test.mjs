@@ -21,7 +21,7 @@ test("fill import remains read-only while paper execution is enabled and does no
  assert.equal(body.execution,false);
  assert.equal(db.state.batch.length,1);
  assert.equal(db.state.batch.some(x=>x.sql.includes("execution_control")),false);
- assert.ok(body.warnings.some(x=>/when no unsafe exposure is detected.*never changes execution-control settings/i.test(x)));
+ assert.ok(body.warnings.some(x=>/when all tracked order states are verified.*never changes execution-control settings/i.test(x)));
 });
 test("fill import advances a fully filled order only after its active stop child is verified",async()=>{
  const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"ACCEPTED",response_json:'{"filled_qty":"1","filled_avg_price":"99"}'};
@@ -92,7 +92,7 @@ test("fill sync fails closed for a live zero-fill entry whose OTO stop child is 
  assert.equal(body.unsafeExposureCount,0);
  assert.equal(body.unsafeOrderCount,1);
  assert.equal(body.unsafeExposure[0].exposurePresent,false);
- assert.equal(body.unsafeExposure[0].reason,"NESTED_ORDER_LEGS_UNAVAILABLE");
+ assert.equal(body.unsafeExposure[0].reason,"PROTECTIVE_STOP_LEG_MISSING_OR_MISMATCHED");
  assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders SET status='UNKNOWN'")),true);
  assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
 });
