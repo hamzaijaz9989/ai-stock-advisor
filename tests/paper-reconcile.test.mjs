@@ -163,3 +163,25 @@ test("reconciliation passes only when broker, snapshot mirror and fill-derived p
  assert.equal(body.counts.fillDerivedPositions,1);
  assert.deepEqual(body.mismatches.fillDerivedPositions,[]);
 });
+
+
+test("reconciliation verifies standalone recovery GTC stop against exact remaining position",async()=>{
+  const positions=[{symbol:"AAPL",qty:"2",avg_entry_price:"100"}];
+  const brokerOrder={id:"recovery-broker",symbol:"AAPL",side:"sell",qty:"2",status:"new",filled_qty:"0",filled_avg_price:null,type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"2"};
+  const ledgerOrder={id:"recovery-ledger",broker_order_id:"recovery-broker",symbol:"AAPL",side:"sell",qty:2,stop_price:95,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})};
+  const db=mockDb({positions,fillDerivedPositions:positions,orders:[ledgerOrder]});
+  const response=await run({db,broker:{positions,orders:[brokerOrder]}});
+  const body=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(body.reconciled,true);
+});
+test("reconciliation rejects standalone recovery stop with insufficient leaves quantity",async()=>{
+  const positions=[{symbol:"AAPL",qty:"2",avg_entry_price:"100"}];
+  const brokerOrder={id:"recovery-broker",symbol:"AAPL",side:"sell",qty:"2",status:"new",filled_qty:"0",type:"stop",time_in_force:"gtc",stop_price:"95",leaves_qty:"1"};
+  const ledgerOrder={id:"recovery-ledger",broker_order_id:"recovery-broker",symbol:"AAPL",side:"sell",qty:2,stop_price:95,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})};
+  const db=mockDb({positions,fillDerivedPositions:positions,orders:[ledgerOrder]});
+  const response=await run({db,broker:{positions,orders:[brokerOrder]}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="STANDALONE_RECOVERY_STOP_DOES_NOT_COVER_POSITION"));
+});
