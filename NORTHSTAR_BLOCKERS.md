@@ -892,3 +892,34 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - A first token-telemetry test exposed a test-only shared-global fetch mock race; adapter now accepts an injected fetch implementation and the test uses an isolated mock, avoiding mutation of global fetch. This is testability-only; production continues using the platform fetch.
 - CI also exposed a stale assertion regex in the scheduled snapshot workflow test: the shell step correctly brackets both sides of its 
 - Corrected telemetry milestone is now CI-green at head `e28fdcab164b6693ceda8c0df09e948f2966ab4f`: Tests run `42615242216` passed **316/316 JavaScript tests**, Python tests and lint; Validate run `42615242133` passed all validation steps (Python tests/lint, JS syntax, frontend analysis, paper readiness, SEC ingestion and synthetic strategy-validation smoke test). GitHub reports PR #85 mergeable=true and draft=true. Synthetic strategy validation remains NOT APPROVED; CI does not authorize merge/deployment.
+
+
+## Evidence refresh — 2026-11-10
+
+This checkpoint supersedes older operational counts above where they differ. It is a read-only audit; no production D1 writes, migrations, broker mutations, orders, secret changes, merges or deployments were performed.
+
+### Production D1 recheck
+- Execution controls remain `enabled=0`, `mode='paper'`, `kill_switch=1`, virtual allocation $1,000, default risk 0.5%, max risk 1%, max position 25%.
+- Production migration ledger still contains only `0001`–`0005`. The production database has monitor tables `monitor_quotes`, `monitor_events`, and `monitor_runs`, but does not yet have the proposed fill-derived ledger or strategy-approval tables from PR #85 migrations.
+- Production still has exactly one equity snapshot: `2026-11-08T18:34:38.720Z`, $100,000 broker-account equity and cash, source `alpaca_paper_read_only_sync`. This is not the $1,000 virtual strategy allocation and does not satisfy the seven-day baseline.
+- Monitor D1 currently records 12 runs, all `market_closed`, latest `2026-11-09T22:00:52.963Z`; no market-open run has yet verified quote collection/event detection.
+
+### Pull request governance and OIDC snapshot path
+- PR #85 remains open and draft; GitHub reports `mergeable=false`. It contains a broad 70+ file change set spanning paper lifecycle, strategy validation, FMP ingestion, migrations, workflow and docs. It has no formal reviews or inline review threads. Do not merge it as a single unreviewed change set.
+- PR #88 remains open and draft; GitHub reports `mergeable=true`, but it has no formal reviews or inline review threads. Its branch comparison to current `main` is diverged (26 commits ahead, 11 behind), so the earlier “14 ahead / 0 behind” note is stale. It overlaps PR #85 in the equity snapshot workflow and `web/wrangler.toml`; reconcile against the actual current main and PR #85 contracts before any merge.
+- PR #88 OIDC verifier tests accept both `private` and `public` repository visibility, while the PR description says the trust is pinned to private visibility. This documentation/test mismatch needs correction or an explicit security rationale before independent review.
+- PR #85's snapshot workflow readiness check permits either disabled+kill-switch-engaged or enabled+kill-switch-disengaged. The endpoint chain is designed read-only, but the workflow should be explicitly reviewed as an operational maintenance policy; it must never be used to enable execution. Current production remains disabled and kill-switched.
+- Neither PR has independent security review. Branch-protection/ruleset verification remains unavailable to the connected GitHub integration. No review or governance gate has been bypassed.
+
+### Release gates remain open
+- No real seven-day equity history; earliest qualifying baseline cannot precede 2026-11-15T18:34:38.720Z even if valid snapshots begin immediately and are retained.
+- Strategy validation remains NOT APPROVED. No verified point-in-time dataset, >=100 genuine completed trades, four chronological walk-forward folds, untouched holdout, or independent reproducibility review is evidenced.
+- Partial-fill recovery and the full order lifecycle remain unverified in production. The proposed PR #85 code and preview tests are not production evidence.
+- The GitHub Actions OIDC snapshot bridge is not deployed to production or verified end-to-end. Production Pages operator credential metadata must remain server-side; no secret values were read.
+
+### Safe next actions
+1. Split/review the oversized PR #85 by safety-critical area; require an independent reviewer and verified branch protections before production migrations or routes are released.
+2. Reconcile PR #88 against current main and the finalized read-only maintenance handler contract; correct the visibility assertion/documentation mismatch; re-run all tests and preview checks.
+3. Keep the existing production snapshot workflow disabled until the authenticated read-only OIDC chain is reviewed and deployed safely. Do not fabricate/backfill equity snapshots.
+4. Verify the market monitor during a genuine US market session before marking continuous market intelligence complete.
+5. Keep all execution controls disabled and kill switch engaged. Strategy validation, lifecycle recovery, and independent approval remain hard blockers.
