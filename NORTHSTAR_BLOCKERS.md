@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T01:56:30Z  
+Last updated: 2026-11-09T01:58:22Z  
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -16,11 +16,11 @@ Work branch: `northstar/paper-execution-risk-controls`
 - Latest production controls read: `enabled=0`, `mode='paper'`, `kill_switch=1`, `max_portfolio_usd=1000`, `default_risk_fraction=0.005`, `max_risk_fraction=0.01`, `max_position_fraction=0.25`.
 - Production D1 counts at this run: 0 research council runs, 0 decision traces, 0 intents, 0 paper orders, 0 paper positions, 0 broker fill activities, 0 trade events, 1 equity snapshot and 2 audit rows.
 - The only production equity snapshot is `2026-11-08T18:34:38.720Z`: equity $100,000, cash $100,000, source `alpaca_paper_read_only_sync`. This is not Northstar's $1,000 virtual allocation.
-- PR #85 remains open and draft, based on `main`. Current head after this run's updates: `24642a2a89d9178481f144db4b6061f3fba21f2d`.
-- GitHub Actions run `42548153031` on the current PR #85 head completed successfully on 2026-11-09 01:56:30 UTC: Python tests passed, JavaScript tests passed (199/199, 0 failures), and lint passed.
+- PR #85 remains open and draft, based on `main`. The latest application source/test-code head at this evidence checkpoint is `24642a2a89d9178481f144db4b6061f3fba21f2d`; the following blocker-log-only commit is documentation, not application code.
+- GitHub Actions run `42548153031` on application/test-code head `24642a2a89d9178481f144db4b6061f3fba21f2d` completed successfully on 2026-11-09 01:56:30 UTC: Python tests passed, JavaScript tests passed (199/199, 0 failures), and lint passed. A subsequent blocker-log-only commit `2d8b85e087fd4210edca70f61e9bfe030c38be5c` also passed run `42548264156` (199/199 JavaScript tests, Python tests and lint).
 - Five changes on this run corrected inaccurate “execution remains disabled” claims in read-only sync, fill-import and reconciliation responses. The sync/fill tests that had weak mocks were replaced with explicit enabled-paper-mode tests proving those maintenance endpoints remain read-only and do not modify execution controls. This does not enable execution.
 - Earlier PR #85 test run `42547342359` failed because a performance test still expected read-only performance to reject an enabled paper control state. The test was updated; current-head run `42547447493` passed, and the latest run above also passed.
-- The latest PR #85 commit only changes tests, so Cloudflare skipped a redundant preview build due to its path filter. Production remains deployed from PR #84, not PR #85.
+- Cloudflare preview deployments for the three latest application source changes succeeded: `dc79e6a1` (sync warning semantics), `3ba913a6` (fill-import warning semantics), and `e852c56c` (reconciliation warning semantics). The later test/documentation-only commits were skipped by the Pages path filter. The latest PR preview readiness endpoint still reports paper mode, execution disabled, kill switch engaged, and the configured risk limits. Production remains deployed from PR #84, not PR #85.
 
 ## Unresolved blockers
 
