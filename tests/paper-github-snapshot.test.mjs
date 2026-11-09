@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { runReadOnlySnapshotChain } from "../web/functions/api/paper/github-snapshot.js";
 
 function request(headers = {}, method = "POST") {
@@ -211,4 +212,13 @@ test("rejects non-POST requests and invalid request identifiers", async () => {
   assert.equal(getResult.status, 405);
   const badId = await runReadOnlySnapshotChain({ request: request({ Authorization: "Bearer token", "X-Request-ID": "bad id" }), env: { NORTHSTAR_OPERATOR_TOKEN: "server-side-operator-token", NORTHSTAR_DB: fakeDb }, verify: async () => validIdentity });
   assert.equal(badId.status, 400);
+});
+
+test("OIDC read-only schedule permits a consistent PAPER-enabled control state", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/northstar-equity-snapshot.yml", import.meta.url), "utf8");
+  const readinessStep = workflow.split("- name: Verify production policy remains fail-closed\n")[1]?.split("\n      - name:")[0] || "";
+  assert.ok(readinessStep, "readiness guard must exist");
+  assert.match(readinessStep, /\.configured == true and \.policyVerified == true and \.mode == "paper"/);
+  assert.doesNotMatch(readinessStep, /\.executionEnabled == false/);
+  assert.doesNotMatch(readinessStep, /\.killSwitchEngaged == true/);
 });
