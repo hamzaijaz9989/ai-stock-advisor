@@ -1,6 +1,6 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-09T17:59:00Z
+Last updated: 2026-11-09T18:03:00Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
 Work branch: `northstar/paper-execution-risk-controls`
@@ -1417,3 +1417,12 @@ No PR merge, force push, branch-protection bypass, D1 write/migration, productio
 - Re-read PR #85 broker handlers `sync.js`, `fills-sync.js`, `submit.js`, `recover.js` and `reconcile.js`: all broker fetch hosts are exactly `https://paper-api.alpaca.markets`; no live `https://api.alpaca.markets` host is present in these handlers. Intent and review routes make no broker calls.
 - Current production GET endpoints were previously verified HTTP 200 in this run at 17:51:34–17:51:37Z; current preview GET endpoints were verified HTTP 200 at 17:56:05Z. Both environments remain PAPER, execution disabled and kill switch engaged; preview strategy approval remains NOT APPROVED.
 - No broker API request, authenticated POST, D1 write/migration, production deployment, order, or execution-control mutation occurred during this verification.
+
+
+### PR #88 OIDC contract-test follow-up — 2026-11-09T18:03:00Z
+- PR #88 latest head is `41bba7c011f7f027eac1e6a4b5a28be574ecf0d1`, 16 commits ahead / 0 behind main, DRAFT, mergeable=true, with zero formal reviews.
+- Added a second fail-closed regression test: if fill import returns `ok=true` and `imported=true` but omits explicit `safeToContinue` / `requiresManualRecovery`, the OIDC route returns 409 and does not call reconciliation.
+- CI on this exact head passed: Tests `42670407748` (191/191 JavaScript tests, 94 Python tests, Ruff) and Validate `42670407224` (43 frontend-analysis tests, 4 readiness tests, 7 SEC-ingestion tests, Ruff).
+- This is test-only after the previously successful code preview deployment `dfa48d0a-e505-4ad0-b226-f9dd5c349408`; Pages path filtering skips test-only changes.
+- PR #88 remains dependent on PR #85: main's current fill-sync implementation lacks the explicit safety fields, so after #85 merges this branch must be updated onto the new main and the combined workflow/ Wrangler diff reviewed and retested.
+- No production deployment, D1 migration/write, broker request/order or execution-control change occurred.
