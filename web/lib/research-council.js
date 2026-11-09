@@ -4,17 +4,13 @@
  * No LLM calls, data fetching, persistence, broker access, or order execution here.
  * Every factual claim must cite supplied fact IDs.
  */
-export const COUNCIL_VERSION = "1.0.2";
+export const COUNCIL_VERSION = "1.0.4";
 export const COUNCIL_ROLES = Object.freeze({
   independent: ["market_scanner", "technical_analyst", "fundamental_analyst", "news_analyst", "sentiment_analyst"],
   debate: ["bull_researcher", "bear_researcher"],
   synthesis: ["portfolio_analyst"],
   veto: ["risk_committee"]
 });
-export const COUNCIL_ROLE_ORDER = Object.freeze([
-  ...COUNCIL_ROLES.independent, ...COUNCIL_ROLES.debate,
-  ...COUNCIL_ROLES.synthesis, ...COUNCIL_ROLES.veto
-]);
 const validText = value => typeof value === "string" && value.trim().length >= 12 && value.length <= 2000;
 function freezeDeep(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
@@ -32,6 +28,12 @@ function validateReport(report, validFactIds, role) {
     const clean = report.findings.length === 0 && report.risks.length === 0 &&
       report.decision === undefined && report.vetoReasons === undefined;
     return {ok:clean, reason:role+" is unavailable or returned data with an unavailable status."};
+  }
+  // Model specialists must provide evidence-linked work. The deterministic
+  // Risk Committee is different: its authoritative output is a decision plus
+  // explicit veto reasons, so empty findings/risks are valid for that role.
+  if (role !== "risk_committee" && report.findings.length + report.risks.length === 0) {
+    return {ok:false, reason:role+" returned an empty COMPLETE report; a cited finding or limitation is required."};
   }
   for (const item of [...report.findings, ...report.risks]) {
     if (!validText(item?.claim) || !Array.isArray(item.factIds) || item.factIds.length===0 ||
@@ -56,7 +58,17 @@ function validateReport(report, validFactIds, role) {
 async function invoke(role, worker, payload, factIds) {
   if (typeof worker !== "function") return {role, status:"UNAVAILABLE", reason:role+" worker not configured."};
   try {
-    const report = await worker(freezeDeep(structuredClone(payload)));
+    const coverage = payload.resourceCoverage?.roles?.[role] || null;
+    const roleResourcePack = coverage ? {
+      role,
+      status:coverage.status || "NOT_REPORTED",
+      relevantIds:Array.isArray(coverage.factIds) ? [...coverage.factIds] : [],
+      requiredInputs:Array.isArray(coverage.inputFields) ? [...coverage.inputFields] : [],
+      knownGaps:Array.isArray(coverage.gaps) ? [...coverage.gaps] : [],
+      allContextEvidenceRetained:true,
+      note:"This pack highlights role-relevant resources; the full shared dossier remains available for counter-evidence and cross-checking."
+    } : null;
+    const report = await worker(freezeDeep(structuredClone({...payload,roleResourcePack})));
     const checked = validateReport(report, factIds, role);
     if (!checked.ok) return {role, status:"BLOCKED", reason:checked.reason};
     return {role, status:report.status, report};
@@ -64,8 +76,6 @@ async function invoke(role, worker, payload, factIds) {
     return {role, status:"UNAVAILABLE", reason:role+" worker failed; details withheld from the public decision."};
   }
 }
-const blockedStage = (role, reason) => ({role,status:"BLOCKED",reason});
-
 export async function runResearchCouncil({requestId, context, workers}) {
   if (typeof requestId!=="string" || !/^[a-zA-Z0-9._:-]{8,100}$/.test(requestId)) {
     throw new TypeError("A stable requestId (8–100 safe characters) is required.");
@@ -86,12 +96,11 @@ export async function runResearchCouncil({requestId, context, workers}) {
   }
   const safeWorkers = workers || {};
   const base = {requestId, ticker:context.ticker, asOf:context.asOf, facts:context.facts,
-    evidence:context.evidence, portfolio:context.portfolio};
+    evidence:context.evidence, portfolio:context.portfolio, resourceCoverage:context.resourceCoverage || null};
   const independent = await Promise.all(COUNCIL_ROLES.independent.map(role =>
     invoke(role, safeWorkers[role], base, factIds)));
   const analystReady = independent.every(x=>x.status==="COMPLETE");
   let debate=[], synthesis=null, risk=null;
-  let downstreamBlockReason = "Upstream specialist stage did not complete; this role was not run.";
   if (analystReady) {
     const debatePayload={...base, analystReports:independent.map(x=>({role:x.role,report:x.report}))};
     debate=await Promise.all(COUNCIL_ROLES.debate.map(role =>
@@ -103,26 +112,10 @@ export async function runResearchCouncil({requestId, context, workers}) {
         risk=await invoke("risk_committee",safeWorkers.risk_committee,
           {...base,analystReports:independent.map(x=>({role:x.role,report:x.report})),
             debateReports:debate.map(x=>({role:x.role,report:x.report})),portfolioReport:synthesis.report},factIds);
-      } else {
-        downstreamBlockReason = "Portfolio synthesis did not complete; deterministic risk review was not run.";
       }
-    } else {
-      downstreamBlockReason = "Bull/Bear debate did not complete; portfolio synthesis and risk review were not run.";
     }
-  } else {
-    downstreamBlockReason = "One or more independent specialists did not complete; debate, synthesis and risk review were not run.";
   }
-
-  // Always return a stable nine-role status matrix. A skipped downstream role is explicitly
-  // BLOCKED rather than silently omitted, so the dashboard cannot imply it completed.
-  const stageResults = new Map([
-    ...independent.map(x=>[x.role,x]),
-    ...debate.map(x=>[x.role,x]),
-    ...(synthesis ? [[synthesis.role,synthesis]] : []),
-    ...(risk ? [[risk.role,risk]] : [])
-  ]);
-  const all = COUNCIL_ROLE_ORDER.map(role => stageResults.get(role) ||
-    blockedStage(role,downstreamBlockReason));
+  const all = [...independent,...debate,...(synthesis?[synthesis]:[]),...(risk?[risk]:[])];
   const riskDecision = risk?.report?.decision;
   const approvedForReview = analystReady && debate.length===2 &&
     debate.every(x=>x.status==="COMPLETE") && synthesis?.status==="COMPLETE" &&
@@ -130,6 +123,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
     Array.isArray(risk.report.vetoReasons) && risk.report.vetoReasons.length===0;
   return {
     version:COUNCIL_VERSION, requestId, ticker:context.ticker||null, asOf:context.asOf||null,
+    resourceCoverage:context.resourceCoverage || null,
     status:approvedForReview?"RESEARCH_REVIEW_REQUIRED":"NO_TRADE",
     execution:false, automatedOrderSubmission:false,
     decisionAuthority:"Deterministic Northstar risk and validation gates remain authoritative; council output is advisory only.",
