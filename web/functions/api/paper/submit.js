@@ -22,7 +22,6 @@ async function markUnknown(db,{orderId,intentId,brokerOrderId=null,response={},r
  const now=new Date().toISOString();
  await db.batch([
   db.prepare("UPDATE paper_orders SET broker_order_id=?,status='UNKNOWN',response_json=?,updated_at=? WHERE id=?").bind(brokerOrderId,safeJson({brokerResponse:response,reason}),now,orderId),
-  db.prepare("UPDATE paper_trade_intents SET status='SUBMISSION_UNKNOWN',updated_at=? WHERE id=?").bind(now,intentId),
   db.prepare("UPDATE execution_control SET enabled=0,kill_switch=1,updated_at=? WHERE id=1").bind(now),
   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(orderId,"SUBMISSION_UNKNOWN",now,"northstar",safeJson({intentId,brokerOrderId,reason,execution:false})),
   db.prepare("INSERT INTO execution_audit_log(actor,action,outcome,request_id,details_json) VALUES(?,?,?,?,?)").bind("system","PAPER_ORDER_OUTCOME_UNVERIFIED","UNKNOWN",orderId,safeJson({intentId,brokerOrderId,reason,killSwitchEngaged:true}))
@@ -158,13 +157,14 @@ export async function onRequestPost({request,env}){
    }
   }
  }
- const intentStatus=normalized==="REJECTED"?"REJECTED":"SUBMITTED_TO_PAPER";
+ const intentStatus=normalized==="REJECTED"?"REJECTED":normalized==="CANCELED"?"CANCELLED":null;
  try{
-  await db.batch([
+  const statements=[
    db.prepare("UPDATE paper_orders SET broker_order_id=?,status=?,response_json=?,updated_at=? WHERE id=? AND status IN ('SUBMITTING','UNKNOWN')").bind(result.id,normalized,safeJson(verifiedOrder),new Date().toISOString(),id),
-   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED"})),
-   db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(intentStatus,new Date().toISOString(),intentId)
-  ]);
- }catch{try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder,reason:"BROKER_RESPONSE_LEDGER_WRITE_FAILED"});}catch{}return fail("Broker response received but ledger update failed. Order marked UNKNOWN where possible; execution kill switch engaged. Reconcile; do not retry.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});}
+   db.prepare("INSERT INTO paper_trade_events(order_id,event_type,event_at,source,details_json) VALUES(?,?,?,?,?)").bind(id,"BROKER_RESPONSE_VERIFIED",new Date().toISOString(),"alpaca_paper",safeJson({brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED"&&!(normalized==="CANCELED"&&num(verifiedOrder?.filled_qty)===0)}))
+  ];
+  if(intentStatus)statements.push(db.prepare("UPDATE paper_trade_intents SET status=?,updated_at=? WHERE id=?").bind(intentStatus,new Date().toISOString(),intentId));
+  await db.batch(statements);
+ }catch{try{await markUnknown(db,{orderId:id,intentId,brokerOrderId:result.id,response:verifiedOrder,reason:"BROKER_RESPONSE_LEDGER_WRITE_FAILED"});}catch{}return fail("Broker response received but ledger update failed. Treat the order as UNKNOWN; execution kill switch engagement was attempted. Reconcile; do not retry.",503,{orderId:id,brokerOrderId:result.id,status:"UNKNOWN"});}
  return Response.json({ok:normalized!=="REJECTED",execution:false,submittedTo:"alpaca-paper",orderId:id,brokerOrderId:result.id,status:normalized,protectiveStopVerified:normalized!=="REJECTED",qty:intent.qty,symbol:intent.symbol,estimatedNotionalUsd:gate.sizing.notionalUsd,plannedStopRiskUsd:gate.sizing.plannedRiskUsd,message:"Paper order submitted to Alpaca Paper; broker status and protective stop leg were verified. This is not a live-market order."},{status:normalized==="REJECTED"?409:201,headers:H});
 }
