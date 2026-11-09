@@ -23,51 +23,59 @@ test("fill import remains read-only while paper execution is enabled and does no
  assert.equal(db.state.batch.some(x=>x.sql.includes("execution_control")),false);
  assert.ok(body.warnings.some(x=>/never changes execution-control settings/i.test(x)));
 });
-test("fill import refreshes only matching Northstar order rows from broker cumulative state",async()=>{
+test("fill import advances a fully filled order only after its active stop child is verified",async()=>{
  const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"ACCEPTED",response_json:'{"filled_qty":"1","filled_avg_price":"99"}'};
- const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"3",filled_avg_price:"100.5",status:"partially_filled",order_class:"oto",legs:[{order_group_role:"stop_loss",type:"stop",status:"held",symbol:"AAPL",side:"sell",qty:"3",stop_price:"98"}]};
+ const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"5",filled_avg_price:"100.5",status:"filled",order_class:"oto",legs:[{order_group_role:"stop_loss",type:"stop",status:"new",symbol:"AAPL",side:"sell",qty:"5",stop_price:"98"}]};
  const {response,db}=await run({brokerOrders:[brokerOrder],ledgerRows:[row]});
  const body=await response.json();
  assert.equal(response.status,200);
+ assert.equal(body.ok,true);
  assert.equal(body.orderRowsUpdated,1);
  const update=db.state.batch.find(x=>x.sql.startsWith("UPDATE paper_orders"));
  assert.ok(update);
- assert.deepEqual(update.args.slice(0,1),["PARTIALLY_FILLED"]);
+ assert.deepEqual(update.args.slice(0,1),["FILLED"]);
  assert.equal(update.args[3],"northstar-order-1");
  const event=db.state.batch.find(x=>x.sql.startsWith("INSERT INTO paper_trade_events"));
  assert.ok(event);
  assert.equal(event.args[1],"ORDER_STATUS_UPDATED");
  assert.equal(event.args[3],"alpaca_paper_fill_sync");
 });
-test("fill import does not move an order backwards or invent a ledger row",async()=>{
+test("fill import blocks and engages the kill switch when cumulative exposure moves backwards",async()=>{
  const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"PARTIALLY_FILLED",response_json:'{"filled_qty":"3","filled_avg_price":"100"}'};
- const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",filled_avg_price:"100",status:"partially_filled"};
+ const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",filled_avg_price:"100",status:"partially_filled",order_class:"oto",legs:[{order_group_role:"stop_loss",type:"stop",status:"new",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]};
  const {response,db}=await run({brokerOrders:[brokerOrder],ledgerRows:[row]});
  const body=await response.json();
- assert.equal(response.status,200);
- assert.equal(body.orderRowsUpdated,0);
- assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
+ assert.equal(response.status,409);
+ assert.equal(body.ok,false);
+ assert.equal(body.requiresManualRecovery,true);
+ assert.equal(body.unsafeExposureCount,1);
+ assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders SET status='UNKNOWN'")),true);
 });
 
-test("fill sync refuses to mark an order FILLED when cumulative quantity is below order quantity",async()=>{
- const row={id:"northstar-order-1",broker_order_id:"ord-1",qty:5,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
+test("fill sync blocks inconsistent FILLED status with partial exposure and engages kill switch",async()=>{
+ const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
  const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"3",filled_avg_price:"100",status:"filled"};
  const {response,db}=await run({brokerOrders:[brokerOrder],ledgerRows:[row]});
  const body=await response.json();
- assert.equal(response.status,200);
- assert.equal(body.orderRowsUpdated,0);
- assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
- assert.equal(db.state.batch.some(x=>x.sql.startsWith("INSERT INTO paper_trade_events")),false);
+ assert.equal(response.status,409);
+ assert.equal(body.ok,false);
+ assert.equal(body.requiresManualRecovery,true);
+ assert.equal(body.unsafeExposureCount,1);
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders SET status='UNKNOWN'")),true);
+ assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
 });
 
-test("fill sync does not advance lifecycle when the nested protective stop leg is missing",async()=>{
+test("fill sync engages the kill switch when filled exposure has no verified stop child",async()=>{
  const row={id:"northstar-order-1",broker_order_id:"ord-1",symbol:"AAPL",qty:5,stop_price:98,status:"ACCEPTED",response_json:'{"filled_qty":"0"}'};
  const brokerOrder={id:"ord-1",symbol:"AAPL",side:"buy",qty:"5",filled_qty:"2",filled_avg_price:"100",status:"partially_filled",order_class:"oto",legs:[]};
  const {response,db}=await run({brokerOrders:[brokerOrder],ledgerRows:[row]});
  const body=await response.json();
- assert.equal(response.status,200);
- assert.equal(body.orderRowsUpdated,0);
+ assert.equal(response.status,409);
+ assert.equal(body.ok,false);
+ assert.equal(body.requiresManualRecovery,true);
  assert.equal(body.skippedLifecycleCount,1);
  assert.equal(body.skippedLifecycle[0].reason,"PROTECTIVE_STOP_LEG_MISSING_OR_MISMATCHED");
- assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders")),false);
+ assert.equal(db.state.batch.some(x=>x.sql.startsWith("UPDATE paper_orders SET status='UNKNOWN'")),true);
+ assert.equal(db.state.batch.some(x=>x.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1")),true);
 });
