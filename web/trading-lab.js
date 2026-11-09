@@ -392,7 +392,26 @@
     "market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst",
     "bull_researcher","bear_researcher","portfolio_analyst","risk_committee"
   ];
-  const roleTitle = role => String(role||"").replaceAll("_"," ").replace(/\\b\\w/g,letter=>letter.toUpperCase());
+  const roleTitle = role => String(role||"").replaceAll("_"," ").replace(/\b\w/g,letter=>letter.toUpperCase());
+  async function parseStockBrainResponse(response) {
+    let raw;
+    try {
+      raw = await response.text();
+    } catch {
+      throw new Error("Stock Brain response could not be read.");
+    }
+    let data;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      const status = Number(response.status);
+      throw new Error("Stock Brain service returned a non-JSON response" + (Number.isFinite(status) && status > 0 ? " (HTTP " + status + ")" : "") + ".");
+    }
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("Stock Brain service returned an invalid response.");
+    }
+    return data;
+  }
   function renderCouncilResult(payload) {
     const result=payload.result||{};
     const summary=$("stock-brain-summary");
@@ -492,8 +511,8 @@
         headers:{Authorization:"Bearer "+token,Accept:"application/json","Content-Type":"application/json"},
         body:JSON.stringify({ticker,requestId})
       });
-      const data=await response.json();
-      if(!response.ok||data.ok!==true)throw new Error(data.error||"Stock Brain research run failed safely.");
+      const data=await parseStockBrainResponse(response);
+      if(!response.ok||data.ok!==true)throw new Error(typeof data.error==="string"&&data.error.trim()?data.error.trim().slice(0,300):"Stock Brain research run failed safely.");
       renderCouncilResult(data);
       status.textContent=ticker+" · "+(data.result?.status||"NO_TRADE")+" · "+(data.traceDurable===true?"Durable trace confirmed":"Trace durability not confirmed")+" · "+new Date(data.createdAt||Date.now()).toLocaleString()+". No orders were submitted.";
     }catch(error){
