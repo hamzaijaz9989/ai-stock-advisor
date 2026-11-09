@@ -81,11 +81,13 @@ export function evaluateResearchCouncilRun(run, telemetry = {}) {
       validReferences: sum("validReferences"),
       citationPrecision: sum("totalReferences") ? sum("validReferences") / sum("totalReferences") : null,
       claimCitationCoverage: sum("claimCount") ? sum("claimsWithValidCitation") / sum("claimCount") : null,
-      latencyMs: allMetrics.every(x => x.latencyMs !== null) ? sum("latencyMs") : null,
-      inputTokens: allMetrics.every(x => x.inputTokens !== null) ? sum("inputTokens") : null,
-      outputTokens: allMetrics.every(x => x.outputTokens !== null) ? sum("outputTokens") : null,
-      totalTokens: allMetrics.every(x => x.totalTokens !== null) ? sum("totalTokens") : null,
-      costUsd: allMetrics.every(x => x.costUsd !== null) ? sum("costUsd") : null
+      telemetryRoles: allMetrics.filter(x => x.latencyMs !== null).length,
+      failedInvocations: allMetrics.filter(x => x.failed).length,
+      latencyMs: allMetrics.length && allMetrics.every(x => x.latencyMs !== null) ? sum("latencyMs") : null,
+      inputTokens: allMetrics.length && allMetrics.every(x => x.inputTokens !== null) ? sum("inputTokens") : null,
+      outputTokens: allMetrics.length && allMetrics.every(x => x.outputTokens !== null) ? sum("outputTokens") : null,
+      totalTokens: allMetrics.length && allMetrics.every(x => x.totalTokens !== null) ? sum("totalTokens") : null,
+      costUsd: allMetrics.length && allMetrics.every(x => x.costUsd !== null) ? sum("costUsd") : null
     },
     debate: {
       bullCitedEvidenceCount: bullIds.length,
