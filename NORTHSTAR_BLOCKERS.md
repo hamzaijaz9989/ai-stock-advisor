@@ -892,3 +892,19 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - A first token-telemetry test exposed a test-only shared-global fetch mock race; adapter now accepts an injected fetch implementation and the test uses an isolated mock, avoiding mutation of global fetch. This is testability-only; production continues using the platform fetch.
 - CI also exposed a stale assertion regex in the scheduled snapshot workflow test: the shell step correctly brackets both sides of its 
 - Corrected telemetry milestone is now CI-green at head `e28fdcab164b6693ceda8c0df09e948f2966ab4f`: Tests run `42615242216` passed **316/316 JavaScript tests**, Python tests and lint; Validate run `42615242133` passed all validation steps (Python tests/lint, JS syntax, frontend analysis, paper readiness, SEC ingestion and synthetic strategy-validation smoke test). GitHub reports PR #85 mergeable=true and draft=true. Synthetic strategy validation remains NOT APPROVED; CI does not authorize merge/deployment.
+
+
+## 2026-11-10 — Stock Brain milestone implementation checkpoint
+
+- Owner confirmed the GitHub repository is intentionally public; repository API reports `private=false / visibility=public`. README and project handbook now reflect this. No visibility changes were made.
+- User-confirmed milestone: universe scanning is complete and tested. The active goal is the nine-agent Stock Brain; scanner work was not restarted.
+- Work branch: `northstar/complete-stock-brain-milestone` (latest observed head at time of this note: `eacfea98953a99822a32011caf3731e4ae57476e`).
+- Orchestrator `web/lib/research-council.js`: version 1.0.2; now always returns all nine roles in stable order. Roles skipped because an upstream stage failed are explicitly `BLOCKED`, with reasons, rather than omitted.
+- Dashboard: `web/trading-lab.html` and `web/trading-lab.js` now include a Stock Brain workspace. It prompts for `NORTHSTAR_OPERATOR_TOKEN` per run, sends it only in the authenticated request, does not save it, and sends only ticker + request ID to `/api/research/collect`. The interface renders all nine statuses, findings, risks, evidence IDs, veto reasons and durable-trace status using `textContent`.
+- Durable trace correctness: `web/functions/api/research/collect.js` and `web/functions/api/research/council.js` persist `traceDurable=true` inside the result only after a durable DB write is confirmed by the route's read-after-write check.
+- Tests added/updated: nine-role canonical status matrix, downstream blocked states, durable result metadata, and dashboard markup/authentication/safe-rendering smoke checks.
+- CI: early test runs exposed one outdated assertion that expected the risk committee to be omitted; that assertion was updated to require an explicit `BLOCKED` state. Latest exact-head run is pending at the time of this note; do not claim the milestone is CI-passed until a completed run for the final head succeeds.
+- No Cloudflare deployment, production D1 migration/write, broker call, order, paper execution, or live execution change has been made. Production behavior remains unchanged.
+- Known runtime gate: `/api/research/collect` requires authenticated server-side provider credentials and a fresh, reconciled seven-day equity baseline. Existing blocker evidence says the production baseline was not yet available; a successful UI build does not prove a real production research run can pass this gate. No attempt was made to bypass it.
+- Safety state remains unchanged: paper execution disabled, kill switch engaged, validated BUY disabled, no live or paper order submitted.
+- Next exact action: finish CI on the final branch head, inspect all failed/passed checks, open the milestone PR, and verify the exact-commit Cloudflare preview and read-only API behavior. Then perform an authenticated Stock Brain run only when the required production data/credentials are available.
