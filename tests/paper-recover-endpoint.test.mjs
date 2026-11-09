@@ -27,7 +27,7 @@ async function run({db=makeDb(),brokerParent=parent(),positions=[{symbol:"AAPL",
   if(u.includes("/v2/orders/parent-broker?nested=true"))return Response.json(brokerParent);
   if(u.endsWith("/v2/positions"))return Response.json(positions);
   if(u.includes("/v2/stocks/AAPL/quotes/latest"))return Response.json(quote);
-  if(u.endsWith("/v2/orders")&&options.method==="DELETE")return new Response(null,{status:204});
+  if(u.includes("/v2/orders/")&&options.method==="DELETE")return new Response(null,{status:204});
   if(u.endsWith("/v2/orders")&&options.method==="POST"){
    const payload=JSON.parse(options.body);
    return Response.json({id:"recovery-broker",client_order_id:payload.client_order_id,symbol:payload.symbol,side:payload.side,qty:payload.qty,type:payload.type,time_in_force:payload.time_in_force,stop_price:payload.stop_price,status:"new",filled_qty:"0",leaves_qty:payload.qty});
