@@ -47,6 +47,10 @@ test("all specialist stages receive the same immutable resource coverage invento
  for(const role of [...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"]){
   workers[role]=async payload=>{
    assert.deepEqual(payload.resourceCoverage,context.resourceCoverage);
+   assert.equal(payload.roleResourcePack.role,role);
+   assert.equal(payload.roleResourcePack.status,context.resourceCoverage.roles[role].status);
+   assert.equal(payload.roleResourcePack.allContextEvidenceRetained,true);
+   assert.ok(Array.isArray(payload.roleResourcePack.knownGaps));
    assert.equal(Object.isFrozen(payload.resourceCoverage),true);
    return report();
   };
