@@ -6,9 +6,11 @@ test("FMP universe adapter returns current index lists and historical changes wi
  const original=globalThis.fetch,paths=[];
  globalThis.fetch=async input=>{
   const u=new URL(String(input)),name=u.pathname.split("/").pop();paths.push(name);
-  return Response.json(name.startsWith("historical-")
-   ?[{date:"2019-06-01",symbol:"OLD",addedTicker:"OLD",removedTicker:"OUT"},{date:"2024-06-01",symbol:"NEW",addedTicker:"NEW",removedTicker:"OLD"}]
-   :[{symbol:"NEW",name:"New Company"}]);
+  return Response.json(name==="delisted-companies"
+   ?[{symbol:"OLD",companyName:"Old Company"}]
+   :name.startsWith("historical-")
+    ?[{date:"2019-06-01",symbol:"OLD",addedTicker:"OLD",removedTicker:"OUT"},{date:"2024-06-01",symbol:"NEW",addedTicker:"NEW",removedTicker:"OLD"}]
+    :[{symbol:"NEW",name:"New Company"}]);
  };
  try{
   const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-universe?from=2020-01-01"),env:{FMP_API_KEY:"test"}});
@@ -17,7 +19,7 @@ test("FMP universe adapter returns current index lists and historical changes wi
   assert.equal(body.indexes.sp500.currentCount,1);
   assert.equal(body.indexes.sp500.historicalChangeCount,1);
   assert.equal(body.indexes.sp500.historicalChangesSince,"2020-01-01");
-  assert.equal(paths.length,6);
+  assert.equal(paths.length,7);\n  assert.equal(body.delistedCompanyCount,1);\n  assert.equal(body.delistedCompanies[0].symbol,"OLD");
   assert.equal(body.reconstructionRules.applyHistoricalChangesInReverseChronologicalOrderToReconstructEarlierMembership,true);
  }finally{globalThis.fetch=original;}
 });
