@@ -130,6 +130,7 @@ async function createGeminiGenerator(env) {
     };
     generate.provider="gemini";
     generate.model=model.name;
+    generate.usageByRole={};
     return generate;
 }
 
