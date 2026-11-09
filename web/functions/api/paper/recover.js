@@ -58,24 +58,39 @@ async function verifyExistingRecovery(db,key,secret,parent,existing){
   return fail("Existing recovery stop cannot be verified. It is marked UNKNOWN; do not submit another stop.",503,{orderId:parent.id,recoveryOrderId:existing.id,status:"UNKNOWN"});
  }
  const qty=num(found.qty),filled=num(found.filled_qty),stop=num(found.stop_price),status=statusOf(found.status);
+ const parentStatus=String(parent.status||"").toLowerCase();
+ const parentFilled=num(parent.filled_qty);
+ const childResult=childStop(parent);
+ const child=childResult.child;
+ const childStatus=String(child?.status||"").toLowerCase();
+ const childFilled=child?num(child.filled_qty):0;
+ const parentTerminal=["filled","canceled","cancelled","expired","rejected"].includes(parentStatus);
+ const childTerminal=!child||["filled","canceled","cancelled","expired","rejected"].includes(childStatus);
+ const expectedBeforeRecovery=parentFilled!==null&&childFilled!==null?parentFilled-childFilled:null;
+ const expectedAfterRecovery=expectedBeforeRecovery!==null&&filled!==null?expectedBeforeRecovery-filled:null;
  const valid=found?.id&&String(found.client_order_id||"")===existing.id&&String(found.symbol||"").toUpperCase()===parent.symbol&&
   String(found.side||"").toLowerCase()==="sell"&&String(found.type||found.order_type||"").toLowerCase()==="stop"&&
   String(found.time_in_force||"").toLowerCase()==="gtc"&&qty!==null&&filled!==null&&filled>=0&&filled<=qty&&
-  close(qty,Number(existing.qty))&&stop!==null&&close(stop,Number(existing.stop_price))&&status!=="UNKNOWN";
+  close(qty,Number(existing.qty))&&stop!==null&&close(stop,Number(existing.stop_price))&&status!=="UNKNOWN"&&
+  parentTerminal&&childTerminal&&!childResult.ambiguous&&parentFilled!==null&&childFilled!==null&&
+  expectedBeforeRecovery>=0&&close(qty,expectedBeforeRecovery)&&expectedAfterRecovery>=0;
  let positions;
  try{positions=await broker("/v2/positions",key,secret);}catch{return fail("Could not verify broker position against the existing recovery stop.",503);}
  const pos=positionFor(positions,parent.symbol);
- if(!valid||!pos.ok){await markUnknown(db,{parentId:parent.id,recoveryId:existing.id,reason:"EXISTING_RECOVERY_STOP_FIELDS_OR_POSITION_INVALID",details:{valid,positionReason:pos.reason||null}});return fail("Existing recovery stop or position does not match the durable ledger; manual recovery is required.",503,{status:"UNKNOWN"});}
+ if(!valid||!pos.ok){await markUnknown(db,{parentId:parent.id,recoveryId:existing.id,reason:"EXISTING_RECOVERY_STOP_FIELDS_OR_LIFECYCLE_INVALID",details:{valid,parentStatus,childStatus,expectedBeforeRecovery,positionReason:pos.reason||null}});return fail("Existing recovery stop, parent/child lifecycle, or position does not match the durable ledger; manual recovery is required.",503,{status:"UNKNOWN"});}
  const leaves=num(found.leaves_qty)??(qty-filled);
+ const flat=!pos.position||pos.position.qty===0;
+ if(!pos.ok||pos.position&&pos.position.side!=="long"||pos.position&&!close(pos.position.qty,expectedAfterRecovery)){
+  await markUnknown(db,{parentId:parent.id,recoveryId:existing.id,reason:"EXISTING_RECOVERY_STOP_POSITION_DOES_NOT_MATCH_CUMULATIVE_FILLS",details:{expectedAfterRecovery,position:pos.position}});
+  return fail("Existing recovery stop position does not match entry fills minus child and recovery-stop fills.",503,{status:"UNKNOWN"});
+ }
  if(status==="ACCEPTED"||status==="PARTIALLY_FILLED"){
-  if(!pos.position||pos.position.side!=="long"||!close(pos.position.qty,leaves)){
+  if(!pos.position||!close(pos.position.qty,leaves)){
    await markUnknown(db,{parentId:parent.id,recoveryId:existing.id,reason:"EXISTING_RECOVERY_STOP_DOES_NOT_COVER_POSITION",details:{leaves,position:pos.position}});
    return fail("Existing recovery stop does not cover the exact remaining long position.",503,{status:"UNKNOWN"});
   }
- }else if(status==="FILLED"){
-  if(pos.position&&pos.position.qty>0)return fail("Recovery stop filled but a long position remains; manual recovery is required.",409,{status:"MANUAL_RECOVERY_REQUIRED"});
- }else{
-  if(pos.position&&pos.position.qty>0)return fail("The existing recovery stop is no longer active while exposure remains. No replacement was submitted; manual recovery is required.",409,{status:"MANUAL_RECOVERY_REQUIRED"});
+ }else if(!flat){
+  return fail("The existing recovery stop is no longer active while exposure remains. No replacement was submitted; manual recovery is required.",409,{status:"MANUAL_RECOVERY_REQUIRED"});
  }
  const noExposure=["FILLED","CANCELED","REJECTED"].includes(status)&&(!pos.position||pos.position.qty===0);
  const now=new Date().toISOString();
@@ -108,7 +123,7 @@ export async function onRequestPost({request,env}){
  try{parent=await broker("/v2/orders/"+encodeURIComponent(parentRow.broker_order_id)+"?nested=true",key,secret);}
  catch(e){return fail("Could not retrieve the original Alpaca Paper parent order; no recovery mutation was made.",503,{brokerStatus:e.status||null});}
  if(String(parent?.id||"")!==String(parentRow.broker_order_id)||String(parent.symbol||"").toUpperCase()!==symbol||String(parent.side||"").toLowerCase()!=="buy"||!close(num(parent.qty),Number(parentRow.qty)))return fail("Broker parent order does not match the Northstar ledger; manual recovery is required.",409);
- if(existing)return verifyExistingRecovery(db,key,secret,{id:parentId,symbol},existing);
+ if(existing)return verifyExistingRecovery(db,key,secret,{...parent,id:parentId},existing);
 
  let brokerPositions;
  try{brokerPositions=await broker("/v2/positions",key,secret);}catch{return fail("Could not retrieve the authoritative Alpaca Paper position set.",503);}
