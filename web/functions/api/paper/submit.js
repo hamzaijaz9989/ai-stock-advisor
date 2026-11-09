@@ -3,6 +3,7 @@
 // This route is dormant while execution_control.enabled=0 / kill_switch=1.
 import {deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
 import {validatePaperExecutionGate,verifyOtoStopLeg} from "../../../lib/paper-execution-policy.js";
+import {evaluateStrategyApproval} from "../../../lib/strategy-validation-gate.js";
 
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
 const fail=(error,status=400,extra={})=>Response.json({ok:false,execution:false,error,...extra},{status,headers:H});
@@ -34,15 +35,16 @@ export async function onRequestPost({request,env}){
  let body;try{body=await request.json();}catch{return fail("Send valid JSON.");}
  const intentId=String(body?.intentId||"");
  if(!/^[0-9a-f-]{36}$/i.test(intentId)||body?.confirmation!=="SUBMIT_THIS_PAPER_ORDER")return fail("Provide an intentId and exact paper-order confirmation.");
- let control,intent,existing,snapshots,positions,orders;
+ let control,intent,existing,snapshots,positions,orders,strategyApproval;
  try{
-  [control,intent,existing,snapshots,positions,orders]=await Promise.all([
+  [control,intent,existing,snapshots,positions,orders,strategyApproval]=await Promise.all([
    db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first(),
    db.prepare("SELECT id,symbol,side,qty,reference_price,stop_price,status,request_hash FROM paper_trade_intents WHERE id=?").bind(intentId).first(),
    db.prepare("SELECT id,idempotency_key,client_request_hash,status,broker_order_id,response_json FROM paper_orders WHERE idempotency_key=?").bind("intent:"+intentId).first(),
    db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all(),
    db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all(),
-   db.prepare("SELECT id,status FROM paper_orders ORDER BY updated_at DESC LIMIT 501").all()
+   db.prepare("SELECT id,status FROM paper_orders ORDER BY updated_at DESC LIMIT 501").all(),
+   db.prepare("SELECT approved,strategy_version,report_version,report_sha256,report_uri,approved_at,reviewer FROM northstar_strategy_approval WHERE id=1").first()
   ]);
  }catch{return fail("Could not verify complete paper ledger; fail-closed.",503);}
  if(existing){
@@ -92,6 +94,9 @@ export async function onRequestPost({request,env}){
   try{await markUnknown(db,{orderId:existing.id,intentId,brokerOrderId:existing.broker_order_id||null,response:{ledgerStatus:existing.status},reason:"EXISTING_CLIENT_ORDER_ID_NOT_FOUND"});}catch{}
   return fail("Northstar has an order record that Alpaca cannot confirm. Treat it as UNKNOWN; no resubmission is permitted.",503,{orderId:existing.id,status:"UNKNOWN"});
  }
+ // Strategy approval is independent of paper controls and cannot be bypassed by an approved intent.
+ const strategyValidation=evaluateStrategyApproval(strategyApproval);
+ if(!strategyValidation.ok)return fail("Strategy validation is not approved; no new paper BUY order may be submitted.",409,{strategyValidation});
  // Enforce the global kill switch before considering any proposal or broker state.
  if(!control||control.mode!=="paper"||Number(control.enabled)!==1||Number(control.kill_switch)!==0||Number(control.max_portfolio_usd)!==1000)return fail("Paper execution controls are disabled or kill-switched.",503);
  if(!intent||intent.status!=="APPROVED_REVIEW_ONLY"||intent.side!=="buy")return fail("Only a specifically approved, long-only review intent can be considered.",409);
@@ -123,7 +128,7 @@ export async function onRequestPost({request,env}){
  const orderNotional=Number(intent.qty)*ask,buyingPower=num(account.buying_power);
  if(!Number.isInteger(Number(intent.qty))||Number(intent.qty)<=0||!Number.isFinite(orderNotional)||!Number.isFinite(buyingPower)||buyingPower<=0||orderNotional>buyingPower)return fail("Current Alpaca Paper buying power is insufficient or the approved quantity is invalid.",409);
  if(intent.qty>Math.floor(250/(ask||Infinity)))return fail("Approved quantity exceeds the $250 virtual position ceiling at the current ask.",409);
- const gate=validatePaperExecutionGate({control,account,reconciliation:{ok:true,reconciled:true,execution:false},equityHistory:history,quote:{bid,ask,timestamp},order:{symbol:intent.symbol,side:"buy",qty:intent.qty,stopPrice:intent.stop_price},virtualAllocationUsd:1000});
+ const gate=validatePaperExecutionGate({control,account,reconciliation:{ok:true,reconciled:true,execution:false},equityHistory:history,quote:{bid,ask,timestamp},order:{symbol:intent.symbol,side:"buy",qty:intent.qty,stopPrice:intent.stop_price},strategyValidation,virtualAllocationUsd:1000});
  if(!gate.ok)return fail("Deterministic paper execution policy blocked the order: "+gate.reason,409,{policy:gate});
  if(!Number.isFinite(bid)||!Number.isFinite(ask)||ask<bid)return fail("Invalid current quote.",503);
  const id=crypto.randomUUID(),now=new Date().toISOString(),idem="intent:"+intentId;
