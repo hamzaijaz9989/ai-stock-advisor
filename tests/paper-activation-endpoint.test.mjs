@@ -12,7 +12,7 @@ const migrations=[
  "0011_continuous_market_monitor.sql","0012_paper_execution_activation_audit.sql"
 ];
 const response=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json"}});
-function env(){
+function env(db,overrides={}){
  return {
   NORTHSTAR_OPERATOR_TOKEN:"operator-token-with-more-than-16-chars",
   NORTHSTAR_INTENT_REVIEW_TOKEN:"review-token-with-at-least-32-characters",
@@ -21,7 +21,9 @@ function env(){
   NORTHSTAR_PAPER_EXECUTION_APPROVER:"Hamza Ijaz",
   NORTHSTAR_PAPER_ACCOUNT_ID:accountId,
   ALPACA_API_KEY_ID:"paper-key-fixture",
-  ALPACA_API_SECRET_KEY:"paper-secret-fixture"
+  ALPACA_API_SECRET_KEY:"paper-secret-fixture",
+  NORTHSTAR_DB:db,
+  ...overrides
  };
 }
 function makeDb(overrides={}){
@@ -117,7 +119,7 @@ function dependencies(overrides={}){
 
 test("PAPER activation runs only read-only sync/reconciliation and atomically records approval",async()=>{
  const db=makeDb(),{deps,calls}=dependencies();
- const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:{...deps,db}});
+ const result=await activatePaperExecution({request:makeRequest(),env:env(db),dependencies:deps});
  const body=await result.json();
  assert.equal(result.status,200);
  assert.equal(body.ok,true);
@@ -138,7 +140,7 @@ test("PAPER activation runs only read-only sync/reconciliation and atomically re
 test("missing migration blocks before sync, broker calls or control writes",async()=>{
  const db=makeDb({migrations:migrations.filter(name=>name!=="0012_paper_execution_activation_audit.sql")});
  const {deps,calls}=dependencies();
- const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:{...deps,db}});
+ const result=await activatePaperExecution({request:makeRequest(),env:env(db),dependencies:deps});
  const body=await result.json();
  assert.equal(result.status,503);
  assert.ok(body.missingMigrations.includes("0012_paper_execution_activation_audit.sql"));
@@ -148,16 +150,15 @@ test("missing migration blocks before sync, broker calls or control writes",asyn
 test("separate approval credential is mandatory and checked before any side effect",async()=>{
  const db=makeDb(),{deps,calls}=dependencies();
  const req=makeRequest({headers:{"X-NORTHSTAR-PAPER-EXECUTION-APPROVAL":"wrong-approval-token"}});
- const result=await activatePaperExecution({request:req,env:env(),dependencies:{...deps,db}});
+ const result=await activatePaperExecution({request:req,env:env(db),dependencies:deps});
  assert.equal(result.status,401);
  assert.deepEqual([calls.sync,calls.fill,calls.reconcile,calls.broker.length,db.state.batchCalls],[0,0,0,0,0]);
 });
 
 test("unsafe fill import blocks reconciliation and activation",async()=>{
- const db=makeDb(),{deps,calls}=dependencies({
-  runFillSync:async()=>{calls.fill++;return response({ok:false,safeToContinue:false,requiresManualRecovery:true,execution:false,status:"MANUAL_RECOVERY_REQUIRED"},409);}
- });
- const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:{...deps,db}});
+ const db=makeDb(),{deps,calls}=dependencies();
+ deps.runFillSync=async()=>{calls.fill++;return response({ok:false,safeToContinue:false,requiresManualRecovery:true,execution:false,status:"MANUAL_RECOVERY_REQUIRED"},409);};
+ const result=await activatePaperExecution({request:makeRequest(),env:env(db),dependencies:deps});
  assert.equal(result.status,409);
  assert.equal(calls.sync,1);
  assert.equal(calls.fill,1);
@@ -167,10 +168,9 @@ test("unsafe fill import blocks reconciliation and activation",async()=>{
 });
 
 test("non-clean reconciliation blocks before account quote checks or control changes",async()=>{
- const db=makeDb(),{deps,calls}=dependencies({
-  runReconcile:async()=>{calls.reconcile++;return response({ok:false,reconciled:false,execution:false,status:"RECONCILIATION_MISMATCH_FAIL_CLOSED"},409);}
- });
- const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:{...deps,db}});
+ const db=makeDb(),{deps,calls}=dependencies();
+ deps.runReconcile=async()=>{calls.reconcile++;return response({ok:false,reconciled:false,execution:false,status:"RECONCILIATION_MISMATCH_FAIL_CLOSED"},409);};
+ const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:deps});
  assert.equal(result.status,409);
  assert.equal(calls.reconcile,1);
  assert.equal(calls.broker.length,0);
@@ -188,7 +188,7 @@ test("strategy approval and seven-day history are checked before the atomic enab
  assert.equal(calls.broker.length,3);
 
  const db2=makeDb({snapshots:[{captured_at:new Date(now-5000).toISOString(),equity_usd:100000}]});
- const result2=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:{...deps,db:db2}});
+ const result2=await activatePaperExecution({request:makeRequest(),env:env(db2),dependencies:deps});
  const body2=await result2.json();
  assert.equal(result2.status,409);
  assert.equal(body2.gateReason,"SEVEN_DAY_EQUITY_HISTORY_UNAVAILABLE");
