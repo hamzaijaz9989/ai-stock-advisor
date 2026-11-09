@@ -91,8 +91,8 @@ export async function onRequestPost({request,env}){
  if(new TextEncoder().encode(evidenceJson).byteLength>16384)return fail("Review evidence exceeds the 16 KB intent evidence limit.",503);
  let write;
  try{
-  write=await db.prepare("UPDATE paper_trade_intents SET status=?,reviewer=?,decided_at=?,decision_note=?,evidence_json=?,updated_at=? WHERE id=? AND status='PENDING_REVIEW'")
-   .bind(status,reviewer,decidedAt,note,evidenceJson,decidedAt,intentId).run();
+  write=await db.prepare("UPDATE paper_trade_intents SET status=?,reviewer=?,decided_at=?,decision_note=?,evidence_json=?,updated_at=? WHERE id=? AND status='PENDING_REVIEW' AND symbol=? AND side=? AND qty=? AND reference_price=? AND stop_price=? AND estimated_notional_usd=? AND planned_risk_usd=? AND evidence_json=?")
+   .bind(status,reviewer,decidedAt,note,evidenceJson,decidedAt,intentId,intent.symbol,intent.side,intent.qty,intent.reference_price,intent.stop_price,intent.estimated_notional_usd,intent.planned_risk_usd,intent.evidence_json).run();
  }catch{return fail("Intent decision could not be written atomically with its database audit trigger; no approval is claimed.",503);}
  if(Number(write?.meta?.changes)!==1)return fail("Intent was concurrently reviewed or changed; refresh the journal before another decision.",409);
  return Response.json({
