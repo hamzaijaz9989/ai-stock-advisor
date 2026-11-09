@@ -62,6 +62,9 @@ test("council endpoint stores a fail-closed result and replays idempotently with
   assert.equal(first.status,200);
   assert.equal(firstJson.traceDurable,true);
   assert.equal(firstJson.result.status,"NO_TRADE");
+  assert.equal(firstJson.result.traceDurable,true);
+  assert.equal(firstJson.result.agents.length,9);
+  assert.deepEqual(firstJson.result.agents.map(x=>x.role),["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"]);
   assert.equal(firstJson.execution,false);
   assert.equal(firstJson.automatedOrderSubmission,false);
   assert.equal(firstJson.replayed,false);
