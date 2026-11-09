@@ -26,9 +26,20 @@ export function evaluatePartialFillRecovery({
   const parentQty=number(parent.qty);
   const parentFilled=number(parent.filled_qty);
   const stop=number(stopPrice);
-  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) || !Number.isInteger(parentQty) || parentQty<=0 ||
-      parentFilled===null || parentFilled<0 || parentFilled>parentQty || stop===null || stop<=0) {
-    return blocked("PARENT_ORDER_OR_STOP_FIELDS_INVALID",{symbol,parentQty,parentFilled,stopPrice});
+  const parentSide=String(parent.side || "").toLowerCase();
+  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) || parentSide!=="buy" ||
+      !Number.isInteger(parentQty) || parentQty<=0 || parentFilled===null ||
+      !Number.isInteger(parentFilled) || parentFilled<0 || parentFilled>parentQty || stop===null || stop<=0) {
+    return blocked("PARENT_ORDER_OR_STOP_FIELDS_INVALID",{symbol,parentSide,parentQty,parentFilled,stopPrice});
+  }
+  if (["new","accepted","pending_new","accepted_for_bidding"].includes(parentStatus) && parentFilled!==0) {
+    return blocked("UNFILLED_PARENT_STATUS_HAS_NONZERO_CUMULATIVE_QUANTITY",{parentStatus,parentFilled});
+  }
+  if (parentStatus==="partially_filled" && !(parentFilled>0 && parentFilled<parentQty)) {
+    return blocked("PARTIAL_PARENT_HAS_INVALID_CUMULATIVE_QUANTITY",{parentQty,parentFilled});
+  }
+  if (parentStatus==="filled" && !close(parentFilled,parentQty)) {
+    return blocked("FILLED_PARENT_HAS_INCOMPLETE_CUMULATIVE_QUANTITY",{parentQty,parentFilled});
   }
 
   if (OPEN_PARENT.has(parentStatus)) {
@@ -48,10 +59,6 @@ export function evaluatePartialFillRecovery({
   if (!TERMINAL_PARENT.has(parentStatus)) {
     return blocked("PARENT_STATUS_NOT_RECOGNIZED_AS_SAFE_TERMINAL",{parentStatus});
   }
-  if (parentStatus==="filled" && !close(parentFilled,parentQty)) {
-    return blocked("FILLED_PARENT_HAS_INCOMPLETE_CUMULATIVE_QUANTITY",{parentQty,parentFilled});
-  }
-
   let childFilled=0;
   if (stopChild) {
     const childStatus=String(stopChild.status || "").toLowerCase();
