@@ -44,7 +44,6 @@ export async function onRequestPost({request,env}){
    db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all(),
    db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all(),
    db.prepare("SELECT id,status FROM paper_orders ORDER BY updated_at DESC LIMIT 501").all(),
-   db.prepare("SELECT approved,strategy_version,report_version,report_sha256,report_uri,approved_at,reviewer FROM northstar_strategy_approval WHERE id=1").first()
   ]);
  }catch{return fail("Could not verify complete paper ledger; fail-closed.",503);}
  if(existing){
