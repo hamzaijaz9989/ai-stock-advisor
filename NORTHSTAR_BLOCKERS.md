@@ -798,3 +798,51 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Final code/test commit: `4bc8d870b154107410d248e3af9d2c1f0851df1a`.
 - Tests run `42609052397` passed: 304 JavaScript tests, 0 failures; lint passed.
 - Validate run `42609052400` completed successfully, including Python tests/lint, JavaScript syntax and validation smoke checks. The synthetic strategy-validation fixture remains explicitly NOT APPROVED.
+
+
+## Automation run — 2026-11-09 11:30 UTC
+
+### Repository, PRs, and governance
+- PR #84 remains merged at `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- PR #85 is open and draft. Current branch head: `b179519d943394ca88be36bf2758abf28a4781c2`; 315 commits ahead and 0 behind `main`; 59 changed files. No formal reviews or review threads are recorded.
+- PR #88 is open and draft at `797071b9d7a72ef491cc9184bfac51ee709b2d8f`; no formal reviews or review threads are recorded.
+- GitHub reports `main.protected=false` and required status checks disabled. The branch-protection API returns 403 `Resource not accessible by integration`. No protection bypass or force merge was attempted.
+
+### Execution-boundary race mitigation
+- Code inspection identified a real race between the final D1 control read and the external Alpaca Paper POST: a kill-switch transaction could commit after the read but before the broker request.
+- Added `web/migrations/0009_paper_submission_boundary.sql`, which adds immutable `paper_execution_claims.post_started_at` audit evidence.
+- Updated `web/functions/api/paper/submit.js` to acquire the broker-POST boundary through a conditional D1 batch that requires the singleton claim to remain SUBMITTING, PAPER mode enabled, kill switch disengaged, and the exact independently approved strategy attestation unchanged. The operator kill-switch transaction and this compare-and-set serialize in D1: if the kill switch commits first, the boundary update affects zero rows and no broker POST is made; if the boundary commits first, the kill-switch route continues to report submission drain pending until the in-flight request reaches a verified terminal state.
+- Added a regression test for the losing boundary transaction. The test uses mocked broker responses only; no broker order was created.
+- Relevant commits: `43619a35fff53fbc78642a402533c4c4dce05de0` (submit boundary), `990d567b0b37b0731dc9640d186095684b78c0dc` (migration), `4bc8d870b154107410d248e3af9d2c1f0851df1a` (corrected test assertion and final code/test set), `b179519d943394ca88be36bf2758abf28a4781c2` (this blocker-log update).
+- Preview D1 database `bdffc29f-a4f6-498e-ade7-22c85d9bd373` had zero execution claims before the migration. Migration 0009 was applied to preview only at 2026-11-09 11:29:34 UTC. Verified the new `post_started_at` column, immutable trigger, and migration ledger row 9. Production D1 was not modified.
+
+### OIDC scheduled read-only sync hardening
+- PR #88's `web/functions/api/paper/github-snapshot.js` now requires each internal stage to return its explicit completion boolean: `synced=true`, `imported=true`, and `reconciled=true`, in addition to `ok=true` and `execution=false`.
+- Added tests proving an `ok=true` but incomplete sync/fill response stops the chain. An initial test-only stage-order assertion failed and was corrected; the final run is green.
+- PR #88 commits include `75d8827f2ca62cba0c5679c0f7844f1ad7f2c517` (stage completion enforcement) and `797071b9d7a72ef491cc9184bfac51ee709b2d8f` (test correction).
+- PR #88 remains a separate read-only maintenance PR. Its OIDC endpoint is not deployed to production and no scheduled sync was run through it.
+
+### CI evidence
+- PR #85 final head's Tests run `42609219758` passed: 304 JavaScript tests, 94 Python tests, Ruff lint; 0 failures. Validate run `42609219802` passed Python tests/lint, JavaScript syntax, frontend analysis, paper readiness endpoint tests, SEC ingestion adapter tests, and validation CLI smoke checks. The synthetic validation smoke test still confirms strategy approval is false.
+- PR #88 final head's Tests run `42609335182` passed: 188 JavaScript tests, 94 Python tests, Ruff lint; 0 failures. Validate run `42609335174` passed the corresponding validation workflow.
+- Earlier runs `42608937274` and `42608936499` failed only on two newly introduced test assertions; both were corrected, and the later runs above passed.
+
+### Cloudflare deployment and D1 state
+- Production Pages deployment `e4efbfd8-43f2-41b0-b01d-fc44e5b2a308` remains SUCCESS for main commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`.
+- Current preview deployment records for PR #85 code commit `4bc8d870b154107410d248e3af9d2c1f0851df1a`, PR #85 head `b179519d943394ca88be36bf2758abf28a4781c2`, and PR #88 head `797071b9d7a72ef491cc9184bfac51ee709b2d8f` are still in `idle` queued stages; do not claim those commits are deployed or preview-HTTP verified. Earlier preview commit `bdc17b4ee250cdce6b4a39361018f8c1d2fae917` did complete successfully, but it predates the new broker-POST boundary code.
+- Preview D1 now records migrations 0001–0009. Production D1 remains migrations 0001–0005.
+- Production D1 read-only audit: `execution_control.enabled=0`, `mode=paper`, `kill_switch=1`, virtual allocation $1,000, default risk 0.5%, max risk 1%, max position 25%; one equity snapshot dated `2026-11-08T18:34:38.720Z`; zero intents, orders, positions, and fill activities.
+- Production Pages configuration lists secret names `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, `FMP_API_KEY2`, `GEMINI_API_KEY`, and `NORTHSTAR_OPERATOR_TOKEN`. The separate `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN` name is absent. Cloudflare returned configuration names only; secret values were not inspected. The previous GitHub Actions `NORTHSTAR_OPERATOR_TOKEN` secret check failed; PR #88 is intended to remove that separate GitHub secret dependency, but it is not merged/deployed.
+- Direct HTTP health probes to `ai-stock-advisor.pages.dev` are blocked by the connected runtime's URL access policy (403), so only Cloudflare deployment metadata, D1 read-only queries, and prior GitHub workflow evidence are available in this run.
+
+### Remaining blockers and next actions
+1. Configure branch protection / repository rules with required checks through an authorized GitHub administrator path; the connected GitHub integration can read branch metadata but cannot change protection.
+2. Obtain independent formal reviews for PR #85 and PR #88. Keep both draft until governance is satisfied.
+3. Verify the latest PR preview deployment actually reaches SUCCESS and test its Pages endpoints; do not rely on CI alone.
+4. Merge/deploy the scoped OIDC read-only workflow only after its review and governance gates pass, then run a real read-only PAPER account snapshot, fill import, and clean reconciliation.
+5. Collect at least seven days of genuine, time-separated production equity snapshots and verify fresh quote/account/position data. Current production history has only one snapshot.
+6. Build a genuine point-in-time historical dataset (including delisted constituents, filing/event availability timestamps, corporate actions and benchmark coverage), run the frozen strategy with at least 100 completed trades and four chronological folds plus untouched holdout, and obtain independent reproducible approval. Strategy approval remains `approved=0`.
+7. Confirm the production Alpaca account is PAPER through authenticated read-only checks. Do not reveal credential values.
+8. After all safety, review, strategy, schema, and production verification gates pass, apply migrations 0006–0009 to production in order, deploy the verified code, and verify endpoint/schema parity. Do not apply these migrations to production early.
+9. The guarded PAPER-only enable procedure is still not implemented/verified. Keep execution disabled and the kill switch engaged until the complete lifecycle, broker paper account, clean reconciliation, and every risk gate are proven.
+10. Never use a live broker endpoint or live credentials, never place a live or paper order as a test, and never weaken the $1,000 allocation, $250 position, $10 per-trade risk, $20 daily loss, or $80 drawdown limits.
