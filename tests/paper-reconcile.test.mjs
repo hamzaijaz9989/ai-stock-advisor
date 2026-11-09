@@ -40,8 +40,8 @@ test("reconciliation rejects missing operator authentication",async()=>{
 });
 test("reconciliation passes when broker and ledger positions and orders match",async()=>{
   const positions=[{symbol:"AAPL",qty:"2",avg_entry_price:"100"}];
-  const orders=[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"2",status:"filled",filled_qty:"2",filled_avg_price:"100"}];
-  const db=mockDb({positions,orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:2,status:"FILLED",response_json:JSON.stringify({filled_qty:"2",filled_avg_price:"100"})}]});
+  const orders=[{id:"broker-1",symbol:"AAPL",side:"buy",qty:"2",status:"filled",filled_qty:"2",filled_avg_price:"100",order_class:"oto",legs:[{order_group_role:"stop_loss",type:"stop",status:"new",symbol:"AAPL",side:"sell",qty:"2",stop_price:"98"}]}];
+  const db=mockDb({positions,orders:[{id:"ledger-1",broker_order_id:"broker-1",symbol:"AAPL",side:"buy",qty:2,stop_price:98,status:"FILLED",response_json:JSON.stringify({filled_qty:"2",filled_avg_price:"100"})}]});
   const response=await run({db,broker:{positions,orders}});
   const body=await response.json();
   assert.equal(response.status,200);
@@ -106,8 +106,8 @@ test("reconciliation fails closed when broker data is unavailable",async()=>{
 
 
 test("reconciliation normalizes Alpaca new status to Northstar ACCEPTED",async()=>{
-  const db=mockDb({orders:[{id:"ledger-new",broker_order_id:"broker-new",symbol:"AAPL",side:"buy",qty:1,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})}]});
-  const response=await run({db,broker:{orders:[{id:"broker-new",symbol:"AAPL",side:"buy",qty:"1",status:"new",filled_qty:"0"}]}});
+  const db=mockDb({orders:[{id:"ledger-new",broker_order_id:"broker-new",symbol:"AAPL",side:"buy",qty:1,stop_price:98,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})}]});
+  const response=await run({db,broker:{orders:[{id:"broker-new",symbol:"AAPL",side:"buy",qty:"1",status:"new",filled_qty:"0",order_class:"oto",legs:[{order_group_role:"stop_loss",type:"stop",status:"held",symbol:"AAPL",side:"sell",qty:"1",stop_price:"98"}]}]}});
   const body=await response.json();
   assert.equal(response.status,200);
   assert.equal(body.reconciled,true);
@@ -125,6 +125,22 @@ test("reconciliation flags a missing or mismatched OTO protective stop leg",asyn
   const ledger={id:"ledger-oto",broker_order_id:"broker-oto",symbol:"AAPL",side:"buy",qty:2,stop_price:98,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})};
   const broker={id:"broker-oto",symbol:"AAPL",side:"buy",qty:"2",status:"new",filled_qty:"0",order_class:"oto",legs:[]};
   const response=await run({db:mockDb({orders:[ledger]}),broker:{orders:[broker]}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="PROTECTIVE_STOP_LEG_NOT_RECONCILED"));
+});
+
+test("reconciliation rejects nonterminal orders with no ledger protective stop price",async()=>{
+  const db=mockDb({orders:[{id:"ledger-no-stop",broker_order_id:"broker-no-stop",symbol:"AAPL",side:"buy",qty:1,stop_price:null,status:"ACCEPTED",response_json:JSON.stringify({filled_qty:"0"})}]});
+  const response=await run({db,broker:{orders:[{id:"broker-no-stop",symbol:"AAPL",side:"buy",qty:"1",status:"new",filled_qty:"0"}]}});
+  const body=await response.json();
+  assert.equal(response.status,409);
+  assert.ok(body.mismatches.orders.some(x=>x.reason==="PROTECTIVE_STOP_PRICE_MISSING"));
+});
+
+test("reconciliation does not exempt rejected broker orders with nonzero fills from stop verification",async()=>{
+  const db=mockDb({orders:[{id:"ledger-rejected-partial",broker_order_id:"broker-rejected-partial",symbol:"AAPL",side:"buy",qty:2,stop_price:98,status:"REJECTED",response_json:JSON.stringify({filled_qty:"1",filled_avg_price:"100"})}]});
+  const response=await run({db,broker:{orders:[{id:"broker-rejected-partial",symbol:"AAPL",side:"buy",qty:"2",status:"rejected",filled_qty:"1",filled_avg_price:"100",order_class:"oto",legs:[]}]}});
   const body=await response.json();
   assert.equal(response.status,409);
   assert.ok(body.mismatches.orders.some(x=>x.reason==="PROTECTIVE_STOP_LEG_NOT_RECONCILED"));
