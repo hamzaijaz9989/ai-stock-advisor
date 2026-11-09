@@ -9,3 +9,10 @@ database_id = "528f3a23-1d1f-4d16-8463-f643d85f5deb"
 
 [triggers]
 crons = ["*/5 * * * *"]
+
+[observability]
+enabled = true
+
+[observability.logs]
+invocation_logs = true
+head_sampling_rate = 1
