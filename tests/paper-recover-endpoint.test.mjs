@@ -117,3 +117,23 @@ test("ambiguous recovery stop submission is marked UNKNOWN and never blindly ret
  assert.equal(calls.filter(x=>x.method==="POST").length,1);
  assert.ok(db.batches.some(batch=>batch.some(stmt=>stmt.sql.includes("UPDATE execution_control SET enabled=0,kill_switch=1"))));
 });
+
+
+test("repeated recovery verifies the durable standalone stop and never submits a duplicate",async()=>{
+ const existing={id:"recovery-client",qty:2,stop_price:95,status:"SUBMITTING",broker_order_id:null,response_json:"{}"};
+ const db=makeDb({existing});
+ const calls=[];
+ const {response}=await run({db,fetchOverride:async(url,options={})=>{
+  const u=String(url);calls.push({url:u,method:options.method||"GET"});
+  if(u.includes("/v2/orders/parent-broker?nested=true"))return Response.json(parent());
+  if(u.includes("/v2/orders:by_client_order_id"))return Response.json({id:"recovery-broker",client_order_id:"recovery-client",symbol:"AAPL",side:"sell",qty:"2",filled_qty:"0",leaves_qty:"2",type:"stop",time_in_force:"gtc",stop_price:"95",status:"new"});
+  if(u.endsWith("/v2/positions"))return Response.json([{symbol:"AAPL",qty:"2",side:"long"}]);
+  throw new Error("unexpected "+u);
+ }});
+ const body=await response.json();
+ assert.equal(response.status,200);
+ assert.equal(body.status,"PROTECTED_BY_STANDALONE_GTC_STOP");
+ assert.equal(body.protectiveStopVerified,true);
+ assert.equal(calls.some(x=>x.method==="POST"),false);
+ assert.ok(db.batches.some(batch=>batch.some(stmt=>stmt.sql.startsWith("UPDATE paper_orders SET broker_order_id=?")));
+});
