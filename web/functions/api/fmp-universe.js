@@ -23,9 +23,7 @@ export async function onRequestGet({request,env}){
  if(!validDate(from))return Response.json({available:false,error:"Provide a valid ISO from date."},{status:400});
  const key=env?.FMP_API_KEY2||env?.FMP_API_KEY;
  if(!key)return Response.json({available:false,configured:false,error:"FMP_API_KEY is not configured."},{status:503,headers:{"Cache-Control":"no-store"}});
- const settled=await Promise.allSettled(INDEX_ENDPOINTS.flatMap(([,current,historical])=>[
-  get(current,key),get(historical,key)
- ]));
+ const settled=await Promise.allSettled([...INDEX_ENDPOINTS.flatMap(([,current,historical])=>[get(current,key),get(historical,key)]),get("delisted-companies",key)]);
  const indexes={},errors=[];
  for(let i=0;i<INDEX_ENDPOINTS.length;i++){
   const [name,,]=INDEX_ENDPOINTS[i],current=settled[i*2],history=settled[i*2+1];
@@ -41,10 +39,13 @@ export async function onRequestGet({request,env}){
    historyAvailableFrom:from
   };
  }
- const available=Object.values(indexes).some(x=>Array.isArray(x.current)||Array.isArray(x.historicalChanges));
+ const delistedResult=settled[6];
+ const delistedCompanies=delistedResult.status==="fulfilled"?delistedResult.value:null;
+ if(delistedResult.status==="rejected")errors.push({dataset:"delisted_companies",error:String(delistedResult.reason?.message||"FMP request failed").slice(0,160)});
+ const available=Object.values(indexes).some(x=>Array.isArray(x.current)||Array.isArray(x.historicalChanges))||Array.isArray(delistedCompanies);
  return Response.json({
   available,configured:true,provider:"Financial Modeling Prep",retrievedAt:new Date().toISOString(),
-  historicalChangesSince:from,indexes,errors,
+  historicalChangesSince:from,indexes,delistedCompanies,delistedCompanyCount:delistedCompanies?.length??null,errors,
   reconstructionRules:{
    currentListsAreCurrentAsOfRetrieval:true,
    applyHistoricalChangesInReverseChronologicalOrderToReconstructEarlierMembership:true,
