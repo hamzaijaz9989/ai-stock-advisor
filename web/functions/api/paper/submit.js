@@ -159,26 +159,7 @@ export async function onRequestPost({request,env}){
   ]);
   if(writes.length!==4||writes.some(w=>Number(w?.meta?.changes)!==1))throw new Error("SINGLE_FLIGHT_CLAIM_NOT_ACQUIRED");
  }catch{return fail("Another paper execution claim exists or the durable single-flight ledger could not be acquired; no broker request was made.",409);}
- // Recheck the independent strategy attestation and market/account state after
- // the durable claim, then make the kill-switch read the last DB read before POST.
- let finalStrategy;
- try{finalStrategy=await db.prepare("SELECT approved,strategy_version,report_version,report_sha256,report_uri,approved_at,reviewer FROM northstar_strategy_approval WHERE id=1").first();}
- catch{
-  try{await rejectClaimedSubmission(db,id,"FINAL_STRATEGY_APPROVAL_READ_FAILED","SUBMISSION_BLOCKED_FINAL_STRATEGY_CHECK");}catch{}
-  return fail("Final strategy approval check failed; no broker request was made.",503,{orderId:id,status:"REJECTED"});
- }
- const finalStrategyValidation=evaluateStrategyApproval(finalStrategy);
- const sameStrategy=finalStrategyValidation.ok&&
-  String(finalStrategy.strategy_version)===String(strategyApproval.strategy_version)&&
-  String(finalStrategy.report_version)===String(strategyApproval.report_version)&&
-  String(finalStrategy.report_sha256)===String(strategyApproval.report_sha256)&&
-  String(finalStrategy.report_uri)===String(strategyApproval.report_uri)&&
-  String(finalStrategy.approved_at)===String(strategyApproval.approved_at)&&
-  String(finalStrategy.reviewer)===String(strategyApproval.reviewer);
- if(!sameStrategy){
-  try{await rejectClaimedSubmission(db,id,"FINAL_STRATEGY_APPROVAL_CHANGED_OR_REVOKED","SUBMISSION_BLOCKED_FINAL_STRATEGY_CHECK");}catch{}
-  return fail("Strategy approval changed or was revoked before the broker boundary; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
- }
+ // Refresh the account, quote and market clock after the durable claim.
  let finalAccount,finalQuote,finalClock;
  try{[finalAccount,finalQuote,finalClock]=await Promise.all([
   broker("/v2/account",key,secret),
@@ -198,15 +179,26 @@ export async function onRequestPost({request,env}){
   try{await rejectClaimedSubmission(db,id,"FINAL_ACCOUNT_MARKET_OR_QUOTE_RISK_CHECK_FAILED","SUBMISSION_BLOCKED_FINAL_BROKER_CHECK");}catch{}
   return fail("Final account, market-open, quote-freshness, position-size, or risk check failed; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
  }
- let finalControl;
- try{finalControl=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();}
+ // One final D1 read atomically snapshots both execution controls and the
+ // independent strategy attestation; this is the last DB read before Alpaca POST.
+ let finalGate;
+ try{finalGate=await db.prepare("SELECT c.enabled,c.mode,c.kill_switch,s.approved,s.strategy_version,s.report_version,s.report_sha256,s.report_uri,s.approved_at,s.reviewer FROM execution_control c CROSS JOIN northstar_strategy_approval s WHERE c.id=1 AND s.id=1").first();}
  catch{
-  try{await rejectClaimedSubmission(db,id,"FINAL_EXECUTION_CONTROL_READ_FAILED","SUBMISSION_BLOCKED_FINAL_CONTROL_CHECK");}catch{}
-  return fail("Final execution-control check failed after claim acquisition; no broker request was made.",503,{orderId:id,status:"REJECTED"});
+  try{await rejectClaimedSubmission(db,id,"FINAL_EXECUTION_AND_STRATEGY_GATE_READ_FAILED","SUBMISSION_BLOCKED_FINAL_GATE");}catch{}
+  return fail("Final execution-control and strategy approval read failed; no broker request was made.",503,{orderId:id,status:"REJECTED"});
  }
- if(!finalControl||finalControl.mode!=="paper"||Number(finalControl.enabled)!==1||Number(finalControl.kill_switch)!==0){
-  try{await rejectClaimedSubmission(db,id,"FINAL_EXECUTION_CONTROL_CHECK_BLOCKED","SUBMISSION_BLOCKED_FINAL_CONTROL_CHECK");}catch{}
-  return fail("Execution controls changed before the broker boundary; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
+ const finalStrategyValidation=evaluateStrategyApproval(finalGate);
+ const sameStrategy=finalStrategyValidation.ok&&
+  String(finalGate.strategy_version)===String(strategyApproval.strategy_version)&&
+  String(finalGate.report_version)===String(strategyApproval.report_version)&&
+  String(finalGate.report_sha256)===String(strategyApproval.report_sha256)&&
+  String(finalGate.report_uri)===String(strategyApproval.report_uri)&&
+  String(finalGate.approved_at)===String(strategyApproval.approved_at)&&
+  String(finalGate.reviewer)===String(strategyApproval.reviewer);
+ const controlsValid=finalGate&&finalGate.mode==="paper"&&Number(finalGate.enabled)===1&&Number(finalGate.kill_switch)===0;
+ if(!sameStrategy||!controlsValid){
+  try{await rejectClaimedSubmission(db,id,!sameStrategy?"FINAL_STRATEGY_APPROVAL_CHANGED_OR_REVOKED":"FINAL_EXECUTION_CONTROL_CHECK_BLOCKED","SUBMISSION_BLOCKED_FINAL_GATE");}catch{}
+  return fail(!sameStrategy?"Strategy approval changed or was revoked before the broker boundary; no paper order was submitted.":"Execution controls changed before the broker boundary; no paper order was submitted.",409,{orderId:id,status:"REJECTED"});
  }
  let result;
  try{
