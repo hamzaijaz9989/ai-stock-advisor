@@ -50,7 +50,8 @@ export function evaluateResearchCouncilRun(run, telemetry = {}) {
       totalTokens: safeMetric(roleTelemetry.totalTokens),
       costUsd: safeMetric(roleTelemetry.costUsd),
       provider: typeof roleTelemetry.provider === "string" ? roleTelemetry.provider : null,
-      model: typeof roleTelemetry.model === "string" ? roleTelemetry.model : null
+      model: typeof roleTelemetry.model === "string" ? roleTelemetry.model : null,
+      failed: roleTelemetry.failed === true
     };
   }
   const bull = reports.find(x => x.role === "bull_researcher")?.report;
