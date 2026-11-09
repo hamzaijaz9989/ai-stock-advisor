@@ -331,3 +331,37 @@ No paper or live order was submitted, amended, canceled, or flattened. Productio
 - Final-head validation workflow `42577343047` completed successfully: frontend analysis `43/43`, paper readiness `6/6`, SEC ingestion `7/7`, Ruff passed; synthetic strategy validation continued to assert not approved and not decision eligible.
 - A direct read-only fetch attempt to production readiness, production performance, and isolated preview readiness returned HTTP 403 from the runtime network layer for all three URLs. This is an environment access failure, not evidence that the application endpoints returned 403; no endpoint body was received. Cloudflare deployment metadata and D1 queries remain the verified production/preview evidence.
 - PR #85 remains open/draft/mergeable with no formal reviews. No merge or production deployment occurred. Production execution remains disabled and kill switch engaged.
+
+
+## Run 7 — 2026-11-09T07:35:23.110Z
+
+### Repository synchronization and current release state
+- Rechecked PR #84: CLOSED/MERGED; merge commit remains `74fb9a293c66bd4cac38d36e29ec294cc58cc80c`.
+- Rechecked PR #85: OPEN, DRAFT, current head `633d30866130778fc653010a62afeb6ad5e5ce4b`, base `main` at `e0efd5c5aa8e1f61a7946f8e11cc4a1c45942ffb`; no formal reviews recorded.
+- Before synchronization, PR branch was one commit behind main. The only intervening main change was `web/data/top-stocks-cache.json` (11 additions/11 deletions), outside PR #85's changed paths. Preserved the PR tree and merged that exact main cache blob into a two-parent merge commit `633d30866130778fc653010a62afeb6ad5e5ce4b`; updated the PR branch using a non-force fast-forward with expected prior head `55b647842f6517c8b999ef768c5b197e52c1912e`. The branch now has zero commits behind main and 160 commits ahead. No existing PR application files were overwritten.
+- CI for the new synchronization commit is not yet visible: GitHub commit status is `pending` with zero statuses, and the PR-workflow-run lookup returned no runs at the time of inspection. Previous head `55b647842f6517c8b999ef768c5b197e52c1912e` had both Tests and Validate AI Stock Advisor workflows completed successfully; this does not substitute for checks on the new merge commit.
+- Branch-protection API still returns HTTP 403 `Resource not accessible by integration`; no bypass attempted.
+
+### Fresh Cloudflare production and D1 evidence
+- Latest production Pages deployment is `72b2ef88-7622-4e9b-af83-2ced42d1242c`, status success, serving main commit `e0efd5c5aa8e1f61a7946f8e11cc4a1c45942ffb` (top-stock cache refresh). PR #85 is not deployed to production.
+- Latest production D1 query succeeded read-only: migrations 0001–0005 only; execution enabled=0; mode=paper; kill_switch=1; equity snapshots=1; intents=0; orders=0; positions=0.
+- Latest isolated preview D1 query succeeded read-only: migrations 0001–0007; execution enabled=0; mode=paper; kill_switch=1; equity snapshots=0; intents=0; orders=0; positions=0.
+- Cloudflare Pages project response returned an empty normalized environment-variable map; do not treat this as evidence that secrets are present or absent. Prior direct variable-name inventory recorded that the paper-approval token was absent. Secret values were not read.
+- Production/preview endpoint response health was not independently established in this run; D1 queries and deployment metadata only are claimed.
+
+### Current blockers and next actions
+1. **Broker-mutating partial-fill recovery remains unimplemented.** The pure policy `web/lib/paper-recovery-policy.js` only recommends actions; it does not cancel the parent remainder or submit/verify a standalone GTC stop. Implement a durable, operator-only, idempotent route with explicit recovery authorization, cancellation-race handling, post-cancel order/position/child re-fetch, deterministic stop client ID, ambiguous-submit lookup, audit events, and fill-sync/reconciliation integration. Never place broker orders in tests.
+2. **Strategy validation remains NOT APPROVED.** `docs/STRATEGY_VALIDATION_STATUS.md` still documents absent real point-in-time data, frozen-rule replay, >=100 completed trades, chronological walk-forward folds, untouched holdout, provenance/corporate-action/cost attestations and independent reproduction. Do not approve the strategy or BUY gate based on synthetic tests or self-review.
+3. **Seven-day equity history remains absent.** Production still has one snapshot; preview has zero. Continue only real, authenticated, read-only snapshots and verify the scheduled chain. No fabricated historical points.
+4. **Production schema is behind preview.** Migrations 0006 and 0007 are applied only to isolated preview D1; production remains at 0005. Do not apply until recovery/release gates and migration compatibility review pass.
+5. **Paper approval credential and scheduled-workflow secrets remain unresolved.** The production Pages variable inventory previously lacked `NORTHSTAR_PAPER_EXECUTION_APPROVAL_TOKEN`; this run did not inspect secret values or prove repository secret presence. Verify only non-empty presence using a safe workflow when ready; never print values.
+6. **Formal independent review and branch rules remain outstanding.** PR #85 has zero formal reviews; branch-protection read returns 403. Obtain a separate reviewer and an authorized branch-rules view before merge.
+7. **CI must rerun on the synchronized head.** Commit `633d30866130778fc653010a62afeb6ad5e5ce4b` currently has pending/empty status. Wait for and inspect both required workflows and preview deployment before any release decision.
+
+### Safety state
+- No broker requests that mutate orders were made. No paper or live order was submitted, amended, canceled, or flattened.
+- Production remains PAPER mode, execution disabled, kill switch engaged. Virtual allocation/risk caps remain unchanged.
+- PR #85 remains draft and is not approved for production release.
+
+### Completion estimate
+- No percentage increase this run. The safe branch synchronization removes the one-commit-behind condition, but does not resolve any execution, strategy, equity-history, credential, independent-review, or production-release blocker.
