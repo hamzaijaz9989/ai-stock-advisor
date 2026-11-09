@@ -78,9 +78,9 @@ export function normalizeCouncilModelReport(raw) {
   return {status:"COMPLETE",findings,risks};
 }
 
-async function createGeminiGenerator(env) {
+async function createGeminiGenerator(env, fetcher=fetch) {
   if (!env?.GEMINI_API_KEY) return null;
-  const response=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100",{
+  const response=await fetcher("https://generativelanguage.googleapis.com/v1beta/models?pageSize=100",{
     headers:{"Accept":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
     signal:AbortSignal.timeout(7000)
   });
@@ -107,7 +107,7 @@ async function createGeminiGenerator(env) {
       "Do not imitate another specialist's role. Disagreement is valuable: preserve material counter-evidence rather than forcing consensus."
     ].join("\n");
     const user=JSON.stringify({team:"Northstar Research Council",role,task:ROLE_GUIDANCE[role]||"Synthesize only supplied evidence.",responsibility:"Produce an auditable role-specific report. Never assume another agent has verified a fact.",handoff:"Return only findings and risks with exact evidence IDs. The supervisor preserves disagreement and the deterministic Risk Committee owns the veto.",context:payload});
-    const result=await fetch("https://generativelanguage.googleapis.com/v1beta/"+model.name+":generateContent",{
+    const result=await fetcher("https://generativelanguage.googleapis.com/v1beta/"+model.name+":generateContent",{
       method:"POST",
       headers:{"Content-Type":"application/json","x-goog-api-key":env.GEMINI_API_KEY},
       body:JSON.stringify({
@@ -134,11 +134,11 @@ async function createGeminiGenerator(env) {
     return generate;
 }
 
-async function createOpenAIGenerator(env) {
+async function createOpenAIGenerator(env, fetcher=fetch) {
   if(!env?.OPENAI_API_KEY) return null;
   const model=env.OPENAI_RESEARCH_MODEL||"gpt-5";
   const generate=async ({role,payload})=>{
-    const response=await fetch("https://api.openai.com/v1/responses",{
+    const response=await fetcher("https://api.openai.com/v1/responses",{
       method:"POST",
       headers:{"Authorization":"Bearer "+env.OPENAI_API_KEY,"Content-Type":"application/json"},
       body:JSON.stringify({
@@ -200,13 +200,13 @@ function riskCommittee(payload) {
   };
 }
 
-export async function createResearchCouncilWorkers(env) {
+export async function createResearchCouncilWorkers(env, fetcher=fetch) {
   let generate=null;
   if(env?.GEMINI_API_KEY) {
-    try { generate=await createGeminiGenerator(env); } catch { generate=null; }
+    try { generate=await createGeminiGenerator(env,fetcher); } catch { generate=null; }
   }
   if(!generate && env?.OPENAI_API_KEY) {
-    try { generate=await createOpenAIGenerator(env); } catch { generate=null; }
+    try { generate=await createOpenAIGenerator(env,fetcher); } catch { generate=null; }
   }
   const workers={};
   workers.telemetry={};
