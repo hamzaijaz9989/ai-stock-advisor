@@ -96,14 +96,14 @@ Only after the above phases pass their respective gates:
 These are the latest facts visible in the documentation/API audit for this handover. Recheck them before relying on them; do not assume they remain current.
 
 - Main branch head after the documentation merge: `d1c9b964204c89639bf1c13d511e75d9c398d51f` (Northstar Project Handbook and continuity workflow).
-- Open documentation PR #101: https://github.com/hamzaijaz9989/ai-stock-advisor/pull/101 — draft, blocker-evidence refresh; CI passed for that documentation PR.
+- Active combined Stock Brain PR #103: https://github.com/hamzaijaz9989/ai-stock-advisor/pull/103 — open draft, based on current main, mergeable, exact-head CI green; preview deployment status succeeded for its latest application-code commit. See the 2026-11-10 checkpoint at the end of this handbook.
 - Earlier PR #85 and #88 are documented as draft and not formally reviewed; inspect their current status before any merge decision.
 - Earlier audit recorded `main.protected=false` and required checks disabled. Recheck with an authorized GitHub administrator path.
 - Production D1 was documented with migrations 0001–0005 and one equity snapshot; verify the live state before any migration or workflow change.
 - The production snapshot described in the blocker log is broker account equity, not the separate $1,000 Northstar virtual strategy allocation.
 - Production paper controls were documented as execution disabled, paper mode, kill switch engaged, with $1,000 virtual allocation, 0.5% default risk, 1% maximum per-trade risk and 25% maximum position notional.
 - The latest blocker evidence says strategy approval is false and paper execution is not enabled.
-- The README says the repository must remain private. However, the GitHub API metadata returned by the connected integration on 2026-11-10 reported `private=false / visibility=public`. This conflicts with the user's statement that the repository is private. **Do not change repository visibility based on this discrepancy. Reconfirm directly in GitHub repository Settings before any sensitive sharing or assumption about privacy.**
+- Repository visibility is **PUBLIC**, as explicitly confirmed by the user and corroborated by GitHub metadata on 2026-11-10. Do not describe it as private. Keep all secrets, tokens and sensitive data out of the public repository.
 
 ## 4. What to build next — ordered work queue
 
@@ -217,7 +217,7 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - Follow-up branch `northstar/research-council-status-dashboard` adds a read-only status endpoint, UI card and tests. It is not merged or deployed yet.
 - PR #102 (this handbook and continuity update) was merged after successful Tests, Validate AI Stock Advisor, and full-history secret-scan workflows. Squash merge commit: `d1c9b964204c89639bf1c13d511e75d9c398d51f`.
 - The main branch API response reports `protected=false` and no required status checks. Do not treat green CI as branch governance.
-- Repository visibility discrepancy remains unresolved: the GitHub REST metadata returned `private=false / visibility=public`, while the user states the repository is private. No visibility setting was changed. Confirm in GitHub Settings; do not infer privacy from README text.
+- Repository visibility: public, owner-confirmed. Never commit credentials or secrets.
 
 ### Scanner and market-monitor status
 - Scanner phase: user-confirmed COMPLETE and tested. Do not restart scanner implementation absent a concrete regression.
@@ -240,3 +240,17 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - Production D1 migrations: `0001`–`0005` only. Migration `0006_continuous_market_monitor.sql` is not recorded in this paper-ledger database; monitor tables are present in the same schema, but verify the migration ledger before making any schema assumptions.
 - Counts: 0 paper orders, 0 paper positions, 0 trade intents, 0 broker fill activities, 0 paper trade events, 1 equity snapshot, 2 audit rows.
 - No paper or live order was submitted; no production D1 write or migration was performed during this audit.
+
+
+## 2026-11-10 — Autonomous Stock Brain milestone checkpoint
+
+- Repository visibility is **PUBLIC**, explicitly confirmed by the user; GitHub repository metadata also reports public. Do not describe the repository as private or ask the user to resolve a visibility discrepancy.
+- Current main head observed: `d1c9b964204c89639bf1c13d511e75d9c398d51f`.
+- Active combined Stock Brain work is PR #103: https://github.com/hamzaijaz9989/ai-stock-advisor/pull/103, branch `northstar/research-council-status-dashboard`, head `e2bc27a25534150d32546ff10c04553d4e0639e0`. It is open and draft, based on current main, and GitHub reports it mergeable.
+- PR #103 includes the nine-agent Stock Brain dashboard, authenticated server-side collection path, stable role matrix, read-only readiness endpoint/card, tests and updated operating documentation. It supersedes the older divergent PR #104 implementation branch; do not merge PR #104 separately.
+- Exact PR #103 head checks were all green on 2026-11-10: Tests run `42713293415`, Validate AI Stock Advisor run `42713293215`, full-history secret scan run `42713293109`, and companion Tests run `42713283885`. This is CI evidence, not proof of production readiness.
+- Cloudflare Pages preview deployment `9c6544c9-f477-402c-8986-85a9e79c5041` completed successfully at `https://9c6544c9.ai-stock-advisor.pages.dev` (alias `https://northstar-research-council-s.ai-stock-advisor.pages.dev`) for app-code commit `a068fa60d3df641d424f8e8c258ef770434a5922`. The latest PR head `e2bc27a...` is documentation-only and its Pages build was skipped by path filtering. The preview deployment status was verified; a live HTTP/UI smoke test of the preview endpoint remains outstanding.
+- Read-only production D1 query confirms migrations `0002_research_decision_traces.sql` and `0003_research_council_runs.sql` are present; `research_council_runs` has 0 rows; equity history has only one snapshot at `2026-11-08T18:34:38.720Z`; controls remain `enabled=0`, `mode=paper`, `kill_switch=1`, allocation USD 1,000. The query reported zero rows written and no DB changes.
+- The existing collector requires a fresh equity snapshot (within 15 minutes), a seven-day baseline, verified empty/reconciled broker positions and open orders, model-provider credentials and operator authentication. The single production snapshot is stale and cannot satisfy the seven-day baseline. No production research run has been attempted.
+- The Stock Brain integration is therefore **implemented in a CI-green, preview-deployed draft PR, but not yet accepted or production-deployed**. The next work is: complete code review and exact-head preview smoke tests; replace the interim prompt-entered operator token with a stronger authenticated session if available; establish safe periodic read-only equity snapshots and the seven-day baseline; verify provider/auth configuration without exposing secrets; perform one explicitly authorized research-only run and idempotent replay; then update this handbook with the evidence.
+- No production deployment, D1 write/migration, broker call, order, execution-control change or secret change was performed in this checkpoint. Paper execution remains disabled and kill switch engaged. Validated BUY remains disabled.
