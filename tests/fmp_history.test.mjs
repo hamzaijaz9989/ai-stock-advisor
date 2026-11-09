@@ -23,11 +23,21 @@ test("FMP historical ingestion returns dated prices, annual and quarterly statem
   assert.equal(body.statements.quarterIncome[0].period,"quarter");
   assert.equal(body.news[0].publishedDate,"2025-03-01 12:00:00");
   assert.equal(urls.length,8);assert.ok(urls.some(u=>u.pathname.endsWith("/historical-price-eod/full")));
+  assert.equal(body.coverage.annualStatementLimit,10);assert.equal(body.coverage.quarterlyStatementLimit,40);assert.equal(body.coverage.newsPageLimit,100);
+  assert.ok(urls.filter(u=>u.pathname.endsWith("income-statement")||u.pathname.endsWith("balance-sheet-statement")||u.pathname.endsWith("cash-flow-statement")).some(u=>u.searchParams.get("limit")==="40"));
+  assert.ok(urls.some(u=>u.pathname.endsWith("/stock")&&u.searchParams.get("limit")==="100"));
  }finally{globalThis.fetch=original;}
 });
 
 test("FMP historical ingestion rejects windows beyond ten years",async()=>{
  const request=new Request("https://northstar.test/api/fmp-history?ticker=MSFT&from=2000-01-01&to=2026-01-01");
+ const response=await onRequestGet({request,env:{FMP_API_KEY:"test"}});
+ assert.equal(response.status,400);
+});
+
+
+test("FMP historical ingestion rejects impossible calendar dates",async()=>{
+ const request=new Request("https://northstar.test/api/fmp-history?ticker=MSFT&from=2025-02-30&to=2025-12-31");
  const response=await onRequestGet({request,env:{FMP_API_KEY:"test"}});
  assert.equal(response.status,400);
 });
