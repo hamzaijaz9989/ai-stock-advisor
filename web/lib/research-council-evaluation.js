@@ -47,6 +47,7 @@ export function evaluateResearchCouncilRun(run, telemetry = {}) {
       latencyMs: safeMetric(roleTelemetry.latencyMs),
       inputTokens: safeMetric(roleTelemetry.inputTokens),
       outputTokens: safeMetric(roleTelemetry.outputTokens),
+      totalTokens: safeMetric(roleTelemetry.totalTokens),
       costUsd: safeMetric(roleTelemetry.costUsd),
       provider: typeof roleTelemetry.provider === "string" ? roleTelemetry.provider : null,
       model: typeof roleTelemetry.model === "string" ? roleTelemetry.model : null
@@ -82,6 +83,7 @@ export function evaluateResearchCouncilRun(run, telemetry = {}) {
       latencyMs: allMetrics.every(x => x.latencyMs !== null) ? sum("latencyMs") : null,
       inputTokens: allMetrics.every(x => x.inputTokens !== null) ? sum("inputTokens") : null,
       outputTokens: allMetrics.every(x => x.outputTokens !== null) ? sum("outputTokens") : null,
+      totalTokens: allMetrics.every(x => x.totalTokens !== null) ? sum("totalTokens") : null,
       costUsd: allMetrics.every(x => x.costUsd !== null) ? sum("costUsd") : null
     },
     debate: {
