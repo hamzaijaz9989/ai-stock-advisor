@@ -277,3 +277,8 @@ PR #85 now adds:
 - Tests workflow `42570259653` passed: 232 JavaScript tests, 94 Python tests, and lint.
 - Validation workflow `42570259737` passed: 43 frontend analysis tests, 6 paper-readiness tests, 7 synthetic CLI checks, and SEC ingestion checks.
 - PR #85 remains open/draft/mergeable; formal review submissions remain zero. Do not mark ready or merge while the partial-fill recovery and strategy-evidence gates remain open.
+
+### PR metadata after verification — 2026-11-09 10:57 PKT
+- PR #85 head advanced to `1673c05c34a4453e9ac8a8a3e7ccbfcdf66d3fb4` solely for this blocker-log update; application code is unchanged from the tested tree at `16a3582292379579556f2d7dc6a6f75e354e9e8a`.
+- PR #85 remains OPEN, DRAFT, and mergeable. GitHub reports zero formal review submissions.
+- The branch-protection API continues to return HTTP 403 to the connected integration; required review/branch rules cannot be independently confirmed.
