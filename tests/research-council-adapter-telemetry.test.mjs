@@ -33,3 +33,32 @@ test("unconfigured workers disclose absence rather than fabricated telemetry",as
  assert.deepEqual(workers.telemetry,{});
  assert.deepEqual(workers.providerMetadata,{provider:"none",model:null});
 });
+
+test("OpenAI worker records provider-reported token usage without exposing credentials",async()=>{
+ const mockFetch=async(url,options={})=>{
+  assert.match(String(url),/api\.openai\.com\/v1\/responses/);
+  assert.ok(options.headers.Authorization.startsWith("Bearer "));
+  return Response.json({
+   output_text:JSON.stringify({status:"COMPLETE",findings:[{claim:"An evidence-backed observation.",factIds:["f1"]}],risks:[]}),
+   usage:{input_tokens:210,output_tokens:55,total_tokens:265}
+  });
+ };
+ const workers=await createResearchCouncilWorkers({OPENAI_API_KEY:"openai-test-secret",OPENAI_RESEARCH_MODEL:"gpt-test"},mockFetch);
+ const report=await workers.news_analyst({facts:[{id:"f1"}],evidence:[]});
+ assert.equal(report.status,"COMPLETE");
+ assert.equal(workers.telemetry.news_analyst.provider,"openai");
+ assert.equal(workers.telemetry.news_analyst.model,"gpt-test");
+ assert.equal(workers.telemetry.news_analyst.inputTokens,210);
+ assert.equal(workers.telemetry.news_analyst.outputTokens,55);
+ assert.equal(workers.telemetry.news_analyst.totalTokens,265);
+ assert.equal(JSON.stringify(workers.telemetry).includes("openai-test-secret"),false);
+});
+
+test("failed specialist calls retain measured latency and a failure marker",async()=>{
+ const mockFetch=async()=>Response.json({error:"provider unavailable"},{status:503});
+ const workers=await createResearchCouncilWorkers({OPENAI_API_KEY:"test-secret"},mockFetch);
+ await assert.rejects(()=>workers.bear_researcher({facts:[],evidence:[]}),/HTTP 503/);
+ assert.equal(workers.telemetry.bear_researcher.provider,"openai");
+ assert.equal(workers.telemetry.bear_researcher.failed,true);
+ assert.ok(Number.isFinite(workers.telemetry.bear_researcher.latencyMs));
+});
