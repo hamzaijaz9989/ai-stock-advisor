@@ -208,7 +208,7 @@ test("compare-and-set race cannot report PAPER activation",async()=>{
 
 test("activation rejects a pending intent or existing claim before control mutation",async()=>{
  const db=makeDb({pendingIntents:1}),{deps}=dependencies();
- const result=await activatePaperExecution({request:makeRequest(),env:env(),dependencies:{...deps,db}});
+ const result=await activatePaperExecution({request:makeRequest(),env:env(db),dependencies:deps});
  const body=await result.json();
  assert.equal(result.status,409);
  assert.equal(body.gateReason,"NORTHSTAR_LEDGER_NOT_FLAT_OR_HAS_PENDING_INTENTS");
