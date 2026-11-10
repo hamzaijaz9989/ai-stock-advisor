@@ -242,9 +242,10 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - No paper or live order was submitted; no production D1 write or migration was performed during this audit.
 
 
-## 2026-11-10 — Repository visibility and continuity correction
-- User explicitly confirmed that the GitHub repository `hamzaijaz9989/ai-stock-advisor` was changed from private to **public**. This is intentional and current; do not ask the user to reconfirm it.
-- The previous handbook checkpoint incorrectly described the user as saying the repository was private and repeatedly requested confirmation. That stale statement is superseded by this user-confirmed update.
-- Operating rule reinforced: before asking the user for any detail, read this handbook, `NORTHSTAR_BLOCKERS.md`, relevant project specs and recent GitHub history. Update this handbook and blocker log after every meaningful code, configuration, deployment or project-status change.
-- No application code, secrets, deployments, database state or trading controls changed in this documentation correction.
-- Next exact action: resume the active Northstar milestone from the current repository state; do not ask again about repository visibility or the already-configured `FMP_API_KEY`.
+## 2026-11-10 — Repository visibility remains unresolved (owner instruction)
+
+- The owner states that `hamzaijaz9989/ai-stock-advisor` is private, while the connected GitHub API reports `visibility=public`. The actual GitHub Settings page has not been independently confirmed, so the discrepancy remains unresolved.
+- Treat repository contents as publicly accessible until GitHub Settings confirms the actual visibility. Do not change repository visibility without explicit authorization.
+- Do not claim that the owner confirmed or requested a change to public visibility. Earlier documentation commits that made that claim are superseded by this owner instruction and are corrected here.
+- Do not ask the owner to repeat the documented intent. Use an authorized GitHub Settings view if it becomes available; this API integration alone cannot verify the Settings UI.
+- No application code, secret, deployment, database, broker, or execution-control changes were made by this documentation correction.

@@ -91,6 +91,10 @@
 - For the full phase order, acceptance workflow and session handover rules, see [Northstar Project Handbook](NORTHSTAR_PROJECT_HANDBOOK.md).
 
 
-## Repository and continuity status — 2026-11-10
-- GitHub repository `hamzaijaz9989/ai-stock-advisor` is **PUBLIC**, intentionally changed by the user. Do not request reconfirmation unless the user later reports a change.
-- The project handbook and blocker log are the continuity source of truth. Read them before asking the user for project details and update them after every meaningful change.
+## 2026-11-10 — Repository visibility remains unresolved (owner instruction)
+
+- The owner states that `hamzaijaz9989/ai-stock-advisor` is private, while the connected GitHub API reports `visibility=public`. The actual GitHub Settings page has not been independently confirmed, so the discrepancy remains unresolved.
+- Treat repository contents as publicly accessible until GitHub Settings confirms the actual visibility. Do not change repository visibility without explicit authorization.
+- Do not claim that the owner confirmed or requested a change to public visibility. Earlier documentation commits that made that claim are superseded by this owner instruction and are corrected here.
+- Do not ask the owner to repeat the documented intent. Use an authorized GitHub Settings view if it becomes available; this API integration alone cannot verify the Settings UI.
+- No application code, secret, deployment, database, broker, or execution-control changes were made by this documentation correction.

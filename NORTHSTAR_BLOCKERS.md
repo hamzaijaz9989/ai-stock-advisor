@@ -918,9 +918,10 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Governance note: GitHub API metadata reports `private=false / visibility=public`, contrary to the user's statement that the repository is private. No visibility change was attempted; verify directly in GitHub Settings.
 
 
-## 2026-11-10 — Repository visibility and user-history correction
-- User explicitly confirmed that `hamzaijaz9989/ai-stock-advisor` was changed from private to **public**. This is intentional current state. Do not ask the user to reconfirm it.
-- Earlier handbook/blocker statements describing the repository as private or asking the user to resolve a visibility discrepancy are stale and superseded by this confirmation. README visibility wording must match the public state.
-- User reiterated the required continuity workflow: update the GitHub project documents after every meaningful code/configuration/deployment/project change, and read those documents before asking the user for information. This is mandatory, not optional.
-- No code, secret, deployment, database, broker or execution-control change was made in this documentation-only correction.
-- Next: read the handbook and blocker log before every Northstar work item; append exact evidence and next action after each meaningful change. Do not repeat questions already answered in project records.
+## 2026-11-10 — Repository visibility remains unresolved (owner instruction)
+
+- The owner states that `hamzaijaz9989/ai-stock-advisor` is private, while the connected GitHub API reports `visibility=public`. The actual GitHub Settings page has not been independently confirmed, so the discrepancy remains unresolved.
+- Treat repository contents as publicly accessible until GitHub Settings confirms the actual visibility. Do not change repository visibility without explicit authorization.
+- Do not claim that the owner confirmed or requested a change to public visibility. Earlier documentation commits that made that claim are superseded by this owner instruction and are corrected here.
+- Do not ask the owner to repeat the documented intent. Use an authorized GitHub Settings view if it becomes available; this API integration alone cannot verify the Settings UI.
+- No application code, secret, deployment, database, broker, or execution-control changes were made by this documentation correction.

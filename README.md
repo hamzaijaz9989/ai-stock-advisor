@@ -73,10 +73,10 @@ ruff check .
 
 ## Dashboard
 
-The dashboard in `web/` is deployed to Cloudflare Pages. The repository is public.
+The dashboard in `web/` is deployed to Cloudflare Pages. The connected GitHub API currently reports `visibility=public`, while the owner states the repository should be private. This discrepancy remains unresolved. Treat repository contents as publicly accessible until GitHub Settings confirms the actual visibility; do not change visibility without explicit authorization.
 
 - [Live dashboard](https://ai-stock-advisor.pages.dev)
-- [Public GitHub repository](https://github.com/hamzaijaz9989/ai-stock-advisor)
+- [GitHub repository](https://github.com/hamzaijaz9989/ai-stock-advisor)
 
 It includes SEC EDGAR reported facts and filings, best-effort quote and one-year history data, headline discovery, a third-party upcoming-earnings calendar check, a provisional five-year cash-flow-per-share valuation, ATR-based risk levels, and a decision checklist.
 
