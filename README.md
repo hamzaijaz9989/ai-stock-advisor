@@ -144,3 +144,8 @@ Repository visibility is unresolved: GitHub API metadata currently reports `publ
 ## 2026-11-11 00:32 PKT / 2026-11-10 19:32 UTC — current research and data-quality status
 
 Production Alpaca paper and FMP quote/history/fundamentals bindings now pass read-only GET health checks; do not re-enter working keys based on older screenshots. FMP news remains HTTP 402, discovery headlines are not publisher-verified, and no permitted timestamped sentiment feed is configured. The monitor's latest run #270 still fails closed on stale shortlist cache with zero symbols/quotes/events. The nine-agent POST routes were not invoked because they require the run-time operator token; no live Council acceptance is claimed. The seven-day trusted snapshot baseline remains unavailable before 2026-11-15T18:34:38.720Z. Execution remains disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-11 00:36 PKT / 2026-11-10 19:36 UTC — U.S. market-session clarification
+
+The latest Alpaca quotes/movers around 19:34Z on Nov 10 were current for the U.S. Nov 10 session (14:34 EST); they are not stale just because Pakistan local time had crossed midnight. However, the independent market-monitor Worker still fails closed on stale shortlist cache (run #271), with zero symbols/quotes/events. Provider input availability is not a successful scanner run or nine-agent acceptance. FMP news remains HTTP 402, discovery headlines are unverified, and no licensed UTC-qualified sentiment feed is accepted. Keep BUY disabled, execution disabled and kill switch engaged.
