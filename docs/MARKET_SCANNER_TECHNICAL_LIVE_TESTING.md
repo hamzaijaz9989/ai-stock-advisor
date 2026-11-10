@@ -1,5 +1,14 @@
 # Market Scanner production acceptance audit
 
+## Current follow-up — 2026-11-11 20:57 UTC
+
+- GitHub main remains `85c51f847f4b4a966be629ff9f3702194d6ae262`. Draft PR #116 carries the isolated nine-agent integration plus scanner safeguards and the timezone fix; its exact-head Node tests, Python tests, and full-history secret scan passed. PRs #108 and #115 remain open and unmerged.
+- Full JavaScript suite: 288/288 passed. The point-in-time regression now rejects FMP accepted timestamps without an explicit timezone instead of interpreting them using the machine's local timezone.
+- Latest production D1 monitor run #287 (`2026-11-10T20:55:52.645Z`) failed with zero symbols checked and ten quote failures. `monitor_quotes`, `monitor_events`, `research_council_runs`, and `research_decision_traces` each contain zero rows. Read-only controls remain `mode=paper`, `enabled=0`, `kill_switch=1`; D1 reads wrote zero rows.
+- Production Worker version `2739d49a-4182-423f-8113-616252c5ddd6` still sends FMP authentication in the custom header. The checked-in cache is generated at `2026-11-10T19:42:15.959Z`, outside the 30-minute validator window. No refresh was dispatched, production deployment performed, or PR merged.
+
+**Current acceptance: incomplete.** The scanner code and nine-agent integration pass automated tests, but live production quote retrieval, D1 quote persistence and authenticated nine-agent execution remain unverified or failing.
+
 ## Verified state — 2026-11-10 20:10 UTC
 
 - Current `main` at audit start: `85c51f847f4b4a966be629ff9f3702194d6ae262`.
@@ -11,7 +20,7 @@
 - The production Trading Lab displays the same ten tickers and scores as the published cache, with its generated timestamp. This confirms it renders the actual cache data.
 - Production `execution_control` was read-only verified as `mode=paper`, `enabled=0`, `kill_switch=1`. No secrets were read, and no broker or execution-control action was taken.
 
-**Acceptance status: incomplete.** Full-universe scanning, cache validation and production cache publication are verified. Fresh production quote retrieval and D1 quote persistence are failing. The current code change adds redacted provider/status failure classes to future run details; it has not been deployed, so it does not resolve or identify the current upstream provider fault. Do not call the scanner production-complete until a subsequent production run stores fresh quote rows and all remaining acceptance criteria pass.
+**Historical acceptance state: incomplete.** Full-universe scanning and cache publication passed at the recorded scan time. The production Worker has not received the FMP auth correction or safe provider-failure categories. Do not call the scanner production-complete until a fresh cache passes the 30-minute validator, fresh quotes persist to D1, and the remaining acceptance criteria pass.
 
 # Parallel live-data acceptance: Market Scanner + Technical Analyst
 
