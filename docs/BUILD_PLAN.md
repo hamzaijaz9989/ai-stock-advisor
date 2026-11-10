@@ -89,3 +89,8 @@
 - **Strategy validation:** not approved; validated BUY remains disabled. Software tests and agent scorecards do not prove predictive performance.
 - **Paper lifecycle:** not ready; execution remains disabled and kill switch engaged. No paper or live test orders.
 - For the full phase order, acceptance workflow and session handover rules, see [Northstar Project Handbook](NORTHSTAR_PROJECT_HANDBOOK.md).
+
+
+## Repository and continuity status — 2026-11-10
+- GitHub repository `hamzaijaz9989/ai-stock-advisor` is **PUBLIC**, intentionally changed by the user. Do not request reconfirmation unless the user later reports a change.
+- The project handbook and blocker log are the continuity source of truth. Read them before asking the user for project details and update them after every meaningful change.
