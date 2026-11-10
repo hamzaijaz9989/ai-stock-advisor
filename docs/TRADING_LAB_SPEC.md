@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Initial market:** US-listed liquid equities and broad-market ETFs  
-**Initial account allocation for simulation:** USD 1,000  
+**Initial account allocation for simulation:** USD 2,500 maximum (user-approved 2026-11-11)  
 **Execution status:** Paper-only; no live brokerage orders  
 **Strategy status:** Experimental; not approved for real-money automation
 
@@ -31,21 +31,21 @@ Trading Lab has two future market tabs, but the first implementation is US equit
 
 Agents can run as logical services, but deterministic code owns eligibility and execution. Agent consensus cannot bypass a failed hard gate.
 
-## 3. Initial $1,000 risk profile (simulation defaults)
+## 3. Approved $2,500 pilot risk profile (paper simulation only)
 
 These are conservative engineering limits for a paper pilot, not personalized financial advice or a guarantee against loss.
 
 | Control | Initial limit |
 |---|---:|
-| Simulation allocation | $1,000 |
-| Planned risk per position | 0.5% equity = $5 |
-| Absolute planned risk per position | 1% equity = $10 |
-| Aggregate open planned risk | 2% equity = $20 |
-| Maximum single-position notional | 25% equity = $250 |
-| Maximum sector exposure | 40% equity = $400 |
-| Daily loss stop | 2% starting daily equity = $20 |
-| Weekly loss stop | 4% weekly starting equity = $40 |
-| Strategy drawdown pause | 8% from peak equity = $80 |
+| Maximum pilot allocation | $2,500 |
+| Maximum planned risk per trade | $25 absolute; size lower if the strategy or portfolio budget requires it |
+| Daily realized + unrealized loss stop | $50 absolute from the session baseline |
+| Aggregate open planned risk | Must not exceed $25 per trade multiplied by approved concurrent-position cap; initial implementation must use a single open position until correlation/exposure controls are validated |
+| Maximum single-position notional | Must fit within the $2,500 total pilot allocation; position size is further limited by stop-distance risk |
+| Maximum sector exposure | No more than 40% of the $2,500 pilot allocation ($1,000) |
+| Daily loss stop | $50 absolute (user-approved) |
+| Weekly loss stop | 4% of pilot allocation ($100), provisional additional safety ceiling |
+| Strategy drawdown pause | 8% of pilot allocation ($200), provisional additional safety ceiling |
 | Leverage, margin, options, shorting | Disabled |
 | Initial concurrent positions | One until portfolio-level validation passes |
 
@@ -101,12 +101,12 @@ The universe list is version-controlled with the scanner. Universe breadth incre
 
 ## 6. Paper execution safety
 
-The current `/api/alpaca/status` route is read-only and connects only to Alpaca Paper Trading. It does not submit orders. Do not claim that an executor exists until a separately reviewed paper-order route has been implemented and verified.
+The current `/api/alpaca/status` route is read-only and connects only to Alpaca Paper Trading. It does not submit orders. The user's approval is to implement automatic paper orders only after all safeguards and tests pass. It does not enable the executor now. Do not claim that an executor exists until a separately reviewed paper-order route has been implemented and verified.
 
 Before adding paper order placement:
 - Add server-side authentication/authorization for order actions; a public unauthenticated endpoint must never be able to place orders using the owner's broker credentials.
 - Hard-code the paper API host; no request parameter may select live vs paper.
-- Enforce the $1,000 virtual allocation and all limits server-side, independent of Alpaca's displayed buying power.
+- Enforce the $2,500 maximum virtual allocation, $25 maximum planned risk per trade, and $50 daily loss stop server-side, independent of Alpaca's displayed buying power.
 - Require explicit user arming for each paper session, a clear paper-only label, and a kill switch.
 - Validate symbol allowlist, side, quantity, order type, price bounds, buying power, risk budget and event/data gates server-side.
 - Use unique client order IDs and reconcile order status before retrying to prevent duplicate orders.
@@ -153,7 +153,7 @@ Do not display fabricated balances, placeholder trades, guaranteed profit figure
 1. **Foundation audit:** reconcile current main branch, strategy validation status, Alpaca paper connection, data entitlements and account configuration.
 2. **Trading Lab read-only UI:** scanner diagnostics, account reconciliation, risk calculator and audit journal; no order submission.
 3. **Real historical evaluation:** build point-in-time dataset and evaluate frozen candidate strategies with walk-forward and holdout tests.
-4. **Paper execution:** only after authentication and server-side risk enforcement; start with a $1,000 virtual allocation.
+4. **Paper execution:** only after authentication and server-side risk enforcement; hard cap the virtual allocation at $2,500, planned risk at $25 per trade, and daily loss at $50. Automation remains disabled until a final acceptance review.
 5. **Paper observation:** monitor fills, slippage, reconciliation and risk stops over a meaningful sample.
 6. **Independent review:** decide whether any strategy merits further consideration. Live trading remains a separate, explicit decision and is outside this implementation.
 
