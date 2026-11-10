@@ -181,6 +181,18 @@ test("synthetic collector records all nine role outcomes, fails closed on missin
   assert.equal(body.automatedOrderSubmission,false);
   assert.equal(body.result.status,"NO_TRADE");
   assert.equal(body.result.traceDurable,true);
+  assert.equal(body.result.trace.schemaVersion,1);
+  assert.equal(body.result.trace.inputSha256,state.runs.get("collector-e2e-0001").input_sha256);
+  assert.ok(body.result.trace.facts.length>0);
+  assert.ok(body.result.trace.evidence.length>0);
+  assert.equal(body.result.trace.portfolio.virtualAllocationUsd,1000);
+  assert.equal(body.result.trace.portfolio.actualAccountEquityUsd,100000);
+  const traceIds=new Set([...body.result.trace.facts,...body.result.trace.evidence].map(item=>item.id));
+  for(const entry of body.result.reports){
+   for(const claim of [...(entry.report.findings||[]),...(entry.report.risks||[])]){
+    assert.ok((claim.factIds||[]).every(id=>traceIds.has(id)),"every persisted report citation must resolve to the durable source snapshot");
+   }
+  }
   assert.deepEqual(body.result.agents.map(agent=>agent.role),[
    "market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst",
    "bull_researcher","bear_researcher","portfolio_analyst","risk_committee"
@@ -226,6 +238,7 @@ test("synthetic collector records all nine role outcomes, fails closed on missin
   assert.equal(replayBody.traceDurable,true);
   assert.equal(replayBody.execution,false);
   assert.equal(replayBody.result.evaluation.totals.roleCount,9);
+  assert.deepEqual(replayBody.result.trace,body.result.trace,"idempotent replay must return the exact persisted source snapshot");
   assert.equal(calls.length,callsBeforeReplay);
   assert.equal(state.writes.length,writesBeforeReplay);
  }finally{
