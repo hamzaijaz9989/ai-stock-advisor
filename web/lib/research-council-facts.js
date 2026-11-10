@@ -84,15 +84,17 @@ function validatePortfolio(portfolio, asOfMs) {
   }
   const capturedAt = dateMs(portfolio.asOf);
   if (capturedAt === null || capturedAt > asOfMs) throw new TypeError("Portfolio snapshot timestamp is missing or after the research as-of time.");
-  const fields = ["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"];
+  const fields = ["equityUsd","virtualAllocationUsd","actualAccountEquityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"];
   if (fields.some(key => portfolio[key] === null || portfolio[key] === undefined || portfolio[key] === "")) throw new TypeError("Portfolio risk snapshot contains missing numeric fields.");
   const values = Object.fromEntries(fields.map(key => [key, Number(portfolio[key])]));
-  if (!fields.every(key => Number.isFinite(values[key])) || values.equityUsd <= 0 ||
+  if (!fields.every(key => Number.isFinite(values[key])) || values.equityUsd <= 0 || values.virtualAllocationUsd <= 0 || values.actualAccountEquityUsd <= 0 ||
+      Math.abs(values.equityUsd - values.virtualAllocationUsd) > 0.01 ||
+      portfolio.riskMetricBasis !== "actual_alpaca_paper_account_equity" ||
       fields.filter(key => key !== "equityUsd" && key !== "concurrentPositions").some(key => values[key] < 0) ||
       !Number.isInteger(values.concurrentPositions)) {
     throw new TypeError("Portfolio risk snapshot contains missing or invalid numeric fields.");
   }
-  return {...values, asOf: new Date(capturedAt).toISOString(), source: portfolio.source, verified: true};
+  return {...values, capitalBasis:"virtual_strategy_allocation", accountEquityBasis:"actual_alpaca_paper_account", riskMetricBasis:portfolio.riskMetricBasis, asOf: new Date(capturedAt).toISOString(), source: portfolio.source, verified: true};
 }
 
 
