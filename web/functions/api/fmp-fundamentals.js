@@ -37,11 +37,11 @@ export async function onRequestGet({ request, env }) {
   const ticker = (url.searchParams.get("ticker") || "").trim().toUpperCase();
   const headers = { "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" };
   if (!TICKER_RE.test(ticker)) return Response.json({ error: "Enter a valid US stock ticker." }, { status: 400, headers });
-  const fmpKey = env?.FMP_API_KEY2 || env?.FMP_API_KEY;
+  const fmpKey = env?.FMP_API_KEY || env?.FMP_API_KEY2;
   if (!fmpKey) {
     return Response.json({
       available: false, configured: false,
-      reason: "Financial Modeling Prep is not configured. Add FMP_API_KEY2 (or FMP_API_KEY) as a Cloudflare Pages secret."
+      reason: "Financial Modeling Prep is not configured. Add FMP_API_KEY as a Cloudflare Pages secret."
     }, { status: 503, headers: { ...headers, "Cache-Control": "no-store" } });
   }
   const requests = [

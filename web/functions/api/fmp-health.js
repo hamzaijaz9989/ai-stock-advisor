@@ -2,7 +2,7 @@
 // Never returns, logs, or echoes the API key.
 export async function onRequestGet(context) {
   const env = context?.env || {};
-  const key = env.FMP_API_KEY2 || env.FMP_API_KEY;
+  const key = env.FMP_API_KEY || env.FMP_API_KEY2;
   const configured = typeof key === "string" && key.trim().length > 0;
   const result = {
     runtime: "Cloudflare Pages Functions",
