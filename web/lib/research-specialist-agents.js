@@ -9,7 +9,6 @@ const report = (findings, risks=[]) => ({status:"COMPLETE",findings,risks});
 const claim = (text, ids) => ({claim:text,factIds:ids});
 const factsOf = (context, type) => (context?.facts || []).filter(x=>x.type===type);
 const evidenceOf = (context, type) => (context?.evidence || []).filter(x=>x.type===type);
-const rowsOf = context => factsOf(context,"DAILY_OHLCV_HISTORY").flatMap(x=>x.value?.rows||[]);
 const tickerOf = context => String(context?.ticker||"").toUpperCase();
 
 export function runMarketScanner(context) {
@@ -17,6 +16,7 @@ export function runMarketScanner(context) {
   if(!quotes.length || !histories.length) return unavailable("Timestamped quote and OHLCV history are required.");
   const q=quotes[0], h=histories[0], price=q.value?.price, rows=h.value?.rows||[];
   if(!finite(price)||price<=0||rows.length<20) return unavailable("A valid quote and at least 20 daily bars are required.");
+  if(!rows.every((x,i)=>x && typeof x.date==="string" && finite(x.close)&&x.close>0 && finite(x.high)&&finite(x.low)&&finite(x.volume)&&x.high>=x.low&&x.volume>=0 && (!i || rows[i-1].date<x.date))) return unavailable("OHLCV rows must be valid, unique and chronologically ordered.");
   const prior=rows.slice(-20,-1), avgVol=prior.reduce((s,x)=>s+x.volume,0)/prior.length;
   const last=rows.at(-1), volumeRatio=avgVol>0?last.volume/avgVol:null;
   const move=finite(q.value.changePercent)?q.value.changePercent:null;
@@ -26,6 +26,7 @@ export function runMarketScanner(context) {
   if(move!==null) findings.push(claim("Provider-reported quote change is "+move.toFixed(2)+" percent; this is a single-symbol observation, not a market-wide ranking.",[q.id]));
   const risks=[];
   if(q.value.quoteFreshness?.status!=="FRESH") risks.push(claim("Quote freshness is not verified as fresh; scanner output must not be treated as a live opportunity ranking.",[q.id]));
+  if(q.value.delayedOrRealtime && !/real.?time/i.test(q.value.delayedOrRealtime)) risks.push(claim("Quote provider labels this observation as delayed or non-real-time; verify price independently before relying on it.",[q.id]));
   if(rows.length<60) risks.push(claim("History is shorter than the 60-session coverage target; broad momentum screening remains limited.",[h.id]));
   return report(findings,risks);
 }
@@ -33,18 +34,25 @@ export function runMarketScanner(context) {
 export function runTechnicalAnalyst(context) {
   const histories=factsOf(context,"DAILY_OHLCV_HISTORY"), h=histories[0], rows=h?.value?.rows||[];
   if(!h || rows.length<60) return unavailable("At least 60 valid daily OHLCV observations are required.");
+  if(!rows.every((x,i)=>x && typeof x.date==="string" && finite(x.close)&&x.close>0 && finite(x.high)&&finite(x.low)&&x.high>=x.low && (!i || rows[i-1].date<x.date))) return unavailable("OHLCV rows must be valid, unique and chronologically ordered.");
   const closes=rows.map(x=>x.close);
-  if(!closes.every(x=>finite(x)&&x>0)) return unavailable("OHLCV close series contains invalid values.");
   const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
   const sma20=mean(closes.slice(-20)), sma50=mean(closes.slice(-50));
   let gains=0,losses=0;
   for(let i=closes.length-14;i<closes.length;i++){const d=closes[i]-closes[i-1];if(d>0)gains+=d;else losses-=d;}
   const avgGain=gains/14, avgLoss=losses/14;
   const rsi=avgLoss===0?100:100-(100/(1+avgGain/avgLoss));
+  const ema=(values,period)=>{const k=2/(period+1);let v=mean(values.slice(0,period));for(let i=period;i<values.length;i++)v=values[i]*k+v*(1-k);return v;};
+  const macdLine=ema(closes,12)-ema(closes,26);
+  const macdSeries=[];for(let i=25;i<closes.length;i++){const slice=closes.slice(0,i+1);macdSeries.push(ema(slice,12)-ema(slice,26));}
+  const signal=macdSeries.length>=9?ema(macdSeries,9):null;
+  const recent=rows.slice(-20), support=Math.min(...recent.map(x=>x.low)), resistance=Math.max(...recent.map(x=>x.high));
   const ids=[h.id], findings=[
     claim("The 20-session simple moving average is "+sma20.toFixed(4)+" and the 50-session simple moving average is "+sma50.toFixed(4)+".",[h.id]),
     claim("The 14-session RSI calculated from the supplied closes is "+rsi.toFixed(2)+".",[h.id]),
-    claim("The latest close is "+closes.at(-1).toFixed(4)+"; moving-average positioning is "+(sma20>sma50?"20-session above 50-session":sma20<sma50?"20-session below 50-session":"approximately aligned")+".",[h.id])
+    claim("MACD (12,26) is "+macdLine.toFixed(4)+(signal===null?"; signal line unavailable because fewer than nine MACD observations exist.":" and its 9-period signal line is "+signal.toFixed(4)+".")+"",[h.id]),
+    claim("The latest close is "+closes.at(-1).toFixed(4)+"; 20-session observed support is "+support.toFixed(4)+" and resistance is "+resistance.toFixed(4)+".",[h.id]),
+    claim("Moving-average positioning is "+(sma20>sma50?"20-session above 50-session":sma20<sma50?"20-session below 50-session":"approximately aligned")+".",[h.id])
   ];
   const risks=[];
   if(h.value?.dataQuality!=="verified-adjusted") risks.push(claim("Corporate-action adjustment and price-series continuity are not independently attested; technical levels may be distorted by splits or distributions.",ids));
