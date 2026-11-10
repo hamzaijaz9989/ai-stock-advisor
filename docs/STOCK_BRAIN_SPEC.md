@@ -129,3 +129,18 @@ Not yet proven: end-to-end point-in-time strategy backtesting, live/holdout perf
 - Strategy/paper state: NOT APPROVED; no genuine four-fold walk-forward plus untouched holdout evidence. Production execution remains `enabled=0`, `mode=paper`, `kill_switch=1`, $1,000 cap. No orders were submitted.
 - Remaining blockers: Preview lacks `FMP_API_KEY2`, Alpaca key ID/secret and Gemini binding; Production has those bindings but values are write-only and were not copied. The only Production equity snapshot is stale at `2026-11-08T18:34:38.720Z`; no seven-day baseline exists. The controlled authenticated research-only acceptance run remains blocked. Independent PR review and branch-governance confirmation remain missing.
 - Exact next action: restore Preview provider credentials via authorized secret entry, establish a genuine fresh/reconciled seven-day paper-equity baseline, then perform one authenticated research-only collection with execution disabled and read back the persisted nine-role result/scorecard/telemetry. Obtain independent review and confirm branch governance before any merge; keep Production unchanged.
+
+
+## 2026-11-10 05:10 PKT — Preview isolation and acceptance evidence
+
+The nine-agent Stock Brain workspace is present in the deployed Pages Preview and is served by Pages Functions. The exact PR code head `40beb6ae05543ff62411f4173dabc282d7534753` passed Tests (`42725930803`), Validate (`42725930456`) and full-history secret scan (`42725930551`). Cloudflare Preview deployment `dea395bb-27ae-4795-afda-9692960340f1` succeeded with `uses_functions=true`; a live scrape of `/trading-lab.html` returned HTTP 200 and found the Stock Brain root, run button, role matrix and scorecard elements.
+
+### D1 environment boundary
+
+Pages Wrangler configuration must use `[[env.preview.d1_databases]]` and `[[env.production.d1_databases]]` for environment-specific D1 bindings. The Preview binding is the isolated `northstar-preview` database; Production remains on `northstar-paper-ledger`. A regression test asserts that the IDs differ. The first attempted `previews.d1_databases` form was rejected by the deployed Wrangler 3.114.17 parser and was replaced by the documented Pages `env.preview` / `env.production` form. The successful deployment metadata confirms Preview is bound to the preview database.
+
+### Acceptance status
+
+This is implementation + CI + Preview verification, not an authenticated research acceptance or strategy approval. Preview currently lacks `FMP_API_KEY`, Alpaca Paper credentials and `GEMINI_API_KEY`; its D1 has no equity snapshots. Production has only one stale equity snapshot (`2026-11-08T18:34:38.720Z`) and no seven-day baseline. No authenticated collector run, D1 write, broker request or order was performed. Strategy validation remains NOT APPROVED, BUY stays disabled, and paper execution remains disabled with the kill switch engaged.
+
+Next: restore Preview credentials through Cloudflare secret entry, establish a genuine fresh/reconciled seven-day baseline via approved read-only operations, and run one controlled research-only collection only after every gate passes. Preserve the original evidence and verify the durable council result, scorecard and telemetry.
