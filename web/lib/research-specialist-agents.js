@@ -60,34 +60,84 @@ export function runTechnicalAnalyst(context) {
 }
 
 export function runFundamentalAnalyst(context) {
-  const sec=factsOf(context,"SEC_REPORTED_FACT"), fmp=factsOf(context,"FMP_REPORTED_FUNDAMENTALS_CROSSCHECK").concat(factsOf(context,"FMP_STATEMENT_PERIOD"));
-  if(!sec.length && !fmp.length) return unavailable("SEC-reported facts or provider fundamentals are required.");
-  const ids=[...sec,...fmp].map(x=>x.id);
-  const metrics=[...sec,...fmp].map(x=>({id:x.id,...(x.value||{})}));
-  const labels=metrics.map(x=>String(x.metric||x.key||x.tag||"").toLowerCase());
-  const categories=[
-    ["revenue",/revenue|sales/],["earnings",/net.?income|profit|earnings/],
-    ["cash flow",/operating.?cash.?flow|free.?cash.?flow/],["debt",/long.?term.?debt|short.?term.?debt|total.?debt/]
+  const sec=factsOf(context,"SEC_REPORTED_FACT");
+  const fmp=[...factsOf(context,"FMP_REPORTED_FUNDAMENTALS_CROSSCHECK"),...factsOf(context,"FMP_STATEMENT_PERIOD"),...factsOf(context,"FMP_PROVIDER_METRIC"),...factsOf(context,"FMP_ANALYST_ESTIMATE")];
+  if(!sec.length&&!fmp.length) return unavailable("SEC-reported facts or provider fundamentals are required.");
+  const observations=[...sec,...fmp];
+  const ids=observations.map(x=>x.id).filter(Boolean);
+  const rows=observations.map(x=>({id:x.id,type:x.type,value:x.value||{}}));
+  const metricPairs=[];
+  for(const row of rows){
+    const v=row.value;
+    if(typeof v.metric==="string"&&finite(v.value)) metricPairs.push({name:v.metric.toLowerCase(),value:v.value,id:row.id,period:v.end||v.fiscalDate||v.period||null,currency:v.unit||v.currency||null});
+    const values=v.values&&typeof v.values==="object"?v.values:v.metrics&&typeof v.metrics==="object"?v.metrics:null;
+    if(values) for(const [name,value] of Object.entries(values)) if(finite(value)) metricPairs.push({name:name.toLowerCase(),value,id:row.id,period:v.period||v.date||null,currency:v.reportedCurrency||null});
+    if(v.metrics&&typeof v.metrics==="object"&&!v.values) for(const [name,value] of Object.entries(v.metrics)) if(finite(value)) metricPairs.push({name:name.toLowerCase(),value,id:row.id,period:v.fiscalDate||v.period||null,currency:v.currency||null});
+  }
+  const groups=[
+    ["revenue",/revenue|sales/],
+    ["gross profit",/grossprofit|gross_profit/],
+    ["operating income",/operatingincome|operating_income/],
+    ["net income",/netincome|net_income/],
+    ["operating cash flow",/operatingcashflow|operating_cash_flow/],
+    ["free cash flow",/freecashflow|free_cash_flow/],
+    ["total debt",/totaldebt|total_debt|longtermdebt|long_term_debt/],
+    ["cash",/cashandcashequivalents|cash_and_cash_equivalents|cashandequivalents/]
   ];
-  const covered=categories.filter(([,re])=>labels.some(x=>re.test(x))).map(x=>x[0]);
-  const findings=[claim("Fundamental evidence contains "+sec.length+" SEC observations and "+fmp.length+" provider cross-check/statement observations; identified metric groups: "+(covered.join(", ")||"none clearly labelled")+".",ids.slice(0,10))];
+  const coverage=groups.map(([label,re])=>({label,items:metricPairs.filter(x=>re.test(x.name))}));
+  const covered=coverage.filter(x=>x.items.length).map(x=>x.label);
+  const findings=[claim("Fundamental review includes "+sec.length+" SEC fact observation(s) and "+fmp.length+" FMP statement, metric or estimate observation(s). Metric groups found: "+(covered.join(", ")||"none clearly labelled")+".",ids.slice(0,20))];
+  for(const group of coverage){
+    const series=group.items.filter(x=>x.period).sort((a,b)=>String(a.period).localeCompare(String(b.period)));
+    if(series.length>=2){
+      const first=series[0],last=series.at(-1);
+      if(first.value!==0){
+        const change=((last.value-first.value)/Math.abs(first.value))*100;
+        findings.push(claim(group.label+" changed "+change.toFixed(2)+"% between supplied periods "+first.period+" and "+last.period+"; periods and units must be comparable.",[first.id,last.id]));
+      }
+    }
+  }
   const risks=[];
-  if(!sec.length) risks.push(claim("SEC company-facts observations are absent; provider-only metrics require independent filing verification.",ids.slice(0,10)));
-  if(!fmp.length) risks.push(claim("Independent provider cross-checks are absent; reported fundamentals have not been cross-validated.",ids.slice(0,10)));
-  if(metrics.some(x=>x.availabilityTimestampVerified===false)) risks.push(claim("At least one SEC fact lacks an exact verified public-availability timestamp; point-in-time use is restricted.",ids.slice(0,10)));
-  if(covered.length<4) risks.push(claim("Revenue, earnings, cash-flow and debt coverage is incomplete; business quality cannot be fully assessed.",ids.slice(0,10)));
+  if(!sec.length) risks.push(claim("SEC company-facts observations are absent; provider-only metrics require filing-level verification.",ids.slice(0,20)));
+  if(!fmp.length) risks.push(claim("FMP statement/provider cross-check observations are absent; SEC facts have no independent provider comparison.",ids.slice(0,20)));
+  if(rows.some(x=>x.type==="SEC_REPORTED_FACT"&&x.value.availabilityTimestampVerified!==true))
+    risks.push(claim("SEC filed dates are not exact public-availability timestamps; historical point-in-time backtests must not treat these observations as proven available at the as-of time.",rows.filter(x=>x.type==="SEC_REPORTED_FACT").map(x=>x.id).slice(0,20)));
+  if(covered.length<6) risks.push(claim("Financial statement coverage is incomplete across revenue, profitability, cash flow, debt and liquidity; business quality cannot be fully assessed.",ids.slice(0,20)));
+  const periods=new Set(metricPairs.map(x=>x.period).filter(Boolean));
+  if(periods.size>1&&metricPairs.some(x=>!x.period)) risks.push(claim("Some reported metrics lack fiscal-period labels; mixed-period comparisons are unsafe.",ids.slice(0,20)));
+  const currencies=new Set(metricPairs.map(x=>x.currency).filter(Boolean));
+  if(currencies.size>1) risks.push(claim("Evidence contains multiple units or currencies; values must not be combined without normalization.",ids.slice(0,20)));
+  if(rows.some(x=>x.type==="FMP_ANALYST_ESTIMATE"||/estimate/i.test(x.type))) risks.push(claim("Analyst estimates are forecasts, not reported results; they must remain separate from historical financial performance.",rows.filter(x=>x.type==="FMP_ANALYST_ESTIMATE"||/estimate/i.test(x.type)).map(x=>x.id).slice(0,20)));
   return report(findings,risks);
 }
 
 export function runNewsAnalyst(context) {
   const items=evidenceOf(context,"NEWS_DISCOVERY");
   if(!items.length) return unavailable("No news discovery evidence was supplied.");
-  const usable=items.filter(x=>x.value?.timestampStatus==="PRESENT" && x.value?.title);
-  const ids=items.map(x=>x.id).slice(0,10);
-  const findings=[claim("News review received "+items.length+" discovery item(s); "+usable.length+" have a present publication timestamp. Discovery items are not automatically verified issuer announcements.",ids)];
+  const asOf=Date.parse(context?.asOf||"");
+  const seen=new Set(), usable=[], duplicateIds=[], futureIds=[], undatedIds=[], unverifiedIds=[];
+  for(const item of items){
+    const v=item.value||{}, url=String(v.url||"").trim(), title=String(v.title||"").trim();
+    const key=url.toLowerCase()||title.toLowerCase();
+    if(key&&seen.has(key)){duplicateIds.push(item.id);continue;}
+    if(key)seen.add(key);
+    const published=Date.parse(v.publishedAt||"");
+    if(!title||!url||!/^https?:\/\//i.test(url)) continue;
+    if(!Number.isFinite(published)){undatedIds.push(item.id);continue;}
+    if(Number.isFinite(asOf)&&published>asOf){futureIds.push(item.id);continue;}
+    usable.push(item);
+    if(v.sourceTier==="unverified-source"||v.publisherVerified===false||!v.publisher)unverifiedIds.push(item.id);
+  }
+  const primary=usable.filter(x=>x.value?.sourceTier==="primary-source"||x.value?.publisherVerified===true&&/issuer|investor relations|sec\.gov/i.test(String(x.value?.publisher||""))).length;
+  const reported=usable.filter(x=>x.value?.sourceTier==="reported-source").length;
+  const findings=[claim("News review received "+items.length+" discovery item(s), with "+usable.length+" unique, dated items at or before the research as-of time; "+primary+" primary-source and "+reported+" reported-source items are identified. Discovery headlines are not automatically verified issuer catalysts.",items.map(x=>x.id).slice(0,20))];
   const risks=[];
-  if(!usable.length) risks.push(claim("No news item has a usable publication timestamp; catalyst chronology cannot be established.",ids));
-  if(items.some(x=>x.value?.sourceTier==="unverified-source" || !x.value?.sourceTier)) risks.push(claim("Some news discovery sources are unverified; corroboration against issuer or regulator originals is required.",ids));
+  if(!usable.length) risks.push(claim("No usable dated news item remains after chronology and URL checks; event chronology cannot be established.",items.map(x=>x.id).slice(0,20)));
+  if(undatedIds.length) risks.push(claim(undatedIds.length+" news item(s) have missing or invalid publication timestamps and cannot establish event chronology.",undatedIds.slice(0,20)));
+  if(futureIds.length) risks.push(claim(futureIds.length+" news item(s) are dated after the research as-of time and were excluded from historical catalyst assessment.",futureIds.slice(0,20)));
+  if(duplicateIds.length) risks.push(claim(duplicateIds.length+" duplicate news item(s) were excluded from unique-item counts.",duplicateIds.slice(0,20)));
+  if(unverifiedIds.length) risks.push(claim(unverifiedIds.length+" dated item(s) have unverified publisher attribution; corroborate material claims against issuer or regulator originals.",unverifiedIds.slice(0,20)));
+  if(primary===0) risks.push(claim("No issuer/regulator primary source is identified; material announcements remain uncorroborated.",usable.map(x=>x.id).slice(0,20)));
   return report(findings,risks);
 }
 

@@ -48,3 +48,35 @@ test("news headlines remain discovery evidence and are not elevated to verified 
  const c={facts:[],evidence:[{id:"n",type:"NEWS_DISCOVERY",value:{title:"Issuer story",timestampStatus:"PRESENT",sourceTier:"unverified-source"}}]};
  const out=runNewsAnalyst(c);assert.equal(out.status,"COMPLETE");assert.ok(out.risks.length>0);
 });
+
+test("fundamental analyst compares supplied periods and flags SEC availability limits",()=>{
+ const c=context();
+ c.facts.push({id:"sec5",type:"SEC_REPORTED_FACT",value:{metric:"Revenue",value:100,unit:"USD",end:"2024-12-31",availabilityTimestampVerified:false}});
+ c.facts.push({id:"sec6",type:"SEC_REPORTED_FACT",value:{metric:"Revenue",value:125,unit:"USD",end:"2025-12-31",availabilityTimestampVerified:false}});
+ const out=runFundamentalAnalyst(c);
+ assert.equal(out.status,"COMPLETE");
+ assert.ok(out.findings.some(x=>x.claim.includes("changed 25.00%")));
+ assert.ok(out.risks.some(x=>x.claim.includes("public-availability timestamps")));
+});
+test("news analyst excludes future and undated items and flags unverified sources",()=>{
+ const c={asOf:"2026-11-10T12:00:00Z",facts:[],evidence:[
+  {id:"n1",type:"NEWS_DISCOVERY",value:{title:"Issuer results",url:"https://example.com/a",publishedAt:"2026-11-10T10:00:00Z",publisher:"Unknown"}},
+  {id:"n2",type:"NEWS_DISCOVERY",value:{title:"Future story",url:"https://example.com/b",publishedAt:"2026-11-10T13:00:00Z"}},
+  {id:"n3",type:"NEWS_DISCOVERY",value:{title:"Undated story",url:"https://example.com/c"}}
+ ]};
+ const out=runNewsAnalyst(c);
+ assert.equal(out.status,"COMPLETE");
+ assert.ok(out.findings.some(x=>x.claim.includes("1 unique, dated")));
+ assert.ok(out.risks.some(x=>x.claim.includes("after the research as-of time")));
+ assert.ok(out.risks.some(x=>x.claim.includes("missing or invalid publication timestamps")));
+ assert.ok(out.risks.some(x=>x.claim.includes("unverified publisher attribution")));
+});
+test("news analyst removes duplicate URLs from unique dated counts",()=>{
+ const c={asOf:"2026-11-10T12:00:00Z",facts:[],evidence:[
+  {id:"n1",type:"NEWS_DISCOVERY",value:{title:"Story",url:"https://example.com/a",publishedAt:"2026-11-10T10:00:00Z",publisher:"Reuters",sourceTier:"reported-source"}},
+  {id:"n2",type:"NEWS_DISCOVERY",value:{title:"Story duplicate",url:"https://example.com/a",publishedAt:"2026-11-10T10:00:00Z",publisher:"Reuters",sourceTier:"reported-source"}}
+ ]};
+ const out=runNewsAnalyst(c);
+ assert.ok(out.findings.some(x=>x.claim.includes("1 unique, dated")));
+ assert.ok(out.risks.some(x=>x.claim.includes("duplicate news item")));
+});
