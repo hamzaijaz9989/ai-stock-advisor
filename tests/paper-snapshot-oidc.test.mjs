@@ -35,7 +35,6 @@ test("scheduled snapshot workflow uses pinned OIDC and never requires a GitHub o
  assert.match(workflow,/ACTIONS_ID_TOKEN_REQUEST_TOKEN/);
  assert.ok(workflow.includes('base="https://ai-stock-advisor.pages.dev/api/paper"'));
  assert.ok(workflow.includes('"$base/snapshot"'));
- assert.match(workflow,/\/api\/paper\/snapshot/);
  assert.match(workflow,/executionEnabled == false/);
  assert.match(workflow,/killSwitchEngaged == true/);
  assert.match(workflow,/automatedOrderSubmission == false/);
