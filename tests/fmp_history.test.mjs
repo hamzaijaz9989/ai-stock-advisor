@@ -16,7 +16,7 @@ test("FMP historical ingestion returns dated prices, annual and quarterly statem
  };
  try{
   const request=new Request("https://northstar.test/api/fmp-history?ticker=MSFT&from=2025-01-01&to=2026-12-31");
-  const response=await onRequestGet({request,env:{FMP_API_KEY:"canonical-test",FMP_API_KEY2:"legacy-test"}});
+  const response=await onRequestGet({request,env:{FMP_API_KEY:"canonical-test"}});
   assert.equal(response.status,200);const body=await response.json();
   assert.equal(body.provider,"Financial Modeling Prep");assert.equal(body.coverage.priceBars,2);
   assert.equal(body.statements.annualIncome[0].acceptedDate,"2026-02-01 06:00:00");
@@ -31,4 +31,20 @@ test("FMP historical ingestion rejects windows beyond ten years",async()=>{
  const request=new Request("https://northstar.test/api/fmp-history?ticker=MSFT&from=2000-01-01&to=2026-01-01");
  const response=await onRequestGet({request,env:{FMP_API_KEY:"test"}});
  assert.equal(response.status,400);
+});
+
+
+test("FMP historical ingestion ignores FMP_API_KEY2 without FMP_API_KEY",async()=>{
+ let called=false;
+ const original=globalThis.fetch;
+ globalThis.fetch=async()=>{called=true;return Response.json([]);};
+ try{
+  const request=new Request("https://northstar.test/api/fmp-history?ticker=MSFT&from=2025-01-01&to=2026-12-31");
+  const response=await onRequestGet({request,env:{FMP_API_KEY2:"must-not-be-used"}});
+  assert.equal(response.status,503);
+  const body=await response.json();
+  assert.equal(body.available,false);
+  assert.equal(body.configured,false);
+  assert.equal(called,false);
+ }finally{globalThis.fetch=original;}
 });
