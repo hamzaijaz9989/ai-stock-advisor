@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {onRequestPost,requireReadOnlySyncSuccess} from "../web/functions/api/research/collect.js";
+import {onRequestPost,requireReadOnlySyncSuccess,requireFreshResearchQuote} from "../web/functions/api/research/collect.js";
 
 test("server-side research collector rejects unauthenticated callers before provider access",async()=>{
  const response=await onRequestPost({request:new Request("https://northstar.test/api/research/collect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ticker:"NVDA",requestId:"collector-0001"})}),env:{NORTHSTAR_OPERATOR_TOKEN:"secret",NORTHSTAR_DB:{}}});
@@ -108,4 +108,16 @@ test("collector captures research as-of after provider snapshots and before SEC 
  const asOf=collectorSource.indexOf("const asOf=new Date().toISOString();",providers);
  const sec=collectorSource.indexOf("const sec=await secFacts(ticker,asOf);",providers);
  assert.ok(providers>=0&&asOf>providers&&sec>asOf,"as-of must follow provider collection and precede SEC point-in-time selection");
+});
+
+
+test("collector requires a deterministic fresh-quote assessment before invoking the council",()=>{
+ const fresh={resourceCoverage:{roles:{market_scanner:{quoteFreshness:{status:"FRESH",reason:"WITHIN_MARKET_STATE_AGE_LIMIT"}}}}};
+ assert.equal(requireFreshResearchQuote(fresh).status,"FRESH");
+ for(const status of ["MISSING","AFTER_AS_OF","STALE",undefined]){
+  const context={resourceCoverage:{roles:{market_scanner:{quoteFreshness:status?{status,reason:"TEST_BLOCK"}:undefined}}}};
+  assert.throws(()=>requireFreshResearchQuote(context),/Quote freshness gate blocked research collection/);
+ }
+ assert.match(collectorSource,/requireFreshResearchQuote\(context\)/);
+ assert.ok(collectorSource.indexOf("requireFreshResearchQuote(context)")<collectorSource.indexOf("runResearchCouncil({requestId,context,workers})"));
 });

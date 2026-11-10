@@ -27,6 +27,14 @@ export async function requireReadOnlySyncSuccess(response){
   throw new Error("Read-only Alpaca Paper sync did not explicitly confirm success with execution disabled.");
  return data;
 }
+export function requireFreshResearchQuote(context){
+ const freshness=context?.resourceCoverage?.roles?.market_scanner?.quoteFreshness;
+ if(freshness?.status!=="FRESH"){
+  const reason=typeof freshness?.reason==="string"?freshness.reason:"QUOTE_FRESHNESS_NOT_VERIFIED";
+  throw new Error("Quote freshness gate blocked research collection ("+reason+").");
+ }
+ return freshness;
+}
 async function secFacts(ticker,asOf){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
  const mapResponse=await fetch("https://www.sec.gov/files/company_tickers.json",{headers,signal:AbortSignal.timeout(8000)});
@@ -136,6 +144,7 @@ export async function onRequestPost({request,env}){
    news:{items:Array.isArray(news.items)?news.items:[]},
    earnings:{events:Array.isArray(earnings.events)?earnings.events.map(e=>({...e,date:e.reportDate||e.date||null})):[],found:earnings.found===true,verified:earnings.verified===true,throughDate:earnings.throughDate||null,provider:earnings.provider,fetchedAt:earnings.fetchedAt||earnings.fetchedAt,warning:earnings.warning||null},
    portfolio});
+  requireFreshResearchQuote(context);
   if(context.facts.length+context.evidence.length<3)throw new Error("Collected research evidence is insufficient.");
   const inputHash=await sha256(stable({ticker,asOf,context}));
   const existing=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();

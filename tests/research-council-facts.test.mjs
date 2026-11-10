@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildResearchCouncilContext} from "../web/lib/research-council-facts.js";
+import {buildResearchCouncilContext,assessQuoteFreshness} from "../web/lib/research-council-facts.js";
 
 const portfolio={verified:true,source:"Alpaca Paper + Northstar ledger",asOf:"2026-11-08T19:00:00Z",equityUsd:10000,openRiskUsd:10,grossExposureUsd:500,dailyLossFraction:0.001,weeklyLossFraction:0.002,drawdownFraction:0.01,sectorExposureUsd:200,concurrentPositions:1};
 
@@ -127,4 +127,30 @@ test("excludes FMP snapshots retrieved after the research as-of timestamp",()=>{
    latest:{fiscalDate:"2025-12-31",revenue:100},history:{income:[{date:"2025-12-31",filingDate:"2026-11-09",revenue:1}]}}
  });
  assert.equal(result.facts.some(x=>x.type.startsWith("FMP_")),false);
+});
+
+
+test("assesses quote freshness conservatively by explicit market state",()=>{
+ const asOf="2026-11-10T15:00:00.000Z";
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-10T14:46:00.000Z",marketState:"REGULAR"},asOf).status,"FRESH");
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-10T14:44:00.000Z",marketState:"REGULAR"},asOf).status,"STALE");
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-06T15:00:00.000Z",marketState:"CLOSED"},asOf).status,"FRESH");
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-04T14:59:59.000Z",marketState:"CLOSED"},asOf).status,"STALE");
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-10T15:01:00.000Z",marketState:"REGULAR"},asOf).status,"AFTER_AS_OF");
+ assert.equal(assessQuoteFreshness({marketState:"REGULAR"},asOf).status,"MISSING");
+});
+
+test("stale quote blocks market-scanner resource coverage even when 60 daily bars exist",()=>{
+ const bars=Array.from({length:60},(_,i)=>{
+  const date=new Date(Date.parse("2026-09-01T00:00:00Z")+i*86400000).toISOString().slice(0,10);
+  return {date,open:100,high:101,low:99,close:100,volume:1000};
+ });
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-10T15:00:00Z",portfolio:{...portfolio,asOf:"2026-11-10T14:59:00Z"},
+  quote:{ticker:"NVDA",price:180,quoteTime:"2026-11-10T14:00:00Z",marketState:"REGULAR"},
+  history:{source:"test",interval:"1d",data:bars}
+ });
+ assert.equal(result.resourceCoverage.roles.market_scanner.status,"INSUFFICIENT");
+ assert.equal(result.resourceCoverage.roles.market_scanner.quoteFreshness.status,"STALE");
+ assert.ok(result.resourceCoverage.roles.market_scanner.gaps.some(x=>x.includes("Quote freshness gate failed")));
 });

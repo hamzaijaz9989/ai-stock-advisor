@@ -8,6 +8,35 @@ const dateMs = value => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 const dateOnly = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+
+const QUOTE_OPEN_MAX_AGE_MS = 15 * 60 * 1000;
+const QUOTE_CLOSED_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000;
+
+// A quote may be up to 15 minutes old unless the provider explicitly reports
+// the market closed; then the most recent session close is accepted for up to
+// five calendar days (weekends/holiday closures). Unknown/pre/post states use
+// the stricter open-session limit. Missing and future timestamps always fail.
+export function assessQuoteFreshness(quote, asOf) {
+  const asOfMs = dateMs(asOf);
+  const quoteMs = dateMs(quote?.quoteTime);
+  const marketState = String(quote?.marketState || "").trim().toUpperCase();
+  const explicitlyClosed = marketState === "CLOSED" || marketState.includes("MARKET CLOSED");
+  const maxAgeMs = explicitlyClosed ? QUOTE_CLOSED_MAX_AGE_MS : QUOTE_OPEN_MAX_AGE_MS;
+  if (asOfMs === null || quoteMs === null) {
+    return {status:"MISSING",ageMs:null,maxAgeMs,marketState:marketState || "UNKNOWN",reason:"QUOTE_TIMESTAMP_MISSING"};
+  }
+  if (quoteMs > asOfMs) {
+    return {status:"AFTER_AS_OF",ageMs:null,maxAgeMs,marketState:marketState || "UNKNOWN",reason:"QUOTE_AFTER_AS_OF"};
+  }
+  const ageMs = asOfMs - quoteMs;
+  if (ageMs > maxAgeMs) {
+    return {
+      status:"STALE",ageMs,maxAgeMs,marketState:marketState || "UNKNOWN",
+      reason:explicitlyClosed ? "CLOSED_SESSION_QUOTE_OLDER_THAN_5_DAYS" : "QUOTE_OLDER_THAN_15_MINUTES"
+    };
+  }
+  return {status:"FRESH",ageMs,maxAgeMs,marketState:marketState || "UNKNOWN",reason:"WITHIN_MARKET_STATE_AGE_LIMIT"};
+}
 function secAvailability(row, asOfDate, asOfMs) {
   const filed = dateOnly(row?.filed);
   const availableAtText = typeof row?.availableAt === "string" ? row.availableAt : "";
@@ -72,18 +101,23 @@ function buildResourceCoverage(facts, evidence, portfolio, asOf) {
   const earnings = evidence.filter(item => item.type.startsWith("EARNINGS_"));
   const historyCount = history.reduce((n,item) => n + Number(item.value?.observationCount || 0), 0);
   const exactAvailability = sec.some(item => item.value?.availabilityTimestampVerified === true);
-  const quoteFresh = quote.some(item => item.value?.timestampStatus === "PRESENT" &&
-    Date.parse(item.observedAt || "") <= Date.parse(asOf));
+  const quoteFreshness = quote[0]?.value?.quoteFreshness || {
+    status:"MISSING",ageMs:null,maxAgeMs:QUOTE_OPEN_MAX_AGE_MS,marketState:"UNKNOWN",reason:"QUOTE_TIMESTAMP_MISSING"
+  };
+  const quoteFresh = quoteFreshness.status === "FRESH";
   const entry = (status, ids, gaps) => ({status, factIds:ids, gaps});
   return {
     generatedBy:"northstar-canonical-fact-adapter",
     asOf,
     roles:{
-      market_scanner:entry(quoteFresh && historyCount >= 60 ? "PARTIAL" : "INSUFFICIENT",
-        [...quote,...history].map(x=>x.id),
-        [...(!quoteFresh?["No verified timestamped quote at or before as-of time."]:[]),
-          ...(historyCount < 60?["At least 60 valid daily bars are not present."]:[]),
-          "Broad market-universe, breadth and cross-sectional liquidity coverage are not supplied."]),
+      market_scanner:{
+        ...entry(quoteFresh && historyCount >= 60 ? "PARTIAL" : "INSUFFICIENT",
+          [...quote,...history].map(x=>x.id),
+          [...(!quoteFresh?["Quote freshness gate failed: "+quoteFreshness.reason+"."]:[]),
+            ...(historyCount < 60?["At least 60 valid daily bars are not present."]:[]),
+            "Broad market-universe, breadth and cross-sectional liquidity coverage are not supplied."]),
+        quoteFreshness
+      },
       technical_analyst:entry(historyCount >= 60 ? "PARTIAL" : "INSUFFICIENT",history.map(x=>x.id),
         [...(historyCount < 60?["Fewer than 60 valid daily OHLCV observations."]:[]),
           "Adjusted-price and corporate-action continuity are not independently attested.",
@@ -134,12 +168,14 @@ export function buildResearchCouncilContext(input) {
   const quote = input.quote;
   if (quote && (quote.ticker === undefined || String(quote.ticker).toUpperCase() === ticker) && finite(quote.price) && quote.price > 0) {
     const quoteTime = dateMs(quote.quoteTime);
+    const quoteFreshness = assessQuoteFreshness(quote,asOf);
     add(facts, makeId("quote",ticker,quote.quoteTime || "untimestamped"), "QUOTE", {
       price:quote.price, currency:quote.currency || null, exchange:quote.exchange || null,
       previousClose:finite(quote.previousClose) ? quote.previousClose : null,
       change:finite(quote.change) ? quote.change : null,
       changePercent:finite(quote.changePercent) ? quote.changePercent : null,
       quoteTime:quote.quoteTime || null, timestampStatus:quoteTime === null ? "MISSING" : quoteTime > asOfMs ? "AFTER_AS_OF" : "PRESENT",
+      quoteFreshness,
       marketState:quote.marketState || null, delayedOrRealtime:quote.delayedOrRealtime || null,
       interval:quote.interval || null, warning:quote.warning || null
     }, quote.source || "unknown", quote.quoteTime || null);
