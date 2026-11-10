@@ -37,3 +37,11 @@ The current dashboard's news endpoint aggregates Yahoo Finance RSS and Google Ne
 - Store point-in-time news history before backtesting any news signal.
 - Test duplicates, stale timestamps, missing publication times, source outages, ticker ambiguity and untrusted article content.
 - Evaluate whether news adds measurable value beyond fundamentals and valuation before it can influence signals.
+
+
+## News quality contract (implemented helper; not yet wired into live dashboard scoring)
+- Added canonical URL and normalized-title deduplication, including syndicated copies with different URLs.
+- Added freshness states: fresh (14 days by default), stale, undated, invalid-date and future-dated. Only fresh items pass the quality gate.
+- Added company, sector, macro and ambiguous scope classification; sector/macro items cannot masquerade as company-specific catalysts.
+- Added a quality-aware aggregate that requires freshness, company relevance, a classified catalyst and a recognized primary/reported source.
+- Existing `aggregateNewsCatalysts` remains unchanged for compatibility. This is not yet wired into dashboard decisions and does not enable BUY.
