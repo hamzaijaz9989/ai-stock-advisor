@@ -7,6 +7,39 @@ const dateMs = value => {
   const parsed = Date.parse(value || "");
   return Number.isFinite(parsed) ? parsed : null;
 };
+const dateOnly = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+function secAvailability(row, asOfDate, asOfMs) {
+  const filed = dateOnly(row?.filed);
+  const availableAtText = typeof row?.availableAt === "string" ? row.availableAt : "";
+  const hasExactTime = /(?:T|\s)\d{2}:\d{2}/.test(availableAtText);
+  const availableAtMs = hasExactTime ? dateMs(availableAtText) : null;
+  const verified = row?.availabilityTimestampVerified === true &&
+    availableAtMs !== null && availableAtMs <= asOfMs;
+  const filedBeforeAsOf = !!filed && (filed < asOfDate || (filed === asOfDate && verified));
+  return {
+    eligible: filedBeforeAsOf && (availableAtMs === null || availableAtMs <= asOfMs),
+    verified,
+    availableAt: verified ? new Date(availableAtMs).toISOString() : null
+  };
+}
+function fmpStatementAvailability(row, asOfDate, asOfMs) {
+  const acceptedAt = typeof row?.acceptedDate === "string" ? row.acceptedDate.trim() : "";
+  const hasExactTime = /(?:T|\s)\d{2}:\d{2}/.test(acceptedAt);
+  if (hasExactTime) {
+    const acceptedAtMs = dateMs(acceptedAt);
+    return {
+      eligible: acceptedAtMs !== null && acceptedAtMs <= asOfMs,
+      timestamp: acceptedAtMs !== null ? new Date(acceptedAtMs).toISOString() : null,
+      kind: "PROVIDER_ACCEPTED_AT"
+    };
+  }
+  const filingDate = dateOnly(row?.filingDate);
+  return {
+    eligible: !!filingDate && filingDate < asOfDate,
+    timestamp: filingDate,
+    kind: filingDate ? "PRIOR_DAY_FILING_DATE" : null
+  };
+}
 const safeIdPart = value => String(value ?? "na").trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 48) || "na";
 const makeId = (...parts) => parts.map(safeIdPart).join(":").slice(0, 180);
 
@@ -128,41 +161,66 @@ export function buildResearchCouncilContext(input) {
 
   const observations = Array.isArray(input.secObservations) ? input.secObservations : [];
   for (const row of observations.slice(0, 250)) {
+    const availability = secAvailability(row, asOfDate, asOfMs);
     if (!row || typeof row.key !== "string" || !finite(row.value) ||
-        typeof row.filed !== "string" || typeof row.end !== "string" ||
-        row.filed > asOfDate || row.end > asOfDate) continue;
+        !dateOnly(row.end) || row.end > asOfDate || !availability.eligible) continue;
     add(facts, makeId("sec",ticker,row.key,row.end,row.unit,row.accession), "SEC_REPORTED_FACT", {
       metric:row.metric || row.key, key:row.key, taxonomy:row.taxonomy || null, tag:row.tag || null,
       value:row.value, unit:row.unit || null, start:row.start || null, end:row.end, filed:row.filed,
       form:row.form || null, accession:row.accession || null, fiscalYear:row.fy ?? null,
-      fiscalPeriod:row.fp || null, availabilityTimestampVerified:false,
-      note:"SEC filed date is not an exact public-availability timestamp."
-    }, "SEC EDGAR companyfacts", row.filed);
+      fiscalPeriod:row.fp || null, availabilityTimestampVerified:availability.verified,
+      availableAt:availability.availableAt,
+      note:availability.verified
+        ? "Exact public-availability timestamp is supplied and is not after the research as-of time."
+        : "SEC filed date is not an exact public-availability timestamp; same-day filings are excluded."
+    }, "SEC EDGAR companyfacts", availability.availableAt || row.filed);
   }
 
   const fmp = input.fmpFundamentals;
   if (fmp?.available === true) {
-    if (fmp.latest && typeof fmp.latest === "object") {
+    const retrievedAtMs = dateMs(fmp.retrievedAt);
+    const fmpSnapshotAvailable = retrievedAtMs !== null && retrievedAtMs <= asOfMs;
+    if (fmpSnapshotAvailable && fmp.latest && typeof fmp.latest === "object") {
       const latest = {...fmp.latest};
       const estimateKeys = ["analystEpsAverage","analystRevenueAverage","analystCountEps","analystCountRevenue"];
       const estimateMetrics = Object.fromEntries(estimateKeys.filter(key => latest[key] !== null && latest[key] !== undefined).map(key => [key,latest[key]]));
       for (const key of estimateKeys) delete latest[key];
       add(facts, makeId("fmp-latest",ticker,latest.fiscalDate || fmp.retrievedAt),
-        "FMP_REPORTED_FUNDAMENTALS_CROSSCHECK", {fiscalDate:latest.fiscalDate || null,currency:latest.currency || null,metrics:latest},
-        fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+        "FMP_REPORTED_FUNDAMENTALS_CROSSCHECK", {
+          fiscalDate:latest.fiscalDate || null,currency:latest.currency || null,metrics:latest,
+          availabilityTimestampVerified:false,
+          note:"Current provider cross-check captured at retrieval time; not an immutable point-in-time filing archive."
+        }, fmp.provider || "Financial Modeling Prep", fmp.retrievedAt);
       if (Object.keys(estimateMetrics).length) add(facts, makeId("fmp-latest-estimates",ticker,latest.fiscalDate || fmp.retrievedAt),
-        "FMP_ANALYST_ESTIMATE", {period:latest.fiscalDate || null,metrics:estimateMetrics},
-        fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+        "FMP_ANALYST_ESTIMATE", {
+          period:latest.fiscalDate || null,metrics:estimateMetrics,
+          availabilityTimestampVerified:false,
+          note:"Provider estimate snapshot is only evidenced at retrieval time, not as an immutable historical estimate archive."
+        }, fmp.provider || "Financial Modeling Prep", fmp.retrievedAt);
     }
     const sections = ["income","balance","cashflow","metrics","ratios","estimates"];
     for (const section of sections) {
       const rows = Array.isArray(fmp.history?.[section]) ? fmp.history[section] : [];
       for (const row of rows.slice(0, 10)) {
+        if (!fmpSnapshotAvailable) continue;
         const period = row?.date || row?.fiscalDate || fmp.retrievedAt || "undated";
-        if (section !== "estimates" && typeof period === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(period) && period > asOfDate) continue;
-        add(facts, makeId("fmp",ticker,section,period,row?.period), section === "estimates" ? "FMP_ANALYST_ESTIMATE" : ["income","balance","cashflow"].includes(section) ? "FMP_STATEMENT_PERIOD" : "FMP_PROVIDER_METRIC",
-          {section,period:row?.period || null,reportedCurrency:row?.reportedCurrency || null,values:row},
-          fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+        if (section !== "estimates") {
+          const availability = fmpStatementAvailability(row, asOfDate, asOfMs);
+          if (!availability.eligible ||
+              (typeof period === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(period) && period > asOfDate)) continue;
+          add(facts, makeId("fmp",ticker,section,period,row?.period), "FMP_STATEMENT_PERIOD", {
+            section,period:row?.period || null,reportedCurrency:row?.reportedCurrency || null,values:row,
+            availabilityTimestampVerified:false,pointInTimeTimestamp:availability.timestamp,
+            pointInTimeTimestampKind:availability.kind,
+            note:"FMP accepted/filing timestamp is provider-reported and is not independently verified public availability."
+          }, fmp.provider || "Financial Modeling Prep", fmp.retrievedAt);
+        } else {
+          add(facts, makeId("fmp",ticker,section,period,row?.period), "FMP_ANALYST_ESTIMATE", {
+            section,period:row?.period || null,reportedCurrency:row?.reportedCurrency || null,values:row,
+            availabilityTimestampVerified:false,
+            note:"Provider estimate snapshot is evidenced at retrieval time only; historical revisions are not archived here."
+          }, fmp.provider || "Financial Modeling Prep", fmp.retrievedAt);
+        }
       }
     }
   }

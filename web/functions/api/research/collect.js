@@ -113,15 +113,19 @@ export async function onRequestPost({request,env}){
   const portfolio=await portfolioSnapshot(env);
   // Establish the research as-of time only after the refreshed portfolio snapshot,
   // so its timestamp cannot be later than the context timestamp.
-  const asOf=new Date().toISOString();
-  const [quote,fundamentals,history,news,earnings,sec]=await Promise.all([
+  const [quote,fundamentals,history,news,earnings]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
    endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+asOf.slice(0,10),env),
+   endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+new Date().toISOString().slice(0,10),env),
    endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getEarnings,origin,"/api/earnings?ticker="+encodeURIComponent(ticker),env),
-   secFacts(ticker,asOf)
+   endpoint(getEarnings,origin,"/api/earnings?ticker="+encodeURIComponent(ticker),env)
   ]);
+  // The research as-of is captured after provider snapshots return, so their
+  // retrieval timestamps and quote chronology are not accidentally future-dated.
+  // SEC date-only facts are fetched afterward and same-day filings are excluded
+  // unless a separate exact public-availability timestamp is verified.
+  const asOf=new Date().toISOString();
+  const sec=await secFacts(ticker,asOf);
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   if(!history?.available||!Array.isArray(history.prices)||history.prices.length<60)throw new Error("At least 60 valid daily price bars are required for research.");
   if(!fundamentals?.available)throw new Error("Fundamental data provider did not return usable statements.");

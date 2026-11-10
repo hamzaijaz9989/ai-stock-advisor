@@ -101,3 +101,11 @@ test("collector requires explicit read-only sync success and execution=false",as
  await assert.rejects(()=>requireReadOnlySyncSuccess(new Response("not-json",{status:200})),/explicitly confirm success/i);
  await assert.rejects(()=>requireReadOnlySyncSuccess(new Response(JSON.stringify({ok:true,synced:true,execution:false}),{status:503,headers:{"Content-Type":"application/json"}})),/explicitly confirm success/i);
 });
+
+
+test("collector captures research as-of after provider snapshots and before SEC fact filtering",()=>{
+ const providers=collectorSource.indexOf("const [quote,fundamentals,history,news,earnings]=await Promise.all([");
+ const asOf=collectorSource.indexOf("const asOf=new Date().toISOString();",providers);
+ const sec=collectorSource.indexOf("const sec=await secFacts(ticker,asOf);",providers);
+ assert.ok(providers>=0&&asOf>providers&&sec>asOf,"as-of must follow provider collection and precede SEC point-in-time selection");
+});
