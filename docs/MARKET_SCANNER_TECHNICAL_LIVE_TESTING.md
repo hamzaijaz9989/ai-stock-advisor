@@ -1,5 +1,16 @@
 # Market Scanner production acceptance audit
 
+## Live follow-up — 2026-11-10 21:39 UTC
+
+- GitHub PR #117 is open and unmerged at `111bcd2397246d56c59d632e24a5c1da781698b2`; exact-head Tests `42906215140`, Validate `42906215127`, and full-history secret scan `42906215101` all passed. PR #108 and #115 remain open/unmerged and both contain overlapping FMP/Worker changes. The isolated release branch carries the FMP query-auth fix and sanitized failure classification; neither PR was merged.
+- Cloudflare's current Pages project metadata confirms Preview `NORTHSTAR_DB` is `bdffc29f-a4f6-498e-ade7-22c85d9bd373` and Production is `528f3a23-1d1f-4d16-8463-f643d85f5deb`. Latest Preview deployment `d421d9e6-2370-4775-ae58-17633fc51816` succeeded from the release branch; Production remains `fec9c9e6-de57-41a4-8aaa-a83fdb3de56d` from main `85c51f847f4b4a966be629ff9f3702194d6ae262`.
+- Production D1 SELECT-only audit at `2026-11-10T21:35Z`: 295 monitor runs, zero quote rows, zero event rows. Latest run #295 at `21:35:53Z` is `market_closed` (normal outside session). Latest active-session failures remain #287–#285 and each records 10 failures / 0 quotes; older Worker detail omits provider causes. The deployed Worker still uses the incorrect FMP custom-header transport; the corrected query parameter is on the unmerged branch. Thus FMP authentication transport is the confirmed Worker defect; the specific Yahoo fallback response remains unknown until a diagnostic-enabled Worker runs.
+- The Production cache still originates from `2026-11-10T19:42:15.959Z` (201 ranked, 52 excluded, 10 enriched). At `21:39Z` it is about 117 minutes old, so `validate-stock-cache.mjs` correctly fails its 30-minute limit. A fresh workflow was not triggered because its commit-to-main step can trigger a Production Pages deployment, which is outside the current authorization.
+- Focused scanner/provider tests passed 20/20. The full JavaScript suite passed 225/225; both scanner scripts passed `node --check`, and `git diff --check` passed. A first sandboxed test attempt failed with Windows `spawn EPERM`; the same suite passed after approval to run Node test workers.
+- Production execution controls remain `mode=paper`, `enabled=0`, `kill_switch=1`; the read-only D1 query reported `rows_written=0`, `changed_db=false`. No Worker/Pages Production deployment, PR merge, secret operation, broker mutation, order or execution change occurred.
+
+**Acceptance remains incomplete.** The exact production blockers are a cache younger than 30 minutes, a released Worker fix followed by a successful open-session quote run, and persisted quote rows verified in D1. The present branch is tested and CI-clean, but those production gates are not satisfied.
+
 ## Isolated provider release — 2026-11-11 02:30 PKT (2026-11-10 21:30 UTC)
 
 - Narrow PR #117 (`19be2f98e895cef1d0fb67c27b20a7001fd06307`) contains only the Worker FMP auth/diagnostic fix, Gemini exact-output health fix, tests and this audit. Local provider tests passed 14/14 and the main-based full JavaScript suite passed 225/225. The initial Pages Preview build succeeded, but its deployment metadata exposed a Preview D1 binding drift: Preview pointed to the Production database despite `web/wrangler.toml` specifying the isolated Preview database.
