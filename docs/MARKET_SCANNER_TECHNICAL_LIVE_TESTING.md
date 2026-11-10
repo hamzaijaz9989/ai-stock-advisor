@@ -1,5 +1,14 @@
 # Market Scanner production acceptance audit
 
+## Provider API verification — 2026-11-11 02:18 PKT (2026-11-10 21:18 UTC)
+
+- Production `GET /api/fmp-health` at `2026-11-10T21:16:30.842Z` returned HTTP 200. The FMP quote, history and fundamentals probes each returned HTTP 200 with 1, 32 and 1 rows respectively; the latest history date was `2026-11-10`. This verifies authenticated provider access and non-empty responses, not independent market-data accuracy. It also confirms FMP itself is reachable while the separate Production monitor Worker still has the FMP authentication transport defect documented below.
+- Production `GET /api/alpaca/status` at `2026-11-10T21:16:52.505Z` returned HTTP 200, `connected=true`, `environment=paper`, account status `ACTIVE`, and no positions. This verifies the paper-account endpoint only; no order or market-data request was made. Sensitive balance fields returned by the endpoint are intentionally omitted here.
+- Production `GET /api/gemini-health` at `2026-11-10T21:17:02.917Z` reported generation passed on `gemma-4-26b-a4b-it`, but the response also had `finishReason=MAX_TOKENS` and length 218. The endpoint only checked whether the expected token appeared anywhere, so it produced a false positive for a non-exact/truncated response. Locally fixed the health probe to require the exact token and `STOP`; added `tests/gemini-health.test.mjs`. Production still runs the old health check until an approved release. The protected nine-agent live collection was not invoked, so this does not validate role-report accuracy.
+- Provider check regression suite passed 14/14 and the full JavaScript suite passed 290/290 after the Gemini health fix. No provider credentials or generated response text were exposed. The Gemini health probe performs a minimal generation request and may consume provider quota.
+
+**Provider verdict:** FMP and Alpaca Paper authentication/endpoints are currently reachable; Gemini authenticates and generates but its live response failed the exact-output health contract, which the current Production health route incorrectly marked as success. None of these checks establishes market-data truth or validates research-agent output quality.
+
 ## Current follow-up — 2026-11-11 02:08 PKT (2026-11-10 21:08 UTC)
 
 - GitHub main remains `85c51f847f4b4a966be629ff9f3702194d6ae262`. Draft PR #116 carries the isolated nine-agent integration plus scanner safeguards and the timezone fix; its exact-head Node tests, Python tests, and full-history secret scan passed. PRs #108 and #115 remain open and unmerged.

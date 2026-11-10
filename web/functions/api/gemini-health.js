@@ -2,6 +2,7 @@
 // a minimal real text-generation request. Never returns or logs the API key or generated text.
 export async function onRequestGet({ env }) {
   const key = env?.GEMINI_API_KEY;
+  const expectedText="NORTHSTAR_GEMINI_OK";
   const headers = {
     "Cache-Control": "no-store",
     "Content-Type": "application/json; charset=utf-8",
@@ -57,8 +58,8 @@ export async function onRequestGet({ env }) {
           method:"POST",
           headers:{"Content-Type":"application/json","x-goog-api-key":key},
           body:JSON.stringify({
-            contents:[{role:"user",parts:[{text:"Reply with exactly this text and nothing else: NORTHSTAR_GEMINI_OK"}]}],
-            generationConfig:{temperature:0,maxOutputTokens:64}
+            contents:[{role:"user",parts:[{text:"Return only this exact token, with no punctuation or explanation: "+expectedText}]}],
+            generationConfig:{temperature:0,maxOutputTokens:128}
           }),
           signal:AbortSignal.timeout(20000)
         }
@@ -79,19 +80,21 @@ export async function onRequestGet({ env }) {
     const candidate=generated.candidates?.[0];
     const generatedText=(generated.candidates||[]).flatMap(c=>c.content?.parts||[])
       .map(p=>typeof p.text==="string"?p.text:"").join("").trim();
-    const passed=generatedText.includes("NORTHSTAR_GEMINI_OK");
+    const finishReason=candidate?.finishReason||null;
+    // A marker embedded in a longer, truncated answer is not a successful health probe.
+    const passed=generatedText===expectedText&&finishReason==="STOP";
     const blockReason=generated.promptFeedback?.blockReason||null;
     return Response.json({
       available:passed,configured:true,authenticated:true,
       generationTest:passed?"passed":"no_valid_text",
       provider:"Google Gemini",model:chosen?.name?.replace(/^models\//,"")||null,
-      finishReason:candidate?.finishReason||null,
+      finishReason,
       promptBlockReason:blockReason,
       responseCandidates:Array.isArray(generated.candidates)?generated.candidates.length:0,
       responseTextLength:generatedText.length,
       modelsListed:models.length,generateContentModelsAvailable:supported.length,
       checkedAt:new Date().toISOString(),
-      reason:passed?undefined:"Gemini authenticated, but the generation response did not contain the expected text. Inspect finishReason and promptBlockReason."
+      reason:passed?undefined:"Gemini authenticated, but generation did not return the exact probe token with a normal STOP finish. Inspect finishReason and promptBlockReason."
     },{status:passed?200:502,headers});
   }catch(error){
     return Response.json({
