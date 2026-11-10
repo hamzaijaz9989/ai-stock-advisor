@@ -79,25 +79,70 @@ function dateKey(date) {
   const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date).map(x=>[x.type,x.value]));
   return p.year+p.month+p.day;
 }
-async function getQuote(symbol) {
+export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
+  const url = new URL("https://financialmodelingprep.com/stable/quote");
+  url.searchParams.set("symbol", symbol);
+  const response = await fetchImpl(url.toString(), {
+    headers: { Accept: "application/json", apikey: apiKey },
+    signal: AbortSignal.timeout(7000)
+  });
+  if (!response.ok) throw new Error("FMP quote HTTP " + response.status);
+  const rows = await response.json();
+  const row = Array.isArray(rows) ? rows.find(item => item?.symbol === symbol) : null;
+  if (!row) throw new Error("FMP returned no quote for " + symbol);
+  const price = Number(row.price);
+  const previousClose = Number(row.previousClose);
+  const timestamp = Number(row.timestamp);
+  const quoteTime = Number.isFinite(timestamp) && timestamp > 0
+    ? new Date(timestamp * 1000).toISOString()
+    : null;
+  if (!Number.isFinite(price) || price <= 0) throw new Error("FMP returned an invalid price");
+  if (!isQuoteFresh(quoteTime, now)) throw new Error("FMP quote timestamp missing, stale, or unexpectedly in the future");
+  const reportedChange = row.changePercentage;
+  const changePct = reportedChange !== null && reportedChange !== undefined && reportedChange !== "" && Number.isFinite(Number(reportedChange))
+    ? Number(reportedChange)
+    : Number.isFinite(previousClose) && previousClose > 0 ? (price / previousClose - 1) * 100 : null;
+  return {
+    symbol, price,
+    previousClose: Number.isFinite(previousClose) && previousClose > 0 ? previousClose : null,
+    changePct,
+    quoteTime, fetchedAt: new Date().toISOString(), source: "Financial Modeling Prep"
+  };
+}
+export async function getYahooQuote(symbol, fetchImpl = fetch, now = Date.now()) {
   let last;
   for(const host of QUOTE_HOSTS) {
     try {
-      const response=await fetch("https://"+host+"/v8/finance/chart/"+encodeURIComponent(symbol)+"?range=1d&interval=1m",{headers:{Accept:"application/json"},signal:AbortSignal.timeout(7000)});
-      if(!response.ok) throw new Error("Quote HTTP "+response.status);
+      const response=await fetchImpl("https://"+host+"/v8/finance/chart/"+encodeURIComponent(symbol)+"?range=1d&interval=1m",{headers:{Accept:"application/json"},signal:AbortSignal.timeout(7000)});
+      if(!response.ok) throw new Error("Yahoo quote HTTP "+response.status);
       const raw=await response.json(), result=raw?.chart?.result?.[0];
-      if(!result) throw new Error("Empty quote result");
+      if(!result) throw new Error("Yahoo returned an empty quote result");
       const meta=result.meta||{}, closes=result.indicators?.quote?.[0]?.close||[], times=result.timestamp||[];
       let idx=-1; for(let i=closes.length-1;i>=0;i--) if(Number.isFinite(closes[i])) {idx=i;break;}
       const price=idx>=0?closes[idx]:meta.regularMarketPrice;
       const prev=meta.chartPreviousClose??meta.previousClose??null;
-      if(!Number.isFinite(price)||price<=0) throw new Error("No usable price");
+      if(!Number.isFinite(price)||price<=0) throw new Error("Yahoo returned no usable price");
       const quoteTime=idx>=0&&times[idx]?new Date(times[idx]*1000).toISOString():meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null;
-      if(!isQuoteFresh(quoteTime)) throw new Error("Quote timestamp missing, stale, or unexpectedly in the future");
+      if(!isQuoteFresh(quoteTime, now)) throw new Error("Yahoo quote timestamp missing, stale, or unexpectedly in the future");
       return {symbol,price,previousClose:Number.isFinite(prev)?prev:null,changePct:Number.isFinite(prev)&&prev>0?(price/prev-1)*100:null,quoteTime,fetchedAt:new Date().toISOString(),source:"Yahoo Finance chart API"};
     } catch(error) { last=error; }
   }
-  throw last||new Error("Quote unavailable");
+  throw last||new Error("Yahoo quote unavailable");
+}
+export async function getQuote(symbol, env, fetchImpl = fetch, now = Date.now()) {
+  if (env.FMP_API_KEY) {
+    try {
+      return await getFmpQuote(symbol, env.FMP_API_KEY, fetchImpl, now);
+    } catch (fmpError) {
+      try {
+        const fallback = await getYahooQuote(symbol, fetchImpl, now);
+        return { ...fallback, fallbackReason: String(fmpError?.message || fmpError).slice(0, 180) };
+      } catch (yahooError) {
+        throw new Error("FMP failed (" + String(fmpError?.message || fmpError) + "); Yahoo fallback failed (" + String(yahooError?.message || yahooError) + ")");
+      }
+    }
+  }
+  return getYahooQuote(symbol, fetchImpl, now);
 }
 async function bounded(items,limit,fn) {
   const out=new Array(items.length); let next=0;
@@ -126,7 +171,7 @@ async function scan(env) {
     const cacheAge=Date.now()-Date.parse(cache.completedAt||cache.generatedAt||"");
     if(!Number.isFinite(cacheAge)||cacheAge<0||cacheAge>MAX_CACHE_AGE_MS||cache.status!=="success"||!Array.isArray(cache.stocks)) throw new Error("Shortlist cache is stale or incomplete; monitoring fail-closed.");
     const candidates=cache.stocks.slice(0,MAX_SYMBOLS).filter(s=>/^[A-Z0-9.^=-]{1,12}$/.test(s.ticker));
-    const results=await bounded(candidates,MAX_CONCURRENCY,getQuote);
+    const results=await bounded(candidates,MAX_CONCURRENCY,symbol=>getQuote(symbol,env));
     const at=new Date().toISOString(), day=dateKey(new Date());
     for(let i=0;i<results.length;i++) {
       const result=results[i], stock=candidates[i];
