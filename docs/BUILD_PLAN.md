@@ -698,3 +698,17 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [ ] Only then implement and test an alternate history adapter; preserve source, timestamps, adjustment policy, rate limits, attribution and fail-closed behavior.
 - Evidence: Alpha Vantage Terms https://www.alphavantage.co/terms_of_service/; Twelve Data Terms https://twelvedata.com/terms; Twelve Data pricing https://twelvedata.com/pricing.
 - Safety: no credentials read/changed, no database writes, no broker calls/orders, no deployment or strategy approval.
+
+
+## Phase 2 review-surface cleanup and provider decision — 2026-11-10 18:03 PKT
+
+- [x] Consolidate Stock Brain implementation and evidence in PR #108.
+- [x] Close PR #111 as superseded by current main/PR #108 (FMP key/diagnostic code and current tests already present).
+- [x] Close PR #112 as superseded by PR #108 (capital-basis changes already present and tested).
+- [x] Keep PR #103 open pending full diff reconciliation; do not discard its unreviewed changes blindly.
+- [x] Screen no-cost provider alternatives against official terms; reject Alpha Vantage personal/non-commercial access and Twelve Data Free Tier for public deployment absent appropriate commercial/display rights.
+- [ ] Obtain authorized valid FMP daily-history access or a licensed alternative.
+- [ ] Obtain independent review and governance approval for PR #108; main is not protected.
+- [ ] Establish fresh reconciled snapshot, genuine seven-day baseline, news/sentiment evidence and authenticated research-only acceptance.
+- Evidence: latest CI on 5ab317d87e39edcdb10ed8560a6ec2f44a87ee8d — Tests 42820802873, Python tests 42820803006, secret scan 42820802939 all PASS. Docs-only Pages deployment skipped by path_config; latest successful Functions Preview cf2c1da8-9c6a-44f8-9715-163b1165044e.
+- Safety: no D1 writes/migrations, secret changes, broker calls/orders, execution-control changes or Production deployment; BUY remains disabled.

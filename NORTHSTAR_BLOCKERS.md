@@ -1637,3 +1637,15 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Current blocker remains authorized FMP daily-history access (last confirmed Production provider response: HTTP 401 Invalid API KEY; Preview binding absent). Do not bypass this gate with a source whose license does not cover the intended public deployment.
 - No code, secret, database, broker or deployment changes were made by this due-diligence check. The research system remains fail-closed and paper-only.
 - Next action: independently verify FMP plan/key entitlement or obtain a provider agreement that explicitly covers public display/derived analytics. Then add the adapter with source attribution, rate limits, adjustment policy, timestamps and regression tests. Keep strategy validation disabled.
+
+
+## 2026-11-10 18:03 PKT — PR consolidation and provider-license outcome
+
+- PR #108 is the single active Stock Brain review surface: head 5ab317d87e39edcdb10ed8560a6ec2f44a87ee8d, 58 ahead / 0 behind main, open/non-draft/mergeable, zero reviews and zero inline threads.
+- PR #111 closed as superseded by current main/PR #108 (canonical FMP binding, health diagnostics and newer health tests already present).
+- PR #112 closed as superseded by PR #108 (virtual allocation and actual Alpaca equity fields/validation already included and tested).
+- PR #103 remains open and diverged (184 ahead / 6 behind); do not close until its full diff is reconciled. PR #109, #85 and #88 remain drafts; #107, #101, #83 and #82 remain diverged.
+- Provider alternatives screened: Alpha Vantage default terms restrict use to personal/non-commercial and classify broader research/provision of information to others as commercial; Twelve Data Free Tier prohibits commercial use. Neither is an approved fallback for the public Pages app without an appropriate written agreement/plan. No unofficial scraping was adopted.
+- CI on 5ab317d87e39edcdb10ed8560a6ec2f44a87ee8d: Tests 42820802873 PASS, Python tests 42820803006 PASS, full-history secret scan 42820802939 PASS; docs-only Pages deployment skipped by path_config. Latest successful Functions Preview remains cf2c1da8-9c6a-44f8-9715-163b1165044e.
+- Production and D1 state unchanged. Execution remains disabled; kill switch engaged; no orders or migrations.
+- Next: resolve authorized FMP daily-history access or select a licensed provider; then complete fresh 15-minute snapshot, genuine seven-day baseline, sentiment/news evidence and authenticated research-only acceptance. Independent review and governance still required.
