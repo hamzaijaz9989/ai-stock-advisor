@@ -116,6 +116,12 @@ function syntheticFetch(){
     const requestBody=JSON.parse(init.body);
     const prompt=JSON.parse(requestBody.contents[0].parts[0].text);
     const context=prompt.context;
+    assert.equal(context.portfolio.equityUsd,1000);
+    assert.equal(context.portfolio.virtualAllocationUsd,1000);
+    assert.equal(context.portfolio.actualAccountEquityUsd,100000);
+    assert.equal(context.portfolio.capitalBasis,"virtual_strategy_allocation");
+    assert.equal(context.portfolio.accountEquityBasis,"actual_alpaca_paper_account");
+    assert.equal(context.portfolio.riskMetricBasis,"actual_alpaca_paper_account_equity");
     const role=prompt.role;
     const selected=role==="news_analyst"||role==="sentiment_analyst"
       ? context.facts.find(item=>item.type==="RESOURCE_COVERAGE_SNAPSHOT")
