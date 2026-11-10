@@ -42,10 +42,34 @@ test("GitHub OIDC rejects wrong repository, owner, branch, workflow, event, audi
 test("GitHub OIDC rejects expired, future-issued, not-yet-valid and over-age tokens",async()=>{
  const now=nowSeconds();
  for(const claims of [
-  {iat:now-400,exp:now-1},
+  {iat:now-400,exp:now-60},
   {iat:now+60,exp:now+300},
   {iat:now-5,nbf:now+60,exp:now+300},
   {iat:now-700,exp:now+300}
+ ]) assert.equal(await verifyNorthstarSnapshotOidcToken(makeToken(claims),options()),null);
+});
+
+test("GitHub OIDC applies only the configured 30-second clock-skew allowance",async()=>{
+ const now=nowSeconds();
+ const withinSkew=await verifyNorthstarSnapshotOidcToken(
+  makeToken({iat:now-100,exp:now-10}),
+  {...options(),now:now*1000}
+ );
+ assert.ok(withinSkew);
+ const outsideSkew=await verifyNorthstarSnapshotOidcToken(
+  makeToken({iat:now-100,exp:now-31}),
+  {...options(),now:now*1000}
+ );
+ assert.equal(outsideSkew,null);
+});
+
+test("GitHub OIDC rejects non-numeric JWT NumericDate claims",async()=>{
+ const now=nowSeconds();
+ for(const claims of [
+  {iat:String(now-5)},
+  {exp:String(now+300)},
+  {nbf:null},
+  {nbf:String(now-5)}
  ]) assert.equal(await verifyNorthstarSnapshotOidcToken(makeToken(claims),options()),null);
 });
 
