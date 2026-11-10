@@ -90,7 +90,7 @@ function validatePortfolio(portfolio, asOfMs) {
 }
 
 
-function buildResourceCoverage(facts, evidence, portfolio, asOf) {
+function buildResourceCoverage(facts, evidence, portfolio, asOf, newsQuality = {}) {
   const byType = type => facts.filter(item => item.type === type);
   const evidenceByType = type => evidence.filter(item => item.type === type);
   const history = byType("DAILY_OHLCV_HISTORY");
@@ -109,6 +109,11 @@ function buildResourceCoverage(facts, evidence, portfolio, asOf) {
   return {
     generatedBy:"northstar-canonical-fact-adapter",
     asOf,
+    newsQuality:{
+      eligibleCount:Number(newsQuality.eligibleCount || 0),
+      excludedFutureDatedCount:Number(newsQuality.excludedFutureDatedCount || 0),
+      excludedUndatedCount:Number(newsQuality.excludedUndatedCount || 0)
+    },
     roles:{
       market_scanner:{
         ...entry(quoteFresh && historyCount >= 60 ? "PARTIAL" : "INSUFFICIENT",
@@ -129,8 +134,13 @@ function buildResourceCoverage(facts, evidence, portfolio, asOf) {
           ...(!exactAvailability?["Exact public-availability timestamps for SEC facts are not verified."]:[])]),
       news_analyst:entry(news.length ? "PARTIAL" : "INSUFFICIENT",
         [...news,...earnings].map(x=>x.id),
-        ["News items are discovery evidence; original-source corroboration is not established by collection.",
-          "Issuer/regulator source verification is not consistently recorded."]),
+        [
+          ...(!news.length ? ["No decision-eligible timestamped news items published at or before the research as-of time are available."] : []),
+          ...(Number(newsQuality.excludedFutureDatedCount || 0) > 0 ? ["Excluded " + Number(newsQuality.excludedFutureDatedCount) + " future-dated news items after the research as-of time."] : []),
+          ...(Number(newsQuality.excludedUndatedCount || 0) > 0 ? ["Excluded " + Number(newsQuality.excludedUndatedCount) + " news items with missing or invalid publication timestamps."] : []),
+          "News items are discovery evidence; original-source corroboration is not established by collection.",
+          "Issuer/regulator source verification is not consistently recorded."
+        ]),
       sentiment_analyst:entry("MISSING",[],
         ["No dedicated timestamped sentiment or positioning feed is connected.",
           "Retail, institutional, short-interest, options-flow and analyst-revision populations are unavailable."]),
@@ -262,15 +272,25 @@ export function buildResearchCouncilContext(input) {
   }
 
   const news = input.news;
+  const newsQuality = {eligibleCount:0,excludedFutureDatedCount:0,excludedUndatedCount:0};
   if (Array.isArray(news?.items)) for (const item of news.items.slice(0, 50)) {
     if (!item || typeof item.title !== "string" || typeof item.url !== "string" || !/^https?:\/\//i.test(item.url)) continue;
     const published = dateMs(item.publishedAt);
-    add(evidence, makeId("news",ticker,item.url,item.publishedAt || item.title), "NEWS_DISCOVERY", {
-      title:item.title, description:item.description || "", url:item.url, publishedAt:item.publishedAt || null,
-      timestampStatus:published === null ? "MISSING" : published > asOfMs ? "AFTER_AS_OF" : "PRESENT",
+    if (published === null) {
+      newsQuality.excludedUndatedCount++;
+      continue;
+    }
+    if (published > asOfMs) {
+      newsQuality.excludedFutureDatedCount++;
+      continue;
+    }
+    newsQuality.eligibleCount++;
+    add(evidence, makeId("news",ticker,item.url,item.publishedAt), "NEWS_DISCOVERY", {
+      title:item.title, description:item.description || "", url:item.url, publishedAt:item.publishedAt,
+      timestampStatus:"PRESENT",
       publisher:item.source || null, publisherVerified:item.publisherVerified === true,
       note:"Discovery source only; headline and description are unverified claims until checked against original reporting."
-    }, item.source || "news discovery feed", item.publishedAt || null);
+    }, item.source || "news discovery feed", item.publishedAt);
   }
 
   const earnings = input.earnings;
@@ -288,7 +308,7 @@ export function buildResearchCouncilContext(input) {
   }
 
   const portfolio = validatePortfolio(input.portfolio, asOfMs);
-  const resourceCoverage = buildResourceCoverage(facts,evidence,portfolio,asOf);
+  const resourceCoverage = buildResourceCoverage(facts,evidence,portfolio,asOf,newsQuality);
 
   // Give specialists first-class, citable records for portfolio inputs and known resource
   // gaps. Without these records, a role with no dedicated feed (notably sentiment) could
@@ -299,6 +319,7 @@ export function buildResearchCouncilContext(input) {
   const coverageRecord = {
     generatedBy:resourceCoverage.generatedBy,
     asOf:resourceCoverage.asOf,
+    newsQuality:{...resourceCoverage.newsQuality},
     roles:Object.fromEntries(Object.entries(resourceCoverage.roles).map(([role,entry])=>[role,{
       status:entry.status,
       gaps:[...entry.gaps],
