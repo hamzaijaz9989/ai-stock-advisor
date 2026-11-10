@@ -37,7 +37,7 @@ export async function onRequestGet({ request, env }) {
   const ticker = (url.searchParams.get("ticker") || "").trim().toUpperCase();
   const headers = { "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" };
   if (!TICKER_RE.test(ticker)) return Response.json({ error: "Enter a valid US stock ticker." }, { status: 400, headers });
-  const fmpKey = env?.FMP_API_KEY || env?.FMP_API_KEY2;
+  const fmpKey = env?.FMP_API_KEY;
   if (!fmpKey) {
     return Response.json({
       available: false, configured: false,
