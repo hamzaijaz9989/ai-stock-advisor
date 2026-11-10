@@ -358,13 +358,18 @@ export function buildResearchCouncilContext(input) {
     if (!canonicalUrl || !headline) continue;
     const publicationDay = new Date(published).toISOString().slice(0,10);
     const headlineDayKey = headline + ":" + publicationDay;
-    const duplicateOf = seenNewsByUrl.get(canonicalUrl) || seenNewsByHeadlineDay.get(headlineDayKey) || null;
+    const urlDuplicateOf = seenNewsByUrl.get(canonicalUrl) || null;
+    const headlineDuplicateOf = seenNewsByHeadlineDay.get(headlineDayKey) || null;
+    const duplicateOf = urlDuplicateOf || headlineDuplicateOf || null;
+    const duplicateReason = urlDuplicateOf ? "canonical-url" : headlineDuplicateOf ? "normalized-headline-same-day" : null;
     const id = makeId("news",ticker,canonicalUrl,item.publishedAt,index);
     const scope = classifyNewsScope(item,ticker);
     const sourceTier = classifyNewsSource(item);
     newsQuality.eligibleCount++;
     if (duplicateOf) {
       newsQuality.duplicateCount++;
+      seenNewsByUrl.set(canonicalUrl,duplicateOf);
+      seenNewsByHeadlineDay.set(headlineDayKey,duplicateOf);
     } else {
       newsQuality.uniqueEligibleCount++;
       if (scope === "company") newsQuality.companySpecificCount++;
@@ -380,7 +385,7 @@ export function buildResearchCouncilContext(input) {
     add(evidence,id,"NEWS_DISCOVERY",{
       title:item.title,description:item.description || "",url:item.url,canonicalUrl,publishedAt:item.publishedAt,
       timestampStatus:"PRESENT",scope,scopeEligible:scope === "company",
-      sourceTier,sourceTierHeuristic:true,duplicate:Boolean(duplicateOf),duplicateOf,
+      sourceTier,sourceTierHeuristic:true,duplicate:Boolean(duplicateOf),duplicateOf,duplicateReason,
       publisher:item.source || null,publisherVerified:item.publisherVerified === true,
       note:"Discovery source only; scope and source-tier labels are heuristics, not verification. Duplicate items are not independent corroboration. Headline and description remain unverified claims until checked against original reporting."
     },item.source || "news discovery feed",item.publishedAt);
