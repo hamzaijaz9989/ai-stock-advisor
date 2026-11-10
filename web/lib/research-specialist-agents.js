@@ -122,7 +122,7 @@ export function runNewsAnalyst(context) {
   const items=evidenceOf(context,"NEWS_DISCOVERY");
   if(!items.length) return unavailable("No news discovery evidence was supplied.");
   const asOf=exactTimestampMs(context?.asOf);
-  const seen=new Set(), usable=[], duplicateIds=[], futureIds=[], undatedIds=[], unverifiedIds=[];
+  const seen=new Set(), usable=[], duplicateIds=[], futureIds=[], undatedIds=[], missingLinkIds=[], unverifiedIds=[];
   for(const item of items){
     const v=item.value||{}, url=String(v.url||"").trim(), title=String(v.title||"").trim();
     const key=url.toLowerCase()||title.toLowerCase();
@@ -141,10 +141,11 @@ export function runNewsAnalyst(context) {
   const risks=[];
   if(!usable.length) risks.push(claim("No usable dated news item remains after chronology and URL checks; event chronology cannot be established.",items.map(x=>x.id).slice(0,20)));
   if(undatedIds.length) risks.push(claim(undatedIds.length+" news item(s) have missing or invalid publication timestamps and cannot establish event chronology.",undatedIds.slice(0,20)));
+  if(missingLinkIds.length) risks.push(claim(missingLinkIds.length+" news item(s) lack a valid headline URL and were excluded from event chronology.",missingLinkIds.slice(0,20)));
   if(futureIds.length) risks.push(claim(futureIds.length+" news item(s) are dated after the research as-of time and were excluded from historical catalyst assessment.",futureIds.slice(0,20)));
   if(duplicateIds.length) risks.push(claim(duplicateIds.length+" duplicate news item(s) were excluded from unique-item counts.",duplicateIds.slice(0,20)));
   if(unverifiedIds.length) risks.push(claim(unverifiedIds.length+" dated item(s) have unverified publisher attribution; corroborate material claims against issuer or regulator originals.",unverifiedIds.slice(0,20)));
-  if(primary===0) risks.push(claim("No issuer/regulator primary source is identified; material announcements remain uncorroborated.",usable.map(x=>x.id).slice(0,20)));
+  if(primary===0) risks.push(claim("No issuer/regulator primary source is identified; material announcements remain uncorroborated.",items.map(x=>x.id).slice(0,20)));
   return report(findings,risks);
 }
 
