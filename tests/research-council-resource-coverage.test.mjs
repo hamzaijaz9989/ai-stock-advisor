@@ -75,3 +75,12 @@ test("all specialist stages receive the same immutable resource coverage invento
  assert.equal(result.status,"RESEARCH_REVIEW_REQUIRED");
  assert.deepEqual(result.resourceCoverage,context.resourceCoverage);
 });
+
+
+test("SEC primary facts keep fundamental coverage partial when the optional FMP cross-check is unavailable",()=>{
+ const context=makeContext({fmpFundamentals:{available:false}});
+ const role=context.resourceCoverage.roles.fundamental_analyst;
+ assert.equal(role.status,"PARTIAL");
+ assert.ok(role.factIds.some(id=>context.facts.some(fact=>fact.id===id&&fact.type==="SEC_REPORTED_FACT")));
+ assert.ok(role.gaps.some(gap=>/FMP secondary reported-fundamental cross-checks are missing/.test(gap)));
+});

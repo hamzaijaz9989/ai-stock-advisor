@@ -144,3 +144,11 @@ test("collector selects source metadata and validates it before calculating port
  const risk=collectorSource.indexOf("deriveSnapshotRiskMetrics({snapshots");
  assert.ok(provenance>=0&&risk>provenance,"snapshot provenance must be checked before risk metrics are calculated");
 });
+
+
+test("collector treats FMP fundamentals as an optional cross-check while retaining the daily-history gate",()=>{
+ assert.match(collectorSource,/optionalEndpoint\(getFundamentals/);
+ assert.match(collectorSource,/fmpFundamentals:\{available:fmpCrosscheckAvailable/);
+ assert.match(collectorSource,/FMP daily price history/);
+ assert.doesNotMatch(collectorSource,/if\(!fundamentals\?\.available\)throw/);
+});

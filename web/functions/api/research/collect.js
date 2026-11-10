@@ -21,6 +21,17 @@ function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)retu
 function stable(v){if(Array.isArray(v))return "["+v.map(stable).join(",")+"]";if(v&&typeof v==="object")return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stable(v[k])).join(",")+"}";return JSON.stringify(v);}
 async function sha256(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");}
 async function endpoint(handler,origin,path,env){const r=await handler({request:new Request(origin+path),env});if(!r.ok)throw new Error(path.split("?")[0]+" unavailable (HTTP "+r.status+")");return r.json();}
+async function optionalEndpoint(handler,origin,path,env){
+ try{
+  const response=await handler({request:new Request(origin+path),env});
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||!payload||typeof payload!=="object"||Array.isArray(payload))
+   return {available:false,provider:"Financial Modeling Prep",unavailableReason:!response.ok?"HTTP_"+response.status:"INVALID_RESPONSE"};
+  return payload;
+ }catch{
+  return {available:false,provider:"Financial Modeling Prep",unavailableReason:"PROVIDER_UNAVAILABLE"};
+ }
+}
 export async function requireReadOnlySyncSuccess(response){
  let data=null;try{data=await response.json();}catch{}
  if(!response?.ok||data?.ok!==true||data?.synced!==true||data?.execution!==false)
@@ -130,7 +141,7 @@ export async function onRequestPost({request,env}){
   // so its timestamp cannot be later than the context timestamp.
   const [quote,fundamentals,history,news,earnings]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
+   optionalEndpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
    endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+new Date().toISOString().slice(0,10),env),
    endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env),
    endpoint(getEarnings,origin,"/api/earnings?ticker="+encodeURIComponent(ticker),env)
@@ -143,11 +154,13 @@ export async function onRequestPost({request,env}){
   const sec=await secFacts(ticker,asOf);
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   if(!history?.available||!Array.isArray(history.prices)||history.prices.length<60)throw new Error("At least 60 valid daily price bars are required for research.");
-  if(!fundamentals?.available)throw new Error("Fundamental data provider did not return usable statements.");
   const fmpHistory={income:history.statements?.annualIncome||[],balance:history.statements?.annualBalance||[],cashflow:history.statements?.annualCashflow||[],metrics:[],ratios:[],estimates:[]};
+  const fmpCrosscheckAvailable=fundamentals?.available===true||Object.values(fmpHistory).some(rows=>Array.isArray(rows)&&rows.length>0);
+  const fmpProvider=fundamentals?.provider||history?.provider||"Financial Modeling Prep";
+  const fmpRetrievedAt=fundamentals?.retrievedAt||history?.retrievedAt||null;
   const context=buildResearchCouncilContext({ticker,asOf,quote:{ticker,price:Number(quote.price),currency:quote.currency,exchange:quote.exchange,previousClose:finite(quote.previousClose),change:finite(quote.change),changePercent:finite(quote.changePercent),quoteTime:quote.quoteTime,marketState:quote.marketState,delayedOrRealtime:quote.delayedOrRealtime,interval:quote.interval,source:quote.source},
    history:{data:history.prices,interval:"1d",currency:"USD",source:history.provider,fetchedAt:history.retrievedAt,dataQuality:history.coverage},
-   secObservations:sec.observations,fmpFundamentals:{available:true,provider:fundamentals.provider,retrievedAt:fundamentals.retrievedAt,latest:fundamentals.latest,history:fmpHistory},
+   secObservations:sec.observations,fmpFundamentals:{available:fmpCrosscheckAvailable,provider:fmpProvider,retrievedAt:fmpRetrievedAt,latest:fundamentals?.available===true?fundamentals.latest:null,history:fmpHistory},
    news:{items:Array.isArray(news.items)?news.items:[]},
    earnings:{events:Array.isArray(earnings.events)?earnings.events.map(e=>({...e,date:e.reportDate||e.date||null})):[],found:earnings.found===true,verified:earnings.verified===true,throughDate:earnings.throughDate||null,provider:earnings.provider,fetchedAt:earnings.fetchedAt||earnings.fetchedAt,warning:earnings.warning||null},
    portfolio});
@@ -160,7 +173,7 @@ export async function onRequestPost({request,env}){
   const result=await runResearchCouncil({requestId,context,workers});
   const evaluation=evaluateResearchCouncilRun(result,{factIds:context.facts.map(x=>x.id),evidenceIds:context.evidence.map(x=>x.id),evaluatedAt:new Date().toISOString(),roles:workers.telemetry||{}});
   const trace={schemaVersion:1,inputSha256:inputHash,ticker,asOf:context.asOf,facts:context.facts,evidence:context.evidence,portfolio:context.portfolio,resourceCoverage:context.resourceCoverage};
-  const storedResult={...result,traceDurable:true,trace,evaluation,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
+  const storedResult={...result,traceDurable:true,trace,evaluation,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP daily price history","SEC EDGAR companyfacts",...(fmpCrosscheckAvailable?["FMP reported-fundamental cross-check"]:[]),"news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source,fmpCrosscheckAvailable,fundamentalSourceMode:fmpCrosscheckAvailable?"SEC_PLUS_FMP_CROSSCHECK":"SEC_PRIMARY_ONLY"},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING").bind(requestId,inputHash,ticker,result.status,JSON.stringify(storedResult)).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);

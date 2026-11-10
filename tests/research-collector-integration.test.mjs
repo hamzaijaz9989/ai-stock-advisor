@@ -70,7 +70,7 @@ function makeD1(){
  return {db,state};
 }
 
-function syntheticFetch(){
+function syntheticFetch({fundamentalsUnavailable=false}={}){
  const calls=[];
  const nowSeconds=Math.floor(Date.now()/1000)-60;
  const quotePayload={chart:{result:[{
@@ -106,7 +106,10 @@ function syntheticFetch(){
    if(url.pathname.endsWith("/historical-price-eod/full"))return Response.json(priceRows);
    if(url.pathname.endsWith("/news/stock"))return Response.json([]);
    if(url.pathname.endsWith("/analyst-estimates"))return Response.json([{date:"2026-12-31",epsAvg:5,revenueAvg:120000000,numAnalystsEps:8,numAnalystsRevenue:8}]);
-   if(/income-statement|balance-sheet-statement|cash-flow-statement|key-metrics|ratios/.test(url.pathname))return Response.json([statementRow]);
+   if(/income-statement|balance-sheet-statement|cash-flow-statement|key-metrics|ratios/.test(url.pathname)){
+    if(fundamentalsUnavailable)return new Response(JSON.stringify({"Error Message":"Provider unavailable"}),{status:401,headers:{"Content-Type":"application/json"}});
+    return Response.json([statementRow]);
+   }
   }
   if(url.hostname==="www.sec.gov"&&url.pathname==="/files/company_tickers.json")return Response.json({0:{ticker:"NVDA",cik_str:1045810}});
   if(url.hostname==="data.sec.gov"&&url.pathname.includes("/companyfacts/"))return Response.json({facts:{"us-gaap":{"Revenues":{label:"Revenue",units:{USD:[{val:100000000,filed:"2026-01-15",end:"2025-12-31",form:"10-K",accn:"0001",fy:2025,fp:"FY"}]}}}}});
@@ -241,6 +244,43 @@ test("synthetic collector records all nine role outcomes, fails closed on missin
   assert.deepEqual(replayBody.result.trace,body.result.trace,"idempotent replay must return the exact persisted source snapshot");
   assert.equal(calls.length,callsBeforeReplay);
   assert.equal(state.writes.length,writesBeforeReplay);
+ }finally{
+  globalThis.fetch=originalFetch;
+ }
+});
+
+
+test("collector continues with SEC primary fundamentals when the optional FMP statement cross-check is unavailable",async()=>{
+ const {db,state}=makeD1();
+ const {fetcher,calls}=syntheticFetch({fundamentalsUnavailable:true});
+ const originalFetch=globalThis.fetch;
+ globalThis.fetch=fetcher;
+ try{
+  const env={
+   NORTHSTAR_OPERATOR_TOKEN:TOKEN,NORTHSTAR_DB:db,
+   ALPACA_API_KEY_ID:"synthetic-paper-key",ALPACA_API_SECRET_KEY:"synthetic-paper-secret",
+   FMP_API_KEY:"synthetic-fmp-key",GEMINI_API_KEY:"synthetic-gemini-key"
+  };
+  const response=await onRequestPost({request:collectorRequest("collector-sec-only-0001"),env});
+  const body=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(body.ok,true);
+  assert.equal(body.traceDurable,true);
+  assert.equal(body.execution,false);
+  assert.equal(body.result.status,"NO_TRADE","missing news and dedicated sentiment still fail closed");
+  const fundamental=body.result.agents.find(agent=>agent.role==="fundamental_analyst");
+  assert.equal(fundamental.status,"COMPLETE");
+  assert.equal(body.result.resourceCoverage.roles.fundamental_analyst.status,"PARTIAL");
+  assert.ok(body.result.resourceCoverage.roles.fundamental_analyst.gaps.some(gap=>/FMP secondary reported-fundamental cross-checks are missing/.test(gap)));
+  assert.ok(body.result.trace.facts.some(fact=>fact.type==="SEC_REPORTED_FACT"));
+  assert.equal(body.result.trace.facts.some(fact=>fact.type.startsWith("FMP_")),false);
+  assert.equal(body.result.collection.fmpCrosscheckAvailable,false);
+  assert.equal(body.result.collection.fundamentalSourceMode,"SEC_PRIMARY_ONLY");
+  assert.ok(calls.some(call=>call.host==="data.sec.gov"));
+  assert.ok(state.writes.includes("research_council_runs"));
+  assert.equal(state.orders.length,0);
+  assert.equal(state.positions.length,0);
+  assert.equal(state.writes.some(name=>name.includes("paper_orders")||name.includes("paper_trade_intents")),false);
  }finally{
   globalThis.fetch=originalFetch;
  }
