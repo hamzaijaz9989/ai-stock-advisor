@@ -149,3 +149,8 @@ Production Alpaca paper and FMP quote/history/fundamentals bindings now pass rea
 ## 2026-11-11 00:36 PKT / 2026-11-10 19:36 UTC — U.S. market-session clarification
 
 The latest Alpaca quotes/movers around 19:34Z on Nov 10 were current for the U.S. Nov 10 session (14:34 EST); they are not stale just because Pakistan local time had crossed midnight. However, the independent market-monitor Worker still fails closed on stale shortlist cache (run #271), with zero symbols/quotes/events. Provider input availability is not a successful scanner run or nine-agent acceptance. FMP news remains HTTP 402, discovery headlines are unverified, and no licensed UTC-qualified sentiment feed is accepted. Keep BUY disabled, execution disabled and kill switch engaged.
+
+
+## 2026-11-11 00:42 PKT / 2026-11-10 19:42 UTC — current acceptance boundaries
+
+The Research Council collector gathers direct provider inputs and does not depend on the separate market-monitor shortlist cache. The monitor remains stale-cache failed-closed (run #272), but this must not be conflated with the Council's unrun Market Scanner specialist. Production Alpaca/FMP quote/history/fundamental inputs pass GET checks; FMP news remains HTTP 402, discovery news is unverified and no licensed UTC-qualified sentiment feed is accepted. Protected agent/collector POSTs remain unrun pending the operator token and trusted seven-day portfolio baseline. A hard-coded SEC contact address in the PR branch also needs owner confirmation as an approved public contact before merge. Execution stays disabled, kill switch engaged, BUY disabled.
