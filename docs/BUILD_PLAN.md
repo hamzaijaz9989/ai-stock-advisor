@@ -107,3 +107,11 @@
 - PR #103 changes include nine-agent dashboard, server-side research collector/council endpoints, evidence/fact adapters, telemetry/evaluation and tests. Static review confirmed collector requires explicit successful read-only Alpaca sync and reconciles broker/ledger before refreshing; research remains read-only and no order submission path is invoked by the collector. Full runtime acceptance remains blocked by stale equity history and missing seven-day baseline.
 - Production D1/strategy/ execution gates remain as documented in the preceding latest audit; no D1 query/write, migration, broker call, order, secret mutation, execution-control change or Production deployment was performed in this continuation.
 - Next exact action: get a successful Preview deployment for the latest application-code head, verify its endpoints using a permitted runtime path, and resolve the Pages Preview binding discrepancy without requesting the user's key or exposing any secret. Then complete exact-head CI and independent review before any merge. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## News intelligence quality — 2026-11-10
+- [x] Add additive deduplication, freshness and relevance gates for news catalyst research.
+- [x] Add tests for duplicate, stale, undated, future-dated, macro, sector and unverified stories.
+- [ ] Wire quality metadata into the news presentation (not recommendation scoring) and preserve retrieval timestamps.
+- [ ] Persist point-in-time news history and verify material claims against primary sources.
+- Note: quality-aware aggregation is not yet connected to live dashboard decisions; BUY remains disabled.

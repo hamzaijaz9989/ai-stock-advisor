@@ -261,3 +261,14 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - PR #103 changes include nine-agent dashboard, server-side research collector/council endpoints, evidence/fact adapters, telemetry/evaluation and tests. Static review confirmed collector requires explicit successful read-only Alpaca sync and reconciles broker/ledger before refreshing; research remains read-only and no order submission path is invoked by the collector. Full runtime acceptance remains blocked by stale equity history and missing seven-day baseline.
 - Production D1/strategy/ execution gates remain as documented in the preceding latest audit; no D1 query/write, migration, broker call, order, secret mutation, execution-control change or Production deployment was performed in this continuation.
 - Next exact action: get a successful Preview deployment for the latest application-code head, verify its endpoints using a permitted runtime path, and resolve the Pages Preview binding discrepancy without requesting the user's key or exposing any secret. Then complete exact-head CI and independent review before any merge. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-10 — News intelligence quality layer
+- Active phase: research quality improvements; API troubleshooting intentionally deferred at user direction.
+- Added additive helper functions in `web/news-catalyst.js`: canonical URL/title deduplication, freshness classification, company-vs-sector/macro scope classification, and quality-aware catalyst aggregation.
+- Added unit coverage in `tests/news_catalyst.test.mjs`; updated `docs/NEWS_AND_SIGNAL_POLICY.md` with explicit limits.
+- PR #109: https://github.com/hamzaijaz9989/ai-stock-advisor/pull/109; branch `northstar/news-intelligence-quality`; latest commit `66d4b66cd67fcfee64bbdd5b740c4ded83fe70e6`.
+- Scope is additive and not wired into dashboard scoring yet. Existing aggregate contract is preserved. No provider/API credentials, production configuration, D1, deployment, broker connection or trading controls changed.
+- CI on earlier intermediate commits caught a malformed regex and then a test-fixture expectation; both were corrected. Latest-head Tests run is pending at time of this entry; earlier exact-head Validate and secret scan passed on commit `96000de1ce0c89c9d2034db2b6cf86e157411848`, not the latest head.
+- Strategy approval remains NOT APPROVED; BUY remains disabled; paper execution remains disabled and kill switch engaged.
+- Next exact action: confirm latest-head Tests; run exact-head Validate and full-history secret scan; then wire quality-aware results into news presentation only (not recommendation scoring) and add retrieval timestamps/source-quality labels.
