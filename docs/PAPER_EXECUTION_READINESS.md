@@ -78,3 +78,4 @@ Implementation/workflow commit `48fe694bd76d183db66b8fc4706c52ccd048a8b8`; test 
 ### Scheduled snapshot incident and OIDC replacement — 2026-11-10
 
 Main's scheduled workflow failed at run `42837941172` because GitHub Actions secret `NORTHSTAR_OPERATOR_TOKEN` was empty. The readiness check passed; the secret-presence check failed before any broker request, D1 snapshot or reconciliation. The replacement OIDC route/workflow in PR #108 removes that separate GitHub secret dependency while retaining the server-side Pages operator secret, pinned repository/owner identity, short token lifetime, pre/post reconciliation, read-only sync, persistence verification and idempotent audit. It is implemented and tested but not merged or Production-verified. No paper order is permitted.
+undefined

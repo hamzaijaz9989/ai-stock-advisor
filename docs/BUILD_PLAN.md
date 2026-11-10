@@ -844,3 +844,13 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - Database changes: NONE; GET-only provider checks and SELECT-only D1 audit. No secrets read/changed, broker requests, orders, execution-control changes or Production deployment.
 - Status: source alternatives researched; no safe credential-free/licensed/timezone-qualified sentiment provider can be enabled now. Sentiment Analyst remains UNAVAILABLE; downstream Council roles remain blocked; strategy NOT APPROVED; paper lifecycle NOT READY; BUY disabled.
 - Exact next action: obtain independent review/governance for PR #108. Separately, only after the owner has a commercial provider agreement and provider-confirmed UTC/timezone semantics, add a provider adapter with timestamp/coverage/volume/quality tests. Until then, keep sentiment explicitly unavailable and keep the collector blocked by the remaining gates.
+
+
+## 2026-11-10 21:36 PKT / 16:36 UTC — current Phase 2 status overlay
+
+- Universe scanning remains COMPLETE and user-confirmed; no rebuild initiated.
+- Phase 2 Research Council implementation is on PR #108 head `c2a3a061d1423db0641223c1d8466d750b58041e`, 74 ahead / 0 behind main. Exact-head Tests `42846592976`, Validate `42846592970`, secret scan `42846592843` all passed. PR remains open, non-draft, mergeable, and has zero independent formal reviews; branch protection is not verifiable (403). No merge.
+- Latest Preview `020c9c4d-bb0d-41c6-bd17-2ba4b1a70738` on `c2a3a061d1423db0641223c1d8466d750b58041e` shows Stock Brain UI; Production `3782f3e9-0d2e-4d04-b95a-4dcd931a6133` remains on main `3f765d8...` and does not yet show Stock Brain.
+- Production Council runs/traces remain 0; trusted snapshot history remains one row; sentiment unavailable; monitor latest run #235 fail-closed on stale shortlist. Strategy NOT APPROVED, BUY disabled, paper lifecycle NOT READY, execution disabled and kill switch engaged.
+- Files updated in this work item: handbook, blockers, build plan, Stock Brain spec, monitor runbook, paper-readiness runbook. Audited source commit `c2a3a061d1423db0641223c1d8466d750b58041e`; documentation commit is recorded in the PR/commit history. No database changes, secrets, broker calls, orders, migrations, production control changes or deployments.
+- Exact next action: independent review/governance for PR #108; then approved Production Pages/OIDC verification, separate Worker release, fresh trusted seven-day snapshot history, permitted sentiment source and controlled research-only acceptance. Do not restart scanner work.
