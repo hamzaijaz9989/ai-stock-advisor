@@ -461,7 +461,7 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 
 
 ## 2026-11-10 — Continuity and repository state
-- Repository visibility is PUBLIC, intentionally changed by the user; do not ask for reconfirmation.
+- Repository visibility remains unresolved: the owner states private, GitHub API reports `visibility=public`, and GitHub Settings has not been independently verified. Treat contents as publicly accessible until verified; do not change visibility without explicit authorization and do not claim the owner confirmed a public change.
 - The canonical provider secret is `FMP_API_KEY` only and the user has confirmed it is already configured. Do not ask for it again; verify runtime behavior instead.
 - Read the handbook and blocker log before requesting user input. Update the project documents after every meaningful code/configuration/deployment/status change.
 
