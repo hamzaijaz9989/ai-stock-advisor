@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {buildResearchCouncilContext,assessQuoteFreshness} from "../web/lib/research-council-facts.js";
 
-const portfolio={verified:true,source:"Alpaca Paper + Northstar ledger",asOf:"2026-11-08T19:00:00Z",equityUsd:10000,openRiskUsd:10,grossExposureUsd:500,dailyLossFraction:0.001,weeklyLossFraction:0.002,drawdownFraction:0.01,sectorExposureUsd:200,concurrentPositions:1};
+const portfolio={verified:true,source:"Alpaca Paper + Northstar ledger",asOf:"2026-11-08T19:00:00Z",equityUsd:1000,virtualAllocationUsd:1000,actualAccountEquityUsd:100000,riskMetricBasis:"actual_alpaca_paper_account_equity",openRiskUsd:10,grossExposureUsd:500,dailyLossFraction:0.001,weeklyLossFraction:0.002,drawdownFraction:0.01,sectorExposureUsd:200,concurrentPositions:1};
 
 test("builds canonical quote, history, SEC, FMP, news and earnings context with unique IDs",()=>{
  const result=buildResearchCouncilContext({
@@ -24,6 +24,29 @@ test("builds canonical quote, history, SEC, FMP, news and earnings context with 
  const ids=[...result.facts,...result.evidence].map(x=>x.id);
  assert.equal(new Set(ids).size,ids.length);
  assert.equal(result.portfolio.verified,true);
+});
+
+test("keeps virtual strategy allocation separate from actual Alpaca Paper equity",()=>{
+ const result=buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio});
+ assert.equal(result.portfolio.equityUsd,1000);
+ assert.equal(result.portfolio.virtualAllocationUsd,1000);
+ assert.equal(result.portfolio.actualAccountEquityUsd,100000);
+ assert.equal(result.portfolio.capitalBasis,"virtual_strategy_allocation");
+ assert.equal(result.portfolio.accountEquityBasis,"actual_alpaca_paper_account");
+ assert.equal(result.portfolio.riskMetricBasis,"actual_alpaca_paper_account_equity");
+ const fact=result.facts.find(x=>x.type==="PORTFOLIO_RISK_SNAPSHOT");
+ assert.equal(fact.value.virtualAllocationUsd,1000);
+ assert.equal(fact.value.actualAccountEquityUsd,100000);
+ assert.equal(fact.value.riskMetricBasis,"actual_alpaca_paper_account_equity");
+});
+
+test("rejects missing or inconsistent portfolio capital bases",()=>{
+ for(const invalid of [
+  {...portfolio,virtualAllocationUsd:500},
+  {...portfolio,actualAccountEquityUsd:0},
+  {...portfolio,actualAccountEquityUsd:undefined},
+  {...portfolio,riskMetricBasis:"virtual_strategy_allocation"}
+ ]) assert.throws(()=>buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio:invalid}),/missing numeric fields|missing or invalid numeric fields/i);
 });
 
 test("does not turn missing portfolio data into zero risk",()=>{
