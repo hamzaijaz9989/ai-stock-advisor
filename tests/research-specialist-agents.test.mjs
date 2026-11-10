@@ -45,7 +45,7 @@ test("worker adapter records latency and provider usage for all nine roles",asyn
  };
  const workers=await createResearchCouncilWorkers({GEMINI_API_KEY:"synthetic-gemini-key"},fetcher);
  const result=await runResearchCouncil({requestId:"specialist-telemetry-001",context:c,workers});
- assert.equal(result.status,"RESEARCH_REVIEW_REQUIRED");
+ assert.equal(result.status,"RESEARCH_REVIEW_REQUIRED",JSON.stringify({agents:result.agents,telemetry:workers.telemetry}));
  const roles=[...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,...COUNCIL_ROLES.synthesis,...COUNCIL_ROLES.veto];
  assert.equal(roles.length,9);
  assert.deepEqual(Object.keys(workers.telemetry).sort(),[...roles].sort());
