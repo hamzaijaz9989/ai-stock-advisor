@@ -360,3 +360,13 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [x] Preview application code deployed successfully as `ad694418-abfb-41d1-ba16-b7806ccd51ce` for `dea731e59a56632f1162b41c48cbf1562b12d260`; test-only follow-up deployment skipped by Pages `path_config`.
 - [ ] Complete authenticated research-only council acceptance; still blocked by Pages Preview credentials, FMP provider authentication, fresh reconciled seven-day equity history, live endpoint verification and independent review.
 - [ ] Keep execution disabled, kill switch engaged, BUY disabled; no paper/live orders or Production migrations/deployments.
+
+
+## Release-gate audit — 2026-11-10 09:43 PKT
+
+- [x] Exact-head CI on `694f4924281cd760862fbf860f900103d55eb636`: Tests `42757514146`, Validate `42757514270`, full-history secret scan `42757514460`, push Tests `42757508778` all passed.
+- [x] Preview deployment `6a536097-6ec0-4e96-84a6-a76acce6aa2b` succeeded; Production unchanged.
+- [ ] Reconcile migration-history divergence: main `0006_continuous_market_monitor.sql` duplicates PR #85 `0011_continuous_market_monitor.sql`; PR #85 also adds its own `0006_northstar_fill_position_ledger.sql`. Production ledger is 0001–0005 despite monitor tables existing; Preview ledger is 0001–0012. Do not replay/apply migrations until reviewed.
+- [ ] Reconcile PR #88 OIDC validator's public-or-private visibility acceptance with its stated private-only trust contract and unresolved GitHub `visibility=public` evidence.
+- [ ] Correct Pages-vs-Worker FMP secret placement; Pages Preview still lacks FMP/Alpaca/Gemini secrets.
+- [ ] Obtain independent PR review and governance, then establish genuine fresh seven-day equity history and run authenticated research-only Stock Brain acceptance.
