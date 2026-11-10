@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {onRequestPost,requireReadOnlySyncSuccess,requireFreshResearchQuote} from "../web/functions/api/research/collect.js";
+import {onRequestPost,requireReadOnlySyncSuccess,requireFreshResearchQuote,requireVerifiedEquitySnapshotProvenance} from "../web/functions/api/research/collect.js";
 
 test("server-side research collector rejects unauthenticated callers before provider access",async()=>{
  const response=await onRequestPost({request:new Request("https://northstar.test/api/research/collect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ticker:"NVDA",requestId:"collector-0001"})}),env:{NORTHSTAR_OPERATOR_TOKEN:"secret",NORTHSTAR_DB:{}}});
@@ -120,4 +120,26 @@ test("collector requires a deterministic fresh-quote assessment before invoking 
  }
  assert.match(collectorSource,/requireFreshResearchQuote\(context\)/);
  assert.ok(collectorSource.indexOf("requireFreshResearchQuote(context)")<collectorSource.indexOf("runResearchCouncil({requestId,context,workers})"));
+});
+
+
+test("collector accepts equity history only when every snapshot has the read-only Alpaca Paper provenance label",()=>{
+ const valid=[
+  {captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000,source:"alpaca_paper_read_only_sync"},
+  {captured_at:"2026-11-10T15:00:00.000Z",equity_usd:100250,source:"alpaca_paper_read_only_sync"}
+ ];
+ assert.equal(requireVerifiedEquitySnapshotProvenance(valid),valid);
+ for(const invalid of [
+  [],
+  [{captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000}],
+  [{captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000,source:"manual_import"}],
+  [...valid,{captured_at:"2026-11-09T15:00:00.000Z",equity_usd:100100,source:"unknown"}]
+ ]) assert.throws(()=>requireVerifiedEquitySnapshotProvenance(invalid),/equity history|provenance/i);
+});
+
+test("collector selects source metadata and validates it before calculating portfolio risk",()=>{
+ assert.match(collectorSource,/SELECT captured_at,equity_usd,source FROM paper_equity_snapshots/);
+ const provenance=collectorSource.indexOf("requireVerifiedEquitySnapshotProvenance(snapshotRows?.results||[])");
+ const risk=collectorSource.indexOf("deriveSnapshotRiskMetrics({snapshots");
+ assert.ok(provenance>=0&&risk>provenance,"snapshot provenance must be checked before risk metrics are calculated");
 });
