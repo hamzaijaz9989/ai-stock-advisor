@@ -1,4 +1,5 @@
 import { COUNCIL_ROLES } from "./research-council.js";
+import { SPECIALIST_AGENTS } from "./research-specialist-agents.js";
 
 const ROLE_GUIDANCE = {
   market_scanner: "Check completeness, freshness, consistency, liquidity and coverage of the supplied facts. Identify missing or stale inputs. Do not invent a scan universe. Explicitly flag quote timestamps marked MISSING or AFTER_AS_OF; do not describe them as current.",
@@ -145,7 +146,13 @@ export async function createResearchCouncilWorkers(env) {
     try { generate=await createOpenAIGenerator(env); } catch { generate=null; }
   }
   const workers={};
-  for(const role of [...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"]) {
+  // First five specialists are deterministic, evidence-first workers. They do not
+  // depend on an LLM credential and cannot manufacture missing provider observations.
+  for(const [role,agent] of Object.entries(SPECIALIST_AGENTS)) {
+    workers[role]=async payload=>agent(payload);
+  }
+  // Debate and synthesis remain model-assisted; missing model access fails closed.
+  for(const role of [...COUNCIL_ROLES.debate,"portfolio_analyst"]) {
     workers[role]=async payload=>{
       if(!generate) return {status:"UNAVAILABLE",findings:[],risks:[]};
       return generate({role,payload});
