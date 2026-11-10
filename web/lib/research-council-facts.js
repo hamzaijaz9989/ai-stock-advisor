@@ -11,8 +11,8 @@ const dateOnly = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.tes
 const exactTimestampMs = value => {
   if (typeof value !== "string") return null;
   const text = value.trim();
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) return null;
-  return dateMs(text);
+  if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) return null;
+  return dateMs(text.replace(/^(\d{4}-\d{2}-\d{2}) /, "$1T"));
 };
 
 const QUOTE_OPEN_MAX_AGE_MS = 15 * 60 * 1000;
@@ -59,12 +59,11 @@ function secAvailability(row, asOfDate, asOfMs) {
 }
 function fmpStatementAvailability(row, asOfDate, asOfMs) {
   const acceptedAt = typeof row?.acceptedDate === "string" ? row.acceptedDate.trim() : "";
-  const hasExactTime = /(?:T|\s)\d{2}:\d{2}/.test(acceptedAt);
-  if (hasExactTime) {
-    const acceptedAtMs = dateMs(acceptedAt);
+  const acceptedAtMs = exactTimestampMs(acceptedAt);
+  if (acceptedAtMs !== null) {
     return {
-      eligible: acceptedAtMs !== null && acceptedAtMs <= asOfMs,
-      timestamp: acceptedAtMs !== null ? new Date(acceptedAtMs).toISOString() : null,
+      eligible: acceptedAtMs <= asOfMs,
+      timestamp: new Date(acceptedAtMs).toISOString(),
       kind: "PROVIDER_ACCEPTED_AT"
     };
   }
