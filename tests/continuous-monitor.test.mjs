@@ -63,7 +63,7 @@ test("FMP quote uses the single canonical key in the apikey header, not the URL"
  assert.equal(new URL(calls[0].url).searchParams.has("apikey"), false);
  assert.equal(calls[0].headers.get("apikey"), "test-only-fmp-key");
  assert.equal(quote.source, "Financial Modeling Prep");
- assert.equal(quote.changePct, 5);
+ assert.ok(Math.abs(quote.changePct - 5) < 1e-9);
  assert.equal(quote.price, 210);
 });
 
