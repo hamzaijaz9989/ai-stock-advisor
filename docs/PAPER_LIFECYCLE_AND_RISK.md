@@ -28,3 +28,12 @@ No order submission, modification, cancellation, D1 mutation, automatic strategy
 ## Migration and OIDC release gate — 2026-11-10
 
 The persistent-ledger PRs have migration-history divergence: main's `0006_continuous_market_monitor.sql` is duplicated by PR #85's `0011_continuous_market_monitor.sql`, while PR #85 also introduces `0006_northstar_fill_position_ledger.sql`. Production has migrations 0001–0005 recorded despite monitor tables existing; Preview has 0001–0012. Do not apply migrations or merge the overlapping sets until migration order and idempotency are reviewed against a disposable database. PR #88's GitHub OIDC validator accepts both public and private repository visibility despite its stated private-only contract; repository visibility is unresolved and must be treated as public until owner Settings confirm otherwise. No paper execution, paper order, or live order is authorized by this runbook update.
+
+
+## 2026-11-10 — OIDC read-only snapshot token validation hardening
+
+The GitHub Actions OIDC verifier used by the scheduled read-only snapshot path now rejects non-numeric `iat`, `exp`, and optional `nbf` claims rather than coercing strings/null. It retains a bounded 30-second clock-skew allowance, maximum token age of 10 minutes and maximum token lifetime of 15 minutes. The previous failing test used an expiry only one second in the past, which is intentionally within the 30-second skew allowance; the corrected regression tests verify the boundary and reject expiry beyond it.
+
+- Implementation `47e2a19b37e78b9a2ee8c5076fb02885bccf6eaf`; exact test head `b8fb8704e8cbbe0720808098c99bb8a703f9e46e`; PR #108.
+- CI: Tests `42817051649`, Validate `42817052712`, full-history secret scan `42817051960` — all SUCCESS.
+- No scheduled workflow was manually dispatched by this work item. No broker request, D1 write/migration, order action or execution-control change occurred. Paper execution remains disabled; kill switch remains engaged.
