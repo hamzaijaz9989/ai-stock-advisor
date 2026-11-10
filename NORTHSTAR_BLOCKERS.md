@@ -15,7 +15,7 @@ Work branch: `northstar/paper-execution-risk-controls`
 - Production D1 schema includes the expected execution-control, intent, order, position, equity-snapshot, fill-activity, trade-event, audit, and research tables and indexes.
 - Latest production controls read: `enabled=0`, `mode='paper'`, `kill_switch=1`, `max_portfolio_usd=1000`, `default_risk_fraction=0.005`, `max_risk_fraction=0.01`, `max_position_fraction=0.25`.
 - Production D1 counts at this run: 0 research council runs, 0 decision traces, 0 intents, 0 paper orders, 0 paper positions, 0 broker fill activities, 0 trade events, 1 equity snapshot and 2 audit rows.
-- The only production equity snapshot is `2026-11-08T18:34:38.720Z`: equity $100,000, cash $100,000, source `alpaca_paper_read_only_sync`. This is not Northstar's $1,000 virtual allocation.
+- The only production equity snapshot is `2026-11-08T18:34:38.720Z`: equity [redacted broker account value], cash [redacted broker account value], source `alpaca_paper_read_only_sync`. This is not Northstar's $1,000 virtual allocation.
 - PR #85 remains open and draft, based on `main`. The latest application source/test-code head at this evidence checkpoint is `24642a2a89d9178481f144db4b6061f3fba21f2d`; the following blocker-log-only commit is documentation, not application code.
 - GitHub Actions run `42548153031` on application/test-code head `24642a2a89d9178481f144db4b6061f3fba21f2d` completed successfully on 2026-11-09 01:56:30 UTC: Python tests passed, JavaScript tests passed (199/199, 0 failures), and lint passed. A subsequent blocker-log-only commit `2d8b85e087fd4210edca70f61e9bfe030c38be5c` also passed run `42548264156` (199/199 JavaScript tests, Python tests and lint).
 - Five changes on this run corrected inaccurate “execution remains disabled” claims in read-only sync, fill-import and reconciliation responses. The sync/fill tests that had weak mocks were replaced with explicit enabled-paper-mode tests proving those maintenance endpoints remain read-only and do not modify execution controls. This does not enable execution.
@@ -696,7 +696,7 @@ The additional review did not issue broker requests or modify any D1 row. These 
 
 ### Fresh read-only production and preview evidence
 - Production D1 migrations remain 0001–0005; preview D1 migrations remain 0001–0008. No migration was applied.
-- Production counts: 0 intents, 0 paper orders, 0 positions, 0 broker fills, and 1 equity snapshot. The only snapshot remains `2026-11-08T18:34:38.720Z`, equity $100,000, cash $100,000. It is broker account equity, not Northstar's $1,000 virtual strategy allocation.
+- Production counts: 0 intents, 0 paper orders, 0 positions, 0 broker fills, and 1 equity snapshot. The only snapshot remains `2026-11-08T18:34:38.720Z`, equity [redacted broker account value], cash [redacted broker account value]. It is broker account equity, not Northstar's $1,000 virtual strategy allocation.
 - Production controls remain `enabled=0`, `mode='paper'`, `kill_switch=1`, $1,000 virtual allocation, 0.5% default risk, 1% maximum risk, and 25% maximum position fraction. Preview controls also remain disabled with kill switch engaged; preview has zero equity snapshots.
 - Latest production Pages deployment remains `e4efbfd8-43f2-41b0-b01d-fc44e5b2a308`, successfully deployed from main commit `2a85645023f8d5e494fdafdcc0e67976a5dfb78e`. No PR #85 code was deployed to production.
 - Production D1 reads reported `rows_written=0`; no production sync, broker request, order mutation, or control change was performed.
@@ -937,3 +937,8 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - PR #103 changes include nine-agent dashboard, server-side research collector/council endpoints, evidence/fact adapters, telemetry/evaluation and tests. Static review confirmed collector requires explicit successful read-only Alpaca sync and reconciles broker/ledger before refreshing; research remains read-only and no order submission path is invoked by the collector. Full runtime acceptance remains blocked by stale equity history and missing seven-day baseline.
 - Production D1/strategy/ execution gates remain as documented in the preceding latest audit; no D1 query/write, migration, broker call, order, secret mutation, execution-control change or Production deployment was performed in this continuation.
 - Next exact action: get a successful Preview deployment for the latest application-code head, verify its endpoints using a permitted runtime path, and resolve the Pages Preview binding discrepancy without requesting the user's key or exposing any secret. Then complete exact-head CI and independent review before any merge. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## Public-repository data hygiene — 2026-11-10
+
+Historical broker account equity, cash and buying-power values have been redacted from the current blocker-log text. Future status records must retain only non-sensitive timestamps, provenance/source labels, status and necessary aggregate counts; never record broker balances, buying power, account numbers, credentials, tokens or secret values. This documentation-only cleanup does not rewrite prior Git history, so earlier committed versions may remain retrievable from existing history. No history rewrite was attempted.
