@@ -37,3 +37,7 @@ The GitHub Actions OIDC verifier used by the scheduled read-only snapshot path n
 - Implementation `47e2a19b37e78b9a2ee8c5076fb02885bccf6eaf`; exact test head `b8fb8704e8cbbe0720808098c99bb8a703f9e46e`; PR #108.
 - CI: Tests `42817051649`, Validate `42817052712`, full-history secret scan `42817051960` — all SUCCESS.
 - No scheduled workflow was manually dispatched by this work item. No broker request, D1 write/migration, order action or execution-control change occurred. Paper execution remains disabled; kill switch remains engaged.
+
+## 2026-11-10 — OIDC-authenticated read-only equity snapshot schedule
+
+The scheduled equity snapshot workflow is being migrated from a GitHub Actions operator-secret call chain to the pinned GitHub OIDC route `POST /api/paper/snapshot`. The route authenticates the exact main-branch workflow identity and performs only pre/post reconciliation plus read-only Alpaca Paper sync and idempotent snapshot audit. This does not implement order submission, modify execution controls, or enable paper execution. The workflow is implemented in PR #108 and has corrected exact-head CI passing (Tests `42825720825`, Validate `42825720610`, secret scan `42825720633`). Preview deployment `141f931c-63e2-41b8-bd06-b052f1c5173b` remains queued/idle; Production has not been deployed or invoked. The seven-day equity baseline remains unavailable; all execution safety gates remain closed.

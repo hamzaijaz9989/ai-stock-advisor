@@ -748,3 +748,14 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [x] Exact-commit Preview deployment `33dac559-e3c9-41ff-b394-afbf25dda626` — SUCCESS; Trading Lab and paper read-only endpoints 200; Preview FMP health 503 MISSING_BINDING.
 - [ ] Independent PR #108 review and branch governance; fresh seven-day Production equity baseline; Preview provider bindings if Preview provider acceptance is required; controlled authenticated research-only acceptance.
 - Database changes: none. Production remains execution-disabled and kill-switched; BUY remains NOT APPROVED.
+
+## Phase 2 — read-only OIDC snapshot workflow integration (2026-11-10 18:34 PKT / 13:34 UTC)
+
+- [x] Replace the GitHub Actions operator-secret dependency with a short-lived, audience-pinned GitHub OIDC token.
+- [x] Route scheduled capture through the server-side `POST /api/paper/snapshot` handler, which performs pre/post reconciliation, read-only sync, persistence verification and idempotent audit.
+- [x] Add tests for missing/malformed OIDC rejection before D1/provider access and for the workflow's fail-closed OIDC contract.
+- [x] Corrected exact-head CI: Tests `42825720825`, Validate `42825720610`, full-history secret scan `42825720633` — all SUCCESS.
+- [ ] Verify Preview deployment `141f931c-63e2-41b8-bd06-b052f1c5173b` (last read: queued/idle).
+- [ ] Obtain independent review/governance; merge only after review and required checks; verify scheduled workflow on main.
+- [ ] Accumulate genuine seven-day Production snapshots and reconciled broker state; do not run paper orders.
+- Safety: no database changes/migrations, secret reads/changes, broker requests, orders, Production deployment or execution-control changes. Execution disabled, kill switch engaged, BUY not approved.

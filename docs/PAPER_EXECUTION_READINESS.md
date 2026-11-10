@@ -50,3 +50,9 @@ Migration `web/migrations/0001_paper_trading.sql` creates:
 ## Cloudflare binding (later step)
 
 The Pages project will need a D1 binding named `NORTHSTAR_DB` pointing to a newly created database. Its database ID is account-specific and must not be guessed. Add the binding only after the database exists; then apply the migration with Wrangler. No database ID or credentials are required in this repository change.
+
+## 2026-11-10 — scheduled equity snapshots via GitHub OIDC
+
+The three-hour read-only snapshot workflow now requests a short-lived GitHub Actions OIDC token with audience `northstar-paper-snapshot` and calls only the protected `POST /api/paper/snapshot` route. The workflow grants `contents: read` plus `id-token: write`, uses a single-flight concurrency group, and no longer requires a GitHub Actions copy of `NORTHSTAR_OPERATOR_TOKEN`. The Pages Function still uses the server-side Pages operator secret and Alpaca Paper credentials; it verifies the exact repository/owner IDs, main ref, workflow path/name, hosted runner, event, audience, signature and token time bounds. It checks fail-closed controls, performs pre-sync reconciliation, read-only sync, snapshot persistence verification and post-sync reconciliation, and records an idempotent audit row. It has no order submission path.
+
+Implementation/workflow commit `48fe694bd76d183db66b8fc4706c52ccd048a8b8`; test correction `2d509d4e5eb2a2e6a4dcc5b1173409b498c5f2f3`; PR #108. Corrected Tests `42825720825`, Validate `42825720610`, secret scan `42825720633` all SUCCESS. Preview deployment `141f931c-63e2-41b8-bd06-b052f1c5173b` is still queued/idle and not verified. No Production deployment, D1 write/migration, secret mutation, broker call or order action occurred. Production snapshots and seven-day baseline remain pending; execution disabled, kill switch engaged, BUY not approved.
