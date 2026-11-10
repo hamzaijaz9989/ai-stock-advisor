@@ -81,6 +81,8 @@ const makeId = (...parts) => parts.map(safeIdPart).join(":").slice(0, 180);
 const NEWS_PUBLISHERS = /reuters|bloomberg|wall street journal|wsj|cnbc|associated press|ap news|financial times|marketwatch|yahoo finance|nasdaq|finnhub|financial modeling prep/i;
 const NEWS_MACRO_SCOPE = /\b(federal reserve|fed rate|interest rates?|inflation|cpi|pce|nonfarm payrolls|unemployment rate|treasury yields?|recession|gdp growth)\b/i;
 const NEWS_SECTOR_SCOPE = /\b(semiconductor industry|chipmakers|cloud computing sector|banking sector|oil prices|crude prices|retail sector|automotive industry|biotech sector)\b/i;
+const NEWS_MAX_AGE_DAYS = 14;
+const NEWS_MAX_AGE_MS = NEWS_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 function normalizeNewsHeadline(value) {
   return String(value || "").normalize("NFKC").toLowerCase()
     .replace(/&amp;/g," and ").replace(/[^\p{L}\p{N}]+/gu," ").trim().replace(/\s+/g," ");
@@ -164,6 +166,8 @@ function buildResourceCoverage(facts, evidence, portfolio, asOf, newsQuality = {
       uniqueEligibleCount:Number(newsQuality.uniqueEligibleCount || 0),
       excludedFutureDatedCount:Number(newsQuality.excludedFutureDatedCount || 0),
       excludedUndatedCount:Number(newsQuality.excludedUndatedCount || 0),
+      excludedStaleCount:Number(newsQuality.excludedStaleCount || 0),
+      maxAgeDays:Number(newsQuality.maxAgeDays || NEWS_MAX_AGE_DAYS),
       duplicateCount:Number(newsQuality.duplicateCount || 0),
       companySpecificCount:Number(newsQuality.companySpecificCount || 0),
       macroCount:Number(newsQuality.macroCount || 0),
@@ -337,7 +341,7 @@ export function buildResearchCouncilContext(input) {
   const news = input.news;
   const newsQuality = {
     eligibleCount:0,uniqueEligibleCount:0,excludedFutureDatedCount:0,excludedUndatedCount:0,
-    duplicateCount:0,companySpecificCount:0,macroCount:0,sectorCount:0,ambiguousCount:0,
+    excludedStaleCount:0,maxAgeDays:NEWS_MAX_AGE_DAYS,duplicateCount:0,companySpecificCount:0,macroCount:0,sectorCount:0,ambiguousCount:0,
     primarySourceCount:0,reportedSourceCount:0,unverifiedSourceCount:0
   };
   const seenNewsByUrl = new Map(), seenNewsByHeadlineDay = new Map();
@@ -351,6 +355,11 @@ export function buildResearchCouncilContext(input) {
     }
     if (published > asOfMs) {
       newsQuality.excludedFutureDatedCount++;
+      continue;
+    }
+    const ageMs = asOfMs - published;
+    if (ageMs > NEWS_MAX_AGE_MS) {
+      newsQuality.excludedStaleCount++;
       continue;
     }
     const canonicalUrl = canonicalNewsUrl(item.url);
@@ -384,10 +393,10 @@ export function buildResearchCouncilContext(input) {
     }
     add(evidence,id,"NEWS_DISCOVERY",{
       title:item.title,description:item.description || "",url:item.url,canonicalUrl,publishedAt:item.publishedAt,
-      timestampStatus:"PRESENT",scope,scopeEligible:scope === "company",
+      timestampStatus:"PRESENT",freshnessStatus:"FRESH",ageMs,maxAgeMs:NEWS_MAX_AGE_MS,scope,scopeEligible:scope === "company",
       sourceTier,sourceTierHeuristic:true,duplicate:Boolean(duplicateOf),duplicateOf,duplicateReason,
       publisher:item.source || null,publisherVerified:item.publisherVerified === true,
-      note:"Discovery source only; scope and source-tier labels are heuristics, not verification. Duplicate items are not independent corroboration. Headline and description remain unverified claims until checked against original reporting."
+      note:"Discovery source only; publication timestamp is within the 14-day freshness window. Scope and source-tier labels are heuristics, not verification. Duplicate items are not independent corroboration. Headline and description remain unverified claims until checked against original reporting."
     },item.source || "news discovery feed",item.publishedAt);
   }
 

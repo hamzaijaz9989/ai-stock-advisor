@@ -118,7 +118,7 @@ test("only timestamped news published by the research as-of time counts as counc
  assert.deepEqual(news.map(x=>x.value.title),["Eligible news"]);
  assert.equal(result.resourceCoverage.roles.news_analyst.status,"PARTIAL");
  assert.deepEqual(result.resourceCoverage.newsQuality,{
-  eligibleCount:1,uniqueEligibleCount:1,excludedFutureDatedCount:1,excludedUndatedCount:3,
+  eligibleCount:1,uniqueEligibleCount:1,excludedFutureDatedCount:1,excludedUndatedCount:3,excludedStaleCount:0,maxAgeDays:14,
    duplicateCount:0,companySpecificCount:0,macroCount:0,sectorCount:0,ambiguousCount:1,
    primarySourceCount:0,reportedSourceCount:0,unverifiedSourceCount:1
  });
@@ -156,7 +156,7 @@ test("labels news scope and source quality without scoring, and marks syndicated
  assert.equal(news[4].value.scope,"sector");
  assert.equal(news[5].value.scope,"ambiguous");
  assert.deepEqual(result.resourceCoverage.newsQuality,{
-  eligibleCount:6,uniqueEligibleCount:4,excludedFutureDatedCount:0,excludedUndatedCount:0,
+  eligibleCount:6,uniqueEligibleCount:4,excludedFutureDatedCount:0,excludedUndatedCount:0,excludedStaleCount:0,maxAgeDays:14,
   duplicateCount:2,companySpecificCount:1,macroCount:1,sectorCount:1,ambiguousCount:1,
   primarySourceCount:0,reportedSourceCount:3,unverifiedSourceCount:1
  });
@@ -259,4 +259,26 @@ test("stale quote blocks market-scanner resource coverage even when 60 daily bar
  assert.equal(result.resourceCoverage.roles.market_scanner.status,"INSUFFICIENT");
  assert.equal(result.resourceCoverage.roles.market_scanner.quoteFreshness.status,"STALE");
  assert.ok(result.resourceCoverage.roles.market_scanner.gaps.some(x=>x.includes("Quote freshness gate failed")));
+});
+
+
+test("excludes stale news outside the 14-day freshness window and preserves the exact boundary",()=>{
+ const asOf="2026-11-10T20:00:00Z";
+ const result=buildResearchCouncilContext({ticker:"NVDA",asOf,portfolio,news:{items:[
+  {title:"Stale NVDA story",url:"https://example.com/stale",publishedAt:"2026-10-27T19:59:59Z",source:"Reuters"},
+  {title:"Boundary NVDA story",url:"https://example.com/boundary",publishedAt:"2026-10-27T20:00:00Z",source:"Reuters"},
+  {title:"Fresh NVDA story",url:"https://example.com/fresh",publishedAt:"2026-11-09T20:00:00Z",source:"Reuters"}
+ ]}});
+ const news=result.evidence.filter(x=>x.type==="NEWS_DISCOVERY");
+ assert.deepEqual(news.map(x=>x.value.title),["Boundary NVDA story","Fresh NVDA story"]);
+ assert.ok(news.every(x=>x.value.freshnessStatus==="FRESH"&&x.value.maxAgeMs===14*24*60*60*1000));
+ assert.equal(result.resourceCoverage.newsQuality.excludedStaleCount,1);
+ assert.equal(result.resourceCoverage.newsQuality.maxAgeDays,14);
+ assert.ok(result.resourceCoverage.roles.news_analyst.gaps.some(x=>/stale news items older than the 14-day/.test(x)));
+ const staleOnly=buildResearchCouncilContext({ticker:"NVDA",asOf,portfolio,news:{items:[
+  {title:"Only stale NVDA story",url:"https://example.com/only-stale",publishedAt:"2026-10-26T20:00:00Z",source:"Reuters"}
+ ]}});
+ assert.equal(staleOnly.evidence.some(x=>x.type==="NEWS_DISCOVERY"),false);
+ assert.equal(staleOnly.resourceCoverage.roles.news_analyst.status,"INSUFFICIENT");
+ assert.equal(staleOnly.resourceCoverage.newsQuality.excludedStaleCount,1);
 });
