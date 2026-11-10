@@ -64,3 +64,7 @@ test("preview is explicitly non-executing", () => {
   assert.equal(r.execution, false);
   assert.match(r.note, /does not submit/);
 });
+
+test("blocks a position that would breach the sector exposure cap", () => {
+  assert.equal(sizePaperPilotOrder(valid({sectorExposureUsd: 990})).reason, "SECTOR_EXPOSURE_LIMIT_EXCEEDED");
+});
