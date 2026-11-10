@@ -1,4 +1,5 @@
 import test from "node:test";
+import {parsePagesD1Bindings, verifyCloudflarePagesD1Isolation} from "../scripts/verify_pages_d1_isolation.mjs";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 
@@ -38,4 +39,64 @@ test("Pages Preview uses its isolated D1 database while production remains uncha
   assert.equal(value(preview, "database_id"), "bdffc29f-a4f6-498e-ade7-22c85d9bd373");
   assert.notEqual(value(preview, "database_id"), value(production, "database_id"),
     "Preview must never point to the production D1 database");
+});
+
+
+
+test("live Pages verifier accepts matching isolated D1 bindings using a read-only request", async () => {
+  const expected = parsePagesD1Bindings(config);
+  let request;
+  const response = await verifyCloudflarePagesD1Isolation({
+    accountId: "account-test",
+    apiToken: "never-log-this-token",
+    configText: config,
+    fetcher: async (url, options) => {
+      request = {url, options};
+      return Response.json({success: true, result: {deployment_configs: {
+        preview: {d1_databases: {NORTHSTAR_DB: {id: expected.preview.databaseId}}, fail_open: false},
+        production: {d1_databases: {NORTHSTAR_DB: {id: expected.production.databaseId}}, fail_open: false}
+      }}});
+    }
+  });
+  assert.equal(request.options.method, "GET");
+  assert.match(request.options.headers.Authorization, /^Bearer /);
+  assert.equal(response.previewIsolated, true);
+  assert.equal(response.failOpen, false);
+  assert.doesNotMatch(JSON.stringify(response), /never-log-this-token/);
+});
+
+test("live Pages verifier fails closed when Preview drifts to the Production D1 database", async () => {
+  const expected = parsePagesD1Bindings(config);
+  await assert.rejects(() => verifyCloudflarePagesD1Isolation({
+    accountId: "account-test",
+    apiToken: "test-token",
+    configText: config,
+    fetcher: async () => Response.json({success: true, result: {deployment_configs: {
+      preview: {d1_databases: {NORTHSTAR_DB: {id: expected.production.databaseId}}, fail_open: false},
+      production: {d1_databases: {NORTHSTAR_DB: {id: expected.production.databaseId}}, fail_open: false}
+    }}})
+  }), /Live Preview NORTHSTAR_DB binding does not match/);
+});
+
+test("live Pages verifier fails closed if either environment enables fail_open", async () => {
+  const expected = parsePagesD1Bindings(config);
+  await assert.rejects(() => verifyCloudflarePagesD1Isolation({
+    accountId: "account-test",
+    apiToken: "test-token",
+    configText: config,
+    fetcher: async () => Response.json({success: true, result: {deployment_configs: {
+      preview: {d1_databases: {NORTHSTAR_DB: {id: expected.preview.databaseId}}, fail_open: true},
+      production: {d1_databases: {NORTHSTAR_DB: {id: expected.production.databaseId}}, fail_open: false}
+    }}})
+  }), /fail_open=false/);
+});
+
+test("live Pages verifier requires credentials before making a request", async () => {
+  let called = false;
+  await assert.rejects(() => verifyCloudflarePagesD1Isolation({
+    accountId: "account-test",
+    configText: config,
+    fetcher: async () => { called = true; return Response.json({success: true}); }
+  }), /CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required/);
+  assert.equal(called, false);
 });
