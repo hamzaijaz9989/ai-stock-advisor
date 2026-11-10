@@ -26,7 +26,7 @@ export function runMarketScanner(context) {
   if(move!==null) findings.push(claim("Provider-reported quote change is "+move.toFixed(2)+" percent; this is a single-symbol observation, not a market-wide ranking.",[q.id]));
   const risks=[];
   if(q.value.quoteFreshness?.status!=="FRESH") risks.push(claim("Quote freshness is not verified as fresh; scanner output must not be treated as a live opportunity ranking.",[q.id]));
-  if(q.value.delayedOrRealtime && !/real.?time/i.test(q.value.delayedOrRealtime)) risks.push(claim("Quote provider labels this observation as delayed or non-real-time; verify price independently before relying on it.",[q.id]));
+  if(q.value.delayedOrRealtime && /not real.?time|delayed|not guaranteed|daily interval/i.test(q.value.delayedOrRealtime)) risks.push(claim("Quote provider labels this observation as delayed or non-real-time; verify price independently before relying on it.",[q.id]));
   if(rows.length<60) risks.push(claim("History is shorter than the 60-session coverage target; broad momentum screening remains limited.",[h.id]));
   return report(findings,risks);
 }
