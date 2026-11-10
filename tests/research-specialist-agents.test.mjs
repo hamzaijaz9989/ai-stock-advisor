@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {SPECIALIST_AGENTS,runMarketScanner,runTechnicalAnalyst,runFundamentalAnalyst,runNewsAnalyst,runSentimentAnalyst} from "../web/lib/research-specialist-agents.js";
 
 function context(){
- const rows=Array.from({length:80},(_,i)=>({date:"2026-01-"+String((i%28)+1).padStart(2,"0"),open:100+i,high:102+i,low:99+i,close:101+i,volume:1000+i*5}));
+ const rows=Array.from({length:80},(_,i)=>({date:new Date(Date.UTC(2025,0,1+i)).toISOString().slice(0,10),open:100+i,high:102+i,low:99+i,close:101+i,volume:1000+i*5}));
  return {ticker:"TEST",facts:[
   {id:"q1",type:"QUOTE",value:{price:180,changePercent:1.2,quoteFreshness:{status:"FRESH"}}},
   {id:"h1",type:"DAILY_OHLCV_HISTORY",value:{rows,observationCount:80,dataQuality:"verified-adjusted"}},
