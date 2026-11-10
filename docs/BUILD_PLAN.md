@@ -102,7 +102,7 @@ Immediate next sequence: merge PR #103 after exact-head CI and static preview ve
 
 ## Current execution checkpoint — 2026-11-10
 
-- Repository visibility is public, owner-confirmed.
+- Repository visibility is unresolved: GitHub API reports public while the user states private. Treat contents as publicly accessible until GitHub Settings confirms the actual setting; do not change visibility without explicit authorization.
 - Universe scanning remains complete and tested; do not rebuild it without a demonstrated regression.
 - Nine-agent Stock Brain code and dashboard integration are combined in open, non-open PR #103 at head `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`. Exact-head CI passed (Cloudflare Pages, Tests, Validate AI Stock Advisor and full-history secret scan). Cloudflare preview deployment `a1c5704f-7bea-4ca4-a252-c6b049b5857b` succeeded at https://a1c5704f.ai-stock-advisor.pages.dev; live preview endpoint/UI smoke test remains outstanding because both web browsing and Cloudflare execution environments block outbound requests to the Pages host with tool-level 403.
 - PR #103 is not merged or production-deployed. Do not treat CI or preview deployment as production acceptance.
@@ -113,7 +113,7 @@ Immediate next sequence: merge PR #103 after exact-head CI and static preview ve
 
 ## 2026-11-10 — Latest autonomous Stock Brain acceptance checkpoint
 
-- Repository is public by owner choice.
+- Repository visibility is unresolved; treat contents as publicly accessible until GitHub Settings confirms the actual setting.
 - PR #103 is open and non-draft at head `5b39a9b888a6ccb7ba9a2074668cc73cee2e149a`; exact-head CI is green and Cloudflare preview deployment succeeded at https://a1c5704f.ai-stock-advisor.pages.dev.
 - Live HTTP/UI smoke testing remains outstanding due to the connected browsing layer's inability to reach the Pages host. Deployment success is not runtime acceptance.
 - Next task: verify preview dashboard/status/auth paths in an authorized browser, then complete review and safe merge decision. No production deployment or DB mutation has been made.
@@ -242,3 +242,15 @@ Immediate next sequence: merge PR #103 after exact-head CI and static preview ve
 - Complete: canonical FMP binding behavior is tested; unsafe client-side login/token persistence is removed; exact-head CI passes; Preview Pages Functions and the read-only readiness endpoint are verified; Preview D1 isolation remains verified.
 - Remaining blockers: securely configure Preview `FMP_API_KEY`, `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` and `GEMINI_API_KEY`; establish and verify a fresh reconciled seven-day equity history via an approved read-only schedule; run one authenticated research-only acceptance and verify the durable nine-role trace/scorecard/telemetry; obtain independent PR review and confirm branch governance; resolve repository visibility discrepancy (GitHub API reports public while user/README context says private). Do not change repository visibility without explicit authorization.
 - Exact next action: after Preview secrets are securely present, verify the FMP health endpoint and read-only Alpaca reconciliation/sync without changing execution controls; establish a genuine seven-day baseline and verify the scheduled workflow actually ran; only then perform one authenticated research-only Stock Brain collection and read back its durable nine-role result, scorecard and telemetry. Keep PR #103 unmerged until independent review/governance pass. No paper orders.
+
+
+## 2026-11-10 05:42 PKT — Stock Brain audit refresh
+
+- Universe scanning remains user-confirmed COMPLETE; no scanner rebuild.
+- PR #103 application head `661fc8ca06ad505938adf97cf6c0670802ae5a3e` is 136 commits ahead / 0 behind main `d1c9b964204c89639bf1c13d511e75d9c398d51f`, open, non-draft and mergeable. Exact-head Tests `42729675713` and `42729666713`, Validate `42729675701`, and secret scan `42729675765` passed. Preview deployment `d2e6429a-844d-42fb-8e6a-73f9938fdabf` succeeded; live Trading Lab HTML smoke returned HTTP 200 and contains the Stock Brain workspace, scorecard panel and run control.
+- Preview FMP health returns 503 missing binding; Preview Alpaca status returns 503 missing credentials. Production FMP health is rejected by provider with HTTP 401 invalid API key; fundamentals return zero of five datasets. Do not call FMP connected.
+- Production D1 migrations 0001–0005; Preview 0001–0012. Production has 44 monitor runs, all recent runs market-closed, zero quotes/events, zero council runs/traces, one stale equity snapshot and zero paper orders/positions/intents/fills. Preview has no equity snapshot or council runs. No D1 writes/migrations occurred.
+- Production controls remain disabled/paper/kill-switched. Strategy validation remains NOT APPROVED; BUY remains disabled. Paper execution remains disabled.
+- Repository visibility is unresolved: GitHub API reports public while the user states private. Treat repository contents as publicly accessible until Settings confirms the actual setting. Do not change visibility without explicit authorization.
+- Phase 2 is implemented, CI-passed and Preview-verified, but not accepted: provider credentials and a genuine fresh/reconciled seven-day equity history are missing; no authenticated research-only run has been performed; PR #103 has no independent review and branch protection cannot be verified (API 403).
+- Exact next action: after valid server-side FMP/Alpaca/Gemini credentials and a genuine seven-day baseline are available, perform read-only broker reconciliation, then one authenticated research-only collection and verify all nine roles, scorecard, telemetry and durable trace. Do not merge or deploy Production before independent review/governance. No paper orders.
