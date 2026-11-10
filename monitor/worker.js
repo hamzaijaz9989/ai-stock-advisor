@@ -142,7 +142,7 @@ export async function getQuote(symbol, env, fetchImpl = fetch, now = Date.now())
       }
     }
   }
-  return getYahooQuote(symbol);
+  return getYahooQuote(symbol, fetchImpl, now);
 }
 async function bounded(items,limit,fn) {
   const out=new Array(items.length); let next=0;
