@@ -14,10 +14,10 @@
 | Area | Current decision |
 |---|---|
 | Architecture | Cloudflare-native: existing Pages Functions, Workers, and D1 |
-| Agent autonomy | Research-only baseline; paper-trading pilot proposed but not yet enabled |
+| Agent autonomy | Research council remains advisory; capped automatic paper-only pilot approved in principle, but execution stays disabled until all engineering, strategy, and runtime gates pass |
 | Infrastructure budget | Minimal; reuse existing resources before adding paid services |
 | Research roles | Preserve the existing nine-agent council; do not create a parallel agent framework |
-| Financial safety | No live or paper orders, no order modification/cancellation, no automatic BUY, no kill-switch or execution-control changes |
+| Financial safety | Real-money trading prohibited. Paper automation may be enabled only after paper-host isolation, server-side risk enforcement, tests, strategy acceptance, and explicit final activation approval; no live host or credentials |
 | Production changes | No production migration, secret change, or deployment without separate explicit approval |
 | Data integrity | Preserve provenance, timestamps, freshness, source entitlement, missing-data reasons, and deterministic risk vetoes |
 
@@ -190,3 +190,15 @@ Additional rules:
 - Before the pilot can begin, obtain explicit agreement on a capped test allocation, max loss per trade/day, max concurrent positions, eligible instruments, and whether orders are manual-confirmed or automated.
 - Proposed conservative pilot defaults for user review only: US-listed stocks/ETFs, long-only, no options/crypto/shorting/margin, $5,000 maximum total deployed notional, risk no more than 0.5% of pilot capital per trade, daily stop at 1% of pilot capital, and maximum 3 open positions. These are proposed controls, not yet active.
 - Next: user confirms or edits the pilot risk limits; then document the decision, implement a paper-only execution gate isolated from production, test order sizing/stops/idempotency/kill switch, and only then submit any explicitly approved paper orders.
+
+
+### 2026-11-11 — Paper-trading pilot limits approved; implementation authorized (not activated)
+- User explicitly approved a paper-only pilot with **USD 2,500 maximum allocation**, **USD 25 maximum planned risk per trade**, and **USD 50 daily loss stop**.
+- User selected **automatic paper orders only after safeguards and tests pass**. This authorizes implementation and safety testing; it does not authorize real-money trading, live credentials, production deployment, or immediate automatic order activation.
+- Real-money order placement, live API hosts, live credentials, and changes to real holdings remain prohibited.
+- Existing Trading Lab documentation described a USD 1,000 simulation profile. That stale default must be superseded by this dated approval; the approved ceiling is USD 2,500. Do not treat broker buying power as the pilot allocation.
+- Engineering must fail closed unless the account is confirmed as Alpaca Paper, the broker host is hard-coded to the paper endpoint, the pilot allocation and loss limits are enforced server-side, data and strategy prerequisites are satisfied, duplicate requests are idempotent, order/fill state is reconciled, and a persistent kill switch is engaged by default.
+- The existing nine-agent council remains advisory. Council consensus cannot authorize or bypass deterministic risk gates. Current research council output is not a validated trading strategy and is not, by itself, eligible to place orders.
+- Before any automatic order path is activated, require: isolated paper-only executor; authenticated operator/automation identity; instrument and order-type allowlists; sizing from stop distance; per-trade and aggregate exposure checks; daily loss stop; stale-data/event/liquidity vetoes; idempotency and unknown-order reconciliation; audit trail; emergency disable; tests for every rejection and failure path; and a controlled Preview acceptance run.
+- No paper orders have been submitted by this implementation work. No production database, secrets, deployment, broker control, or live account was changed.
+- Next: inspect existing order guards, execution-control schema, and test conventions; implement pure policy/sizing gates and unit tests first. Add any broker submission route only after proving all preconditions and confirming that it has no live-host fallback. Keep execution disabled pending final acceptance.
