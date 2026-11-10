@@ -48,9 +48,11 @@ export function requireFreshResearchQuote(context){
 }
 export function requireVerifiedEquitySnapshotProvenance(snapshots){
  if(!Array.isArray(snapshots)||snapshots.length===0)throw new Error("Verified equity history is unavailable.");
- if(snapshots.some(row=>row?.source!=="alpaca_paper_read_only_sync"))
-  throw new Error("Equity history contains a snapshot without verified Alpaca Paper read-only sync provenance.");
- return snapshots;
+ // Keep unverified/manual/plugin captures in the ledger for audit, but never mix
+ // them into the risk series. Only server-side Alpaca Paper sync rows are eligible.
+ const verified=snapshots.filter(row=>row?.source==="alpaca_paper_read_only_sync");
+ if(verified.length===0)throw new Error("Verified Alpaca Paper read-only sync equity history is unavailable.");
+ return verified;
 }
 async function secFacts(ticker,asOf){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};

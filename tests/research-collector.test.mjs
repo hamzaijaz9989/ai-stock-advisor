@@ -124,17 +124,25 @@ test("collector requires a deterministic fresh-quote assessment before invoking 
 });
 
 
-test("collector accepts equity history only when every snapshot has the read-only Alpaca Paper provenance label",()=>{
+test("collector excludes non-server-side snapshots from risk history and fails when no verified rows remain",()=>{
  const valid=[
   {captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000,source:"alpaca_paper_read_only_sync"},
   {captured_at:"2026-11-10T15:00:00.000Z",equity_usd:100250,source:"alpaca_paper_read_only_sync"}
  ];
- assert.equal(requireVerifiedEquitySnapshotProvenance(valid),valid);
+ assert.deepEqual(requireVerifiedEquitySnapshotProvenance(valid),valid);
+ const mixed=[
+  valid[0],
+  {captured_at:"2026-11-09T15:00:00.000Z",equity_usd:100200,source:"alpaca_paper_plugin_read_only_capture"},
+  valid[1],
+  {captured_at:"2026-11-09T16:00:00.000Z",equity_usd:100300,source:"manual_import"}
+ ];
+ assert.deepEqual(requireVerifiedEquitySnapshotProvenance(mixed),valid,
+  "unverified rows remain stored but must not poison an otherwise valid server-side risk series");
  for(const invalid of [
   [],
   [{captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000}],
   [{captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000,source:"manual_import"}],
-  [...valid,{captured_at:"2026-11-09T15:00:00.000Z",equity_usd:100100,source:"unknown"}]
+  [{captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000,source:"alpaca_paper_plugin_read_only_capture"}]
  ]) assert.throws(()=>requireVerifiedEquitySnapshotProvenance(invalid),/equity history|provenance/i);
 });
 
