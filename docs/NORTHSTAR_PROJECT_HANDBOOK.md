@@ -1216,3 +1216,72 @@ Historical broker account equity, cash and buying-power values have been redacte
 - Files in this evidence pointer: handbook, blocker register, build plan, Stock Brain spec, continuous-monitor runbook and paper-readiness runbook. Database changes: NONE (SELECT-only audit); no secrets read/changed, broker mutation, order, production migration, control change or Production deployment. Safety impact: documentation-only; all interlocks preserved.
 - Complete: PR #108 exact-head CI PASS; application Preview PASS at the latest application commit; PR #114 redaction CI PASS; Production OIDC snapshot path independently evidenced. Blockers: independent reviews/governance, seven-day baseline, cache-refresh schedule delivery, Preview provider configuration, eligible timestamped news and licensed sentiment, controlled research acceptance, strategy validation.
 - Exact next action: obtain independent review/governance for PR #108 and PR #114; verify the next scheduled OIDC and cache-refresh events; keep monitor fail-closed; continue trusted snapshots until the seven-day baseline; then run one controlled research-only Council acceptance. Never enable paper execution or submit any order.
+
+
+---
+
+## 2026-11-11 — Production incident and nine-agent live acceptance handover
+
+### User-reported incident
+The owner reports that API/provider setup was repaired today, but the Trading Lab screenshots still show:
+- Alpaca paper connection: NOT VERIFIED; the UI reports missing `ALPACA_API_KEY_ID` and `ALPACA_API_SECRET_KEY`.
+- Historical diagnostics: FMP binding unavailable (UI text references `FMP_API_KEY2/FMP_API_KEY`) and Yahoo fallback HTTP 429.
+- Scanner: cached data stale / verify.
+These are observations from the supplied screenshots, not proof that the owner's newly saved credentials are invalid. Do not ask the owner to rotate or re-enter working API credentials until deployment target, binding names and deployed revision are verified.
+
+### Verified repository / release boundary at this handover
+- Main remains `68c0c7b8a547487073e25ef286b91a3a892b2187`.
+- PR #108 remains open on `northstar/stock-brain-clean-review-20261110`, exact head `8fe6e0ce07069a4bf50026cce8a33bbfc0ab1760`; latest exact-head Tests `42883689085`, Validate `42883689055`, full-history secret scan `42883689056` all succeeded.
+- Latest known successful application Preview is deployment `65e0efaf-d7f7-460e-af21-2c9e35eb5612`, built from application commit `0b896667e94b0615b1d2f7d7a99a950808d32a8e`. Docs-only later commits do not imply a new Pages application build.
+- Production Pages remains on main commit `68c0c7b8a547487073e25ef286b91a3a892b2187`, deployment `ab1f9eb5-eb68-4824-9bb4-d7b5c2cea8f5`. PR #108's nine-agent UI/collector changes are not thereby present in Production.
+- The separate `northstar-market-monitor` Worker is not the Pages app. Its deployed FMP-auth correction requires its own Worker release and live verification. A green Pages Preview or GitHub CI cannot verify that Worker.
+- No secret values were read. No API credentials were copied, rotated or changed. No broker mutation, order, execution-control change, D1 migration or Production deployment was performed during this audit.
+
+### API contract / diagnostic map — do not conflate providers
+- Alpaca connection check: `GET /api/alpaca/status`; server code expects Pages secrets `ALPACA_API_KEY_ID` and `ALPACA_API_SECRET_KEY`, and performs GET-only requests to the Alpaca **paper** API.
+- Historical diagnostics: `GET /api/fmp-history?ticker=...`; current server handler expects the single binding `FMP_API_KEY`. It does not read `FMP_API_KEY2`. If the deployed UI reports `FMP_API_KEY2/FMP_API_KEY`, establish which build/route generated that message before changing secrets.
+- Generic price-history endpoint: `GET /api/history?ticker=...`; its fallback chain includes Yahoo and Nasdaq. Yahoo HTTP 429 is provider rate limiting, not evidence that the user's Alpaca or FMP credentials are invalid.
+- Market monitor: independent Worker, D1-backed; must be tested separately from Pages endpoints. Current documented failure mode is stale/incomplete shortlist cache before quote collection. Do not relax the four-hour cache freshness gate to force a green result.
+- Research Council: authenticated `POST /api/research/collect` is the intended server-side live collection path. It performs its own provider collection and requires reconciled read-only portfolio context. `POST /api/research/council` is for trusted pre-collected context; browser-supplied values are not authoritative. Operator token is supplied at run time, never stored in browser storage or committed.
+
+### Nine-agent roster and live-market acceptance status
+The nine roles in `web/lib/research-council.js` are:
+1. Market Scanner
+2. Technical Analyst
+3. Fundamental Analyst
+4. News & Catalyst Analyst
+5. Sentiment Analyst
+6. Bull Researcher
+7. Bear Researcher
+8. Portfolio Analyst
+9. Risk Committee (final deterministic-contract veto)
+
+**Live acceptance result for this handover: NOT RUN / NOT VERIFIED for all nine.** No authenticated Production collector acceptance evidence or durable Production Council run/decision trace was available in the verified handover. Do not label any agent PASS based solely on unit tests, CI, a Preview deployment, or synthetic fixtures.
+
+| Agent | Required live evidence | Current status |
+|---|---|---|
+| Market Scanner | Fresh timestamped quote, validated OHLCV history, current shortlist and coverage | BLOCKED — stale shortlist / no verified live quote cycle |
+| Technical Analyst | At least 60 valid chronological daily OHLCV bars; reproducible indicators | NOT LIVE-TESTED — depends on verified history |
+| Fundamental Analyst | Timestamped SEC facts and FMP statements with filing/availability semantics | NOT LIVE-TESTED — provider data not accepted live |
+| News & Catalyst Analyst | Timestamped, source-attributed articles and filings, chronology verified | BLOCKED — live news discovery/availability not verified |
+| Sentiment Analyst | Permitted licensed feed, explicit timestamp/as-of and methodology | BLOCKED — eligible feed/UTC semantics not verified |
+| Bull Researcher | Evidence-linked bull report with counter-evidence and falsifiers | NOT LIVE-TESTED — requires complete upstream dossier |
+| Bear Researcher | Evidence-linked bear report with counter-evidence and falsifiers | NOT LIVE-TESTED — requires complete upstream dossier |
+| Portfolio Analyst | Reconciled, fresh read-only account/holdings/risk snapshot | BLOCKED — collector acceptance and qualifying snapshot baseline not verified |
+| Risk Committee | Full nine-role dossier, portfolio context, explicit decision and veto reasons | NOT LIVE-TESTED — must remain fail-closed until every prior stage completes |
+
+### Required one-pass acceptance sequence
+1. Identify the exact URL, Pages deployment ID/commit and environment being opened on the user's phone.
+2. Inspect Pages production/preview binding **names only** (never values); compare exact deployed handler contracts with the configured secret names. Resolve whether the user's repaired APIs were saved to the same Cloudflare account/project/environment and whether a new deployment is required.
+3. Run read-only health checks for Alpaca paper, FMP history, generic history, and the market-monitor Worker. Record HTTP status, sanitized error class, provider and retrieval timestamp. Never print headers, credentials or tokens.
+4. Restore the scheduled shortlist refresh path; validate generatedAt, workflow run ID, source commit, universe size, ranked count and top-ten enrichment before allowing the Worker to scan. Keep stale-cache fail-closed behavior.
+5. Confirm the current market session and obtain fresh quotes only from permitted providers. Store and verify quote rows and monitor-run evidence; no quote/event row means no monitor acceptance.
+6. Run the authenticated Research Council collector once with a stable request ID, read-only Alpaca reconciliation and valid as-of time. Do not bypass freshness, seven-day baseline, source timestamp, news or sentiment gates.
+7. Verify all nine role outcomes, fact/evidence IDs, report contracts, scorecard, veto reasons, telemetry, durable decision trace and idempotent replay. A role that is unavailable, blocked or skipped is not a pass.
+8. Update this handbook and `NORTHSTAR_BLOCKERS.md` with exact run IDs, deployment IDs, commit SHA, timestamps, per-agent status and evidence links. Do not write a generic “all passed” summary.
+
+### Safety invariants
+Keep `mode=paper`, `enabled=0`, `kill_switch=1`; no live or paper orders; no BUY enablement. The Research Council can return only research review required or no trade. Missing evidence, stale data, provider errors, unavailable roles or a risk veto must block progression. Do not loosen scanner/cache freshness or invent timestamps to force acceptance.
+
+### Handover owner action / access dependency
+The operator-token-protected collector cannot be truthfully accepted without an authorized run. Use the Trading Lab's run-time token prompt; do not paste the token into source, GitHub documentation, issue comments, browser storage or this chat. If the operator session is not available to the connected tools, record the collector and all dependent agent tests as BLOCKED rather than pretending they ran.
