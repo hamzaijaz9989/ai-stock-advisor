@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {onRequestPost} from "../web/functions/api/research/collect.js";
+import {readFile} from "node:fs/promises";
+import {onRequestPost,requireReadOnlySyncSuccess,requireFreshResearchQuote,requireVerifiedEquitySnapshotProvenance} from "../web/functions/api/research/collect.js";
 
 test("server-side research collector rejects unauthenticated callers before provider access",async()=>{
  const response=await onRequestPost({request:new Request("https://northstar.test/api/research/collect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ticker:"NVDA",requestId:"collector-0001"})}),env:{NORTHSTAR_OPERATOR_TOKEN:"secret",NORTHSTAR_DB:{}}});
@@ -37,4 +38,125 @@ test("collector rejects reuse of a request ID for a different ticker",async()=>{
  const response=await onRequestPost({request:collectorRequest({ticker:"AAPL",requestId:"collector-replay-0002"}),env:{NORTHSTAR_OPERATOR_TOKEN:"secret",NORTHSTAR_DB:db}});
  assert.equal(response.status,409);
  assert.match((await response.json()).error,/different ticker/i);
+});
+
+test("collector reconciles the broker against the existing ledger before sync can overwrite a mismatch",async()=>{
+ const calls=[];
+ const db={prepare(sql){
+  const statement={bind(){return statement;},
+   async first(){
+    if(sql.includes("research_council_runs"))return null;
+    if(sql.includes("execution_control"))return {enabled:0,mode:"paper",kill_switch:1};
+    return null;
+   },
+   async all(){if(sql.includes("paper_positions")||sql.includes("paper_orders"))return {results:[]};return {results:[]};}
+  };
+  return statement;
+ }};
+ const old=globalThis.fetch;
+ globalThis.fetch=async url=>{
+  const u=String(url);calls.push(u);
+  if(u.includes("/v2/account"))return Response.json({status:"ACTIVE",currency:"USD"});
+  if(u.includes("/v2/positions"))return Response.json([{symbol:"AAPL",qty:"1",avg_entry_price:"100"}]);
+  if(u.includes("/v2/orders?"))return Response.json([]);
+  throw new Error("unexpected external request "+u);
+ };
+ try{
+  const response=await onRequestPost({request:new Request("https://northstar.test/api/research/collect",{method:"POST",headers:{Authorization:"Bearer secret","Content-Type":"application/json"},body:JSON.stringify({ticker:"NVDA",requestId:"collector-mismatch-0001"})}),env:{
+   NORTHSTAR_OPERATOR_TOKEN:"secret",NORTHSTAR_DB:db,ALPACA_API_KEY_ID:"paper-key",ALPACA_API_SECRET_KEY:"paper-secret"
+  }});
+  const body=await response.json();
+  assert.equal(response.status,503);
+  assert.match(body.error,/Pre-sync broker-to-ledger reconciliation failed/i);
+  assert.equal(calls.filter(u=>u.includes("/v2/account")).length,1,"only reconciliation should call the broker before the mismatch blocks collection");
+  assert.equal(calls.some(u=>u.includes("sec.gov")),false,"provider collection must not begin after reconciliation fails");
+ }finally{globalThis.fetch=old;}
+});
+
+const collectorSource = await readFile(new URL("../web/functions/api/research/collect.js", import.meta.url), "utf8");
+
+test("collector evaluates and persists scorecard with the durable nine-agent run",()=>{
+ assert.match(collectorSource,/evaluateResearchCouncilRun\(result,/);
+ assert.match(collectorSource,/roles:workers\.telemetry\|\|\{\}/);
+ assert.match(collectorSource,/INSERT INTO research_council_runs/);
+ assert.match(collectorSource,/const trace=\{schemaVersion:1,inputSha256:inputHash,ticker,asOf:context\.asOf,facts:context\.facts,evidence:context\.evidence,portfolio:context\.portfolio,resourceCoverage:context\.resourceCoverage\}/);
+ assert.match(collectorSource,/const storedResult=\{\.\.\.result,traceDurable:true,trace,evaluation,/);
+ assert.match(collectorSource,/result:\{\.\.\.JSON\.parse\(prior\.result_json\),traceDurable:true\}/);
+ assert.match(collectorSource,/result:\{\.\.\.JSON\.parse\(stored\.result_json\),traceDurable:true\}/);
+ assert.match(collectorSource,/reconcilePaperAccount/);
+});
+
+
+test("collector requires explicit read-only sync success and execution=false",async()=>{
+ const valid=await requireReadOnlySyncSuccess(Response.json({ok:true,synced:true,execution:false}));
+ assert.equal(valid.synced,true);
+ assert.equal(valid.execution,false);
+ for(const body of [
+  {ok:true,synced:false,execution:false},
+  {ok:true,synced:true,execution:true},
+  {synced:true,execution:false},
+  {ok:true,synced:true}
+ ]){
+  await assert.rejects(()=>requireReadOnlySyncSuccess(Response.json(body)),/explicitly confirm success/i);
+ }
+ await assert.rejects(()=>requireReadOnlySyncSuccess(new Response("not-json",{status:200})),/explicitly confirm success/i);
+ await assert.rejects(()=>requireReadOnlySyncSuccess(new Response(JSON.stringify({ok:true,synced:true,execution:false}),{status:503,headers:{"Content-Type":"application/json"}})),/explicitly confirm success/i);
+});
+
+
+test("collector captures research as-of after provider snapshots and before SEC fact filtering",()=>{
+ const providers=collectorSource.indexOf("const [quote,fundamentals,history,news,earnings]=await Promise.all([");
+ const asOf=collectorSource.indexOf("const asOf=new Date().toISOString();",providers);
+ const sec=collectorSource.indexOf("const sec=await secFacts(ticker,asOf);",providers);
+ assert.ok(providers>=0&&asOf>providers&&sec>asOf,"as-of must follow provider collection and precede SEC point-in-time selection");
+});
+
+
+test("collector requires a deterministic fresh-quote assessment before invoking the council",()=>{
+ const fresh={resourceCoverage:{roles:{market_scanner:{quoteFreshness:{status:"FRESH",reason:"WITHIN_MARKET_STATE_AGE_LIMIT"}}}}};
+ assert.equal(requireFreshResearchQuote(fresh).status,"FRESH");
+ for(const status of ["MISSING","AFTER_AS_OF","STALE",undefined]){
+  const context={resourceCoverage:{roles:{market_scanner:{quoteFreshness:status?{status,reason:"TEST_BLOCK"}:undefined}}}};
+  assert.throws(()=>requireFreshResearchQuote(context),/Quote freshness gate blocked research collection/);
+ }
+ assert.match(collectorSource,/requireFreshResearchQuote\(context\)/);
+ assert.ok(collectorSource.indexOf("requireFreshResearchQuote(context)")<collectorSource.indexOf("runResearchCouncil({requestId,context,workers})"));
+});
+
+
+test("collector excludes non-server-side snapshots from risk history and fails when no verified rows remain",()=>{
+ const valid=[
+  {captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000,source:"alpaca_paper_read_only_sync"},
+  {captured_at:"2026-11-10T15:00:00.000Z",equity_usd:100250,source:"alpaca_paper_read_only_sync"}
+ ];
+ assert.deepEqual(requireVerifiedEquitySnapshotProvenance(valid),valid);
+ const mixed=[
+  valid[0],
+  {captured_at:"2026-11-09T15:00:00.000Z",equity_usd:100200,source:"alpaca_paper_plugin_read_only_capture"},
+  valid[1],
+  {captured_at:"2026-11-09T16:00:00.000Z",equity_usd:100300,source:"manual_import"}
+ ];
+ assert.deepEqual(requireVerifiedEquitySnapshotProvenance(mixed),valid,
+  "unverified rows remain stored but must not poison an otherwise valid server-side risk series");
+ for(const invalid of [
+  [],
+  [{captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000}],
+  [{captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000,source:"manual_import"}],
+  [{captured_at:"2026-11-03T15:00:00.000Z",equity_usd:100000,source:"alpaca_paper_plugin_read_only_capture"}]
+ ]) assert.throws(()=>requireVerifiedEquitySnapshotProvenance(invalid),/equity history|provenance/i);
+});
+
+test("collector selects source metadata and validates it before calculating portfolio risk",()=>{
+ assert.match(collectorSource,/SELECT captured_at,equity_usd,source FROM paper_equity_snapshots/);
+ const provenance=collectorSource.indexOf("requireVerifiedEquitySnapshotProvenance(snapshotRows?.results||[])");
+ const risk=collectorSource.indexOf("deriveSnapshotRiskMetrics({snapshots");
+ assert.ok(provenance>=0&&risk>provenance,"snapshot provenance must be checked before risk metrics are calculated");
+});
+
+
+test("collector treats FMP fundamentals as an optional cross-check while retaining the daily-history gate",()=>{
+ assert.match(collectorSource,/optionalEndpoint\(getFundamentals/);
+ assert.match(collectorSource,/fmpFundamentals:\{available:fmpCrosscheckAvailable/);
+ assert.match(collectorSource,/FMP daily price history/);
+ assert.doesNotMatch(collectorSource,/if\(!fundamentals\?\.available\)throw/);
 });

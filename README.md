@@ -26,7 +26,7 @@ Fetch official SEC filing/fundamental records (not signals) for a set of symbols
 python scripts/fetch_sec_history.py --symbols AAPL MSFT NVDA --cutoff 2026-10-28 --output data/sec-source-bundle.json
 ```
 
-See [SEC point-in-time ingestion](docs/SEC_POINT_IN_TIME_INGESTION.md). The bundle preserves accession IDs and exact acceptance timestamps where available; it never guesses timestamps. It is explicitly not decision-eligible and does not unlock BUY.
+See [SEC point-in-time ingestion](docs/SEC_POINT_IN_TIME_INGESTION.md). The bundle preserves accession IDs and exact acceptance timestamps where available; it never guesses timestamps. The Research Council also excludes same-day date-only SEC facts unless an exact verified public-availability timestamp is supplied; FMP statement rows require a pre-as-of accepted timestamp or a prior-day filing date, and provider retrieval timestamps must not exceed the research as-of time. It is explicitly not decision-eligible and does not unlock BUY.
 
 ## Research-only historical price collection
 
@@ -73,10 +73,10 @@ ruff check .
 
 ## Dashboard
 
-The dashboard in `web/` is deployed to Cloudflare Pages. The repository is public.
+The dashboard in `web/` is deployed to Cloudflare Pages. The connected GitHub API currently reports `visibility=public`, while the owner states the repository should be private. This discrepancy remains unresolved. Treat repository contents as publicly accessible until GitHub Settings confirms the actual visibility; do not change visibility without explicit authorization. Never commit secrets or sensitive customer data.
 
 - [Live dashboard](https://ai-stock-advisor.pages.dev)
-- [Public GitHub repository](https://github.com/hamzaijaz9989/ai-stock-advisor)
+- [GitHub repository](https://github.com/hamzaijaz9989/ai-stock-advisor)
 
 It includes SEC EDGAR reported facts and filings, best-effort quote and one-year history data, headline discovery, a third-party upcoming-earnings calendar check, a provisional five-year cash-flow-per-share valuation, ATR-based risk levels, and a decision checklist.
 
@@ -102,3 +102,55 @@ The 253-stock screen now adds a conservative, provisional opportunity check acro
 
 ## SEC timestamp verification
 The SEC ingestion workflow now creates a separate bounded sample cross-checked against SEC filing-index header pages. It checks accession and filing-date consistency, converts EDGAR acceptance time to UTC, records it separately as `acceptance_at`, and keeps `available_at` null with `availability_timestamp_verified: false` because acceptance is not proof of public-web availability. Acceptance time is not proof of the exact moment a filing became publicly retrievable; complete point-in-time strategy validation remains blocked until all required inputs and availability semantics are verified.
+
+
+Repository visibility is unresolved: GitHub API metadata currently reports `public` while the owner states it is `private`. Do not change visibility without explicit authorization; treat repository contents as publicly accessible until GitHub Settings confirms otherwise.
+
+
+## Latest verified Northstar checkpoint
+
+- Active phase: nine-agent Research Council / Stock Brain. Universe scanning remains complete; do not rebuild it without a demonstrated regression.
+- Main: `68c0c7b8a547487073e25ef286b91a3a892b2187`. Active PR #108 head: `7345c3333860329413e25800d1f3e33b750e9e3c`, 83 ahead / 0 behind, mergeable, but awaiting independent review and governance. Exact-head Tests, Validate and secret scan runs `42879636217`, `42879636245`, `42879636208` passed.
+- Production OIDC snapshot workflow run `42878930747` successfully completed read-only sync and pre/post reconciliation with execution disabled. Production Pages deployment: `ab1f9eb5-eb68-4824-9bb4-d7b5c2cea8f5`; Stock Brain Preview: `f82b5260-3b84-45d8-9a13-b39f9731a48d`.
+- Production Research Council acceptance remains pending: no durable Council runs/traces exist, a genuine seven-day trusted equity baseline is not yet available, Preview provider secrets are absent, and the market monitor remains fail-closed on a stale shortlist. Keep execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-10 23:56 PKT — exact documentation-head verification
+
+- Documentation/source commit verified: `c4f60fee02b8f7adc61eb654bf1e8f6fa12cef8a` on PR #108, branch `northstar/stock-brain-clean-review-20261110`.
+- Exact-head CI on `c4f60fee02b8f7adc61eb654bf1e8f6fa12cef8a`: Tests run `42881677857` PASS; Validate run `42881678080` PASS; full-history secret scan run `42881677828` PASS. These results are for the exact c4f60 commit.
+- Cloudflare Preview deployment `b08bcda9-7952-4da1-9f07-e061fe0a0c10` succeeded from `c4f60fee02b8f7adc61eb654bf1e8f6fa12cef8a`, with Functions enabled and the isolated Preview D1 binding. Production remains on deployment `ab1f9eb5-eb68-4824-9bb4-d7b5c2cea8f5` from main `68c0c7b8a547487073e25ef286b91a3a892b2187`; no Production deployment occurred.
+- PR #108 is now 84 commits ahead / 0 behind main, open/non-draft, mergeable clean, with zero formal reviews. Main remains `protected=false`; do not merge before independent review and governance approval.
+- Files in this documentation verification addendum: README, project handbook, blocker register, build plan, Stock Brain spec, continuous-monitor runbook, paper-readiness runbook and Research Council spec. Database changes: NONE; SELECT-only audit; no secrets read/changed, no broker mutation, no orders, no Production migration/control change/deployment. Safety interlocks remain unchanged.
+- Exact next action: independent formal review/governance for PR #108; continue separate verification of scheduled OIDC snapshots and cache-refresh delivery; preserve the seven-day baseline and research-only acceptance gates.
+
+
+## 2026-11-10 23:56 PKT — exact redaction and release-state handover
+
+- Phase/objective: Phase 2 Research Council / Stock Brain; record the final exact-head verification and public-repository data-hygiene state. Universe scanning remains user-confirmed COMPLETE and unchanged.
+- PR #108 source head `10e5a728d9b072ce8e6bb69505e7a69a111e290f`, branch `northstar/stock-brain-clean-review-20261110`, 86 ahead / 0 behind main `68c0c7b8a547487073e25ef286b91a3a892b2187`, non-draft, mergeable, 0 independent reviews. Exact-head Tests `42882484814`, Validate `42882484976`, secret scan `42882484966`: all PASS. Preview deployment `b45c1a9a-0780-4b69-9a9f-f281ccb3c9a6` succeeded from this head with Functions enabled. Production Pages remains `ab1f9eb5-eb68-4824-9bb4-d7b5c2cea8f5` on main; no PR #108 code is in Production.
+- Separate data-hygiene PR #114 head `7ca39d93e2fde60089471eac2198f205212a6318`, one commit ahead / zero behind main, non-draft, mergeable, 0 reviews. Exact-head Tests `42882587882`, Validate `42882587696`, secret scan `42882588286`: all PASS. It removes historical broker account balance/cash/buying-power values from the current main blocker-log text. Its root-only documentation change does not require a Pages application deployment. Current main remains unchanged until the PR is reviewed and merged.
+- Public-data handling: PR #108's current documentation and PR description no longer include broker account equity/cash/buying-power amounts. PR #114 applies the blocker-log redaction to main. Existing Git history is not rewritten; older committed versions may remain retrievable. No history rewrite was attempted. GitHub reports repository visibility public while owner intent is private; treat all content as public until Settings confirms the actual visibility. Main branch is `protected=false`; both PRs have zero independent reviews. Do not merge either without review and governance approval.
+- Production OIDC snapshot run `42878930747` passed on a push event: readiness, pinned OIDC, read-only sync, pre/post reconciliation; execution=false and automatedOrderSubmission=false. A trusted snapshot and audit were persisted. The scheduled OIDC cron `17 */3 * * *` remains unverified by a schedule event.
+- Production D1 remains migrations `0001`–`0006`; Preview retains 12 historical migration entries. No migrations applied. Production monitor has 264 runs (55 failed, 209 market_closed), 70 aggregate errors, zero symbols/quotes/events; latest #264 failed closed on stale/incomplete cache. Cache last generated `2026-11-10T11:04:27.273Z` by run `42803828945`; no later scheduled refresh observed. Worker `7326f3e7-f323-4856-badf-aa8b979dffb4` remains at 100%, cron `*/5 * * * *`; PR #108 FMP auth fix is not deployed.
+- Research Council Production runs/traces remain zero; no collector acceptance was invoked. Synthetic integration proves fail-closed role handling, not live acceptance. Preview lacks provider bindings for a real-provider run; news remains unverified and sentiment unavailable pending a permitted timestamped source. Paper controls remain `enabled=0`, `mode=paper`, `kill_switch=1`; no paper/live orders, positions, intents, fills or trade events. Two trusted read-only sync snapshots and one plugin capture exist; plugin capture is excluded. The seven-day baseline cannot exist before `2026-11-15T18:34:38.720Z` if recurring trusted snapshots continue. Strategy validation NOT APPROVED; BUY disabled.
+- Files updated in this handover: README, handbook, blocker register, build plan, Stock Brain spec, continuous-monitor runbook, paper-readiness runbook and Research Council spec. Audited commit SHA `10e5a728d9b072ce8e6bb69505e7a69a111e290f`; PR #108. CI and Preview evidence above. Database changes in this documentation work: NONE (SELECT-only audit); no secret read/change, broker mutation, order, control change, Production migration or Production deployment.
+- Safety impact: documentation and PR metadata only; execution remains disabled and kill switch engaged. No scanner code or freshness gate changed.
+- Complete: exact-head CI and Preview pass for PR #108; exact-head CI pass for the focused PR #114 redaction; Production OIDC snapshot path verified by workflow evidence.
+- Blockers: independent reviews/governance for both PRs; seven-day baseline; cache-refresh schedule delivery; Preview provider configuration; timestamped news and licensed sentiment; controlled research-only Council acceptance; strategy validation and approval.
+- Exact next action: obtain independent review/governance for PR #108 and PR #114; verify the next scheduled OIDC/cache refresh events; keep monitor fail-closed; continue trusted snapshots until the seven-day baseline; then perform one controlled research-only Council acceptance and verify all nine outcomes, vetoes, scorecard, telemetry, durable trace and idempotent replay. Never enable paper execution or submit any order.
+
+
+## 2026-11-11 00:32 PKT / 2026-11-10 19:32 UTC — current research and data-quality status
+
+Production Alpaca paper and FMP quote/history/fundamentals bindings now pass read-only GET health checks; do not re-enter working keys based on older screenshots. FMP news remains HTTP 402, discovery headlines are not publisher-verified, and no permitted timestamped sentiment feed is configured. The monitor's latest run #270 still fails closed on stale shortlist cache with zero symbols/quotes/events. The nine-agent POST routes were not invoked because they require the run-time operator token; no live Council acceptance is claimed. The seven-day trusted snapshot baseline remains unavailable before 2026-11-15T18:34:38.720Z. Execution remains disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-11 00:36 PKT / 2026-11-10 19:36 UTC — U.S. market-session clarification
+
+The latest Alpaca quotes/movers around 19:34Z on Nov 10 were current for the U.S. Nov 10 session (14:34 EST); they are not stale just because Pakistan local time had crossed midnight. However, the independent market-monitor Worker still fails closed on stale shortlist cache (run #271), with zero symbols/quotes/events. Provider input availability is not a successful scanner run or nine-agent acceptance. FMP news remains HTTP 402, discovery headlines are unverified, and no licensed UTC-qualified sentiment feed is accepted. Keep BUY disabled, execution disabled and kill switch engaged.
+
+
+## 2026-11-11 00:42 PKT / 2026-11-10 19:42 UTC — current acceptance boundaries
+
+The Research Council collector gathers direct provider inputs and does not depend on the separate market-monitor shortlist cache. The monitor remains stale-cache failed-closed (run #272), but this must not be conflated with the Council's unrun Market Scanner specialist. Production Alpaca/FMP quote/history/fundamental inputs pass GET checks; FMP news remains HTTP 402, discovery news is unverified and no licensed UTC-qualified sentiment feed is accepted. Protected agent/collector POSTs remain unrun pending the operator token and trusted seven-day portfolio baseline. A hard-coded SEC contact address in the PR branch also needs owner confirmation as an approved public contact before merge. Execution stays disabled, kill switch engaged, BUY disabled.
