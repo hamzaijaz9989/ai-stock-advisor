@@ -8,7 +8,7 @@
 <title>Northstar AI — Trading Lab</title>
 <style>
 :root{color-scheme:dark;--bg:#070b12;--bg2:#0a111b;--panel:#0d1722;--panel2:#101d2a;--line:#203242;--line2:#29495b;--text:#eaf5fb;--muted:#8499a9;--cyan:#6de7f2;--lime:#c8ff59;--violet:#a99cff;--amber:#f6c66c;--red:#ff858e;--green:#76e0ae;--shadow:0 18px 60px #0005}
-*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:110px}body{margin:0;background:radial-gradient(ellipse at 15% -10%,#123347 0,transparent 35%),radial-gradient(ellipse at 100% 8%,#211d46 0,transparent 28%),var(--bg);color:var(--text);font:14px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.005em}a{color:var(--cyan);text-decoration:none}button,input{font:inherit}button{cursor:pointer}.wrap{width:min(1440px,100% - 44px);margin:auto}
+*{box-sizing:border-box}[hidden]{display:none!important}html{scroll-behavior:smooth;scroll-padding-top:110px}body{margin:0;background:radial-gradient(ellipse at 15% -10%,#123347 0,transparent 35%),radial-gradient(ellipse at 100% 8%,#211d46 0,transparent 28%),var(--bg);color:var(--text);font:14px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.005em}a{color:var(--cyan);text-decoration:none}button,input{font:inherit}button{cursor:pointer}.wrap{width:min(1440px,100% - 44px);margin:auto}
 .topbar{height:70px;position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:0 max(22px,calc((100vw - 1440px)/2));border-bottom:1px solid #243949;background:#070d16eF;backdrop-filter:blur(20px)}.brand{display:flex;align-items:center;gap:11px;color:var(--text);font-size:14px;font-weight:900;letter-spacing:.13em}.brand-mark{width:36px;height:36px;border:1px solid #3c7381;border-radius:12px;display:grid;place-items:center;color:var(--cyan);font-size:19px;box-shadow:inset 0 0 20px #55d9e51c}.brand span:last-child{color:var(--lime)}.head-right{display:flex;align-items:center;gap:12px}.navlink{color:#b6c8d4;font-size:12px;font-weight:750}.mode-pill,.micro-pill,.state{display:inline-flex;align-items:center;gap:7px;border:1px solid #315263;border-radius:999px;padding:6px 10px;color:#b8e9ed;font-size:10px;font-weight:850;letter-spacing:.1em}.mode-pill:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px var(--amber)}
 .hero{padding:34px 0 22px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,.7fr);gap:24px;align-items:end}.eyebrow{font-size:10px;font-weight:900;letter-spacing:.2em;color:var(--cyan);text-transform:uppercase}.hero h1{font-size:clamp(35px,5vw,62px);line-height:.98;letter-spacing:-.065em;margin:12px 0}.hero h1 em{font-style:normal;color:var(--cyan)}.hero p{color:#9db1c0;max-width:700px;margin:14px 0 0;font-size:14px}.hero-side{border:1px solid #2b4b5b;background:linear-gradient(140deg,#102633d9,#11152bd9);border-radius:20px;padding:17px 19px;box-shadow:var(--shadow)}.hero-side .tiny{color:#7f9aaa;font-size:9px;letter-spacing:.17em;font-weight:900}.hero-side strong{display:block;font-size:20px;margin-top:5px}.hero-side p{font-size:11px;margin:4px 0 0}
 .control-strip{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 16px}.control-strip .micro-pill{border-radius:8px;background:#0d1a25}.micro-pill.ok{color:var(--green);border-color:#285b4a}.micro-pill.warn{color:var(--amber);border-color:#67522f}.micro-pill.lock{color:var(--red);border-color:#653941}
@@ -33,7 +33,7 @@ button{border:1px solid transparent;border-radius:10px;padding:11px 14px;font-si
 <main class="wrap">
 <section class="hero"><div><div class="eyebrow">NORTHSTAR / COMMAND DECK · 01</div><h1>Trade with <em>precision.</em></h1><p>One workspace for market opportunities, portfolio telemetry, position risk and strategy validation. Evidence first. Risk always. Execution stays locked.</p></div><aside class="hero-side"><div class="tiny">OPERATING POSTURE</div><strong>Observe → Validate → Plan</strong><p>Research intelligence is separate. This workspace does not place orders or promise returns.</p></aside></section>
 <div class="control-strip"><span class="micro-pill ok">● RESEARCH ENGINE AVAILABLE</span><span class="micro-pill warn">◈ PAPER MODE ONLY</span><span class="micro-pill lock">▣ EXECUTION LOCKED</span><span class="micro-pill">LIVE DATA · REQUEST-BASED</span></div>
-<nav class="nav" aria-label="Trading Lab navigation"><a href="#overview">COMMAND DECK</a><a href="#performance-panel">PORTFOLIO</a><a href="#candidates-panel">OPPORTUNITIES</a><a href="#monitor-panel">MARKET MONITOR</a><a href="#risk-calculator">RISK ENGINE</a><a href="#ledger-panel">SAFETY</a><a href="#journal-panel">JOURNAL</a><a href="#time-machine">TIME MACHINE</a><a href="#pipeline">SYSTEM HEALTH</a></nav>
+<nav class="nav" aria-label="Trading Lab navigation"><a href="#overview">COMMAND DECK</a><a href="#performance-panel">PORTFOLIO</a><a href="#candidates-panel">OPPORTUNITIES</a><a href="#stock-brain">9-AGENT STOCK BRAIN</a><a href="#monitor-panel">MARKET MONITOR</a><a href="#risk-calculator">RISK ENGINE</a><a href="#ledger-panel">SAFETY</a><a href="#journal-panel">JOURNAL</a><a href="#time-machine">TIME MACHINE</a><a href="#pipeline">SYSTEM HEALTH</a></nav>
 <div class="warning"><span class="lockicon">◈</span><span><b>Safety interlock active.</b> Paper account telemetry is read-only. The $1,000 virtual planning allocation is separate from broker equity. No live orders, no automated paper orders, no real-money account access.</span></div>
 <section id="overview" class="section section-anchor">
 <div class="section-head"><div><div class="section-index">01 / ACCOUNT SNAPSHOT</div><h2>Command deck</h2><p>Planning capital and verified broker values are deliberately separated.</p></div><span class="state">SIMULATION</span></div>
@@ -71,6 +71,34 @@ button{border:1px solid transparent;border-radius:10px;padding:11px 14px;font-si
 <article class="card span-7"><div class="card-head"><div><h2>Priority candidates</h2><p>Open a ticker in the separate AI Research workspace.</p></div><span class="state">TOP SCREEN</span></div><div id="candidates"><p class="muted small">Loading latest cached screen…</p></div><p id="cache-note" class="muted small" style="margin-bottom:0">Candidates are research priorities only. Verify live price, valuation, earnings, news and risk.</p><div class="linkrow"><a href="./research.html#ranking-disclosure">Explore full research scan ↗</a></div></article>
 <article class="card span-5"><div class="card-head"><div><h2>Decision workflow</h2><p>A disciplined sequence, not an automatic signal.</p></div><span class="state">GUARDRAILS</span></div><div class="modules" style="grid-template-columns:1fr 1fr"><div class="module"><b>01 · Discover</b><span>Scanner shortlist</span></div><div class="module"><b>02 · Investigate</b><span>Full AI Research</span></div><div class="module"><b>03 · Invalidate</b><span>Define stop level</span></div><div class="module"><b>04 · Size</b><span>Risk limits apply</span></div></div><p class="muted small" style="margin:13px 0 0">No model score overrides the deterministic risk gate. Missing evidence means no trade.</p></article>
 </div></section>
+<section class="section section-anchor" id="stock-brain">
+<div class="section-head"><div><div class="section-index">04 / NINE-AGENT RESEARCH COUNCIL</div><h2>Stock Brain · Research Council</h2><p>Run a source-linked research review for one ticker. All nine roles are shown, including roles blocked by missing upstream evidence.</p></div><span class="state">RESEARCH ONLY</span></div>
+<article class="card">
+<div class="card-head"><div><h2>Launch a full research run</h2><p>Server-side collection · timestamped evidence · durable audit trace</p></div><span class="state">NO ORDERS</span></div>
+<div class="form-grid">
+<div class="field"><label for="stock-brain-ticker">US EQUITY TICKER</label><input id="stock-brain-ticker" maxlength="12" value="NVDA" autocomplete="off" spellcheck="false"></div>
+<div class="field" style="display:flex;align-items:end"><button id="run-stock-brain" class="primary" type="button">Run 9-agent research ↗</button></div>
+</div>
+<p class="muted small" style="margin:12px 0 0">You'll be asked for the Cloudflare <code>NORTHSTAR_OPERATOR_TOKEN</code>. It is sent only with this request and is not saved in browser storage. The browser sends only the ticker and a unique request ID; market data and portfolio context are collected server-side.</p>
+<p id="stock-brain-status" class="muted small" role="status" aria-live="polite" style="margin:13px 0 8px">No Stock Brain run in this session. The system fails closed if required market or portfolio evidence is unavailable.</p>
+<div class="stat-grid" id="stock-brain-summary" hidden>
+<div class="stat hero-stat"><label>Council outcome</label><strong id="stock-brain-outcome">—</strong><small>Not a BUY signal or order approval</small></div>
+<div class="stat"><label>Agent roles</label><strong id="stock-brain-agent-count">0 / 9</strong><small>Every role has an explicit status</small></div>
+<div class="stat"><label>Evidence items</label><strong id="stock-brain-evidence-count">—</strong><small>Facts + source evidence</small></div>
+<div class="stat"><label>Audit trace</label><strong id="stock-brain-trace">—</strong><small>Durability confirmed by server</small></div>
+</div>
+<div id="stock-brain-scorecard" class="card" hidden style="margin-top:14px">
+  <div class="card-head"><div><h2>Report integrity &amp; runtime telemetry</h2><p>Deterministic report-contract and measured-runtime diagnostics only.</p></div><span class="state">OBSERVABILITY ONLY</span></div>
+  <div id="stock-brain-scorecard-summary" class="stat-grid"></div>
+  <div id="stock-brain-scorecard-roles" style="margin-top:12px"></div>
+  <p id="stock-brain-scorecard-limitations" class="muted small" style="margin:12px 0 0"></p>
+</div>
+<div id="stock-brain-agents" style="margin-top:14px"><p class="muted small">The nine-agent status matrix will appear here after a run.</p></div>
+<div id="stock-brain-vetoes" style="margin-top:10px"></div>
+<div id="stock-brain-reports" style="margin-top:12px"></div>
+<p class="muted small" style="margin:14px 0 0">An accepted result means only “eligible for separate deterministic validation and human review.” Strategy validation is not approved, BUY remains disabled, and paper/live execution remains disabled.</p>
+</article>
+</section>
 <section class="section section-anchor" id="risk-calculator"><div class="section-head"><div><div class="section-index">04 / POSITION ENGINE</div><h2>Risk &amp; sizing console</h2><p>Calculate a hypothetical position using the current planning limits.</p></div><span class="state">NO ORDER ROUTE</span></div><div class="grid">
 <article class="card span-7"><div class="card-head"><h2>Define a trade plan</h2><span class="state">ILLUSTRATIVE INPUTS</span></div><div class="form-grid">
 <div class="field"><label for="symbol">TICKER</label><input id="symbol" maxlength="10" value="NVDA" autocomplete="off"></div>
@@ -92,4 +120,5 @@ button{border:1px solid transparent;border-radius:10px;padding:11px 14px;font-si
 <footer class="dash-foot"><span>NORTHSTAR AI · TRADING LAB · PAPER ONLY</span><span>Research separately · Execution locked · No guaranteed returns</span></footer>
 </main>
 <script src="./trading-lab.js?v=tradinglab4" defer></script>
+<!-- Northstar Stock Brain v1: authenticated, research-only nine-agent collector workspace. -->
 </body></html>

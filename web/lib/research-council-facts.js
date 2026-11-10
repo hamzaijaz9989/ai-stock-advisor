@@ -7,6 +7,68 @@ const dateMs = value => {
   const parsed = Date.parse(value || "");
   return Number.isFinite(parsed) ? parsed : null;
 };
+const dateOnly = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+
+const QUOTE_OPEN_MAX_AGE_MS = 15 * 60 * 1000;
+const QUOTE_CLOSED_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000;
+
+// A quote may be up to 15 minutes old unless the provider explicitly reports
+// the market closed; then the most recent session close is accepted for up to
+// five calendar days (weekends/holiday closures). Unknown/pre/post states use
+// the stricter open-session limit. Missing and future timestamps always fail.
+export function assessQuoteFreshness(quote, asOf) {
+  const asOfMs = dateMs(asOf);
+  const quoteMs = dateMs(quote?.quoteTime);
+  const marketState = String(quote?.marketState || "").trim().toUpperCase();
+  const explicitlyClosed = marketState === "CLOSED" || marketState.includes("MARKET CLOSED");
+  const maxAgeMs = explicitlyClosed ? QUOTE_CLOSED_MAX_AGE_MS : QUOTE_OPEN_MAX_AGE_MS;
+  if (asOfMs === null || quoteMs === null) {
+    return {status:"MISSING",ageMs:null,maxAgeMs,marketState:marketState || "UNKNOWN",reason:"QUOTE_TIMESTAMP_MISSING"};
+  }
+  if (quoteMs > asOfMs) {
+    return {status:"AFTER_AS_OF",ageMs:null,maxAgeMs,marketState:marketState || "UNKNOWN",reason:"QUOTE_AFTER_AS_OF"};
+  }
+  const ageMs = asOfMs - quoteMs;
+  if (ageMs > maxAgeMs) {
+    return {
+      status:"STALE",ageMs,maxAgeMs,marketState:marketState || "UNKNOWN",
+      reason:explicitlyClosed ? "CLOSED_SESSION_QUOTE_OLDER_THAN_5_DAYS" : "QUOTE_OLDER_THAN_15_MINUTES"
+    };
+  }
+  return {status:"FRESH",ageMs,maxAgeMs,marketState:marketState || "UNKNOWN",reason:"WITHIN_MARKET_STATE_AGE_LIMIT"};
+}
+function secAvailability(row, asOfDate, asOfMs) {
+  const filed = dateOnly(row?.filed);
+  const availableAtText = typeof row?.availableAt === "string" ? row.availableAt : "";
+  const hasExactTime = /(?:T|\s)\d{2}:\d{2}/.test(availableAtText);
+  const availableAtMs = hasExactTime ? dateMs(availableAtText) : null;
+  const verified = row?.availabilityTimestampVerified === true &&
+    availableAtMs !== null && availableAtMs <= asOfMs;
+  const filedBeforeAsOf = !!filed && (filed < asOfDate || (filed === asOfDate && verified));
+  return {
+    eligible: filedBeforeAsOf && (availableAtMs === null || availableAtMs <= asOfMs),
+    verified,
+    availableAt: verified ? new Date(availableAtMs).toISOString() : null
+  };
+}
+function fmpStatementAvailability(row, asOfDate, asOfMs) {
+  const acceptedAt = typeof row?.acceptedDate === "string" ? row.acceptedDate.trim() : "";
+  const hasExactTime = /(?:T|\s)\d{2}:\d{2}/.test(acceptedAt);
+  if (hasExactTime) {
+    const acceptedAtMs = dateMs(acceptedAt);
+    return {
+      eligible: acceptedAtMs !== null && acceptedAtMs <= asOfMs,
+      timestamp: acceptedAtMs !== null ? new Date(acceptedAtMs).toISOString() : null,
+      kind: "PROVIDER_ACCEPTED_AT"
+    };
+  }
+  const filingDate = dateOnly(row?.filingDate);
+  return {
+    eligible: !!filingDate && filingDate < asOfDate,
+    timestamp: filingDate,
+    kind: filingDate ? "PRIOR_DAY_FILING_DATE" : null
+  };
+}
 const safeIdPart = value => String(value ?? "na").trim().replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 48) || "na";
 const makeId = (...parts) => parts.map(safeIdPart).join(":").slice(0, 180);
 
@@ -27,6 +89,68 @@ function validatePortfolio(portfolio, asOfMs) {
   return {...values, asOf: new Date(capturedAt).toISOString(), source: portfolio.source, verified: true};
 }
 
+
+function buildResourceCoverage(facts, evidence, portfolio, asOf) {
+  const byType = type => facts.filter(item => item.type === type);
+  const evidenceByType = type => evidence.filter(item => item.type === type);
+  const history = byType("DAILY_OHLCV_HISTORY");
+  const quote = byType("QUOTE");
+  const sec = byType("SEC_REPORTED_FACT");
+  const fmp = byType("FMP_REPORTED_FUNDAMENTALS_CROSSCHECK").concat(byType("FMP_STATEMENT_PERIOD"));
+  const news = evidenceByType("NEWS_DISCOVERY");
+  const earnings = evidence.filter(item => item.type.startsWith("EARNINGS_"));
+  const historyCount = history.reduce((n,item) => n + Number(item.value?.observationCount || 0), 0);
+  const exactAvailability = sec.some(item => item.value?.availabilityTimestampVerified === true);
+  const quoteFreshness = quote[0]?.value?.quoteFreshness || {
+    status:"MISSING",ageMs:null,maxAgeMs:QUOTE_OPEN_MAX_AGE_MS,marketState:"UNKNOWN",reason:"QUOTE_TIMESTAMP_MISSING"
+  };
+  const quoteFresh = quoteFreshness.status === "FRESH";
+  const entry = (status, ids, gaps) => ({status, factIds:ids, gaps});
+  return {
+    generatedBy:"northstar-canonical-fact-adapter",
+    asOf,
+    roles:{
+      market_scanner:{
+        ...entry(quoteFresh && historyCount >= 60 ? "PARTIAL" : "INSUFFICIENT",
+          [...quote,...history].map(x=>x.id),
+          [...(!quoteFresh?["Quote freshness gate failed: "+quoteFreshness.reason+"."]:[]),
+            ...(historyCount < 60?["At least 60 valid daily bars are not present."]:[]),
+            "Broad market-universe, breadth and cross-sectional liquidity coverage are not supplied."]),
+        quoteFreshness
+      },
+      technical_analyst:entry(historyCount >= 60 ? "PARTIAL" : "INSUFFICIENT",history.map(x=>x.id),
+        [...(historyCount < 60?["Fewer than 60 valid daily OHLCV observations."]:[]),
+          "Adjusted-price and corporate-action continuity are not independently attested.",
+          "Trusted precomputed technical indicators are not supplied."]),
+      fundamental_analyst:entry(sec.length && fmp.length ? "PARTIAL" : "INSUFFICIENT",
+        [...sec,...fmp].map(x=>x.id),
+        [...(!sec.length?["SEC company-facts observations are missing."]:[]),
+          ...(!fmp.length?["FMP reported-fundamental cross-checks are missing."]:[]),
+          ...(!exactAvailability?["Exact public-availability timestamps for SEC facts are not verified."]:[])]),
+      news_analyst:entry(news.length ? "PARTIAL" : "INSUFFICIENT",
+        [...news,...earnings].map(x=>x.id),
+        ["News items are discovery evidence; original-source corroboration is not established by collection.",
+          "Issuer/regulator source verification is not consistently recorded."]),
+      sentiment_analyst:entry("MISSING",[],
+        ["No dedicated timestamped sentiment or positioning feed is connected.",
+          "Retail, institutional, short-interest, options-flow and analyst-revision populations are unavailable."]),
+      bull_researcher:entry("DEPENDENT",facts.map(x=>x.id).concat(evidence.map(x=>x.id)),
+        ["Upside case is bounded by the upstream evidence gaps; no independent external retrieval is available."]),
+      bear_researcher:entry("DEPENDENT",facts.map(x=>x.id).concat(evidence.map(x=>x.id)),
+        ["Downside case is bounded by the upstream evidence gaps; no independent external retrieval is available."]),
+      portfolio_analyst:entry(portfolio?.verified === true ? "PARTIAL" : "INSUFFICIENT",[],
+        ["Sector classification and portfolio-wide correlation matrix are not supplied.",
+          "Portfolio fit must remain limited where exposure or risk inputs are unavailable."]),
+      risk_committee:{
+        status:portfolio?.verified === true ? "SUFFICIENT_FOR_DETERMINISTIC_GATES" : "INSUFFICIENT",
+        factIds:[],
+        inputFields:["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"],
+        gaps:portfolio?.verified === true ? [] : ["Verified portfolio risk inputs are unavailable."]
+      }
+    }
+  };
+}
+
 export function buildResearchCouncilContext(input) {
   const ticker = String(input?.ticker || "").trim().toUpperCase();
   if (!TICKER_RE.test(ticker)) throw new TypeError("A valid US equity ticker is required.");
@@ -44,12 +168,14 @@ export function buildResearchCouncilContext(input) {
   const quote = input.quote;
   if (quote && (quote.ticker === undefined || String(quote.ticker).toUpperCase() === ticker) && finite(quote.price) && quote.price > 0) {
     const quoteTime = dateMs(quote.quoteTime);
+    const quoteFreshness = assessQuoteFreshness(quote,asOf);
     add(facts, makeId("quote",ticker,quote.quoteTime || "untimestamped"), "QUOTE", {
       price:quote.price, currency:quote.currency || null, exchange:quote.exchange || null,
       previousClose:finite(quote.previousClose) ? quote.previousClose : null,
       change:finite(quote.change) ? quote.change : null,
       changePercent:finite(quote.changePercent) ? quote.changePercent : null,
       quoteTime:quote.quoteTime || null, timestampStatus:quoteTime === null ? "MISSING" : quoteTime > asOfMs ? "AFTER_AS_OF" : "PRESENT",
+      quoteFreshness,
       marketState:quote.marketState || null, delayedOrRealtime:quote.delayedOrRealtime || null,
       interval:quote.interval || null, warning:quote.warning || null
     }, quote.source || "unknown", quote.quoteTime || null);
@@ -71,41 +197,66 @@ export function buildResearchCouncilContext(input) {
 
   const observations = Array.isArray(input.secObservations) ? input.secObservations : [];
   for (const row of observations.slice(0, 250)) {
+    const availability = secAvailability(row, asOfDate, asOfMs);
     if (!row || typeof row.key !== "string" || !finite(row.value) ||
-        typeof row.filed !== "string" || typeof row.end !== "string" ||
-        row.filed > asOfDate || row.end > asOfDate) continue;
+        !dateOnly(row.end) || row.end > asOfDate || !availability.eligible) continue;
     add(facts, makeId("sec",ticker,row.key,row.end,row.unit,row.accession), "SEC_REPORTED_FACT", {
       metric:row.metric || row.key, key:row.key, taxonomy:row.taxonomy || null, tag:row.tag || null,
       value:row.value, unit:row.unit || null, start:row.start || null, end:row.end, filed:row.filed,
       form:row.form || null, accession:row.accession || null, fiscalYear:row.fy ?? null,
-      fiscalPeriod:row.fp || null, availabilityTimestampVerified:false,
-      note:"SEC filed date is not an exact public-availability timestamp."
-    }, "SEC EDGAR companyfacts", row.filed);
+      fiscalPeriod:row.fp || null, availabilityTimestampVerified:availability.verified,
+      availableAt:availability.availableAt,
+      note:availability.verified
+        ? "Exact public-availability timestamp is supplied and is not after the research as-of time."
+        : "SEC filed date is not an exact public-availability timestamp; same-day filings are excluded."
+    }, "SEC EDGAR companyfacts", availability.availableAt || row.filed);
   }
 
   const fmp = input.fmpFundamentals;
   if (fmp?.available === true) {
-    if (fmp.latest && typeof fmp.latest === "object") {
+    const retrievedAtMs = dateMs(fmp.retrievedAt);
+    const fmpSnapshotAvailable = retrievedAtMs !== null && retrievedAtMs <= asOfMs;
+    if (fmpSnapshotAvailable && fmp.latest && typeof fmp.latest === "object") {
       const latest = {...fmp.latest};
       const estimateKeys = ["analystEpsAverage","analystRevenueAverage","analystCountEps","analystCountRevenue"];
       const estimateMetrics = Object.fromEntries(estimateKeys.filter(key => latest[key] !== null && latest[key] !== undefined).map(key => [key,latest[key]]));
       for (const key of estimateKeys) delete latest[key];
       add(facts, makeId("fmp-latest",ticker,latest.fiscalDate || fmp.retrievedAt),
-        "FMP_REPORTED_FUNDAMENTALS_CROSSCHECK", {fiscalDate:latest.fiscalDate || null,currency:latest.currency || null,metrics:latest},
-        fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+        "FMP_REPORTED_FUNDAMENTALS_CROSSCHECK", {
+          fiscalDate:latest.fiscalDate || null,currency:latest.currency || null,metrics:latest,
+          availabilityTimestampVerified:false,
+          note:"Current provider cross-check captured at retrieval time; not an immutable point-in-time filing archive."
+        }, fmp.provider || "Financial Modeling Prep", fmp.retrievedAt);
       if (Object.keys(estimateMetrics).length) add(facts, makeId("fmp-latest-estimates",ticker,latest.fiscalDate || fmp.retrievedAt),
-        "FMP_ANALYST_ESTIMATE", {period:latest.fiscalDate || null,metrics:estimateMetrics},
-        fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+        "FMP_ANALYST_ESTIMATE", {
+          period:latest.fiscalDate || null,metrics:estimateMetrics,
+          availabilityTimestampVerified:false,
+          note:"Provider estimate snapshot is only evidenced at retrieval time, not as an immutable historical estimate archive."
+        }, fmp.provider || "Financial Modeling Prep", fmp.retrievedAt);
     }
     const sections = ["income","balance","cashflow","metrics","ratios","estimates"];
     for (const section of sections) {
       const rows = Array.isArray(fmp.history?.[section]) ? fmp.history[section] : [];
       for (const row of rows.slice(0, 10)) {
+        if (!fmpSnapshotAvailable) continue;
         const period = row?.date || row?.fiscalDate || fmp.retrievedAt || "undated";
-        if (section !== "estimates" && typeof period === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(period) && period > asOfDate) continue;
-        add(facts, makeId("fmp",ticker,section,period,row?.period), section === "estimates" ? "FMP_ANALYST_ESTIMATE" : ["income","balance","cashflow"].includes(section) ? "FMP_STATEMENT_PERIOD" : "FMP_PROVIDER_METRIC",
-          {section,period:row?.period || null,reportedCurrency:row?.reportedCurrency || null,values:row},
-          fmp.provider || "Financial Modeling Prep", fmp.retrievedAt || null);
+        if (section !== "estimates") {
+          const availability = fmpStatementAvailability(row, asOfDate, asOfMs);
+          if (!availability.eligible ||
+              (typeof period === "string" && /^20\d{2}-\d{2}-\d{2}$/.test(period) && period > asOfDate)) continue;
+          add(facts, makeId("fmp",ticker,section,period,row?.period), "FMP_STATEMENT_PERIOD", {
+            section,period:row?.period || null,reportedCurrency:row?.reportedCurrency || null,values:row,
+            availabilityTimestampVerified:false,pointInTimeTimestamp:availability.timestamp,
+            pointInTimeTimestampKind:availability.kind,
+            note:"FMP accepted/filing timestamp is provider-reported and is not independently verified public availability."
+          }, fmp.provider || "Financial Modeling Prep", fmp.retrievedAt);
+        } else {
+          add(facts, makeId("fmp",ticker,section,period,row?.period), "FMP_ANALYST_ESTIMATE", {
+            section,period:row?.period || null,reportedCurrency:row?.reportedCurrency || null,values:row,
+            availabilityTimestampVerified:false,
+            note:"Provider estimate snapshot is evidenced at retrieval time only; historical revisions are not archived here."
+          }, fmp.provider || "Financial Modeling Prep", fmp.retrievedAt);
+        }
       }
     }
   }
@@ -137,6 +288,31 @@ export function buildResearchCouncilContext(input) {
   }
 
   const portfolio = validatePortfolio(input.portfolio, asOfMs);
+  const resourceCoverage = buildResourceCoverage(facts,evidence,portfolio,asOf);
+
+  // Give specialists first-class, citable records for portfolio inputs and known resource
+  // gaps. Without these records, a role with no dedicated feed (notably sentiment) could
+  // only satisfy the citation contract by attaching its limitation to unrelated market data.
+  const portfolioFactId = makeId("portfolio-risk",ticker,asOf);
+  const coverageFactId = makeId("resource-coverage",ticker,asOf);
+  add(facts,portfolioFactId,"PORTFOLIO_RISK_SNAPSHOT",{...portfolio},portfolio.source,portfolio.asOf);
+  const coverageRecord = {
+    generatedBy:resourceCoverage.generatedBy,
+    asOf:resourceCoverage.asOf,
+    roles:Object.fromEntries(Object.entries(resourceCoverage.roles).map(([role,entry])=>[role,{
+      status:entry.status,
+      gaps:[...entry.gaps],
+      inputFields:Array.isArray(entry.inputFields)?[...entry.inputFields]:[]
+    }]))
+  };
+  add(facts,coverageFactId,"RESOURCE_COVERAGE_SNAPSHOT",coverageRecord,"Northstar deterministic resource inventory",asOf);
+  for (const [role,entry] of Object.entries(resourceCoverage.roles)) {
+    const ids = new Set(Array.isArray(entry.factIds)?entry.factIds:[]);
+    ids.add(coverageFactId);
+    if (role === "portfolio_analyst" || role === "risk_committee") ids.add(portfolioFactId);
+    entry.factIds = [...ids];
+  }
+
   if (facts.length + evidence.length > 500) throw new TypeError("Research Council context exceeds 500 canonical facts and evidence items.");
-  return {ticker,asOf,facts,evidence,portfolio};
+  return {ticker,asOf,facts,evidence,portfolio,resourceCoverage};
 }

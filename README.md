@@ -26,7 +26,7 @@ Fetch official SEC filing/fundamental records (not signals) for a set of symbols
 python scripts/fetch_sec_history.py --symbols AAPL MSFT NVDA --cutoff 2026-10-28 --output data/sec-source-bundle.json
 ```
 
-See [SEC point-in-time ingestion](docs/SEC_POINT_IN_TIME_INGESTION.md). The bundle preserves accession IDs and exact acceptance timestamps where available; it never guesses timestamps. It is explicitly not decision-eligible and does not unlock BUY.
+See [SEC point-in-time ingestion](docs/SEC_POINT_IN_TIME_INGESTION.md). The bundle preserves accession IDs and exact acceptance timestamps where available; it never guesses timestamps. The Research Council also excludes same-day date-only SEC facts unless an exact verified public-availability timestamp is supplied; FMP statement rows require a pre-as-of accepted timestamp or a prior-day filing date, and provider retrieval timestamps must not exceed the research as-of time. It is explicitly not decision-eligible and does not unlock BUY.
 
 ## Research-only historical price collection
 
@@ -73,10 +73,10 @@ ruff check .
 
 ## Dashboard
 
-The dashboard in `web/` is deployed to Cloudflare Pages. The repository is public.
+The dashboard in `web/` is deployed to Cloudflare Pages. The connected GitHub API currently reports `visibility=public`, while the owner states the repository should be private. This discrepancy remains unresolved. Treat repository contents as publicly accessible until GitHub Settings confirms the actual visibility; do not change visibility without explicit authorization. Never commit secrets or sensitive customer data.
 
 - [Live dashboard](https://ai-stock-advisor.pages.dev)
-- [Public GitHub repository](https://github.com/hamzaijaz9989/ai-stock-advisor)
+- [GitHub repository](https://github.com/hamzaijaz9989/ai-stock-advisor)
 
 It includes SEC EDGAR reported facts and filings, best-effort quote and one-year history data, headline discovery, a third-party upcoming-earnings calendar check, a provisional five-year cash-flow-per-share valuation, ATR-based risk levels, and a decision checklist.
 
