@@ -523,3 +523,13 @@ Verification: PR #108 head 35b3c0a2a2f5ebb6d83c9adcb0869fe2313ff066; Tests 42821
 - Three roles are model-assisted: `bull_researcher`, `bear_researcher`, `portfolio_analyst`. Only these roles contribute provider-reported token/cost totals. Totals are null when required model-role usage is missing; do not infer usage or cost from prompt size or assumed pricing.
 - Regression test injects false token/cost values into deterministic telemetry and proves the scorecard ignores them while retaining all nine measured latencies.
 - Code/test commit `f9e9bd4359b3c57dfadf2bacd14017b6b8d28d2d`; PR #108. Tests `42824109684`, Validate `42824109727`, secret scan `42824110005` all SUCCESS. Preview deployment `33dac559-e3c9-41ff-b394-afbf25dda626` SUCCESS; Trading Lab, paper readiness and performance routes returned HTTP 200; FMP health returned 503 MISSING_BINDING. No authenticated collector request, D1 write/migration, Production deployment, broker call or order action.
+
+
+## 2026-11-10 19:40 PKT / 14:40 UTC — acceptance prerequisites refreshed
+
+- Production FMP access is now read-only verified for NVDA: health 200; 1,255 daily history bars across 2021-11-10–2026-11-10; 7/7 history datasets; 5/5 fundamentals datasets. Production quote endpoint returned a fresh Nasdaq-labelled quote at 14:33Z. This is a symbol-specific smoke, not broad universe validation.
+- Preview remains provider-unconfigured: FMP, Alpaca and Gemini bindings are absent. The successful Functions Preview deployment is `545ae2f1-1d0e-4d87-8245-2c16be07a191` (app commit `48fe694bd76d183db66b8fc4706c52ccd048a8b8`); Trading Lab/readiness/performance/monitor routes returned 200, FMP health returned 503 MISSING_BINDING as expected.
+- Production D1 remains at 0 `research_council_runs` and 0 `research_decision_traces`; two equity snapshots only, latest `2026-11-10T11:42:59.813Z`. No fresh 15-minute snapshot or genuine seven-day baseline exists. The protected collector has not been invoked.
+- PR #108 code/test head `3040f164f5bd31ee60b59e55b9cbac68045a8d35` also corrects the separate monitor Worker FMP key transport; Tests `42836191193`, Validate `42836191199`, secret scan `42836191055` and companion Tests `42836181974` all passed. The Worker change is not deployed; monitor runs #210–#212 still show 10/10 quote failures.
+- Sentiment remains UNAVAILABLE without an authorized timestamped feed; news discovery is not equivalent to verified original-source evidence. Model credential presence is not proof of successful model access.
+- No D1 writes/migrations, secret reads/changes, broker calls, orders, Production deployments or execution-control changes occurred. Execution remains disabled, kill switch engaged, BUY disabled and strategy NOT APPROVED.

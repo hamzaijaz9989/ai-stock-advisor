@@ -759,3 +759,14 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [ ] Obtain independent review/governance; merge only after review and required checks; verify scheduled workflow on main.
 - [ ] Accumulate genuine seven-day Production snapshots and reconciled broker state; do not run paper orders.
 - Safety: no database changes/migrations, secret reads/changes, broker requests, orders, Production deployment or execution-control changes. Execution disabled, kill switch engaged, BUY not approved.
+
+
+## Phase 2 — FMP monitor authentication regression (2026-11-10 19:40 PKT / 14:40 UTC)
+
+- [x] Confirm Production Pages FMP health, history and fundamentals for NVDA; daily history returned 1,255 bars and all 7 requested datasets.
+- [x] Identify deployed monitor's FMP key transport as a likely mismatch: Worker used a custom header while the official FMP quickstart documents the `apikey` query parameter.
+- [x] Change `monitor/worker.js` to use `?apikey=`; add exact request-contract regression in `tests/continuous-monitor.test.mjs`.
+- [x] Exact code/test-head CI: Tests `42836191193`, Validate `42836191199`, secret scan `42836191055`, companion push Tests `42836181974` — all SUCCESS on `3040f164f5bd31ee60b59e55b9cbac68045a8d35`, PR #108.
+- [ ] Deploy the separate Worker version only after independent review/release governance; verify market-open quotes and zero provider errors. Current Worker deployment `7326f3e7-f323-4856-badf-aa8b979dffb4` / version `2739d49a-4182-423f-8113-616252c5ddd6` remains at 100% and does not include this fix.
+- [ ] Continue Phase 2 acceptance prerequisites: fresh 15-minute read-only snapshot, genuine seven-day baseline, reconciled broker state, authorized sentiment/news sources and model credentials; then one controlled research-only collector run with durable nine-role trace and idempotent replay.
+- Database changes: none; SELECT-only audit. No secret mutation, broker call, order or execution-control change. Paper execution disabled; kill switch engaged; BUY not approved.
