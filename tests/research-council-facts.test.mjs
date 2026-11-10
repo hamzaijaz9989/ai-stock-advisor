@@ -86,14 +86,15 @@ test("only timestamped news published by the research as-of time counts as counc
   news:{items:[
    {title:"Eligible news",url:"https://example.com/eligible",publishedAt:"2026-11-08T19:00:00Z",source:"Example"},
    {title:"Future news",url:"https://example.com/future",publishedAt:"2026-11-08T20:01:00Z",source:"Example"},
-   {title:"Undated news",url:"https://example.com/undated",source:"Example"}
+   {title:"Undated news",url:"https://example.com/undated",source:"Example"},
+   {title:"Date-only news",url:"https://example.com/date-only",publishedAt:"2026-11-08",source:"Example"}
   ]}
  });
  const news=result.evidence.filter(x=>x.type==="NEWS_DISCOVERY");
  assert.deepEqual(news.map(x=>x.value.title),["Eligible news"]);
  assert.equal(result.resourceCoverage.roles.news_analyst.status,"PARTIAL");
  assert.deepEqual(result.resourceCoverage.newsQuality,{
-  eligibleCount:1,excludedFutureDatedCount:1,excludedUndatedCount:1
+  eligibleCount:1,excludedFutureDatedCount:1,excludedUndatedCount:2
  });
  assert.ok(result.resourceCoverage.roles.news_analyst.factIds.includes(news[0].id));
  const coverageFact=result.facts.find(x=>x.type==="RESOURCE_COVERAGE_SNAPSHOT");
