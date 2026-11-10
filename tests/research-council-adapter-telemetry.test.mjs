@@ -19,7 +19,7 @@ test("Gemini worker records provider, model, latency and provider-reported token
  assert.equal(workers.telemetry.bull_researcher.provider,"gemini");
  assert.equal(workers.telemetry.bull_researcher.model,"models/gemini-2.5-flash");
  assert.ok(Number.isFinite(workers.telemetry.bull_researcher.latencyMs));
- assert.ok(workers.telemetry.market_scanner.latencyMs>=0);
+ assert.ok(workers.telemetry.bull_researcher.latencyMs>=0);
  assert.equal(workers.telemetry.bull_researcher.inputTokens,120);
  assert.equal(workers.telemetry.bull_researcher.outputTokens,40);
  assert.equal(workers.telemetry.bull_researcher.totalTokens,160);
