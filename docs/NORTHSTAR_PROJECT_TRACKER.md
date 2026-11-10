@@ -4,7 +4,7 @@
 **Repository:** `hamzaijaz9989/ai-stock-advisor`  
 **Active work branch:** `northstar/cloudflare-research-orchestration`  
 **Active pull request:** [#118 — Design Cloudflare-native autonomous research orchestration](https://github.com/hamzaijaz9989/ai-stock-advisor/pull/118)  
-**Current implementation head:** `e87e067d67a7fd29ea95cc57e33a8c4fc7660790`  
+**Current implementation head:** `410e7ec12511d8f515d64c825609364c16e949be`  
 **Base branch/head recorded for PR:** `main` / `85c51f847f4b4a966be629ff9f3702194d6ae262`
 
 > This is the canonical progress and decision record for Northstar. Update it in the same work session as every meaningful code, migration, architecture, configuration, test, security, or deployment change. Do not rely on chat history as the project record.
@@ -202,3 +202,15 @@ Additional rules:
 - Before any automatic order path is activated, require: isolated paper-only executor; authenticated operator/automation identity; instrument and order-type allowlists; sizing from stop distance; per-trade and aggregate exposure checks; daily loss stop; stale-data/event/liquidity vetoes; idempotency and unknown-order reconciliation; audit trail; emergency disable; tests for every rejection and failure path; and a controlled Preview acceptance run.
 - No paper orders have been submitted by this implementation work. No production database, secrets, deployment, broker control, or live account was changed.
 - Next: inspect existing order guards, execution-control schema, and test conventions; implement pure policy/sizing gates and unit tests first. Add any broker submission route only after proving all preconditions and confirming that it has no live-host fallback. Keep execution disabled pending final acceptance.
+
+
+### 2026-11-11 — Paper-pilot policy and safety-test foundation
+- Updated `docs/TRADING_LAB_SPEC.md` to supersede its old USD 1,000 default with the approved maximum allocation of USD 2,500, max planned risk USD 25 per trade, and USD 50 daily loss stop. Conservative provisional controls include one concurrent position, long-only US ticker format, limit-order preview only, 60-second quote freshness, and a USD 1,000 sector exposure ceiling.
+- Added `web/lib/paper-pilot-policy.mjs`, a pure fail-closed policy module. It requires verified paper environment, exact Alpaca Paper host, active account, operator authorization, strategy approval, explicit session arming, and kill switch off before it will calculate a preview. It rejects live mode/host, short orders, market orders, malformed symbols, stale/future quotes, invalid stops, excess allocation, daily-stop breach, excess concurrent positions, sector cap breach, and risk-budget violations.
+- Added `web/lib/paper-pilot-policy.test.mjs` with nine Node built-in tests. Local isolated run: **9 passed, 0 failed** using `node --test web/lib/paper-pilot-policy.test.mjs` (the same source/test contents were executed in an isolated Node test directory).
+- The policy returns an order preview only and explicitly sets `execution: false`; it makes no broker call. This is not an order executor and does not activate automatic trading.
+- No order-submission endpoint was added. No broker orders, cancellations, modifications, or positions were created. No live endpoint or credential is used.
+- Important remaining blockers before automatic paper orders: strategy is not historically validated; a persistent pilot allocation/ledger and daily P&L baseline must be implemented and reconciled; execution-control schema and kill-switch transitions need direct inspection; idempotent broker order submission and unknown-order reconciliation are not implemented; end-to-end Cloudflare Preview tests and full CI are pending; no final activation has been performed.
+- Safety note: the paper account's reported USD 100,000 equity/buying power is not the pilot budget. The module caps the pilot policy at USD 2,500 and must be wired to a separately persisted virtual ledger before execution can exist.
+- Latest feature-branch commit at this tracker update: `410e7ec12511d8f515d64c825609364c16e949be`. The tracker commit itself will advance the branch head.
+- Next: wire the policy only into a disabled-by-default, authenticated paper-only preview path; inspect and test persistent execution controls and D1 ledger; then implement broker submission only after the strategy and runtime acceptance gates are met.
