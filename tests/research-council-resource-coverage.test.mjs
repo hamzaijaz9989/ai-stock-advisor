@@ -5,7 +5,7 @@ import {runResearchCouncil,COUNCIL_ROLES} from "../web/lib/research-council.js";
 
 const asOf="2026-11-09T12:00:00.000Z";
 const portfolio={verified:true,source:"test-reconciled-paper-ledger",asOf:"2026-11-09T11:59:00.000Z",
- equityUsd:1000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,
+ equityUsd:1000,virtualAllocationUsd:1000,actualAccountEquityUsd:100000,riskMetricBasis:"actual_alpaca_paper_account_equity",openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,
  drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0};
 
 function makeContext(overrides={}) {
