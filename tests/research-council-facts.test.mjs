@@ -118,12 +118,64 @@ test("only timestamped news published by the research as-of time counts as counc
  assert.deepEqual(news.map(x=>x.value.title),["Eligible news"]);
  assert.equal(result.resourceCoverage.roles.news_analyst.status,"PARTIAL");
  assert.deepEqual(result.resourceCoverage.newsQuality,{
-  eligibleCount:1,excludedFutureDatedCount:1,excludedUndatedCount:3
+  eligibleCount:1,uniqueEligibleCount:1,excludedFutureDatedCount:1,excludedUndatedCount:3,
+   duplicateCount:0,companySpecificCount:0,macroCount:0,sectorCount:0,ambiguousCount:1,
+   primarySourceCount:0,reportedSourceCount:0,unverifiedSourceCount:1
  });
  assert.ok(result.resourceCoverage.roles.news_analyst.factIds.includes(news[0].id));
  const coverageFact=result.facts.find(x=>x.type==="RESOURCE_COVERAGE_SNAPSHOT");
  assert.deepEqual(coverageFact.value.newsQuality,result.resourceCoverage.newsQuality);
 });
+
+
+test("labels news scope and source quality without scoring, and marks syndicated duplicates",()=>{
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio,
+  news:{items:[
+   {title:"NVDA raises guidance",url:"https://www.reuters.com/story?utm_source=feed",publishedAt:"2026-11-08T19:00:00Z",source:"Reuters"},
+   {title:"NVDA raises guidance",url:"https://news.example/syndicated",publishedAt:"2026-11-08T19:00:00Z",source:"Unknown"},
+   {title:"Different headline",url:"https://www.reuters.com/story?utm_medium=mail",publishedAt:"2026-11-08T19:00:00Z",source:"Reuters"},
+   {title:"Federal Reserve signals interest rate change",url:"https://www.reuters.com/macro",publishedAt:"2026-11-08T19:00:00Z",source:"Reuters"},
+   {title:"Semiconductor industry faces supply shortage",url:"https://www.bloomberg.com/sector",publishedAt:"2026-11-08T19:00:00Z",source:"Bloomberg"},
+   {title:"Company comments on market conditions",url:"https://example.com/ambiguous",publishedAt:"2026-11-08T19:00:00Z",source:"Unknown"}
+  ]}
+ });
+ const news=result.evidence.filter(x=>x.type==="NEWS_DISCOVERY");
+ assert.equal(news.length,6);
+ assert.equal(news[0].value.scope,"company");
+ assert.equal(news[0].value.scopeEligible,true);
+ assert.equal(news[0].value.sourceTier,"reported-source");
+ assert.equal(news[0].value.sourceTierHeuristic,true);
+ assert.equal(news[1].value.duplicate,true);
+ assert.equal(news[1].value.duplicateOf,news[0].id);
+ assert.equal(news[2].value.duplicate,true);
+ assert.equal(news[2].value.duplicateOf,news[0].id);
+ assert.equal(news[3].value.scope,"macro");
+ assert.equal(news[4].value.scope,"sector");
+ assert.equal(news[5].value.scope,"ambiguous");
+ assert.deepEqual(result.resourceCoverage.newsQuality,{
+  eligibleCount:6,uniqueEligibleCount:4,excludedFutureDatedCount:0,excludedUndatedCount:0,
+  duplicateCount:2,companySpecificCount:1,macroCount:1,sectorCount:1,ambiguousCount:1,
+  primarySourceCount:0,reportedSourceCount:3,unverifiedSourceCount:1
+ });
+ assert.ok(result.resourceCoverage.roles.news_analyst.gaps.some(x=>/duplicate or syndicated/.test(x)));
+ const coverage=result.facts.find(x=>x.type==="RESOURCE_COVERAGE_SNAPSHOT");
+ assert.deepEqual(coverage.value.newsQuality,result.resourceCoverage.newsQuality);
+});
+
+test("primary-source news is labelled heuristically without being promoted to verified fact",()=>{
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio,
+  news:{items:[{title:"NVDA raises guidance",source:"Company newsroom",url:"https://investor.example.com/news",publishedAt:"2026-11-08T19:00:00Z"}]}
+ });
+ const item=result.evidence.find(x=>x.type==="NEWS_DISCOVERY").value;
+ assert.equal(item.scope,"company");
+ assert.equal(item.sourceTier,"primary-source");
+ assert.equal(item.publisherVerified,false);
+ assert.match(item.note,/heuristics, not verification/);
+});
+
+
 
 test("does not upgrade SEC filed dates into verified public availability",()=>{
  const result=buildResearchCouncilContext({
