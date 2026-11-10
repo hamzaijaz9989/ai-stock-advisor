@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {SPECIALIST_AGENTS,runMarketScanner,runTechnicalAnalyst,runFundamentalAnalyst,runNewsAnalyst,runSentimentAnalyst} from "../web/lib/research-specialist-agents.js";
+import {createResearchCouncilWorkers} from "../web/lib/research-council-adapters.js";
 
 function context(){
  const rows=Array.from({length:80},(_,i)=>({date:new Date(Date.UTC(2025,0,1+i)).toISOString().slice(0,10),open:100+i,high:102+i,low:99+i,close:101+i,volume:1000+i*5}));
@@ -14,7 +15,7 @@ function context(){
   {id:"fmp1",type:"FMP_REPORTED_FUNDAMENTALS_CROSSCHECK",value:{metric:"Revenue"}}
  ],evidence:[
   {id:"n1",type:"NEWS_DISCOVERY",value:{title:"Test issuer announces earnings",timestampStatus:"PRESENT",sourceTier:"reported-source"}},
-  {id:"s1",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",source:"Test sentiment feed",sampleCount:100,score:0.25}}
+  {id:"s1",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-08T14:00:00Z",source:"Test sentiment feed",sampleCount:100,score:0.25}}
  ]};
 }
 
@@ -116,4 +117,25 @@ test("portfolio analyst guidance prohibits fabricated exposures and trade recomm
  const source=await readFile(new URL("../web/lib/research-council-adapters.js",import.meta.url),"utf8");
  const start=source.indexOf("portfolio_analyst:");const end=source.indexOf("\n};",start);const guidance=source.slice(start,end);
  assert.match(guidance,/exact factIds/);assert.match(guidance,/Never invent weights, correlations/);assert.match(guidance,/Do not recommend BUY\/SELL/);
+});
+
+
+test("deterministic risk committee fails closed on incomplete or invalid portfolio state",async()=>{
+ const workers=await createResearchCouncilWorkers({});
+ const base={portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}};
+ const missing=await workers.risk_committee({portfolio:{...base.portfolio,equityUsd:undefined}});
+ assert.equal(missing.decision,"REJECT");assert.match(missing.vetoReasons[0],/incomplete/);
+ const invalid=await workers.risk_committee({portfolio:{...base.portfolio,dailyLossFraction:1.2}});
+ assert.equal(invalid.decision,"REJECT");assert.match(invalid.vetoReasons[0],/outside supported units/);
+});
+test("deterministic risk committee applies all configured hard limits at threshold",async()=>{
+ const workers=await createResearchCouncilWorkers({});
+ const p={equityUsd:10000,openRiskUsd:200,grossExposureUsd:10000,dailyLossFraction:0.02,weeklyLossFraction:0.04,drawdownFraction:0.08,sectorExposureUsd:4000,concurrentPositions:1};
+ const out=await workers.risk_committee({portfolio:p});
+ assert.equal(out.decision,"REJECT");assert.equal(out.vetoReasons.length,7);
+});
+test("deterministic risk committee accepts only a fully populated portfolio below every limit",async()=>{
+ const workers=await createResearchCouncilWorkers({});
+ const out=await workers.risk_committee({portfolio:{equityUsd:10000,openRiskUsd:100,grossExposureUsd:9000,dailyLossFraction:0.01,weeklyLossFraction:0.02,drawdownFraction:0.03,sectorExposureUsd:3000,concurrentPositions:0}});
+ assert.equal(out.decision,"ACCEPT_FOR_REVIEW");assert.deepEqual(out.vetoReasons,[]);
 });

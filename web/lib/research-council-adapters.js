@@ -126,8 +126,12 @@ function riskCommittee(payload) {
   const daily=Number(p.dailyLossFraction),weekly=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
   const sector=Number(p.sectorExposureUsd),positions=Number(p.concurrentPositions);
   const reasons=[];
-  if(![equity,openRisk,gross,daily,weekly,drawdown,sector,positions].every(Number.isFinite) || equity<=0 ||
-     openRisk<0 || gross<0 || daily<0 || weekly<0 || sector<0 || drawdown<0 || !Number.isInteger(positions) || positions<0) reasons.push("Portfolio risk state is incomplete or invalid.");
+  if(![equity,openRisk,gross,daily,weekly,drawdown,sector,positions].every(Number.isFinite) ||
+     equity<=0 || openRisk<0 || gross<0 || sector<0 ||
+     daily<0 || daily>1 || weekly<0 || weekly>1 || drawdown<0 || drawdown>1 ||
+     !Number.isSafeInteger(positions) || positions<0 || positions>1000) {
+    reasons.push("Portfolio risk state is incomplete, outside supported units, or invalid; fail closed.");
+  }
   else {
     if(openRisk/equity>0.02) reasons.push("Aggregate open risk exceeds 2% of equity.");
     if(gross/equity>1) reasons.push("Gross exposure exceeds 100% of equity.");
