@@ -84,7 +84,7 @@ test("sentiment observations without timestamp, source, sample count and bounded
 });
 test("news headlines remain discovery evidence and are not elevated to verified catalysts",()=>{
  const c={facts:[],evidence:[{id:"n",type:"NEWS_DISCOVERY",value:{title:"Issuer story",timestampStatus:"PRESENT",sourceTier:"unverified-source"}}]};
- const out=runNewsAnalyst(c);assert.equal(out.status,"COMPLETE");assert.ok(out.risks.length>0);
+ const out=runNewsAnalyst(c);assert.equal(out.status,"COMPLETE");assert.ok(out.risks.length>0);assert.ok([...out.findings,...out.risks].every(item=>item.factIds.length>0));
 });
 
 test("fundamental analyst compares supplied periods and flags SEC availability limits",()=>{
