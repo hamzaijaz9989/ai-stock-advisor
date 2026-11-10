@@ -1,11 +1,21 @@
 # Market Scanner production acceptance audit
 
-## Current follow-up — 2026-11-11 20:57 UTC
+## Current follow-up — 2026-11-11 02:08 PKT (2026-11-10 21:08 UTC)
 
 - GitHub main remains `85c51f847f4b4a966be629ff9f3702194d6ae262`. Draft PR #116 carries the isolated nine-agent integration plus scanner safeguards and the timezone fix; its exact-head Node tests, Python tests, and full-history secret scan passed. PRs #108 and #115 remain open and unmerged.
 - Full JavaScript suite: 288/288 passed. The point-in-time regression now rejects FMP accepted timestamps without an explicit timezone instead of interpreting them using the machine's local timezone.
 - Latest production D1 monitor run #287 (`2026-11-10T20:55:52.645Z`) failed with zero symbols checked and ten quote failures. `monitor_quotes`, `monitor_events`, `research_council_runs`, and `research_decision_traces` each contain zero rows. Read-only controls remain `mode=paper`, `enabled=0`, `kill_switch=1`; D1 reads wrote zero rows.
 - Production Worker version `2739d49a-4182-423f-8113-616252c5ddd6` still sends FMP authentication in the custom header. The checked-in cache is generated at `2026-11-10T19:42:15.959Z`, outside the 30-minute validator window. No refresh was dispatched, production deployment performed, or PR merged.
+
+## Live follow-up — 2026-11-11 02:08 PKT (2026-11-10 21:08 UTC)
+
+- GitHub MCP refresh still reports main at `85c51f847f4b4a966be629ff9f3702194d6ae262`; PR #108 and #115 remain open/unmerged and PR #116 remains a draft. A local `git fetch origin` could not reach GitHub because the configured network proxy refused the connection; the GitHub connector supplied the current commit and PR state.
+- Focused Market Scanner tests passed 18/18 and the full JavaScript suite passed 288/288 on integration head `b0d8ce5b9e9b2c8ef631c2b59043411992bc0f00`. The cache validator correctly fails the checked-in cache: generated at `2026-11-10T19:42:15.959Z`, it was approximately 86 minutes old, beyond the 30-minute limit.
+- Read-only Production D1 query at approximately `2026-11-10T21:08Z` found latest monitor run #289 (`2026-11-10T21:05:52.862Z`) `market_closed`, zero symbols checked, zero errors, with the Worker intentionally idle. The last active-session failure remains run #287: ten quote failures and zero symbols checked. `monitor_quotes`, `monitor_events`, `research_council_runs`, and `research_decision_traces` each still have zero rows. Controls remain `mode=paper`, `enabled=0`, `kill_switch=1`; all D1 reads returned `rows_written=0` and `changed_db=false`.
+- Root cause remains established in deployed source: FMP auth is sent in a custom header instead of the documented `apikey` query parameter. The corrected transport and sanitized provider-status classification are in the unmerged integration branch, so provider behavior and quote persistence have not been verified in Production. The last active failure's provider-specific cause is not present in the old Worker's D1 detail.
+- No authorized workflow-dispatch action is available through the connected GitHub tool, and the local GitHub network path is unavailable. No workflow was dispatched, no production deployment or PR merge occurred, and no D1 writes/secrets/trades/execution-control changes occurred.
+
+**Acceptance remains incomplete.** Current Production acceptance: 0/3 runtime gates passed (cache within 30 minutes, corrected Worker quote retrieval, and quote persistence to D1). Scanner code tests pass, but these do not replace fresh scan or Production evidence.
 
 **Current acceptance: incomplete.** The scanner code and nine-agent integration pass automated tests, but live production quote retrieval, D1 quote persistence and authenticated nine-agent execution remain unverified or failing.
 
