@@ -96,3 +96,24 @@ test("bull and bear role guidance remains distinct, evidence-only and falsifiabl
  assert.ok(bull.includes("Do not issue BUY/SELL"));
  assert.ok(bear.includes("Do not issue BUY/SELL"));
 });
+
+
+test("sentiment analyst rejects future-dated and malformed observations and weights valid samples",()=>{
+ const c={asOf:"2026-11-10T12:00:00Z",facts:[],evidence:[
+  {id:"s-old",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:00:00Z",source:"Feed A",sampleCount:100,score:0.2}},
+  {id:"s-large",type:"ANALYST_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:30:00Z",source:"Feed B",sampleCount:300,score:0.6}},
+  {id:"s-future",type:"POSITIONING_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T13:00:00Z",source:"Feed C",sampleCount:500,score:-1}}
+ ]};
+ const out=runSentimentAnalyst(c);assert.equal(out.status,"COMPLETE");
+ assert.match(out.findings[0].claim,/0.500/);assert.ok(out.risks.some(x=>x.claim.includes("excluded")));
+});
+test("sentiment analyst requires actual timestamp, not only timestampStatus",()=>{
+ const c={facts:[],evidence:[{id:"s",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",source:"Feed",sampleCount:10,score:0.2}}]};
+ assert.equal(runSentimentAnalyst(c).status,"UNAVAILABLE");
+});
+test("portfolio analyst guidance prohibits fabricated exposures and trade recommendations",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const source=await readFile(new URL("../web/lib/research-council-adapters.js",import.meta.url),"utf8");
+ const start=source.indexOf("portfolio_analyst:");const end=source.indexOf("\n};",start);const guidance=source.slice(start,end);
+ assert.match(guidance,/exact factIds/);assert.match(guidance,/Never invent weights, correlations/);assert.match(guidance,/Do not recommend BUY\/SELL/);
+});

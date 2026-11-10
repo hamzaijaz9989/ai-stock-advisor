@@ -144,14 +144,24 @@ export function runNewsAnalyst(context) {
 export function runSentimentAnalyst(context) {
   const feeds=evidenceOf(context,"SENTIMENT_OBSERVATION").concat(evidenceOf(context,"ANALYST_SENTIMENT"),evidenceOf(context,"POSITIONING_SENTIMENT"));
   if(!feeds.length) return unavailable("No dedicated timestamped sentiment or positioning feed is connected.");
-  const valid=feeds.filter(x=>x.value && x.value.timestampStatus==="PRESENT" &&
-    typeof x.value.source==="string" && x.value.source.trim() &&
-    finite(x.value.sampleCount) && x.value.sampleCount>0 &&
-    finite(x.value.score) && x.value.score>=-1 && x.value.score<=1);
-  if(!valid.length) return unavailable("Sentiment observations lack verified timestamps, source identity, sample counts or bounded scores.");
-  const ids=valid.map(x=>x.id).slice(0,10), score=valid.reduce((s,x)=>s+x.value.score,0)/valid.length;
-  return report([claim("Mean supplied sentiment score across "+valid.length+" valid feed observation(s) is "+score.toFixed(3)+" on the provider-normalized -1 to +1 scale; this is not a standalone trading signal.",ids)],
-    [claim("Sentiment sample coverage and provider methodology require independent review before interpretation.",ids)]);
+  const asOf=Date.parse(context?.asOf||"");
+  const valid=feeds.filter(x=>{
+    const v=x.value||{}, observed=Date.parse(v.timestamp||"");
+    return v.timestampStatus==="PRESENT" && Number.isFinite(observed) &&
+      (!Number.isFinite(asOf)||observed<=asOf) &&
+      typeof v.source==="string" && v.source.trim() &&
+      finite(v.sampleCount) && v.sampleCount>0 &&
+      finite(v.score) && v.score>=-1 && v.score<=1;
+  });
+  if(!valid.length) return unavailable("Sentiment observations lack a parseable as-of-safe timestamp, source identity, positive sample count or bounded normalized score.");
+  const ids=valid.map(x=>x.id).slice(0,10), totalSamples=valid.reduce((s,x)=>s+x.value.sampleCount,0);
+  const weighted=valid.reduce((s,x)=>s+x.value.score*x.value.sampleCount,0)/totalSamples;
+  const sources=new Set(valid.map(x=>x.value.source.trim().toLowerCase())), risks=[];
+  if(sources.size<2) risks.push(claim("Sentiment relies on only one distinct source; source concentration and provider methodology require independent review.",ids));
+  else risks.push(claim("Sentiment scores use provider-normalized scales and sample-count weighting; cross-provider comparability is not independently verified.",ids));
+  const excluded=feeds.length-valid.length;
+  if(excluded>0) risks.push(claim(excluded+" sentiment observation(s) were excluded because timestamp, source, sample count or score validation failed.",feeds.map(x=>x.id).slice(0,10)));
+  return report([claim("Sample-count-weighted sentiment score across "+valid.length+" valid observation(s) and "+totalSamples+" samples is "+weighted.toFixed(3)+" on the provider-normalized -1 to +1 scale; this is descriptive context, not a standalone trading signal.",ids)],risks);
 }
 
 export const SPECIALIST_AGENTS = Object.freeze({
