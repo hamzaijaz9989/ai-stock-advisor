@@ -77,7 +77,7 @@ test("Stock Brain scorecard exposes role coverage and renders untrusted values a
 });
 
 test("Trading Lab has no client-side login facade or session-persisted operator token", () => {
-  assert.doesNotMatch(html, /northstar-login|northstar_operator_token|sessionStorage|auth\\/check|Hamza Rana/);
-  assert.match(client, /const token=prompt\\("Enter the NORTHSTAR_OPERATOR_TOKEN/);
-  assert.doesNotMatch(client, /sessionStorage|localStorage\\.setItem\\([^\\n]*token/i);
+  assert.doesNotMatch(html, /northstar-login|northstar_operator_token|sessionStorage|auth\/check|Hamza Rana/);
+  assert.match(client, /const token=prompt\("Enter the NORTHSTAR_OPERATOR_TOKEN/);
+  assert.doesNotMatch(client, /sessionStorage|localStorage\.setItem\([^\n]*token/i);
 });
