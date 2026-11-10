@@ -71,3 +71,43 @@ test("scorecard retains failed specialist telemetry even when no report exists",
  assert.equal(score.totals.telemetryRoles,1);
  assert.equal(score.totals.failedInvocations,1);
 });
+
+test("token aggregates include only model-assisted roles while all nine roles retain latency telemetry",()=>{
+ const roles=[
+  "market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst",
+  "bull_researcher","bear_researcher","portfolio_analyst","risk_committee"
+ ];
+ const deterministic=new Set([
+  "market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","risk_committee"
+ ]);
+ const roleTelemetry=Object.fromEntries(roles.map((role,index)=>[
+  role,{
+   latencyMs:index+1,
+   provider:deterministic.has(role)?"deterministic":"gemini",
+   model:deterministic.has(role)?"northstar-"+role+"-v1":"gemini-test",
+   // Deliberately inject impossible token/cost values for deterministic roles:
+   // the scorecard must never count or display them as model usage.
+   inputTokens:deterministic.has(role)?900:100,
+   outputTokens:deterministic.has(role)?900:50,
+   totalTokens:deterministic.has(role)?1800:150,
+   costUsd:deterministic.has(role)?99:0.01
+  }
+ ]));
+ const score=evaluateResearchCouncilRun({reports:[],status:"NO_TRADE"},{roles:roleTelemetry});
+ assert.equal(score.totals.roleCount,9);
+ assert.equal(score.totals.telemetryRoles,9);
+ assert.equal(score.totals.latencyMs,45);
+ assert.equal(score.totals.inputTokens,300);
+ assert.equal(score.totals.outputTokens,150);
+ assert.equal(score.totals.totalTokens,450);
+ assert.equal(score.totals.costUsd,0.03);
+ for(const role of deterministic){
+  assert.equal(score.roles[role].provider,"deterministic");
+  assert.equal(score.roles[role].latencyMs>0,true);
+  assert.equal(score.roles[role].inputTokens,null);
+  assert.equal(score.roles[role].outputTokens,null);
+  assert.equal(score.roles[role].totalTokens,null);
+  assert.equal(score.roles[role].costUsd,null);
+ }
+ assert.equal(score.roles.portfolio_analyst.totalTokens,150);
+});

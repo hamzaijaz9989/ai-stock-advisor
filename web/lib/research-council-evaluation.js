@@ -5,7 +5,9 @@ const ROLE_ORDER = Object.freeze([
   "market_scanner","technical_analyst","fundamental_analyst","news_analyst",
   "sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"
 ]);
-const MODEL_ROLES = ROLE_ORDER.filter(role => role !== "risk_committee");
+// Only Bull, Bear and Portfolio use model providers. The other six roles are deterministic;
+// their latency/provider/model telemetry is retained, but token/cost metrics must remain null.
+const MODEL_ROLES = Object.freeze(["bull_researcher","bear_researcher","portfolio_analyst"]);
 const finiteNonNegative = value => typeof value === "number" && Number.isFinite(value) && value >= 0;
 const unique = values => [...new Set(values)];
 const safeMetric = value => finiteNonNegative(value) ? value : null;
@@ -60,10 +62,10 @@ export function evaluateResearchCouncilRun(run, telemetry = {}) {
       citationPrecision: totalReferences ? validReferences / totalReferences : null,
       invalidReferenceClaims,
       latencyMs: safeMetric(roleTelemetry.latencyMs),
-      inputTokens: safeMetric(roleTelemetry.inputTokens),
-      outputTokens: safeMetric(roleTelemetry.outputTokens),
-      totalTokens: safeMetric(roleTelemetry.totalTokens),
-      costUsd: safeMetric(roleTelemetry.costUsd),
+      inputTokens: MODEL_ROLES.includes(role) ? safeMetric(roleTelemetry.inputTokens) : null,
+      outputTokens: MODEL_ROLES.includes(role) ? safeMetric(roleTelemetry.outputTokens) : null,
+      totalTokens: MODEL_ROLES.includes(role) ? safeMetric(roleTelemetry.totalTokens) : null,
+      costUsd: MODEL_ROLES.includes(role) ? safeMetric(roleTelemetry.costUsd) : null,
       provider: typeof roleTelemetry.provider === "string" ? roleTelemetry.provider : null,
       model: typeof roleTelemetry.model === "string" ? roleTelemetry.model : null,
       failed: roleTelemetry.failed === true
