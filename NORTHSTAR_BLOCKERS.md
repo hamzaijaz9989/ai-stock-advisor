@@ -937,3 +937,13 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - PR #103 changes include nine-agent dashboard, server-side research collector/council endpoints, evidence/fact adapters, telemetry/evaluation and tests. Static review confirmed collector requires explicit successful read-only Alpaca sync and reconciles broker/ledger before refreshing; research remains read-only and no order submission path is invoked by the collector. Full runtime acceptance remains blocked by stale equity history and missing seven-day baseline.
 - Production D1/strategy/ execution gates remain as documented in the preceding latest audit; no D1 query/write, migration, broker call, order, secret mutation, execution-control change or Production deployment was performed in this continuation.
 - Next exact action: get a successful Preview deployment for the latest application-code head, verify its endpoints using a permitted runtime path, and resolve the Pages Preview binding discrepancy without requesting the user's key or exposing any secret. Then complete exact-head CI and independent review before any merge. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-11 — Cloudflare-native research orchestration design
+- User decisions confirmed: Cloudflare-native architecture, research-only autonomy, minimal monthly infrastructure budget.
+- Created feature branch `northstar/cloudflare-research-orchestration` from main commit `85c51f847f4b4a966be629ff9f3702194d6ae262`.
+- Added `docs/NORTHSTAR_CLOUDFLARE_AGENT_ARCHITECTURE.md` and linked it from the project handbook.
+- Design preserves the existing nine-agent council, Pages Functions, market-monitor Worker, and D1. It proposes bounded scheduled research, D1-backed idempotency/leases, provider health and bounded retry, append-only research traces, and read-only dashboard status.
+- No upstream code copied; TradingAgents, FinRobot, and OpenBB are treated as patterns pending individual license/security/runtime review.
+- No scheduler code, migration, production secret, D1 data, broker control, or deployment changed in this milestone.
+- Acceptance still required: inspect exact current collector/council and Worker contracts, resolve historical portfolio freshness/baseline prerequisites without bypass, implement disabled-by-default scheduler, tests, Preview verification, and independent review.
