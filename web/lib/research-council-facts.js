@@ -8,6 +8,12 @@ const dateMs = value => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 const dateOnly = value => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+const exactTimestampMs = value => {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) return null;
+  return dateMs(text);
+};
 
 const QUOTE_OPEN_MAX_AGE_MS = 15 * 60 * 1000;
 const QUOTE_CLOSED_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000;
