@@ -1383,8 +1383,15 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Exact next action: finish exact-head CI on the synchronized PR branch; keep PR #103 open pending independent review and branch-governance confirmation; correct the same unsupported visibility assertion on main through a narrowly scoped reviewable documentation PR. Keep execution disabled, kill switch engaged and BUY disabled.
 
 
-## 2026-11-10 — Continuity correction on PR #103 branch
-- User explicitly confirmed `hamzaijaz9989/ai-stock-advisor` was changed from private to **public**. This is intentional; do not ask again.
-- User explicitly confirmed `FMP_API_KEY` is already configured. Use only that canonical binding and do not ask them to add/re-add it. A prior HTTP 401 is a provider/runtime diagnostic result, not proof the user failed to configure it.
-- Mandatory workflow: read the handbook/blocker log and recent GitHub history before asking user questions; update these docs after meaningful code/configuration/deployment/status changes.
-- No user action is required for this documentation correction. No secrets, database, broker, production deployment or execution controls were changed.
+## Run 13 — 2026-11-10T07:27:08Z — owner-directed visibility correction
+
+
+## 2026-11-10 12:27 PKT / 07:27 UTC — owner-directed repository-visibility correction (superseding unsupported claim)
+
+- Current owner instruction for this project: the owner states the repository is private; connected GitHub API metadata reports `visibility=public`. Actual GitHub Settings visibility has not been independently verified. The discrepancy remains unresolved.
+- Treat repository contents as publicly accessible until GitHub Settings confirms the actual visibility. Do not change visibility without explicit authorization.
+- The four branch commits `7f400ac6115d61d1574ab3601454140d12540889`, `987625d9786fb9cec7d2f51dc5dd99bbc325e627`, `fb24b74becc3c97cbf91a02e624aee8ca197eb11`, and `d7d0e2efc4415c069220ab2b196409c29ed85251` reintroduced the statement that the user explicitly confirmed a private-to-public change. That statement is not supported by the current owner instruction and is superseded by this correction. Do not repeat it.
+- A narrow correction PR was opened from latest main: PR #107, `docs: correct unresolved repository visibility status`, branch `northstar/visibility-continuity-correction-20261110`, commit `3c80f4d869184d91a74cbfcc7db92e51a994e83f`. Exact-head Tests `42775330841`, Validate `42775330630`, full-history secret scan `42775330715`, and push Tests `42775324008` all SUCCESS. PR #107 is 1 ahead / 0 behind main, OPEN, non-draft and mergeable; no formal review is present.
+- Current main is `08886f7f7cb1fbdcdee647d41cc244f9c4323159`. PR #103's branch was synchronized to that main; current branch head before this correction was `d7d0e2efc4415c069220ab2b196409c29ed85251`, 178 ahead / 0 behind, OPEN, non-draft and mergeable. Exact-head Tests were still running at the time of this entry; Validate `42775351570` and full-history secret scan `42775351259` passed.
+- This correction changes documentation only. No repository visibility, application code, secrets, Cloudflare configuration, deployment, D1, broker, order or execution-control setting was changed. The previously verified Preview deployment and isolated Preview D1 remain unchanged.
+- Exact next action: finish CI for the corrected PR #103 head; keep both PRs open pending independent review and authorized governance. Do not merge or change repository visibility without the required owner/reviewer gates. Keep execution disabled, kill switch engaged and BUY disabled.
