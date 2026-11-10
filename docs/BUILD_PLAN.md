@@ -686,3 +686,15 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [ ] Perform one authenticated research-only acceptance run; verify nine roles, deterministic vetoes, scorecard, telemetry, durable trace and idempotent replay.
 - [ ] Reconcile Production/Preview D1 migration histories before any future Production migration.
 - Safety: no Production D1 writes/migrations, secret changes, broker requests, orders, execution-control changes or Production deployment. Execution remains disabled and kill switch engaged; validated BUY remains disabled.
+
+
+## Data-provider licensing gate — 2026-11-10 18:02 PKT
+
+- [x] Screen official no-cost alternatives before selecting a fallback.
+- [x] Reject Alpha Vantage free access for the current public deployment unless a written commercial agreement is in place.
+- [x] Reject Twelve Data Free Tier for commercial/public use under its current terms; Basic is for testing/side projects.
+- [x] Do not substitute unofficial Yahoo/Stooq scraping or personal-use data plans.
+- [ ] Restore valid authorized FMP daily-history access or obtain a provider/plan with documented public-display and derived-data rights.
+- [ ] Only then implement and test an alternate history adapter; preserve source, timestamps, adjustment policy, rate limits, attribution and fail-closed behavior.
+- Evidence: Alpha Vantage Terms https://www.alphavantage.co/terms_of_service/; Twelve Data Terms https://twelvedata.com/terms; Twelve Data pricing https://twelvedata.com/pricing.
+- Safety: no credentials read/changed, no database writes, no broker calls/orders, no deployment or strategy approval.

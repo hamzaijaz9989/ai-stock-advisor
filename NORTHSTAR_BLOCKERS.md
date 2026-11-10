@@ -1626,3 +1626,14 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Governance: GitHub reports repository visibility=public while owner intent is private; unresolved. Main branch reports protected=false and required checks off; branch-protection endpoint returns 403. PR #108 has no independent review. Other open branches are stale/diverged: #103 184/6, #109 5/3, #111 1/3, #112 2/1, #85 490/18, #88 26/25, #107 3/3, #101 1/14, #83 2/41, #82 1/42 (ahead/behind).
 - Safety impact: no database changes, secret changes, broker calls, paper/live orders, execution-control changes, or Production deployments. BUY remains disabled; strategy validation NOT APPROVED.
 - Exact next action: research and test licensed price-history and timestamped sentiment options; preserve source timestamps, population/methodology labels and fail-closed behavior. Do not run the authenticated collector until valid provider access, fresh reconciled snapshot, seven-day baseline, news/sentiment coverage and model credentials are verified. Do not merge without independent review and governance.
+
+
+## 2026-11-10 18:02 PKT — price-history provider alternatives screened
+
+- No safe no-cost substitute was selected for the public Pages deployment.
+- Alpha Vantage's official Terms of Service limit the default grant to personal/non-commercial use and classify investment analysis/research beyond personal use or making data available to others as commercial use; commercial use requires written agreement. Official: https://www.alphavantage.co/terms_of_service/.
+- Twelve Data's official Terms of Use prohibit commercial use of Free Tier data; Basic is for testing/side projects. External display/redistribution requires an eligible plan and any required data rights. Official: https://twelvedata.com/terms and https://twelvedata.com/pricing.
+- No unofficial Yahoo/Stooq scraping, personal-only plan, or unlicensed feed was integrated.
+- Current blocker remains authorized FMP daily-history access (last confirmed Production provider response: HTTP 401 Invalid API KEY; Preview binding absent). Do not bypass this gate with a source whose license does not cover the intended public deployment.
+- No code, secret, database, broker or deployment changes were made by this due-diligence check. The research system remains fail-closed and paper-only.
+- Next action: independently verify FMP plan/key entitlement or obtain a provider agreement that explicitly covers public display/derived analytics. Then add the adapter with source attribution, rate limits, adjustment policy, timestamps and regression tests. Keep strategy validation disabled.
