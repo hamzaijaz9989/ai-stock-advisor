@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: northstar-read-only-equity-snapshots
@@ -29,37 +30,25 @@ jobs:
           echo "$readiness" | jq -e '.configured == true and .policyVerified == true and .mode == "paper" and .executionEnabled == false and .killSwitchEngaged == true' >/dev/null
           echo "$readiness" | jq '{configured, policyVerified, mode, executionEnabled, killSwitchEngaged, limits, checkedAt}'
 
-      - name: Verify operator secret is present without exposing it
-        env:
-          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
+      - name: Capture a read-only snapshot through pinned GitHub OIDC
         run: |
-          if [ -z "$OPERATOR_TOKEN" ]; then
-            echo "::error::Repository secret NORTHSTAR_OPERATOR_TOKEN is missing or empty."
+          set -euo pipefail
+          if [[ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" || -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]]; then
+            echo "::error::GitHub OIDC token request context is unavailable."
             exit 1
           fi
-
-      - name: Capture a read-only Alpaca Paper equity and position snapshot
-        env:
-          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
-        run: |
-          set -euo pipefail
+          oidc_response="$(curl --fail --silent --show-error --max-time 20 \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            --get --data-urlencode "audience=northstar-paper-snapshot" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}")"
+          oidc_token="$(printf '%s' "$oidc_response" | jq -er '.value')"
+          if [[ -z "$oidc_token" ]]; then
+            echo "::error::GitHub OIDC token response was empty."
+            exit 1
+          fi
           base="https://ai-stock-advisor.pages.dev/api/paper"
-          sync="$(curl --fail --silent --show-error --max-time 30 -X POST \
-            -H "Authorization: Bearer $OPERATOR_TOKEN" \
-            -H "X-Request-ID: northstar-equity-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
-            -H "Accept: application/json" "$base/sync")"
-          echo "$sync" | jq -e '.ok == true and .synced == true and .execution == false and .mode == "paper"' >/dev/null
-          echo "$sync" | jq '{ok, synced, execution, mode, capturedAt, positions: .snapshot.positions}'
-
-      - name: Run read-only broker-to-ledger reconciliation
-        env:
-          OPERATOR_TOKEN: ${{ secrets.NORTHSTAR_OPERATOR_TOKEN }}
-        run: |
-          set -euo pipefail
-          base="https://ai-stock-advisor.pages.dev/api/paper"
-          reconcile="$(curl --silent --show-error --max-time 45 -X POST \
-            -H "Authorization: Bearer $OPERATOR_TOKEN" \
-            -H "X-Request-ID: northstar-equity-reconcile-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
-            -H "Accept: application/json" "$base/reconcile")"
-          echo "$reconcile" | jq '{ok, reconciled, execution, status, counts, checkedAt}'
-          echo "$reconcile" | jq -e '.ok == true and .reconciled == true and .execution == false and .status == "RECONCILIATION_PASSED_READ_ONLY"' >/dev/null
+          snapshot="$(curl --fail --silent --show-error --max-time 75 -X POST \
+            -H "Authorization: Bearer $oidc_token" \
+            -H "Accept: application/json" "$base/snapshot")"
+          echo "$snapshot" | jq -e '.ok == true and .synced == true and .reconciled == true and .execution == false and .automatedOrderSubmission == false and .mode == "paper"' >/dev/null
+          echo "$snapshot" | jq '{ok, synced, reconciled, replayed, execution, automatedOrderSubmission, mode, requestId, capturedAt, positionCount, checkedAt}'
