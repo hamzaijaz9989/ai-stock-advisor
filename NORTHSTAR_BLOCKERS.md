@@ -929,7 +929,7 @@ The additional review did not issue broker requests or modify any D1 row. These 
 ## 2026-11-10 — Autonomous Stock Brain milestone checkpoint
 - Updated the enabled Northstar hourly automation to enforce independent blocker resolution, public-repository accuracy, mandatory documentation updates, and user involvement only for unavoidable permissions/credentials/approvals.
 
-- User reports the repository is private; connected GitHub `get_repo` currently reports `visibility=public`. No setting was changed. Treat contents as publicly accessible until the GitHub Settings page confirms the actual visibility; never commit secrets.
+- **Repository visibility: PUBLIC — user-confirmed on 2026-11-10.** User explicitly stated the repository was changed from private to public. This is intentional current state; do not ask for reconfirmation.
 - Current main head observed: `d1c9b964204c89639bf1c13d511e75d9c398d51f`.
 - Active combined Stock Brain work is PR #103: https://github.com/hamzaijaz9989/ai-stock-advisor/pull/103, branch `northstar/research-council-status-dashboard`, latest head `4ec91116161274d143dc9a6ab626ad25c7b74655`. It remains open and draft; exact latest-head validation and preview smoke test are required before merge.
 - PR #103 includes the nine-agent Stock Brain dashboard, authenticated server-side collection path, stable role matrix, read-only readiness endpoint/card, tests and updated operating documentation. It supersedes the older divergent PR #104 implementation branch; do not merge PR #104 separately.
@@ -1381,3 +1381,10 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - No application code, tests, Pages deployment, Production settings, D1 state, secrets, broker calls, orders, or execution controls changed in this documentation/continuity correction. The prior Preview verification remains valid for unchanged app code: deployment `201dbcd3-b91a-453c-bf1a-7a81e8c6bb8a` succeeded with Pages Functions and isolated Preview D1; Trading Lab UI returned HTTP 200. The protected API endpoint was not accepted because the external edge returned 403 before application auth could be observed.
 - Governance remains unchanged: main is unprotected; PR #103 has no formal independent review; no merge is authorized by this work item.
 - Exact next action: finish exact-head CI on the synchronized PR branch; keep PR #103 open pending independent review and branch-governance confirmation; correct the same unsupported visibility assertion on main through a narrowly scoped reviewable documentation PR. Keep execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-10 — Continuity correction on PR #103 branch
+- User explicitly confirmed `hamzaijaz9989/ai-stock-advisor` was changed from private to **public**. This is intentional; do not ask again.
+- User explicitly confirmed `FMP_API_KEY` is already configured. Use only that canonical binding and do not ask them to add/re-add it. A prior HTTP 401 is a provider/runtime diagnostic result, not proof the user failed to configure it.
+- Mandatory workflow: read the handbook/blocker log and recent GitHub history before asking user questions; update these docs after meaningful code/configuration/deployment/status changes.
+- No user action is required for this documentation correction. No secrets, database, broker, production deployment or execution controls were changed.
