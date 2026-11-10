@@ -103,7 +103,7 @@ These are the latest facts visible in the documentation/API audit for this hando
 - The production snapshot described in the blocker log is broker account equity, not the separate $1,000 Northstar virtual strategy allocation.
 - Production paper controls were documented as execution disabled, paper mode, kill switch engaged, with $1,000 virtual allocation, 0.5% default risk, 1% maximum per-trade risk and 25% maximum position notional.
 - The latest blocker evidence says strategy approval is false and paper execution is not enabled.
-- **Repository visibility: PUBLIC — user-confirmed on 2026-11-10.** The user explicitly stated that they changed `hamzaijaz9989/ai-stock-advisor` from private to public. Treat public visibility as intentional current project context unless the user later changes it. Do not ask the user to reconfirm this. Ensure documentation and sharing guidance do not incorrectly describe the repository as private.
+- **Repository visibility remains unresolved.** The owner states the repository is private; the connected GitHub API reports `visibility=public`; actual GitHub Settings visibility has not been independently confirmed. Treat contents as publicly accessible until Settings confirms otherwise. Do not change visibility without explicit authorization and do not claim the owner confirmed a public change.
 
 ## 4. What to build next — ordered work queue
 
