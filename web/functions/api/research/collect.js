@@ -21,6 +21,12 @@ function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)retu
 function stable(v){if(Array.isArray(v))return "["+v.map(stable).join(",")+"]";if(v&&typeof v==="object")return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stable(v[k])).join(",")+"}";return JSON.stringify(v);}
 async function sha256(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");}
 async function endpoint(handler,origin,path,env){const r=await handler({request:new Request(origin+path),env});if(!r.ok)throw new Error(path.split("?")[0]+" unavailable (HTTP "+r.status+")");return r.json();}
+export async function requireReadOnlySyncSuccess(response){
+ let data=null;try{data=await response.json();}catch{}
+ if(!response?.ok||data?.ok!==true||data?.synced!==true||data?.execution!==false)
+  throw new Error("Read-only Alpaca Paper sync did not explicitly confirm success with execution disabled.");
+ return data;
+}
 async function secFacts(ticker,asOf){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
  const mapResponse=await fetch("https://www.sec.gov/files/company_tickers.json",{headers,signal:AbortSignal.timeout(8000)});
@@ -103,7 +109,7 @@ export async function onRequestPost({request,env}){
   // Only after independent reconciliation succeeds may the read-only sync refresh
   // the durable broker snapshot used by the research portfolio context.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
-  if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
+  await requireReadOnlySyncSuccess(syncResponse);
   const portfolio=await portfolioSnapshot(env);
   // Establish the research as-of time only after the refreshed portfolio snapshot,
   // so its timestamp cannot be later than the context timestamp.

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {onRequestPost} from "../web/functions/api/research/collect.js";
+import {onRequestPost,requireReadOnlySyncSuccess} from "../web/functions/api/research/collect.js";
 
 test("server-side research collector rejects unauthenticated callers before provider access",async()=>{
  const response=await onRequestPost({request:new Request("https://northstar.test/api/research/collect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ticker:"NVDA",requestId:"collector-0001"})}),env:{NORTHSTAR_OPERATOR_TOKEN:"secret",NORTHSTAR_DB:{}}});
@@ -83,4 +83,21 @@ test("collector evaluates and persists scorecard with the durable nine-agent run
  assert.match(collectorSource,/result:\{\.\.\.JSON\.parse\(prior\.result_json\),traceDurable:true\}/);
  assert.match(collectorSource,/result:\{\.\.\.JSON\.parse\(stored\.result_json\),traceDurable:true\}/);
  assert.match(collectorSource,/reconcilePaperAccount/);
+});
+
+
+test("collector requires explicit read-only sync success and execution=false",async()=>{
+ const valid=await requireReadOnlySyncSuccess(Response.json({ok:true,synced:true,execution:false}));
+ assert.equal(valid.synced,true);
+ assert.equal(valid.execution,false);
+ for(const body of [
+  {ok:true,synced:false,execution:false},
+  {ok:true,synced:true,execution:true},
+  {synced:true,execution:false},
+  {ok:true,synced:true}
+ ]){
+  await assert.rejects(()=>requireReadOnlySyncSuccess(Response.json(body)),/explicitly confirm success/i);
+ }
+ await assert.rejects(()=>requireReadOnlySyncSuccess(new Response("not-json",{status:200})),/explicitly confirm success/i);
+ await assert.rejects(()=>requireReadOnlySyncSuccess(new Response(JSON.stringify({ok:true,synced:true,execution:false}),{status:503,headers:{"Content-Type":"application/json"}})),/explicitly confirm success/i);
 });
