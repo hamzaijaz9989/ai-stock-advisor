@@ -107,10 +107,10 @@ test("admits FMP statement periods only with a pre-as-of accepted timestamp or p
    latest:{fiscalDate:"2025-12-31",revenue:100},
    history:{income:[
     {date:"2025-12-31",filingDate:"2026-11-09",revenue:1},
-    {date:"2025-12-31",filingDate:"2026-11-10",revenue:2},
-    {date:"2025-12-31",filingDate:"2026-11-10",acceptedDate:"2026-11-10 09:30:00",revenue:3},
-    {date:"2025-12-31",filingDate:"2026-11-10",acceptedDate:"2026-11-10 10:01:00",revenue:4},
-    {date:"2025-12-31",revenue:5}
+    {date:"2024-12-31",filingDate:"2026-11-10",revenue:2},
+    {date:"2023-12-31",filingDate:"2026-11-10",acceptedDate:"2026-11-10 09:30:00",revenue:3},
+    {date:"2022-12-31",filingDate:"2026-11-10",acceptedDate:"2026-11-10 10:01:00",revenue:4},
+    {date:"2021-12-31",revenue:5}
    ],estimates:[{date:"2027-12-31",epsAvg:5}]}}
  });
  const statements=result.facts.filter(x=>x.type==="FMP_STATEMENT_PERIOD");
