@@ -30,6 +30,15 @@ test("resource coverage exposes role-specific gaps without inventing unavailable
  assert.ok(context.resourceCoverage.roles.sentiment_analyst.gaps.some(x=>x.includes("No dedicated")));
  assert.ok(context.resourceCoverage.roles.fundamental_analyst.gaps.some(x=>x.includes("public-availability")));
  assert.ok(context.resourceCoverage.roles.technical_analyst.gaps.some(x=>x.includes("corporate-action")));
+ const coverageFact=context.facts.find(x=>x.type==="RESOURCE_COVERAGE_SNAPSHOT");
+ const portfolioFact=context.facts.find(x=>x.type==="PORTFOLIO_RISK_SNAPSHOT");
+ assert.ok(coverageFact,"resource gaps must be represented by a citable fact");
+ assert.ok(portfolioFact,"portfolio risk inputs must have a citable fact");
+ assert.equal(coverageFact.value.roles.sentiment_analyst.status,"MISSING");
+ assert.ok(coverageFact.value.roles.sentiment_analyst.gaps.some(x=>x.includes("No dedicated timestamped sentiment")));
+ assert.ok(context.resourceCoverage.roles.sentiment_analyst.factIds.includes(coverageFact.id));
+ assert.ok(context.resourceCoverage.roles.portfolio_analyst.factIds.includes(coverageFact.id));
+ assert.ok(context.resourceCoverage.roles.portfolio_analyst.factIds.includes(portfolioFact.id));
 });
 
 test("resource coverage marks absent quote, history, fundamentals and news as insufficient",()=>{
@@ -51,6 +60,12 @@ test("all specialist stages receive the same immutable resource coverage invento
    assert.equal(payload.roleResourcePack.status,context.resourceCoverage.roles[role].status);
    assert.equal(payload.roleResourcePack.allContextEvidenceRetained,true);
    assert.ok(Array.isArray(payload.roleResourcePack.knownGaps));
+   const coverageFact=context.facts.find(x=>x.type==="RESOURCE_COVERAGE_SNAPSHOT");
+   assert.ok(payload.roleResourcePack.relevantIds.includes(coverageFact.id));
+   if(role==="portfolio_analyst"){
+    const portfolioFact=context.facts.find(x=>x.type==="PORTFOLIO_RISK_SNAPSHOT");
+    assert.ok(payload.roleResourcePack.relevantIds.includes(portfolioFact.id));
+   }
    assert.equal(Object.isFrozen(payload.resourceCoverage),true);
    return report();
   };

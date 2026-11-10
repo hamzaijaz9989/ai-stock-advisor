@@ -36,7 +36,7 @@ test("excludes future-dated SEC facts and future price bars",()=>{
   history:{data:[{date:"2026-11-09",open:10,high:11,low:9,close:10,volume:100}]},
   secObservations:[{key:"revenue",value:1,unit:"USD",end:"2026-12-31",filed:"2027-02-01",accession:"future"}]
  });
- assert.equal(result.facts.length,0);
+ assert.deepEqual(result.facts.map(x=>x.type).sort(),["PORTFOLIO_RISK_SNAPSHOT","RESOURCE_COVERAGE_SNAPSHOT"]);
 });
 
 test("preserves news text as discovery evidence rather than trusted instructions",()=>{

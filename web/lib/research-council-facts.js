@@ -194,6 +194,31 @@ export function buildResearchCouncilContext(input) {
   }
 
   const portfolio = validatePortfolio(input.portfolio, asOfMs);
+  const resourceCoverage = buildResourceCoverage(facts,evidence,portfolio,asOf);
+
+  // Give specialists first-class, citable records for portfolio inputs and known resource
+  // gaps. Without these records, a role with no dedicated feed (notably sentiment) could
+  // only satisfy the citation contract by attaching its limitation to unrelated market data.
+  const portfolioFactId = makeId("portfolio-risk",ticker,asOf);
+  const coverageFactId = makeId("resource-coverage",ticker,asOf);
+  add(facts,portfolioFactId,"PORTFOLIO_RISK_SNAPSHOT",{...portfolio},portfolio.source,portfolio.asOf);
+  const coverageRecord = {
+    generatedBy:resourceCoverage.generatedBy,
+    asOf:resourceCoverage.asOf,
+    roles:Object.fromEntries(Object.entries(resourceCoverage.roles).map(([role,entry])=>[role,{
+      status:entry.status,
+      gaps:[...entry.gaps],
+      inputFields:Array.isArray(entry.inputFields)?[...entry.inputFields]:[]
+    }]))
+  };
+  add(facts,coverageFactId,"RESOURCE_COVERAGE_SNAPSHOT",coverageRecord,"Northstar deterministic resource inventory",asOf);
+  for (const [role,entry] of Object.entries(resourceCoverage.roles)) {
+    const ids = new Set(Array.isArray(entry.factIds)?entry.factIds:[]);
+    ids.add(coverageFactId);
+    if (role === "portfolio_analyst" || role === "risk_committee") ids.add(portfolioFactId);
+    entry.factIds = [...ids];
+  }
+
   if (facts.length + evidence.length > 500) throw new TypeError("Research Council context exceeds 500 canonical facts and evidence items.");
-  return {ticker,asOf,facts,evidence,portfolio,resourceCoverage:buildResourceCoverage(facts,evidence,portfolio,asOf)};
+  return {ticker,asOf,facts,evidence,portfolio,resourceCoverage};
 }
