@@ -80,3 +80,19 @@ test("news analyst removes duplicate URLs from unique dated counts",()=>{
  assert.ok(out.findings.some(x=>x.claim.includes("1 unique, dated")));
  assert.ok(out.risks.some(x=>x.claim.includes("duplicate news item")));
 });
+
+test("bull and bear role guidance remains distinct, evidence-only and falsifiable",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const source=await readFile(new URL("../web/lib/research-council-adapters.js",import.meta.url),"utf8");
+ const bull=source.match(/bull_researcher: "([^"]+)"/)?.[1]||"";
+ const bear=source.match(/bear_researcher: "([^"]+)"/)?.[1]||"";
+ assert.ok(bull.includes("positive thesis"));
+ assert.ok(bull.includes("falsify"));
+ assert.ok(bull.includes("ONLY supplied evidence IDs"));
+ assert.ok(bear.includes("downside thesis"));
+ assert.ok(bear.includes("falsify"));
+ assert.ok(bear.includes("ONLY supplied evidence IDs"));
+ assert.notEqual(bull,bear);
+ assert.ok(bull.includes("Do not issue BUY/SELL"));
+ assert.ok(bear.includes("Do not issue BUY/SELL"));
+});
