@@ -422,7 +422,9 @@
     $("stock-brain-evidence-count").textContent=String(Number(collection.factCount||0)+Number(collection.evidenceCount||0));
     $("stock-brain-trace").textContent=payload.traceDurable===true&&result.traceDurable===true?"CONFIRMED":"NOT CONFIRMED";
 
-    const coverage=result.resourceCoverage?.roles||{};
+    const resourceCoverage=result.resourceCoverage||{};
+    const coverage=resourceCoverage.roles||{};
+    const newsQuality=resourceCoverage.newsQuality||{};
     const agentRoot=$("stock-brain-agents");
     agentRoot.replaceChildren();
     const byRole=new Map((Array.isArray(result.agents)?result.agents:[]).map(agent=>[agent.role,agent]));
@@ -492,9 +494,9 @@
       }
       reportRoot.appendChild(card);
     }
-    renderCouncilEvaluation(result.evaluation,result.agents,coverage);
+    renderCouncilEvaluation(result.evaluation,result.agents,coverage,newsQuality);
   }
-  function renderCouncilEvaluation(evaluation,agents,coverage={}) {
+  function renderCouncilEvaluation(evaluation,agents,coverage={},newsQuality={}) {
     const summary=$("stock-brain-scorecard-summary");
     const rolesRoot=$("stock-brain-scorecard-roles");
     const limitations=$("stock-brain-scorecard-limitations");
@@ -523,7 +525,13 @@
       ["Failed invocations",metricText(totals.failedInvocations)],
       ["Summed role latency",totals.latencyMs===null||totals.latencyMs===undefined?"Incomplete":String(totals.latencyMs)+" ms"],
       ["Provider tokens",metricText(totals.totalTokens)],
-      ["Provider cost",totals.costUsd===null||totals.costUsd===undefined?"Not measured":"$"+Number(totals.costUsd).toFixed(4)]
+      ["Provider cost",totals.costUsd===null||totals.costUsd===undefined?"Not measured":"$"+Number(totals.costUsd).toFixed(4)],
+      ["Unique timestamped news",metricText(newsQuality.uniqueEligibleCount)],
+      ["Company-specific news",metricText(newsQuality.companySpecificCount)],
+      ["Macro / sector context",String(Number(newsQuality.macroCount||0)+Number(newsQuality.sectorCount||0))],
+      ["Ambiguous-scope news",metricText(newsQuality.ambiguousCount)],
+      ["Duplicate / syndicated",metricText(newsQuality.duplicateCount)],
+      ["Unverified-source items",metricText(newsQuality.unverifiedSourceCount)]
     ];
     for(const [label,value] of cards){
       const card=document.createElement("div");card.className="stat";
