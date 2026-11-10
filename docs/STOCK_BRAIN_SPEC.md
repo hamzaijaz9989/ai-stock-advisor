@@ -243,3 +243,16 @@ Next: restore Preview credentials through Cloudflare secret entry, establish a g
 - Complete: both snapshot PRs were inspected for current head, divergence, CI, files and review state. Neither is safe to merge or use as an operational schedule yet.
 - Blockers: reconcile PR #85 with current main; independent review/governance; then update PR #88 onto the reviewed fill-sync contract and rerun exact-head CI/Preview verification. Only after release gates pass may a read-only scheduled sync establish the seven-day baseline.
 - Exact next action: keep PRs #85 and #88 DRAFT and unmerged; continue Phase 2 Stock Brain work. Do not invoke the scheduled snapshot workflow or claim seven-day history until the reviewed combined workflow is deployed and actual snapshots are observed.
+
+
+## Live acceptance status — 2026-11-10 07:32 PKT / 02:32 UTC
+
+- **Implemented:** nine logical roles, staged orchestration, canonical fact/evidence IDs, resource coverage, per-role measured latency/provider/model telemetry, provider-reported token usage where available, deterministic scorecard, protected `POST /api/research/collect`, and Trading Lab UI for role reports/vetoes/scorecard/trace confirmation.
+- **CI passed:** exact code head `e8bcba21ecfb56634345b1df219320fd026ec9a7`; Tests `42738143198`, Validate `42738143199`, full-history secret scan `42738143194` — all SUCCESS.
+- **Preview deployed:** `dd8ad047-343d-43d8-bf37-d520e1a0ca51`, SUCCESS, Pages Functions enabled, isolated D1 `bdffc29f-a4f6-498e-ade7-22c85d9bd373`. Endpoint HTTP behavior was not independently verified in this audit because the connected web runtime could not access the public Pages URLs.
+- **Production:** latest deployment `2054cdeb-b9bf-41d8-a6f8-8e5004ba7365` serves main `839e135dad88849350a7f6f61c929ee8ce4bc046`; PR #103 is not deployed to Production. Production D1 has 0 council runs, 0 decision traces, and one stale equity snapshot dated `2026-11-08T18:34:38.720Z`.
+- **Trace semantics:** Stock Brain's `traceDurable=true` means the result and evaluation were read back from the append-only `research_council_runs` table. The separate `research_decision_traces` table belongs to the legacy deterministic decision endpoint and is not written by the nine-agent collector.
+- **Not accepted yet:** no authenticated end-to-end council run, no persisted nine-agent result/scorecard in Production or Preview, no verified seven-day baseline, and no fresh 15-minute reconciled snapshot. Preview lacks FMP, Alpaca Paper and Gemini secret bindings; Production FMP's last recorded health probe returned HTTP 401 and has not been freshly re-tested in this audit.
+- **Release gate:** PR #103 remains open and mergeable but has zero formal reviews; main is unprotected with required checks off. No merge or Production promotion is authorized by the current evidence.
+- **Safety:** no D1 writes/migrations, broker requests, orders, control changes or Production deployment in this audit. Paper execution remains disabled; kill switch engaged; BUY disabled.
+- **Next exact action:** complete authorized review/governance and required Preview credentials, establish a real fresh seven-day read-only portfolio history, then run one controlled research-only collection and verify all nine role outputs, scorecard, telemetry and durable `research_council_runs` replay.

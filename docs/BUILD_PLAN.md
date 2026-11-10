@@ -308,3 +308,16 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - Complete: both snapshot PRs were inspected for current head, divergence, CI, files and review state. Neither is safe to merge or use as an operational schedule yet.
 - Blockers: reconcile PR #85 with current main; independent review/governance; then update PR #88 onto the reviewed fill-sync contract and rerun exact-head CI/Preview verification. Only after release gates pass may a read-only scheduled sync establish the seven-day baseline.
 - Exact next action: keep PRs #85 and #88 DRAFT and unmerged; continue Phase 2 Stock Brain work. Do not invoke the scheduled snapshot workflow or claim seven-day history until the reviewed combined workflow is deployed and actual snapshots are observed.
+
+
+## Live status overlay — 2026-11-10 07:32 PKT / 02:32 UTC
+
+- Phase 1 universe scanning remains **user-confirmed COMPLETE**; no scanner rebuild is planned.
+- Phase 2 Stock Brain is **implemented**, **exact-head CI-passed**, and **Preview-deployed** on PR #103 head `e8bcba21ecfb56634345b1df219320fd026ec9a7`. Preview deployment `dd8ad047-343d-43d8-bf37-d520e1a0ca51` succeeded with Pages Functions and isolated Preview D1. Direct endpoint behavior was not verified because the connected web runtime could not access the Pages URLs.
+- PR #103 remains open/non-draft/mergeable, 148 ahead / 0 behind main, but has zero formal reviews; main is unprotected and required checks are off. Do not merge until governance and independent review are satisfied.
+- Production D1 has zero Research Council runs/traces and only one stale equity snapshot; Preview D1 is empty. The controlled authenticated research-only acceptance run has **not** occurred.
+- Preview currently exposes only the operator-token secret name; FMP, Alpaca Paper and Gemini bindings are missing. Production FMP's last recorded provider probe was HTTP 401; no fresh probe was possible in this audit.
+- Production execution remains disabled and kill-switched; strategy validation remains NOT APPROVED; validated BUY remains disabled. No paper or live order is permitted.
+- Evidence commit under review: `e8bcba21ecfb56634345b1df219320fd026ec9a7`; PR #103. Exact-head CI: Tests `42738143198`, Validate `42738143199`, secret scan `42738143194` — all SUCCESS. Preview deployment: `dd8ad047-343d-43d8-bf37-d520e1a0ca51`. Production deployment: `2054cdeb-b9bf-41d8-a6f8-8e5004ba7365` on main `839e135dad88849350a7f6f61c929ee8ce4bc046`.
+- Database changes: **none**; all audit queries were read-only and reported zero rows written.
+- Next: resolve independent review/governance and Preview credential gates, establish a genuine fresh seven-day read-only equity baseline through the reviewed #85/#88 workflow chain, then run and verify one authenticated research-only Stock Brain collection. Keep all execution controls unchanged.
