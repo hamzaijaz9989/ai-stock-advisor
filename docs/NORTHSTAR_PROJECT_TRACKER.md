@@ -4,7 +4,7 @@
 **Repository:** `hamzaijaz9989/ai-stock-advisor`  
 **Active work branch:** `northstar/cloudflare-research-orchestration`  
 **Active pull request:** [#118 — Design Cloudflare-native autonomous research orchestration](https://github.com/hamzaijaz9989/ai-stock-advisor/pull/118)  
-**Current implementation head:** `bfb4db15a2ca489da7d947ac8aaced6f9a1fe75a`  
+**Current implementation head:** `e87e067d67a7fd29ea95cc57e33a8c4fc7660790`  
 **Base branch/head recorded for PR:** `main` / `85c51f847f4b4a966be629ff9f3702194d6ae262`
 
 > This is the canonical progress and decision record for Northstar. Update it in the same work session as every meaningful code, migration, architecture, configuration, test, security, or deployment change. Do not rely on chat history as the project record.
@@ -14,7 +14,7 @@
 | Area | Current decision |
 |---|---|
 | Architecture | Cloudflare-native: existing Pages Functions, Workers, and D1 |
-| Agent autonomy | Research-only; no broker execution |
+| Agent autonomy | Research-only baseline; paper-trading pilot proposed but not yet enabled |
 | Infrastructure budget | Minimal; reuse existing resources before adding paid services |
 | Research roles | Preserve the existing nine-agent council; do not create a parallel agent framework |
 | Financial safety | No live or paper orders, no order modification/cancellation, no automatic BUY, no kill-switch or execution-control changes |
@@ -178,3 +178,15 @@ Additional rules:
 - Tests, validation, and full-history secret scan all report success for that SHA.
 - PR #118 remains the active draft integration PR.
 - No production migration or deployment has been performed by this work.
+
+
+### 2026-11-11 — Paper-trading request and read-only preflight
+- User requested that Northstar begin paper trading to evaluate whether its strategy can generate positive returns.
+- This is a proposed change from the previously confirmed research-only autonomy. No trading permission has been enabled in Northstar code and no order has been submitted.
+- Read-only Alpaca account inspection returned account status `ACTIVE`, paper-account cash/equity/portfolio value of USD 100,000, and trading not blocked. The account data reports a balance-as-of date of 2026-11-09; treat this as a snapshot, not a live guarantee.
+- Read-only positions query returned no open positions; read-only orders query returned no orders.
+- Market clock response reported the market closed and a next session open of 2026-11-11 09:30 America/New_York. The clock response timestamp was 2026-11-10, so recheck the clock immediately before any order.
+- No funds are real; Alpaca paper trading is simulated. Account buying power is not a recommended risk budget. Do not use the account's full buying power.
+- Before the pilot can begin, obtain explicit agreement on a capped test allocation, max loss per trade/day, max concurrent positions, eligible instruments, and whether orders are manual-confirmed or automated.
+- Proposed conservative pilot defaults for user review only: US-listed stocks/ETFs, long-only, no options/crypto/shorting/margin, $5,000 maximum total deployed notional, risk no more than 0.5% of pilot capital per trade, daily stop at 1% of pilot capital, and maximum 3 open positions. These are proposed controls, not yet active.
+- Next: user confirms or edits the pilot risk limits; then document the decision, implement a paper-only execution gate isolated from production, test order sizing/stops/idempotency/kill switch, and only then submit any explicitly approved paper orders.
