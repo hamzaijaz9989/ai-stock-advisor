@@ -492,3 +492,13 @@ No authenticated council acceptance run has occurred. Next: verify the new Previ
 - Exact-head CI: Tests `42817051649` PASS (274 JavaScript tests, 94 Python tests, Ruff); Validate `42817052712` PASS; secret scan `42817051960` PASS.
 - Preview deployment `2e9280db-2275-49cc-a473-ac117013dbfa` SUCCESS for the implementation commit. Trading Lab returned 200; read-only readiness and monitor APIs returned 200; FMP health returned 503 MISSING_BINDING. Preview D1 remains isolated and empty. No authenticated collector POST was invoked.
 - Production D1 currently has two equity snapshots but still lacks a genuine seven-day baseline; research runs/traces remain zero. Execution is disabled and kill-switched. Do not infer that synthetic acceptance or OIDC tests constitute live Council acceptance.
+
+
+## Fundamental source fallback contract — 2026-11-10
+
+- SEC company facts are the primary reported-fundamentals source.
+- FMP fundamentals is an optional secondary cross-check. When FMP fundamentals is unavailable but SEC facts exist, the resource pack remains PARTIAL, records the missing cross-check, and the deterministic fundamental analyst may report only from cited SEC observations.
+- If both SEC and FMP fundamentals observations are absent, the role remains UNAVAILABLE. Never create substitute facts.
+- FMP daily OHLCV history remains required by the current collector. This change does not bypass missing/invalid history, quote freshness, read-only Alpaca reconciliation, 15-minute snapshot freshness, the genuine seven-day baseline, model access, news chronology or dedicated sentiment requirements.
+- This is a research-only resilience improvement. It does not authorize orders, enable paper execution, enable BUY, or approve strategy validation.
+- Verified implementation: PR #108, code commit 6fc3530ea6eb71ac481481697f9a2655ad24eaf3; exact-head Tests 42819884077, Python tests 42819884062 and full-history secret scan 42819884161 passed. Preview deployment 98773cbf-8748-4ff9-999a-dbfca4cc84c6 succeeded; Production unchanged.

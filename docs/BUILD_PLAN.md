@@ -667,3 +667,22 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - Production D1: migrations 0001–0006; 2 equity snapshots (latest `2026-11-10T11:42:59.813Z`), not a seven-day baseline; 186 monitor runs, all market_closed / 0 symbols / 0 errors; no council runs/traces or paper lifecycle rows; execution disabled and kill switch engaged. Preview migrations 0001–0012 and empty research/paper ledgers.
 - No database writes/migrations, secret changes, broker calls, order actions, execution-control changes or Production deployment. Strategy validation NOT APPROVED; paper lifecycle NOT READY; BUY disabled.
 - Next: reconcile news-quality helper PR #109 into the canonical Council evidence path without adding recommendation authority; keep collector gated until seven-day history and broker reconciliation are verified.
+
+
+## Phase 2 — SEC-primary fundamental fallback (2026-11-10 17:58 PKT)
+
+- [x] Synchronize Stock Brain PR #108 with current main; branch is 56 ahead / 0 behind.
+- [x] Make the FMP fundamentals endpoint best-effort; SEC company facts remain the primary reported-fundamentals source.
+- [x] Record missing FMP cross-check as an explicit resource gap and source mode, never as fabricated data.
+- [x] Preserve the hard requirement for FMP daily price history, fresh quote, read-only Alpaca reconciliation, current equity snapshot and genuine seven-day baseline.
+- [x] Add unit and synthetic collector regression coverage for SEC-only fundamentals with unavailable FMP statement cross-check.
+- [x] Exact-head CI: Tests 42819884077, Python tests 42819884062, full-history secret scan 42819884161; Cloudflare Pages check SUCCESS.
+- [x] Preview deployment 98773cbf-8748-4ff9-999a-dbfca4cc84c6 and read-only route smoke verified.
+- [ ] Obtain independent review and authorized branch-governance confirmation for PR #108.
+- [ ] Resolve FMP daily-history authentication or approve a separately reviewed, licensed alternative.
+- [ ] Configure Preview FMP/Alpaca Paper/Gemini credentials without exposing values.
+- [ ] Establish a fresh reconciled Production snapshot and genuine seven-day equity baseline.
+- [ ] Connect a real timestamped sentiment/positioning source and verify news chronology/source quality.
+- [ ] Perform one authenticated research-only acceptance run; verify nine roles, deterministic vetoes, scorecard, telemetry, durable trace and idempotent replay.
+- [ ] Reconcile Production/Preview D1 migration histories before any future Production migration.
+- Safety: no Production D1 writes/migrations, secret changes, broker requests, orders, execution-control changes or Production deployment. Execution remains disabled and kill switch engaged; validated BUY remains disabled.

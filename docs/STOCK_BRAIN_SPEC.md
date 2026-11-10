@@ -535,3 +535,12 @@ The scoped GitHub Actions OIDC verifier now validates `iat`, `exp`, and optional
 - Production main deployment `3782f3e9-0d2e-4d04-b95a-4dcd931a6133` SUCCESS; no Production deployment, D1 write/migration or control change in this work item.
 - Production D1 remains migrations 0001–0006, two snapshots (latest `2026-11-10T11:42:59.813Z`), 186 market-closed monitor runs with zero symbols, zero Council runs/traces and zero paper lifecycle rows. The two snapshots are insufficient for the seven-day baseline. Execution remains disabled and kill-switched.
 - Strategy validation remains NOT APPROVED and BUY remains disabled. No authenticated collector call or order action occurred.
+
+
+## Provider hierarchy update — 2026-11-10
+
+SEC company-facts observations are the primary reported-fundamentals evidence. The FMP fundamentals endpoint is an optional secondary cross-check: if it is unavailable but SEC facts are present, the fundamental analyst may produce an evidence-linked PARTIAL report and must disclose the missing cross-check. If neither SEC facts nor FMP fundamental observations exist, the fundamental analyst remains UNAVAILABLE. No facts may be synthesized to fill a provider gap.
+
+FMP daily price history remains a separate hard dependency for the current collector's 60-bar OHLCV input. Making the fundamentals cross-check optional does not permit the collector to bypass missing or invalid FMP price history, stale/future quotes, read-only broker reconciliation, fresh equity snapshot, genuine seven-day baseline, or model/news/sentiment requirements. The fallback is research-only and does not change BUY eligibility or strategy approval.
+
+Implementation evidence: PR #108, code commit 6fc3530ea6eb71ac481481697f9a2655ad24eaf3; Tests 42819884077, Python tests 42819884062, secret scan 42819884161 all passed; Preview deployment 98773cbf-8748-4ff9-999a-dbfca4cc84c6 succeeded. Production was not deployed or mutated.
