@@ -483,3 +483,12 @@ No authenticated council acceptance run has occurred. Next: verify the new Previ
 - Cloudflare Pages project Preview D1 binding was corrected to isolated database `bdffc29f-a4f6-498e-ade7-22c85d9bd373`; Production remains `528f3a23-1d1f-4d16-8463-f643d85f5deb`. A fresh Preview deployment and HTTP smoke verification are still required because existing Preview deployments were created before the correction and one old Preview URL returned 404.
 - Production read-only paper readiness, performance, monitor and FMP health endpoints returned HTTP 200. Production still has one stale equity snapshot, no seven-day baseline, no research runs/traces, and no paper lifecycle rows. Execution remains disabled and kill switch engaged.
 - Do not invoke the protected collector until the fresh seven-day equity baseline, read-only broker reconciliation, provider credentials, eligible news and dedicated sentiment inputs are verified. No paper or live order is authorized.
+
+
+## 2026-11-10 17:31 PKT — operational security regression and Preview check
+
+- The scoped GitHub Actions OIDC validator now requires safe-integer JSON NumericDate claims for `iat`, `exp`, and optional `nbf`; coercible strings/null fail closed. The intended 30-second clock-skew tolerance remains, and tests now cover expiry inside/outside that allowance.
+- Commits: implementation `47e2a19b37e78b9a2ee8c5076fb02885bccf6eaf`; tests / exact CI head `b8fb8704e8cbbe0720808098c99bb8a703f9e46e`; PR #108.
+- Exact-head CI: Tests `42817051649` PASS (274 JavaScript tests, 94 Python tests, Ruff); Validate `42817052712` PASS; secret scan `42817051960` PASS.
+- Preview deployment `2e9280db-2275-49cc-a473-ac117013dbfa` SUCCESS for the implementation commit. Trading Lab returned 200; read-only readiness and monitor APIs returned 200; FMP health returned 503 MISSING_BINDING. Preview D1 remains isolated and empty. No authenticated collector POST was invoked.
+- Production D1 currently has two equity snapshots but still lacks a genuine seven-day baseline; research runs/traces remain zero. Execution is disabled and kill-switched. Do not infer that synthetic acceptance or OIDC tests constitute live Council acceptance.
