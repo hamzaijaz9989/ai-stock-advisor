@@ -23,7 +23,7 @@ test("Stock Brain client uses authenticated server-side collection without persi
   assert.match(client, /stock-brain-trace/);
   assert.match(client, /payload\.traceDurable===true&&result\.traceDurable===true/);
   assert.match(client, /parseStockBrainResponse\(response\)/);
-  assert.match(client, /renderCouncilEvaluation\(result\.evaluation,result\.agents,coverage\)/);
+  assert.match(client, /renderCouncilEvaluation\(result\.evaluation,result\.agents,coverage,newsQuality\)/);
   assert.doesNotMatch(client, /localStorage\.setItem\([^\n]*token/i);
   assert.doesNotMatch(client, /sessionStorage|localStorage\.setItem\([^\n]*northstar_operator_token/i);
 });
@@ -72,6 +72,10 @@ test("Stock Brain scorecard exposes role coverage and renders untrusted values a
   const renderer = client.slice(start, end);
   assert.match(renderer, /COUNCIL_DISPLAY_ROLES/);
   assert.match(renderer, /resource\.status/);
+  assert.match(renderer, /Unique timestamped news/);
+  assert.match(renderer, /Company-specific news/);
+  assert.match(renderer, /Duplicate \/ syndicated/);
+  assert.match(renderer, /Unverified-source items/);
   assert.match(renderer, /\.textContent\s*=/);
   assert.doesNotMatch(renderer, /\.innerHTML\s*=/);
 });
