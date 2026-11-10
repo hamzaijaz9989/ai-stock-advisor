@@ -126,7 +126,7 @@ export function runNewsAnalyst(context) {
     if(!Number.isFinite(published)){undatedIds.push(item.id);continue;}
     if(Number.isFinite(asOf)&&published>asOf){futureIds.push(item.id);continue;}
     usable.push(item);
-    if(v.sourceTier==="unverified-source"||v.publisherVerified===false||!v.publisher)unverifiedIds.push(item.id);
+    if(v.sourceTier==="unverified-source"||v.publisherVerified!==true||!v.publisher)unverifiedIds.push(item.id);
   }
   const primary=usable.filter(x=>x.value?.sourceTier==="primary-source"||x.value?.publisherVerified===true&&/issuer|investor relations|sec\.gov/i.test(String(x.value?.publisher||""))).length;
   const reported=usable.filter(x=>x.value?.sourceTier==="reported-source").length;
