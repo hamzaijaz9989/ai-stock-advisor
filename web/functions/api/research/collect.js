@@ -8,8 +8,10 @@ import {onRequestGet as getNews} from "../news.js";
 import {onRequestGet as getEarnings} from "../earnings.js";
 import {buildResearchCouncilContext} from "../../../lib/research-council-facts.js";
 import {runResearchCouncil} from "../../../lib/research-council.js";
+import {evaluateResearchCouncilRun} from "../../../lib/research-council-evaluation.js";
 import {createResearchCouncilWorkers} from "../../../lib/research-council-adapters.js";
 import {deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
+import {onRequestPost as reconcilePaperAccount} from "../paper/reconcile.js";
 import {onRequestPost as syncPaperAccount} from "../paper/sync.js";
 
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
@@ -19,7 +21,40 @@ function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)retu
 function stable(v){if(Array.isArray(v))return "["+v.map(stable).join(",")+"]";if(v&&typeof v==="object")return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stable(v[k])).join(",")+"}";return JSON.stringify(v);}
 async function sha256(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");}
 async function endpoint(handler,origin,path,env){const r=await handler({request:new Request(origin+path),env});if(!r.ok)throw new Error(path.split("?")[0]+" unavailable (HTTP "+r.status+")");return r.json();}
-async function secFacts(ticker,collectionStartedAt){
+async function optionalEndpoint(handler,origin,path,env){
+ try{
+  const response=await handler({request:new Request(origin+path),env});
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||!payload||typeof payload!=="object"||Array.isArray(payload))
+   return {available:false,provider:"Financial Modeling Prep",unavailableReason:!response.ok?"HTTP_"+response.status:"INVALID_RESPONSE"};
+  return payload;
+ }catch{
+  return {available:false,provider:"Financial Modeling Prep",unavailableReason:"PROVIDER_UNAVAILABLE"};
+ }
+}
+export async function requireReadOnlySyncSuccess(response){
+ let data=null;try{data=await response.json();}catch{}
+ if(!response?.ok||data?.ok!==true||data?.synced!==true||data?.execution!==false)
+  throw new Error("Read-only Alpaca Paper sync did not explicitly confirm success with execution disabled.");
+ return data;
+}
+export function requireFreshResearchQuote(context){
+ const freshness=context?.resourceCoverage?.roles?.market_scanner?.quoteFreshness;
+ if(freshness?.status!=="FRESH"){
+  const reason=typeof freshness?.reason==="string"?freshness.reason:"QUOTE_FRESHNESS_NOT_VERIFIED";
+  throw new Error("Quote freshness gate blocked research collection ("+reason+").");
+ }
+ return freshness;
+}
+export function requireVerifiedEquitySnapshotProvenance(snapshots){
+ if(!Array.isArray(snapshots)||snapshots.length===0)throw new Error("Verified equity history is unavailable.");
+ // Keep unverified/manual/plugin captures in the ledger for audit, but never mix
+ // them into the risk series. Only server-side Alpaca Paper sync rows are eligible.
+ const verified=snapshots.filter(row=>row?.source==="alpaca_paper_read_only_sync");
+ if(verified.length===0)throw new Error("Verified Alpaca Paper read-only sync equity history is unavailable.");
+ return verified;
+}
+async function secFacts(ticker,asOf){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
  const mapResponse=await fetch("https://www.sec.gov/files/company_tickers.json",{headers,signal:AbortSignal.timeout(8000)});
  if(!mapResponse.ok)throw new Error("SEC ticker directory unavailable (HTTP "+mapResponse.status+")");
@@ -29,7 +64,7 @@ async function secFacts(ticker,collectionStartedAt){
  const cik=String(row.cik_str).padStart(10,"0");
  const response=await fetch("https://data.sec.gov/api/xbrl/companyfacts/CIK"+cik+".json",{headers,signal:AbortSignal.timeout(12000)});
  if(!response.ok)throw new Error("SEC company facts unavailable (HTTP "+response.status+")");
- const payload=await response.json(),cutoff=collectionStartedAt.slice(0,10),out=[];
+ const payload=await response.json(),cutoff=asOf.slice(0,10),out=[];
  for(const [taxonomy,concepts] of Object.entries(payload.facts||{}))for(const [key,concept] of Object.entries(concepts||{})){
   for(const [unit,rows] of Object.entries(concept.units||{})){
    for(const fact of rows||[]){
@@ -51,7 +86,7 @@ async function portfolioSnapshot(env){
  const [account,brokerPositions,brokerOrders,ledgerRows,snapshotRows]=await Promise.all([
   get("/v2/account"),get("/v2/positions"),get("/v2/orders?status=open&limit=500&direction=desc"),
   db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all(),
-  db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all()
+  db.prepare("SELECT captured_at,equity_usd,source FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all()
  ]);
  if(account?.status!=="ACTIVE"||account.trading_blocked||account.account_blocked||!Array.isArray(brokerPositions)||!Array.isArray(brokerOrders))throw new Error("Alpaca Paper account is not active or returned incomplete positions/orders.");
  if(brokerOrders.length)throw new Error("Open broker orders exist; reconcile them before research sizing.");
@@ -61,7 +96,7 @@ async function portfolioSnapshot(env){
  if(bp.length)throw new Error("Existing positions have no independently verified protective-stop risk ledger; portfolio risk cannot be represented as zero.");
  const equity=finite(account.equity),lastEquity=finite(account.last_equity);
  if(equity===null||equity<=0||lastEquity===null||lastEquity<=0)throw new Error("Broker equity snapshot is incomplete.");
- const snapshots=snapshotRows?.results||[];
+ const snapshots=requireVerifiedEquitySnapshotProvenance(snapshotRows?.results||[]);
  const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:1000});
  if(!history.ok)throw new Error("Verified equity history is required for daily-loss/drawdown controls ("+history.reason+").");
  const now=Date.now(),latest=snapshots[0],latestMs=Date.parse(latest?.captured_at||"");
@@ -73,7 +108,8 @@ async function portfolioSnapshot(env){
  if(weeklyEquity===null||weeklyEquity<=0)throw new Error("Seven-day equity baseline is invalid.");
  const weeklyLossFraction=Math.max(0,(weeklyEquity-equity)/weeklyEquity);
  return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:new Date().toISOString(),
-  equityUsd:1000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction,weeklyLossFraction,drawdownFraction,
+  equityUsd:1000,virtualAllocationUsd:1000,actualAccountEquityUsd:equity,
+  riskMetricBasis:"actual_alpaca_paper_account_equity",openRiskUsd:0,grossExposureUsd:0,dailyLossFraction,weeklyLossFraction,drawdownFraction,
   sectorExposureUsd:0,concurrentPositions:0};
 }
 export async function onRequestPost({request,env}){
@@ -89,45 +125,60 @@ export async function onRequestPost({request,env}){
   const prior=await env.NORTHSTAR_DB.prepare("SELECT symbol,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(prior){
    if(String(prior.symbol||"").toUpperCase()!==ticker)return reply({ok:false,error:"requestId already belongs to a different ticker."},409);
-   return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(prior.result_json),createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
+   return reply({ok:true,replayed:true,traceDurable:true,result:{...JSON.parse(prior.result_json),traceDurable:true},createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
   }
-  // Refresh the read-only broker snapshot before using portfolio values.
+  // Reconcile the existing broker and D1 snapshots BEFORE sync can refresh/replace
+  // the position mirror. This prevents a sync from hiding a pre-existing mismatch.
+  const reconcileResponse=await reconcilePaperAccount({request:new Request(origin+"/api/paper/reconcile",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||""}}),env});
+  let reconciliation={};
+  try{reconciliation=await reconcileResponse.json();}catch{}
+  if(!reconcileResponse.ok||reconciliation?.ok!==true||reconciliation?.reconciled!==true||reconciliation?.execution!==false)
+   throw new Error("Pre-sync broker-to-ledger reconciliation failed; research collection is blocked.");
+  // Only after independent reconciliation succeeds may the read-only sync refresh
+  // the durable broker snapshot used by the research portfolio context.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
-  if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
+  await requireReadOnlySyncSuccess(syncResponse);
   const portfolio=await portfolioSnapshot(env);
-  // Record the collection start for date-bounded provider requests. The final as-of
-  // timestamp is set after all providers return, so a fresh quote retrieved during
-  // collection is not incorrectly marked as occurring after the research snapshot.
-  const collectionStartedAt=new Date().toISOString();
-  const [quote,fundamentals,history,news,earnings,sec]=await Promise.all([
+  // Establish the research as-of time only after the refreshed portfolio snapshot,
+  // so its timestamp cannot be later than the context timestamp.
+  const [quote,fundamentals,history,news,earnings]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+collectionStartedAt.slice(0,10),env),
+   optionalEndpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
+   endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+new Date().toISOString().slice(0,10),env),
    endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getEarnings,origin,"/api/earnings?ticker="+encodeURIComponent(ticker),env),
-   secFacts(ticker,collectionStartedAt)
+   endpoint(getEarnings,origin,"/api/earnings?ticker="+encodeURIComponent(ticker),env)
   ]);
+  // The research as-of is captured after provider snapshots return, so their
+  // retrieval timestamps and quote chronology are not accidentally future-dated.
+  // SEC date-only facts are fetched afterward and same-day filings are excluded
+  // unless a separate exact public-availability timestamp is verified.
   const asOf=new Date().toISOString();
+  const sec=await secFacts(ticker,asOf);
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   if(!history?.available||!Array.isArray(history.prices)||history.prices.length<60)throw new Error("At least 60 valid daily price bars are required for research.");
-  if(!fundamentals?.available)throw new Error("Fundamental data provider did not return usable statements.");
   const fmpHistory={income:history.statements?.annualIncome||[],balance:history.statements?.annualBalance||[],cashflow:history.statements?.annualCashflow||[],metrics:[],ratios:[],estimates:[]};
+  const fmpCrosscheckAvailable=fundamentals?.available===true||Object.values(fmpHistory).some(rows=>Array.isArray(rows)&&rows.length>0);
+  const fmpProvider=fundamentals?.provider||history?.provider||"Financial Modeling Prep";
+  const fmpRetrievedAt=fundamentals?.retrievedAt||history?.retrievedAt||null;
   const context=buildResearchCouncilContext({ticker,asOf,quote:{ticker,price:Number(quote.price),currency:quote.currency,exchange:quote.exchange,previousClose:finite(quote.previousClose),change:finite(quote.change),changePercent:finite(quote.changePercent),quoteTime:quote.quoteTime,marketState:quote.marketState,delayedOrRealtime:quote.delayedOrRealtime,interval:quote.interval,source:quote.source},
    history:{data:history.prices,interval:"1d",currency:"USD",source:history.provider,fetchedAt:history.retrievedAt,dataQuality:history.coverage},
-   secObservations:sec.observations,fmpFundamentals:{available:true,provider:fundamentals.provider,retrievedAt:fundamentals.retrievedAt,latest:fundamentals.latest,history:fmpHistory},
+   secObservations:sec.observations,fmpFundamentals:{available:fmpCrosscheckAvailable,provider:fmpProvider,retrievedAt:fmpRetrievedAt,latest:fundamentals?.available===true?fundamentals.latest:null,history:fmpHistory},
    news:{items:Array.isArray(news.items)?news.items:[]},
    earnings:{events:Array.isArray(earnings.events)?earnings.events.map(e=>({...e,date:e.reportDate||e.date||null})):[],found:earnings.found===true,verified:earnings.verified===true,throughDate:earnings.throughDate||null,provider:earnings.provider,fetchedAt:earnings.fetchedAt||earnings.fetchedAt,warning:earnings.warning||null},
    portfolio});
+  requireFreshResearchQuote(context);
   if(context.facts.length+context.evidence.length<3)throw new Error("Collected research evidence is insufficient.");
   const inputHash=await sha256(stable({ticker,asOf,context}));
   const existing=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
-  if(existing){if(existing.input_sha256!==inputHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(existing.result_json),createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});}
+  if(existing){if(existing.input_sha256!==inputHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);return reply({ok:true,replayed:true,traceDurable:true,result:{...JSON.parse(existing.result_json),traceDurable:true},createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});}
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
-  const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
+  const evaluation=evaluateResearchCouncilRun(result,{factIds:context.facts.map(x=>x.id),evidenceIds:context.evidence.map(x=>x.id),evaluatedAt:new Date().toISOString(),roles:workers.telemetry||{}});
+  const trace={schemaVersion:1,inputSha256:inputHash,ticker,asOf:context.asOf,facts:context.facts,evidence:context.evidence,portfolio:context.portfolio,resourceCoverage:context.resourceCoverage};
+  const storedResult={...result,traceDurable:true,trace,evaluation,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP daily price history","SEC EDGAR companyfacts",...(fmpCrosscheckAvailable?["FMP reported-fundamental cross-check"]:[]),"news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source,fmpCrosscheckAvailable,fundamentalSourceMode:fmpCrosscheckAvailable?"SEC_PLUS_FMP_CROSSCHECK":"SEC_PRIMARY_ONLY"},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING").bind(requestId,inputHash,ticker,result.status,JSON.stringify(storedResult)).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);
-  return reply({ok:true,replayed:!(Number(write?.meta?.changes)>0),traceDurable:true,createdAt:stored.created_at,result:JSON.parse(stored.result_json),execution:false,automatedOrderSubmission:false});
+  return reply({ok:true,replayed:!(Number(write?.meta?.changes)>0),traceDurable:true,createdAt:stored.created_at,result:{...JSON.parse(stored.result_json),traceDurable:true},execution:false,automatedOrderSubmission:false});
  }catch(error){return reply({ok:false,execution:false,traceDurable:false,error:String(error?.message||"Research collection failed safely.").slice(0,300)},503);}
 }

@@ -8,6 +8,8 @@ test("FMP fundamentals endpoint fails closed when the API key is absent", async 
   assert.equal(response.status, 503);
   const payload = await response.json();
   assert.equal(payload.configured, false);
+  assert.match(payload.reason, /FMP_API_KEY/);
+  assert.doesNotMatch(payload.reason, /FMP_API_KEY2/);
 });
 
 test("FMP fundamentals endpoint validates ticker input", async () => {
@@ -18,8 +20,10 @@ test("FMP fundamentals endpoint validates ticker input", async () => {
 
 test("FMP fundamentals endpoint returns separate source datasets and derived FCF", async () => {
   const originalFetch = globalThis.fetch;
+  const requestedKeys = [];
   globalThis.fetch = async input => {
     const url = new URL(String(input));
+    requestedKeys.push(url.searchParams.get("apikey"));
     const path = url.pathname.split("/").pop();
     const responses = {
       "income-statement": [{ date: "2025-12-31", reportedCurrency: "USD", revenue: 1000, netIncome: 100 }],
@@ -33,8 +37,9 @@ test("FMP fundamentals endpoint returns separate source datasets and derived FCF
   };
   try {
     const request = new Request("https://northstar.test/api/fmp-fundamentals?ticker=AAPL");
-    const response = await onRequestGet({ request, env: { FMP_API_KEY: "test" } });
+    const response = await onRequestGet({ request, env: { FMP_API_KEY: "canonical-test" } });
     assert.equal(response.status, 200);
+    assert.ok(requestedKeys.length > 0 && requestedKeys.every(key => key === "canonical-test"));
     const payload = await response.json();
     assert.equal(payload.available, true);
     assert.equal(payload.datasetCoverage.available, 5);
@@ -42,6 +47,25 @@ test("FMP fundamentals endpoint returns separate source datasets and derived FCF
     assert.equal(payload.latest.revenue, 1000);
     assert.equal(payload.latest.analystEpsAverage, 5);
     assert.equal(payload.provider, "Financial Modeling Prep");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+test("FMP fundamentals endpoint ignores FMP_API_KEY2 without FMP_API_KEY", async () => {
+  let called = false;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { called = true; return Response.json([]); };
+  try {
+    const request = new Request("https://northstar.test/api/fmp-fundamentals?ticker=AAPL");
+    const response = await onRequestGet({ request, env: { FMP_API_KEY2: "must-not-be-used" } });
+    assert.equal(response.status, 503);
+    const payload = await response.json();
+    assert.equal(payload.available, false);
+    assert.equal(payload.configured, false);
+    assert.match(payload.reason, /FMP_API_KEY/);
+    assert.equal(called, false);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -53,10 +53,11 @@ export async function onRequestPost({request,env}){
     }
     const workers=await createResearchCouncilWorkers(env);
     const result=await runResearchCouncil({requestId:body.requestId,context,workers});
+    const durableResult={...result,traceDurable:true};
     const symbol=String(context.ticker||"UNKNOWN").trim().toUpperCase().slice(0,12);
     const write=await env.NORTHSTAR_DB.prepare(
       "INSERT INTO research_council_runs (request_id,input_sha256,symbol,status,result_json) VALUES (?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING"
-    ).bind(body.requestId,hash,symbol,result.status,JSON.stringify(result)).run();
+    ).bind(body.requestId,hash,symbol,durableResult.status,JSON.stringify(durableResult)).run();
     const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(body.requestId).first();
     if(!stored)return respond({ok:false,error:"Council audit write could not be confirmed.",traceDurable:false,execution:false},503);
     if(stored.input_sha256!==hash)return respond({ok:false,error:"requestId was concurrently used for another context.",traceDurable:true},409);

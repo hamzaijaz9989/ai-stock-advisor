@@ -180,3 +180,13 @@ test("deterministic risk committee accepts only a fully populated portfolio belo
  const out=await workers.risk_committee({portfolio:{equityUsd:10000,openRiskUsd:100,grossExposureUsd:9000,dailyLossFraction:0.01,weeklyLossFraction:0.02,drawdownFraction:0.03,sectorExposureUsd:3000,concurrentPositions:0}});
  assert.equal(out.decision,"ACCEPT_FOR_REVIEW");assert.deepEqual(out.vetoReasons,[]);
 });
+
+
+test("fundamental analyst can report from SEC primary facts without the optional FMP cross-check",()=>{
+ const c=context();
+ c.facts=c.facts.filter(item=>!item.type.startsWith("FMP_"));
+ const out=runFundamentalAnalyst(c);
+ assert.equal(out.status,"COMPLETE");
+ assert.ok(out.findings.some(item=>item.claim.includes("SEC fact observation")));
+ assert.ok(out.risks.some(item=>item.claim.includes("FMP statement/provider cross-check observations are absent")));
+});
