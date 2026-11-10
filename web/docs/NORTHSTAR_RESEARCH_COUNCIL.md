@@ -306,3 +306,10 @@ The append-only `research_council_runs` table is defined in migration `0003_rese
 - FMP provider snapshots must have `retrievedAt <= asOf`. FMP statement rows require a pre-as-of `acceptedDate` timestamp or a filing date strictly before the as-of date. These provider timestamps are not independently verified public availability; the facts are labeled as secondary cross-checks, not immutable historical evidence. Estimate snapshots are retrieval-time evidence only and historical revisions are not claimed.
 - Regression tests cover SEC same-day exclusions, verified timestamps before/after as-of, FMP accepted-time/prior-day filing admission, post-as-of retrieval exclusion and collector sequencing.
 - These controls improve evidence chronology; they do not measure factual truth, strategy performance, or approve BUY.
+
+
+## Quote freshness is a deterministic admission gate — 2026-11-10 10:26 PKT / 05:26 UTC
+
+The canonical context records a quote-freshness assessment with status, age, maximum age, provider market-state label and reason. Explicit `CLOSED` / `MARKET CLOSED` states permit a maximum five-calendar-day age for the most recent session close; every other or unknown state is limited to 15 minutes. Missing and future timestamps never pass. The authenticated `/api/research/collect` route calls `requireFreshResearchQuote` after building the server-side context and before constructing model workers; any non-`FRESH` status fails closed. This gate supplements the existing 60-bar, fundamentals, portfolio reconciliation and seven-day history checks. It does not make a council run a BUY signal or validate the strategy.
+
+Implementation commit `24b42afd41d0b0455b055cce8719c8a10e01ddec`; Tests `42762768731`, Validate `42762768617`, secret scan `42762768610`, push Tests `42762763147` all passed. Preview deployment `700ebefd-605c-4aee-bfa1-5b63214b9844` succeeded. No database changes or Production deployment occurred.
