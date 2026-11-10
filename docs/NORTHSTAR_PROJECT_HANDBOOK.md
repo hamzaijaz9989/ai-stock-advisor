@@ -668,3 +668,14 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - Current main is `08886f7f7cb1fbdcdee647d41cc244f9c4323159`. PR #103's branch was synchronized to that main; current branch head before this correction was `d7d0e2efc4415c069220ab2b196409c29ed85251`, 178 ahead / 0 behind, OPEN, non-draft and mergeable. Exact-head Tests were still running at the time of this entry; Validate `42775351570` and full-history secret scan `42775351259` passed.
 - This correction changes documentation only. No repository visibility, application code, secrets, Cloudflare configuration, deployment, D1, broker, order or execution-control setting was changed. The previously verified Preview deployment and isolated Preview D1 remain unchanged.
 - Exact next action: finish CI for the corrected PR #103 head; keep both PRs open pending independent review and authorized governance. Do not merge or change repository visibility without the required owner/reviewer gates. Keep execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-10 — Continuation audit and Preview binding distinction
+- Repository visibility is PUBLIC, intentionally changed by the user. This supersedes stale private/unresolved statements in historical branch entries. Do not ask again.
+- User has confirmed `FMP_API_KEY` is already configured. Do not ask them to add/re-add it. Only the canonical `FMP_API_KEY` binding is supported.
+- Cloudflare read-only inventory: Worker `northstar-market-monitor` exposes secret binding name `FMP_API_KEY` and D1 binding `NORTHSTAR_DB`; version 6 is preview-only and not promoted. This is binding-name evidence, not a test of secret validity/provider access.
+- The distinct Pages project `ai-stock-advisor` currently lists Production secret names including `FMP_API_KEY`, while Pages Preview metadata lists only `NORTHSTAR_OPERATOR_TOKEN`. Values were not read. Do not assume a Worker secret is automatically available to Pages Functions.
+- Direct preview HTTP probes from the connected runtime were inaccessible; no application response was received. Current Pages preview deployment for the latest docs-synchronized PR head is `idle`; do not claim endpoint or FMP health.
+- PR #103 current branch head at this audit: `d7d0e2efc4415c069220ab2b196409c29ed85251`, 180 ahead / 0 behind main, open, non-draft, mergeable. Formal reviews and inline review threads: zero. Exact-head CI is unverified because the connected workflow/status lookup returned no entries.
+- No application code, production deployment, D1 write/migration, secret mutation, broker request, order or execution-control change was made. Keep paper execution disabled, kill switch engaged and BUY disabled.
+- Next: complete latest-head Preview deployment and runtime smoke tests; resolve Pages Preview binding discrepancy without asking the user for a key; then obtain exact-head CI and independent review before considering merge.
