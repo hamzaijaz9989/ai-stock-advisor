@@ -533,3 +533,10 @@ Verification: PR #108 head 35b3c0a2a2f5ebb6d83c9adcb0869fe2313ff066; Tests 42821
 - PR #108 code/test head `3040f164f5bd31ee60b59e55b9cbac68045a8d35` also corrects the separate monitor Worker FMP key transport; Tests `42836191193`, Validate `42836191199`, secret scan `42836191055` and companion Tests `42836181974` all passed. The Worker change is not deployed; monitor runs #210–#212 still show 10/10 quote failures.
 - Sentiment remains UNAVAILABLE without an authorized timestamped feed; news discovery is not equivalent to verified original-source evidence. Model credential presence is not proof of successful model access.
 - No D1 writes/migrations, secret reads/changes, broker calls, orders, Production deployments or execution-control changes occurred. Execution remains disabled, kill switch engaged, BUY disabled and strategy NOT APPROVED.
+
+
+## 2026-11-10 — Portfolio history provenance gate correction
+
+Only rows written by the authenticated server-side Alpaca Paper sync (source alpaca_paper_read_only_sync) are eligible for Research Council risk calculations. Other provenance rows remain in D1 for audit but are filtered out before freshness, daily-loss, weekly-loss and drawdown calculations. If no eligible rows remain, the collector rejects; it never substitutes zero or uses a plugin/manual capture as a baseline. The seven-day baseline must exist within the trusted subset.
+
+Implementation/test commit: PR #108, 041d2a94c4c2651d3399bce3167148569eec812b. Exact-head Tests 42840853696 / 42841187476, Validate 42841187573, and secret scan 42841187556 passed. Exact-head Preview deployment 22ddcb73-9d93-48d2-8435-bc33bf8f7342 succeeded; Trading Lab/readiness/performance/monitor returned HTTP 200, FMP health returned 503 MISSING_BINDING because Preview provider bindings are intentionally absent. No authenticated collector POST, Production deployment, D1 write/migration, broker call, order or execution-control change occurred.

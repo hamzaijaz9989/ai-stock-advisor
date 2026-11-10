@@ -102,3 +102,6 @@ The 253-stock screen now adds a conservative, provisional opportunity check acro
 
 ## SEC timestamp verification
 The SEC ingestion workflow now creates a separate bounded sample cross-checked against SEC filing-index header pages. It checks accession and filing-date consistency, converts EDGAR acceptance time to UTC, records it separately as `acceptance_at`, and keeps `available_at` null with `availability_timestamp_verified: false` because acceptance is not proof of public-web availability. Acceptance time is not proof of the exact moment a filing became publicly retrievable; complete point-in-time strategy validation remains blocked until all required inputs and availability semantics are verified.
+
+
+Repository visibility is unresolved: GitHub API metadata currently reports `public` while the owner states it is `private`. Do not change visibility without explicit authorization; treat repository contents as publicly accessible until GitHub Settings confirms otherwise.

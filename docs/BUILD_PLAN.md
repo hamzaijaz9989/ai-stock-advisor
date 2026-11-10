@@ -770,3 +770,18 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [ ] Deploy the separate Worker version only after independent review/release governance; verify market-open quotes and zero provider errors. Current Worker deployment `7326f3e7-f323-4856-badf-aa8b979dffb4` / version `2739d49a-4182-423f-8113-616252c5ddd6` remains at 100% and does not include this fix.
 - [ ] Continue Phase 2 acceptance prerequisites: fresh 15-minute read-only snapshot, genuine seven-day baseline, reconciled broker state, authorized sentiment/news sources and model credentials; then one controlled research-only collector run with durable nine-role trace and idempotent replay.
 - Database changes: none; SELECT-only audit. No secret mutation, broker call, order or execution-control change. Paper execution disabled; kill switch engaged; BUY not approved.
+
+
+## 2026-11-10 20:08 PKT / 15:08 UTC — Phase 2 provenance blocker correction
+
+- Phase 1 universe scanning remains COMPLETE and user-confirmed. Phase 2 nine-agent Research Council / Stock Brain remains active.
+- Implemented in PR #108 commit 041d2a94c4c2651d3399bce3167148569eec812b: risk history now uses only server-side alpaca_paper_read_only_sync snapshots. Plugin/manual/unknown provenance rows remain in D1 for audit but are excluded from risk calculations. If no verified rows remain, the collector fails closed.
+- Regression: mixed trusted/untrusted histories are filtered to trusted rows; all-untrusted and empty histories remain blocked. Files: web/functions/api/research/collect.js; tests/research-collector.test.mjs.
+- Exact-head CI: Tests 42840853696 and 42841187476 PASS; Validate 42841187573 PASS; full-history secret scan 42841187556 PASS.
+- Exact-head Preview: deployment 22ddcb73-9d93-48d2-8435-bc33bf8f7342 SUCCESS. Trading Lab, readiness, performance and monitor routes HTTP 200; FMP health 503 MISSING_BINDING is expected in isolated Preview. No authenticated collector POST.
+- Production remains on Pages deployment 3782f3e9-0d2e-4d04-b95a-4dcd931a6133 / main 3f765d8dd0f9099e05df57d09c9f48c9b247ba9c. D1 migrations 0001–0006; 2 equity snapshots, latest 2026-11-10T11:42:59.813Z from plugin capture and therefore excluded; no trusted seven-day baseline. 0 council runs/traces and 0 paper lifecycle rows. Execution disabled; kill switch engaged.
+- Operational regression: monitor Worker still reports 10/10 quote failures on latest runs; the separate FMP query-auth fix in PR #108 commit 3040f164f5bd31ee60b59e55b9cbac68045a8d35 is not deployed. Cron remains */5 * * * *.
+- Governance/visibility: PR #108 remains unreviewed; branch-protection GET is 403. GitHub API reports repository public while owner states private; Settings unverified, so visibility remains unresolved and content is treated as public. No visibility change.
+- Database changes: none. No Production deployment, D1 write/migration, secret read/change, broker request, order, or execution-control change.
+- Status: IMPLEMENTED / CI-PASSED / PREVIEW-VERIFIED; NOT PRODUCTION-VERIFIED; strategy NOT APPROVED; paper lifecycle NOT READY; BUY disabled.
+- Next: continue independent review and branch-governance verification; keep collector blocked until fresh trusted 15-minute snapshot, seven-day trusted baseline, reconciliation, provider/auth, news and sentiment gates are genuinely satisfied.
