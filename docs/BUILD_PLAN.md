@@ -876,3 +876,18 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - Latest docs pointer head `0b781e318b412286331a96b75733ca0d315f3cb9` Tests push run `42856924887` SUCCESS. The previous evidence-refresh head `c9a7a4add2a5cdb3e4b93f2c3d9ebd8ff04a3a3e` Tests push run `42856710511` SUCCESS. No exact-head PR Validate or secret-scan runs were observed for these docs-only Git-data ref updates; prior code-head PR runs on `c2a3a061` remain PASS and are not relabelled as latest-head checks.
 - Production execution controls remain `enabled=0`, `mode=paper`, `kill_switch=1`. No D1 writes/migrations, broker calls, order submissions, secret reads/changes, production deployments or control changes occurred. This update is documentation-only.
 - Exact next action: independent formal review/governance for PR #108; then approved final-head CI/merge, separate Worker release and Production endpoint verification. Independently investigate the missing cache schedule event, keep the monitor fail-closed, and do not restart scanner implementation. Keep seven-day snapshot, sentiment licensing, strategy validation and paper lifecycle gates intact.
+
+---
+
+## 2026-11-10 22:38 PKT / 17:38 UTC — Phase 2 build-plan checkpoint
+
+- Phase 1 universe scanning: COMPLETE and tested by owner confirmation; do not rebuild or reprioritize absent a specific scanner regression.
+- Phase 2 Research Council: implementation complete on PR #108 (nine roles, resource coverage, fail-closed stage progression, durable trace, report-integrity scorecard, measured telemetry, Trading Lab visibility). Exact PR-head CI passed at 244e12a: Tests 42857800224, Validate 42857800075, secret scan 42857800142.
+- Preview verification: successful app deployment 020c9c4d-bb0d-41c6-bd17-2ba4b1a70738 on code head c2a3a061; Trading Lab contains Stock Brain. Preview readiness and monitor GETs return 200; D1 isolated/empty.
+- Production verification: main deployment 3782f3e9 on 3f765d8; Trading Lab does not yet contain Stock Brain. Readiness endpoint confirms paper-only, execution disabled, kill switch engaged. Monitor endpoint confirms stale-cache failure.
+- Acceptance: NOT RUN. Production Council tables contain zero runs/traces. Synthetic tests only prove fail-closed behavior when news/sentiment are unavailable; they are not live acceptance.
+- Production D1: migrations 0001–0006; 247 monitor runs (38 failed, 209 market_closed), 0 quotes/events, 0 council runs/traces, 2 equity snapshots (one trusted but stale; one plugin capture excluded), 0 paper orders/positions/intents/fills/trade events, 2 audit rows. Execution control enabled=0, mode=paper, kill_switch=1.
+- Snapshot workflow: run 42837941172 failed at POST /api/paper/sync with HTTP 401 after both readiness and secret-presence steps passed. The previous 'secret empty' classification is withdrawn. PR #108's pinned OIDC path is implemented but not merged/Production-verified.
+- Cache refresh: latest successful run 42803828945 at 11:00Z; expected 12:07Z and 15:07Z scheduled refreshes absent from observed run history; Worker fail-closed due >4-hour cache age. Do not change the completed scanner or bypass freshness.
+- Strategy: NOT APPROVED, historicalValidationPass=false, BUY disabled. Paper lifecycle NOT READY. News/sentiment source gates remain open.
+- Next: independent review/governance for PR #108; after approved merge verify Production Pages and OIDC snapshot; separately investigate cache schedule delivery; collect genuine seven-day equity history; then controlled research-only acceptance and persisted trace/scorecard/telemetry verification.

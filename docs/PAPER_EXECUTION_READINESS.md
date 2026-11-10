@@ -79,3 +79,13 @@ Implementation/workflow commit `48fe694bd76d183db66b8fc4706c52ccd048a8b8`; test 
 
 Main's scheduled workflow failed at run `42837941172` because GitHub Actions secret `NORTHSTAR_OPERATOR_TOKEN` was empty. The readiness check passed; the secret-presence check failed before any broker request, D1 snapshot or reconciliation. The replacement OIDC route/workflow in PR #108 removes that separate GitHub secret dependency while retaining the server-side Pages operator secret, pinned repository/owner identity, short token lifetime, pre/post reconciliation, read-only sync, persistence verification and idempotent audit. It is implemented and tested but not merged or Production-verified. No paper order is permitted.
 undefined
+
+---
+
+## 2026-11-10 22:38 PKT / 17:38 UTC — snapshot workflow auth failure classification
+
+- Main scheduled workflow run 42837941172, job 129997639074. The readiness preflight succeeded. The GitHub Actions operator-secret presence check also succeeded; logs show a redacted non-empty value. The subsequent POST https://ai-stock-advisor.pages.dev/api/paper/sync returned HTTP 401. The read-only reconciliation step was skipped.
+- The prior documentation statement that NORTHSTAR_OPERATOR_TOKEN was missing/empty is incorrect and is withdrawn. The available evidence only establishes that the supplied bearer token was rejected at the Pages sync endpoint; it does not prove whether the GitHub secret differs from the Cloudflare secret or whether another auth policy rejected it. Do not read, expose or compare secret values.
+- PR #108 adds a narrowly scoped GitHub Actions OIDC endpoint. It verifies the signed GitHub token, issuer, audience, immutable repository/owner identity, main ref, exact workflow identity, hosted runner and bounded token lifetime. The route then uses the Cloudflare Pages operator token internally for pre/post read-only reconciliation and account sync. This is implemented and exact-head CI/Preview tested, not merged or Production-verified.
+- Production execution remains disabled, paper mode, kill switch engaged. The two existing audit rows remain from 2026-11-08; no successful new snapshot or reconciliation is present. No order or execution-control change.
+- Exact next action: independent review/governance for PR #108; after approved merge and Production Pages deployment, verify one scheduled OIDC snapshot and its read-only reconciliation/audit record. Do not run paper orders or enable execution.

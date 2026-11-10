@@ -647,3 +647,18 @@ A rendered nine-role status matrix is not the same as nine roles completing. The
 - Production Worker remains deployment `7326f3e7-f323-4856-badf-aa8b979dffb4`, version 3 `2739d49a-4182-423f-8113-616252c5ddd6`, 100%, cron `*/5 * * * *`. Version 6 `1690bbc4-a330-42ce-834e-e999b583c648` is Preview-only. PR #108's FMP `apikey` query-parameter correction is not deployed to Production.
 - Production `GET /api/monitor` returns a fail-closed latest-run status and empty quotes/events. No cache freshness bypass, Worker deployment, D1 write or cron mutation was performed.
 - Safety: fail-closed freshness remains intact. Exact next action: investigate why the scheduled cache refresh was not recorded at 14:07Z; do not serve stale cache. After PR review/merge and separate Worker release approval, verify market-open quotes and zero provider errors before declaring monitor recovery.
+
+---
+
+## 2026-11-10 22:38 PKT / 17:38 UTC — Stock Brain evidence and acceptance status
+
+- Source/PR: PR #108 branch northstar/stock-brain-clean-review-20261110, audited head 244e12ad467978325fd2f8fbdf05c675674a2c3c, 77 ahead / 0 behind main 3f765d8dd0f9099e05df57d09c9f48c9b247ba9c; OPEN, non-draft, mergeable=true; formal reviews=0. Branch protection is not verified (403).
+- Council roles remain market_scanner, technical_analyst, fundamental_analyst, news_analyst, sentiment_analyst, bull_researcher, bear_researcher, portfolio_analyst and deterministic risk_committee. Dashboard iterates all nine roles and displays status, resource coverage, reports, vetoes, evidence counts and durable-trace confirmation.
+- Scorecard scope is REPORT_CONTRACT_AND_DECLARED_TELEMETRY_ONLY: citation-reference integrity and measured runtime fields. It does not establish factual truth, predictive accuracy or strategy approval. Missing telemetry/cost remains null rather than fabricated.
+- Synthetic collector integration test: three deterministic evidence specialists COMPLETE; news and sentiment UNAVAILABLE; Bull, Bear, Portfolio and Risk Committee BLOCKED; result NO_TRADE; no orders or positions. This is a fixture, not a live production acceptance.
+- Exact PR-head CI at 244e12a: Tests 42857800224 PASS; Validate 42857800075 PASS; full-history secret scan 42857800142 PASS.
+- Preview app deployment 020c9c4d-bb0d-41c6-bd17-2ba4b1a70738 on c2a3a061 succeeded; Trading Lab scrape shows Stock Brain workspace and run-time operator-token prompt. Preview readiness/monitor GETs return 200; monitor latestRun null.
+- Production Pages deployment 3782f3e9 remains on main 3f765d8. Production Trading Lab does not yet contain Stock Brain. Production readiness GET 200 reports policyVerified=true, paper mode, execution disabled and kill switch engaged. Production monitor GET 200 reports stale shortlist cache.
+- Production research_council_runs=0 and research_decision_traces=0. No live Council acceptance was run. No authenticated POST /api/research/collect was invoked.
+- Blockers: independent review/governance, production trusted fresh snapshot and seven-day baseline, broker/ledger reconciliation, OIDC snapshot route not merged, stale cache schedule, eligible news and licensed timezone-qualified sentiment.
+- Exact next action: after independent review and approved merge, verify Production Pages routing and OIDC read-only snapshot schedule. Do not run the collector until all freshness/reconciliation/provider/auth gates pass; then verify all nine role outcomes, reports/vetoes, durable trace, scorecard, telemetry and idempotent replay. No paper/live orders.

@@ -156,3 +156,16 @@ The latest Production failure is the four-hour shortlist freshness gate, not a n
 - Latest docs pointer head `0b781e318b412286331a96b75733ca0d315f3cb9` Tests push run `42856924887` SUCCESS. The previous evidence-refresh head `c9a7a4add2a5cdb3e4b93f2c3d9ebd8ff04a3a3e` Tests push run `42856710511` SUCCESS. No exact-head PR Validate or secret-scan runs were observed for these docs-only Git-data ref updates; prior code-head PR runs on `c2a3a061` remain PASS and are not relabelled as latest-head checks.
 - Production execution controls remain `enabled=0`, `mode=paper`, `kill_switch=1`. No D1 writes/migrations, broker calls, order submissions, secret reads/changes, production deployments or control changes occurred. This update is documentation-only.
 - Exact next action: independent formal review/governance for PR #108; then approved final-head CI/merge, separate Worker release and Production endpoint verification. Independently investigate the missing cache schedule event, keep the monitor fail-closed, and do not restart scanner implementation. Keep seven-day snapshot, sentiment licensing, strategy validation and paper lifecycle gates intact.
+
+---
+
+## 2026-11-10 22:38 PKT / 17:38 UTC — Production monitor incident update
+
+- Phase: Phase 2 operational evidence only; universe scanning remains user-confirmed COMPLETE.
+- Production monitor D1 run #247 started 2026-11-10T17:35:52.798Z and completed 17:35:53.116Z: failed, symbols_checked=0, errors=0, detail='Shortlist cache is stale or incomplete; monitoring fail-closed.'. Totals: 247 runs, 38 failed, 209 market_closed, 70 aggregate errors, 0 symbols checked, 0 monitor_quotes and 0 monitor_events.
+- Worker deployment 7326f3e7-f323-4856-badf-aa8b979dffb4, version 2739d49a-4182-423f-8113-616252c5ddd6 at 100%; cron remains */5 * * * *. No Worker deployment or schedule mutation.
+- Last validated cache is completedAt=2026-11-10T11:04:27.273Z, workflowRunId=42803828945, sourceCommit=485b1d3f4b7e552fa54f26f09503a1a0e4d6cb74. Its age exceeds the four-hour maximum. refresh-stock-cache.yml declares cron 7 */3 * * *; observed scheduled run list has no 12:07Z or 15:07Z run after the 11:00Z success.
+- Root classification: the monitor is correctly enforcing the four-hour cache freshness limit. The evidence points to missing/delayed cache-refresh workflow delivery, not a broken 253-stock scan. Do not loosen MAX_CACHE_AGE_MS, serve stale cache, alter the completed scanner or claim monitoring recovery.
+- Production GET /api/monitor returned 200 with failed latest run and empty quote/event arrays. Preview GET /api/monitor returned 200 with latestRun=null and empty arrays, consistent with isolated Preview D1.
+- Database changes: NONE; all audit queries were SELECT-only, changed_db=false, rows_written=0. No secrets, broker calls, D1 writes/migrations, order actions or production deployment.
+- Exact next action: investigate GitHub Actions workflow state/schedule delivery for refresh-stock-cache.yml. If the integration cannot inspect or dispatch the workflow, document that exact permission/tool gate and keep the monitor fail-closed. Do not rebuild the universe scanner.

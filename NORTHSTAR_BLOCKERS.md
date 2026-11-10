@@ -1817,3 +1817,35 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Latest docs pointer head `0b781e318b412286331a96b75733ca0d315f3cb9` Tests push run `42856924887` SUCCESS. The previous evidence-refresh head `c9a7a4add2a5cdb3e4b93f2c3d9ebd8ff04a3a3e` Tests push run `42856710511` SUCCESS. No exact-head PR Validate or secret-scan runs were observed for these docs-only Git-data ref updates; prior code-head PR runs on `c2a3a061` remain PASS and are not relabelled as latest-head checks.
 - Production execution controls remain `enabled=0`, `mode=paper`, `kill_switch=1`. No D1 writes/migrations, broker calls, order submissions, secret reads/changes, production deployments or control changes occurred. This update is documentation-only.
 - Exact next action: independent formal review/governance for PR #108; then approved final-head CI/merge, separate Worker release and Production endpoint verification. Independently investigate the missing cache schedule event, keep the monitor fail-closed, and do not restart scanner implementation. Keep seven-day snapshot, sentiment licensing, strategy validation and paper lifecycle gates intact.
+
+---
+
+## 2026-11-10 22:38 PKT / 17:38 UTC — live blocker audit
+
+### P0 — PR review and governance
+- PR #108 is the active Phase 2 review target: 77 ahead / 0 behind main, OPEN, non-draft, mergeable=true, but 0 formal reviews and 0 review threads. Main branch-protection read returns 403; required-review/status-check enforcement is unverified. No merge performed.
+- PR #107 (3/3), #109 (5/3), #103 (184/6), #101 (1/14), #88 (26/25), #85 (490/18), #83 (2/41), #82 (1/42), #39 (14/102), #30 (3/396), #24 (2/401), #23 (10/402) are open and divergent/stale; do not merge without reconciliation and independent review.
+- Repository visibility remains unresolved: GitHub API says public/private=false; owner states private; Settings not verified. Treat repository content as public until verified; no visibility change.
+
+### P1 — trusted equity history and collector acceptance
+- Production has 2 equity rows, but only one qualifies: alpaca_paper_read_only_sync at 2026-11-08T18:34:38.720Z. The 2026-11-10T11:42:59.813Z plugin capture is excluded. No fresh trusted 15-minute point and no seven-day baseline; collector must remain blocked.
+- Production has 0 Council runs/traces. Do not invoke authenticated POST /api/research/collect until fresh snapshot, seven-day baseline, broker/ledger reconciliation, auth and eligible evidence gates pass.
+
+### P1 — snapshot automation authentication
+- Main workflow run 42837941172, job 129997639074: readiness check PASS; GitHub secret-presence check PASS; POST /api/paper/sync returned HTTP 401; reconciliation skipped. The prior claim that the GitHub secret was empty is incorrect and withdrawn. The token is redacted; do not read or compare secret values.
+- PR #108 implements pinned GitHub OIDC for a protected read-only snapshot endpoint. It remains unmerged and not Production-verified; Cloudflare Pages still requires its own operator secret internally.
+
+### P1 — shortlist freshness incident (not scanner regression)
+- Production monitor run #247 at 17:35:52.798Z failed closed because the cache was stale/incomplete; 0 symbols, 0 quote rows, 0 events. D1 totals: 247 runs, 38 failed, 209 market_closed, 70 aggregate errors.
+- Last successful cache refresh: workflow run 42803828945, 11:00:13Z–11:04:34Z; cache completedAt 11:04:27.273Z. The scheduled refresh list has no observed 12:07Z or 15:07Z run. Keep the four-hour gate intact; investigate schedule delivery without rebuilding the user-confirmed completed scanner.
+
+### P2 — news, sentiment and strategy validation
+- News discovery remains unverified and cannot be promoted to verified catalysts. Sentiment remains unavailable until a commercial license and explicit UTC/timezone semantics are confirmed.
+- Strategy validation is NOT APPROVED; production strategy-approval table is absent, Preview approval row is approved=0, and required point-in-time four-fold walk-forward plus untouched holdout evidence is absent. Validated BUY remains disabled.
+
+### Paper lifecycle and safety
+- Production migrations 0001–0006; Preview migrations 0001–0012. Production has 0 orders, positions, intents, fills and trade events; 2 historical audit rows. Preview activation requests/events, claims, fill ledger, position lots and realized trades are empty.
+- Production and Preview execution controls both remain enabled=0, mode=paper, kill_switch=1. No paper/live orders or control changes.
+
+### Exact next action
+- Independent formal review/governance for PR #108. Then approved merge and separate Production verification; verify OIDC snapshot schedule and cache refresh delivery; accumulate trusted seven-day equity history; only then run one controlled research-only Council acceptance. No execution enablement, no paper test order, no live order.
