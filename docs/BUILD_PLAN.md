@@ -458,3 +458,9 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - No application code, tests, Pages deployment, Production settings, D1 state, secrets, broker calls, orders, or execution controls changed in this documentation/continuity correction. The prior Preview verification remains valid for unchanged app code: deployment `201dbcd3-b91a-453c-bf1a-7a81e8c6bb8a` succeeded with Pages Functions and isolated Preview D1; Trading Lab UI returned HTTP 200. The protected API endpoint was not accepted because the external edge returned 403 before application auth could be observed.
 - Governance remains unchanged: main is unprotected; PR #103 has no formal independent review; no merge is authorized by this work item.
 - Exact next action: finish exact-head CI on the synchronized PR branch; keep PR #103 open pending independent review and branch-governance confirmation; correct the same unsupported visibility assertion on main through a narrowly scoped reviewable documentation PR. Keep execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-10 — Continuity and repository state
+- Repository visibility is PUBLIC, intentionally changed by the user; do not ask for reconfirmation.
+- The canonical provider secret is `FMP_API_KEY` only and the user has confirmed it is already configured. Do not ask for it again; verify runtime behavior instead.
+- Read the handbook and blocker log before requesting user input. Update the project documents after every meaningful code/configuration/deployment/status change.
