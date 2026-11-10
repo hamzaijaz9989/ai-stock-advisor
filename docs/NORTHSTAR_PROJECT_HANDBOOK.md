@@ -103,7 +103,7 @@ These are the latest facts visible in the documentation/API audit for this hando
 - The production snapshot described in the blocker log is broker account equity, not the separate $1,000 Northstar virtual strategy allocation.
 - Production paper controls were documented as execution disabled, paper mode, kill switch engaged, with $1,000 virtual allocation, 0.5% default risk, 1% maximum per-trade risk and 25% maximum position notional.
 - The latest blocker evidence says strategy approval is false and paper execution is not enabled.
-- Repository visibility is **UNRESOLVED**: the connected GitHub API reports `visibility=public`, while the user states the repository should be private. Treat all contents as publicly accessible until GitHub Settings confirms the actual setting. Do not change visibility without explicit authorization; never commit secrets, tokens or sensitive data.
+- **Repository visibility: PUBLIC — user-confirmed on 2026-11-10.** The user explicitly stated that they changed `hamzaijaz9989/ai-stock-advisor` from private to public. Treat public visibility as intentional current state unless the user later changes it. Do not ask the user to reconfirm it.
 
 ## 4. What to build next — ordered work queue
 
@@ -656,3 +656,10 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - No application code, tests, Pages deployment, Production settings, D1 state, secrets, broker calls, orders, or execution controls changed in this documentation/continuity correction. The prior Preview verification remains valid for unchanged app code: deployment `201dbcd3-b91a-453c-bf1a-7a81e8c6bb8a` succeeded with Pages Functions and isolated Preview D1; Trading Lab UI returned HTTP 200. The protected API endpoint was not accepted because the external edge returned 403 before application auth could be observed.
 - Governance remains unchanged: main is unprotected; PR #103 has no formal independent review; no merge is authorized by this work item.
 - Exact next action: finish exact-head CI on the synchronized PR branch; keep PR #103 open pending independent review and branch-governance confirmation; correct the same unsupported visibility assertion on main through a narrowly scoped reviewable documentation PR. Keep execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-10 — Continuity correction carried onto Stock Brain branch
+- Repository visibility is **PUBLIC**, intentionally changed by the user. This supersedes all stale statements in this branch describing the repository as private or unresolved. Do not ask the user to reconfirm it.
+- Before asking the user for any detail, consult this handbook, `NORTHSTAR_BLOCKERS.md`, relevant specifications, recent commits/PRs and prior confirmations. Do not repeat questions already answered.
+- Update the handbook and blocker log after every meaningful code, configuration, deployment or project-status change. Verify the resulting commit and exact-head checks.
+- The canonical FMP binding is `FMP_API_KEY` only. User has already confirmed it is added; do not ask them to add or re-add it. Diagnose provider/runtime responses directly and report the evidence.
