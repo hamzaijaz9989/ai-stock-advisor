@@ -336,3 +336,17 @@ Implementation commit `24b42afd41d0b0455b055cce8719c8a10e01ddec`; Tests `4276276
 - Complete: source-label admission is enforced before portfolio risk calculation; FMP runtime binding is canonical-only; negative alias tests added; code commits deployed to Preview with Pages Functions.
 - Blockers: exact-head CI for `987635387ec4ddf3a1b03c2708426ec4860ad84a` still pending at documentation time; Preview provider credentials absent; Production FMP provider validity unverified (last known 401); only one stale Production equity snapshot, no genuine seven-day baseline; migration-history drift; no independent PR #103 review/authorized governance; repository visibility still reports public while owner intent is private.
 - Exact next action: confirm exact-head Tests/Validate/secret-scan results; then continue safe read-only provider/config diagnostics and schema-drift analysis. Do not apply Production migrations, mutate controls, run the collector, enable paper execution or submit orders until credential, fresh seven-day baseline, reconciliation, review and release gates are satisfied.
+
+
+
+## 2026-11-10 12:14 PKT — Acceptance and environment-isolation checkpoint
+
+The nine-role Research Council remains implemented on PR #103, not yet independently accepted. Current PR head `9b74526c9aad712942d3beb7191f45e565351380` is synchronized to main and exact-head CI passed: Tests `42774546912`, Validate `42774546820`, secret scan `42774546827`, push Tests `42774539310`.
+
+The Pages Preview binding had been pointing at Production D1 in the project-level configuration. It has now been changed to the isolated `northstar-preview` database (`bdffc29f-a4f6-498e-ade7-22c85d9bd373`), while Production remains on `northstar-paper-ledger` (`528f3a23-1d1f-4d16-8463-f643d85f5deb`). Read-back confirmed that the Preview `NORTHSTAR_OPERATOR_TOKEN` binding and fail-closed `fail_open=false` setting were preserved. Verify the next Preview deployment snapshot uses the isolated database; do not infer this from the project setting alone.
+
+Production remains blocked for authenticated collection: one stale equity snapshot, no genuine seven-day baseline, zero council runs, and no fresh verified provider/portfolio cycle. Preview provider secrets for FMP, Alpaca Paper and Gemini are still absent; only the operator token is configured. The canonical FMP binding is `FMP_API_KEY` only. No secret values were read.
+
+Production D1 migration ledger now records 0001–0006; monitor migration 0006 was applied at `2026-11-10T07:07:53Z`. Production still has no `northstar_strategy_approval` table; Preview has migration 0012 and `approved=0`. Production execution remains disabled/paper/kill-switched. No paper or live order was submitted.
+
+No authenticated council acceptance run has occurred. Next: verify the new Preview deployment and route/auth behavior, obtain independent review, and wait for valid credentials plus a fresh 15-minute snapshot and seven-day history before a controlled research-only run.
