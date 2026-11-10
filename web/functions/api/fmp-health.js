@@ -2,12 +2,12 @@
 // Never returns, logs, or echoes the API key.
 export async function onRequestGet(context) {
   const env = context?.env || {};
-  const key = env.FMP_API_KEY2 || env.FMP_API_KEY;
+  const key = env.FMP_API_KEY;
   const configured = typeof key === "string" && key.trim().length > 0;
   const result = {
     runtime: "Cloudflare Pages Functions",
     envObjectPresent: !!context?.env,
-    fmpBindingPresent: Object.prototype.hasOwnProperty.call(env, "FMP_API_KEY2") || Object.prototype.hasOwnProperty.call(env, "FMP_API_KEY"),
+    fmpBindingPresent: Object.prototype.hasOwnProperty.call(env, "FMP_API_KEY"),
     fmpConfigured: configured,
     alpacaBindingPresent: Object.prototype.hasOwnProperty.call(env, "ALPACA_API_KEY_ID"),
     checkedAt: new Date().toISOString()

@@ -56,3 +56,13 @@ Do not use synthetic examples as evidence of strategy performance. A report shou
 - [ ] Automated tests pass and deployment is verified on production.
 
 A high win rate by itself is not proof of an edge. Passing a historical test does not guarantee future returns.
+
+
+## Conservative SEC/FMP chronology admission — 2026-11-10
+
+For any point-in-time reconstruction, a date-only SEC `filed` value is insufficient to establish intraday availability. Exclude same-day filings unless a separately verified exact public-availability timestamp is no later than the decision timestamp; prior-day date-only filings may be included, with the limitation retained. FMP statement rows require a provider `acceptedDate` time no later than the decision timestamp, or a `filingDate` strictly earlier than the decision date. Provider accepted/filing timestamps are not independently verified public availability, so preserve that caveat. FMP snapshot `retrievedAt` must not be later than the research as-of time. Provider estimates are retrieval-time snapshots, not immutable historical estimate archives. The validator must continue to reject future/missing availability and never infer it from fiscal period end.
+
+
+## Quote freshness admission — 2026-11-10 10:26 PKT / 05:26 UTC
+
+Historical point-in-time validation must retain quote observation time separately from retrieval time. For the live Stock Brain collection path, the canonical adapter classifies a quote as fresh only when it is no later than the research `asOf` and within the market-state age limit: 15 minutes for open/unknown/pre/post states, or five calendar days only when the provider explicitly reports the market closed. Missing, future and stale quotes are rejected before specialist model invocation. Do not infer a closed session from the wall clock or a missing provider market-state field. This is a conservative admission rule and does not establish licensed data rights or historical strategy validity. Implementation `24b42afd41d0b0455b055cce8719c8a10e01ddec`; exact-head CI Tests `42762768731`, Validate `42762768617`, secret scan `42762768610`, push Tests `42762763147` passed; Preview deployment `700ebefd-605c-4aee-bfa1-5b63214b9844` succeeded. No database changes or Production deployment occurred.

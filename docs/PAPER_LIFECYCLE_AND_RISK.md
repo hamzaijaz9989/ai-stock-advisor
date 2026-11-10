@@ -23,3 +23,8 @@ No order submission, modification, cancellation, D1 mutation, automatic strategy
 4. Add sector/correlation limits, open-order reservations, market-hours/calendar checks, stale-data controls, and price collars.
 5. Backtest with point-in-time/unbiased data, corporate actions, survivorship controls, realistic fees/slippage, out-of-sample and walk-forward evaluation, and multiple-testing controls.
 6. Run sustained paper forward tests and reconcile every broker event. Engineering checks do not establish profitability.
+
+
+## Migration and OIDC release gate — 2026-11-10
+
+The persistent-ledger PRs have migration-history divergence: main's `0006_continuous_market_monitor.sql` is duplicated by PR #85's `0011_continuous_market_monitor.sql`, while PR #85 also introduces `0006_northstar_fill_position_ledger.sql`. Production has migrations 0001–0005 recorded despite monitor tables existing; Preview has 0001–0012. Do not apply migrations or merge the overlapping sets until migration order and idempotency are reviewed against a disposable database. PR #88's GitHub OIDC validator accepts both public and private repository visibility despite its stated private-only contract; repository visibility is unresolved and must be treated as public until owner Settings confirm otherwise. No paper execution, paper order, or live order is authorized by this runbook update.

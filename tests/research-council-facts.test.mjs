@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {buildResearchCouncilContext} from "../web/lib/research-council-facts.js";
+import {buildResearchCouncilContext,assessQuoteFreshness} from "../web/lib/research-council-facts.js";
 
 const portfolio={verified:true,source:"Alpaca Paper + Northstar ledger",asOf:"2026-11-08T19:00:00Z",equityUsd:10000,openRiskUsd:10,grossExposureUsd:500,dailyLossFraction:0.001,weeklyLossFraction:0.002,drawdownFraction:0.01,sectorExposureUsd:200,concurrentPositions:1};
 
@@ -36,7 +36,7 @@ test("excludes future-dated SEC facts and future price bars",()=>{
   history:{data:[{date:"2026-11-09",open:10,high:11,low:9,close:10,volume:100}]},
   secObservations:[{key:"revenue",value:1,unit:"USD",end:"2026-12-31",filed:"2027-02-01",accession:"future"}]
  });
- assert.equal(result.facts.length,0);
+ assert.deepEqual(result.facts.map(x=>x.type).sort(),["PORTFOLIO_RISK_SNAPSHOT","RESOURCE_COVERAGE_SNAPSHOT"]);
 });
 
 test("preserves news text as discovery evidence rather than trusted instructions",()=>{
@@ -81,4 +81,76 @@ test("does not upgrade SEC filed dates into verified public availability",()=>{
  const sec=result.facts.find(x=>x.type==="SEC_REPORTED_FACT");
  assert.equal(sec.value.availabilityTimestampVerified,false);
  assert.match(sec.value.note,/not an exact public-availability timestamp/);
+});
+
+
+test("excludes same-day SEC filings unless an exact verified availability timestamp is before as-of",()=>{
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-10T10:00:00Z",portfolio:{...portfolio,asOf:"2026-11-10T09:59:00Z"},
+  secObservations:[
+   {key:"prior",value:1,unit:"USD",end:"2025-12-31",filed:"2026-11-09",accession:"prior"},
+   {key:"same-unverified",value:2,unit:"USD",end:"2025-12-31",filed:"2026-11-10",accession:"same-unverified"},
+   {key:"same-verified-before",value:3,unit:"USD",end:"2025-12-31",filed:"2026-11-10",availableAt:"2026-11-10T09:59:00Z",availabilityTimestampVerified:true,accession:"same-verified-before"},
+   {key:"same-verified-after",value:4,unit:"USD",end:"2025-12-31",filed:"2026-11-10",availableAt:"2026-11-10T10:01:00Z",availabilityTimestampVerified:true,accession:"same-verified-after"}
+  ]
+ });
+ const rows=result.facts.filter(x=>x.type==="SEC_REPORTED_FACT");
+ assert.deepEqual(rows.map(x=>x.value.key).sort(),["prior","same-verified-before"]);
+ assert.equal(rows.find(x=>x.value.key==="prior").value.availabilityTimestampVerified,false);
+ assert.equal(rows.find(x=>x.value.key==="same-verified-before").value.availabilityTimestampVerified,true);
+});
+
+test("admits FMP statement periods only with a pre-as-of accepted timestamp or prior-day filing date",()=>{
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-10T10:00:00Z",portfolio:{...portfolio,asOf:"2026-11-10T09:59:00Z"},
+  fmpFundamentals:{available:true,provider:"Financial Modeling Prep",retrievedAt:"2026-11-10T09:59:30Z",
+   latest:{fiscalDate:"2025-12-31",revenue:100},
+   history:{income:[
+    {date:"2025-12-31",filingDate:"2026-11-09",revenue:1},
+    {date:"2024-12-31",filingDate:"2026-11-10",revenue:2},
+    {date:"2023-12-31",filingDate:"2026-11-10",acceptedDate:"2026-11-10 09:30:00",revenue:3},
+    {date:"2022-12-31",filingDate:"2026-11-10",acceptedDate:"2026-11-10 10:01:00",revenue:4},
+    {date:"2021-12-31",revenue:5}
+   ],estimates:[{date:"2027-12-31",epsAvg:5}]}}
+ });
+ const statements=result.facts.filter(x=>x.type==="FMP_STATEMENT_PERIOD");
+ assert.deepEqual(statements.map(x=>x.value.values.revenue).sort(),[1,3]);
+ assert.ok(statements.every(x=>x.value.availabilityTimestampVerified===false));
+ assert.ok(statements.every(x=>/not independently verified public availability/.test(x.value.note)));
+ assert.ok(result.facts.some(x=>x.type==="FMP_ANALYST_ESTIMATE"));
+});
+
+test("excludes FMP snapshots retrieved after the research as-of timestamp",()=>{
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-10T10:00:00Z",portfolio:{...portfolio,asOf:"2026-11-10T09:59:00Z"},
+  fmpFundamentals:{available:true,provider:"Financial Modeling Prep",retrievedAt:"2026-11-10T10:01:00Z",
+   latest:{fiscalDate:"2025-12-31",revenue:100},history:{income:[{date:"2025-12-31",filingDate:"2026-11-09",revenue:1}]}}
+ });
+ assert.equal(result.facts.some(x=>x.type.startsWith("FMP_")),false);
+});
+
+
+test("assesses quote freshness conservatively by explicit market state",()=>{
+ const asOf="2026-11-10T15:00:00.000Z";
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-10T14:46:00.000Z",marketState:"REGULAR"},asOf).status,"FRESH");
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-10T14:44:00.000Z",marketState:"REGULAR"},asOf).status,"STALE");
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-06T15:00:00.000Z",marketState:"CLOSED"},asOf).status,"FRESH");
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-04T14:59:59.000Z",marketState:"CLOSED"},asOf).status,"STALE");
+ assert.equal(assessQuoteFreshness({quoteTime:"2026-11-10T15:01:00.000Z",marketState:"REGULAR"},asOf).status,"AFTER_AS_OF");
+ assert.equal(assessQuoteFreshness({marketState:"REGULAR"},asOf).status,"MISSING");
+});
+
+test("stale quote blocks market-scanner resource coverage even when 60 daily bars exist",()=>{
+ const bars=Array.from({length:60},(_,i)=>{
+  const date=new Date(Date.parse("2026-09-01T00:00:00Z")+i*86400000).toISOString().slice(0,10);
+  return {date,open:100,high:101,low:99,close:100,volume:1000};
+ });
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-10T15:00:00Z",portfolio:{...portfolio,asOf:"2026-11-10T14:59:00Z"},
+  quote:{ticker:"NVDA",price:180,quoteTime:"2026-11-10T14:00:00Z",marketState:"REGULAR"},
+  history:{source:"test",interval:"1d",data:bars}
+ });
+ assert.equal(result.resourceCoverage.roles.market_scanner.status,"INSUFFICIENT");
+ assert.equal(result.resourceCoverage.roles.market_scanner.quoteFreshness.status,"STALE");
+ assert.ok(result.resourceCoverage.roles.market_scanner.gaps.some(x=>x.includes("Quote freshness gate failed")));
 });

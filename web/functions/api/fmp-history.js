@@ -20,7 +20,7 @@ export async function onRequestGet({request,env}){
  if(!TICKER_RE.test(ticker)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(from)||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(to)||from>to)
   return Response.json({available:false,error:"Provide a valid ticker and ISO from/to dates."},{status:400});
  if((Date.parse(to)-Date.parse(from))/86400000>3653)return Response.json({available:false,error:"Maximum requested window is 10 years."},{status:400});
- const fmpKey=env?.FMP_API_KEY2||env?.FMP_API_KEY;
+ const fmpKey=env?.FMP_API_KEY;
  if(!fmpKey)return Response.json({available:false,configured:false,error:"FMP_API_KEY is not configured."},{status:503,headers:{"Cache-Control":"no-store"}});
  const tasks=[
   ["prices",`historical-price-eod/full?symbol=${encodeURIComponent(ticker)}&from=${from}&to=${to}`],
