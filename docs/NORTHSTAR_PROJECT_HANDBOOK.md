@@ -103,7 +103,7 @@ These are the latest facts visible in the documentation/API audit for this hando
 - The production snapshot described in the blocker log is broker account equity, not the separate $1,000 Northstar virtual strategy allocation.
 - Production paper controls were documented as execution disabled, paper mode, kill switch engaged, with $1,000 virtual allocation, 0.5% default risk, 1% maximum per-trade risk and 25% maximum position notional.
 - The latest blocker evidence says strategy approval is false and paper execution is not enabled.
-- The README says the repository must remain private. However, the GitHub API metadata returned by the connected integration on 2026-11-10 reported `private=false / visibility=public`. This conflicts with the user's statement that the repository is private. **Do not change repository visibility based on this discrepancy. Reconfirm directly in GitHub repository Settings before any sensitive sharing or assumption about privacy.**
+- **Repository visibility: PUBLIC — user-confirmed on 2026-11-10.** The user explicitly stated that they changed `hamzaijaz9989/ai-stock-advisor` from private to public. Treat public visibility as intentional current project context unless the user later changes it. Do not ask the user to reconfirm this. Ensure documentation and sharing guidance do not incorrectly describe the repository as private.
 
 ## 4. What to build next — ordered work queue
 
@@ -164,6 +164,7 @@ Only after review, strategy approval, paper-lifecycle validation, migration revi
    - exact next task.
 9. **Do not silently promote status:** mark work "implemented", "CI passed", "preview verified", "production verified", "strategy validated" and "approved" as separate states.
 10. **End each session with a handover:** write a short "Current state / Completed today / Still blocked / Next exact action" entry so a new session can resume without asking the user to repeat history.
+11. **Check before asking:** consult this handbook, blocker log, relevant specs, recent GitHub commits/PRs and prior user confirmations before asking the user to repeat any detail. If a fact changes, update the project record in the same work item.
 
 ## 6. Documentation ownership and update rules
 
@@ -239,3 +240,11 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - Production D1 migrations: `0001`–`0005` only. Migration `0006_continuous_market_monitor.sql` is not recorded in this paper-ledger database; monitor tables are present in the same schema, but verify the migration ledger before making any schema assumptions.
 - Counts: 0 paper orders, 0 paper positions, 0 trade intents, 0 broker fill activities, 0 paper trade events, 1 equity snapshot, 2 audit rows.
 - No paper or live order was submitted; no production D1 write or migration was performed during this audit.
+
+
+## 2026-11-10 — Repository visibility and continuity correction
+- User explicitly confirmed that the GitHub repository `hamzaijaz9989/ai-stock-advisor` was changed from private to **public**. This is intentional and current; do not ask the user to reconfirm it.
+- The previous handbook checkpoint incorrectly described the user as saying the repository was private and repeatedly requested confirmation. That stale statement is superseded by this user-confirmed update.
+- Operating rule reinforced: before asking the user for any detail, read this handbook, `NORTHSTAR_BLOCKERS.md`, relevant project specs and recent GitHub history. Update this handbook and blocker log after every meaningful code, configuration, deployment or project-status change.
+- No application code, secrets, deployments, database state or trading controls changed in this documentation correction.
+- Next exact action: resume the active Northstar milestone from the current repository state; do not ask again about repository visibility or the already-configured `FMP_API_KEY`.
