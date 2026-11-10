@@ -918,10 +918,32 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Governance note: GitHub API metadata reports `private=false / visibility=public`, contrary to the user's statement that the repository is private. No visibility change was attempted; verify directly in GitHub Settings.
 
 
-## 2026-11-10 — Repository visibility remains unresolved (owner instruction)
+## 2026-11-10 — Repository visibility and user-history correction
+- The owner states that `hamzaijaz9989/ai-stock-advisor` is private, while the connected GitHub API reports `visibility=public`. Actual GitHub Settings visibility has not been independently confirmed, so the discrepancy remains unresolved. Treat repository contents as publicly accessible until Settings confirms otherwise; do not change visibility without explicit authorization. Do not claim the owner confirmed a public change.
+- Earlier main-branch documentation claiming the owner confirmed a private-to-public change is unsupported by the current owner instruction and is superseded. Keep README, handbook and build-plan wording consistent with the unresolved state.
+- User reiterated the required continuity workflow: update the GitHub project documents after every meaningful code/configuration/deployment/project change, and read those documents before asking the user for information. This is mandatory, not optional.
+- No code, secret, deployment, database, broker or execution-control change was made in this documentation-only correction.
+- Next: continue from the documented project state; do not ask the owner to repeat the private-intent statement. Verify GitHub Settings only if an authorized view becomes available.
 
-- The owner states that `hamzaijaz9989/ai-stock-advisor` is private, while the connected GitHub API reports `visibility=public`. The actual GitHub Settings page has not been independently confirmed, so the discrepancy remains unresolved.
-- Treat repository contents as publicly accessible until GitHub Settings confirms the actual visibility. Do not change repository visibility without explicit authorization.
-- Do not claim that the owner confirmed or requested a change to public visibility. Earlier documentation commits that made that claim are superseded by this owner instruction and are corrected here.
-- Do not ask the owner to repeat the documented intent. Use an authorized GitHub Settings view if it becomes available; this API integration alone cannot verify the Settings UI.
-- No application code, secret, deployment, database, broker, or execution-control changes were made by this documentation correction.
+
+## 2026-11-10 — Continuation audit after user instruction to move forward
+- Repository visibility remains unresolved: the owner states private, GitHub API reports public, and GitHub Settings has not been independently verified. Treat contents as publicly accessible until verified; do not change visibility without explicit authorization.
+- Canonical FMP secret name is `FMP_API_KEY` only. User has confirmed it is already configured; do not ask them to add/re-add it.
+- Read-only Cloudflare API inventory confirms Worker `northstar-market-monitor` has a secret binding named `FMP_API_KEY` and D1 binding `NORTHSTAR_DB`. This confirms the binding name only, not the secret value or a successful provider request. Worker version 6 (`1690bbc4-a330-42ce-834e-e999b583c648`) is a preview version; production traffic was not promoted.
+- Separate Pages project `ai-stock-advisor` metadata currently lists Production names `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, `FMP_API_KEY`, `GEMINI_API_KEY`, `NORTHSTAR_OPERATOR_TOKEN`; Preview metadata currently lists only `NORTHSTAR_OPERATOR_TOKEN`. This is a distinct Pages Functions environment from the Worker. Secret values were never read. Do not infer that the user's Worker Preview key automatically binds to Pages Preview.
+- Attempted read-only public preview probes for `/api/fmp-health` and `/trading-lab.html` were blocked by the connected web runtime as inaccessible; no application HTTP response was received. Therefore no endpoint health or FMP success is claimed.
+- PR #103 current head after synchronizing documentation: `d7d0e2efc4415c069220ab2b196409c29ed85251`; compare reports 180 ahead / 0 behind `main` (base commit `08886f7f7cb1fbdcdee647d41cc244f9c4323159)); OPEN, non-draft, mergeable. Zero formal reviews and zero inline review threads. Current-head workflow/status APIs returned no run/status entries, so exact-head CI is **not verified** in this audit.
+- Pages Preview deployment for exact current head `d7d0e2e...` is listed as `idle` (deployment `ba6d7cf8-f2d0-473d-8185-db993e31a870`); the latest listed successful preview deployment is for docs-only commit `fb24b74...`, not the current PR code head. Do not call the current head preview-accepted.
+- PR #103 changes include nine-agent dashboard, server-side research collector/council endpoints, evidence/fact adapters, telemetry/evaluation and tests. Static review confirmed collector requires explicit successful read-only Alpaca sync and reconciles broker/ledger before refreshing; research remains read-only and no order submission path is invoked by the collector. Full runtime acceptance remains blocked by stale equity history and missing seven-day baseline.
+- Production D1/strategy/ execution gates remain as documented in the preceding latest audit; no D1 query/write, migration, broker call, order, secret mutation, execution-control change or Production deployment was performed in this continuation.
+- Next exact action: get a successful Preview deployment for the latest application-code head, verify its endpoints using a permitted runtime path, and resolve the Pages Preview binding discrepancy without requesting the user's key or exposing any secret. Then complete exact-head CI and independent review before any merge. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## Run 14 — 2026-11-10T07:27:08Z — visibility correction on latest main
+
+## 2026-11-10 12:27 PKT / 07:27 UTC — visibility correction carried forward to latest main
+
+- Current main: `d1a966debfc69b59ac465f942d807720ae585c71`; main CI passed Tests `42775472499`, Validate `42775472494`, and full-history secret scan `42775472704`.
+- This focused PR now includes the latest main continuation-audit commits while correcting all unsupported statements that the owner confirmed public visibility. The current owner instruction says owner intent is private; API metadata reports public; Settings is not independently verified.
+- PR #107 branch is being synchronized with main and remains a documentation-only correction. No repository setting, code, secret, deployment, D1, broker, order or execution control is changed.
+- Exact next action: run exact-head CI and keep PR #107 open for independent review. No visibility change is authorized.
