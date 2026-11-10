@@ -148,8 +148,10 @@ test("labels news scope and source quality without scoring, and marks syndicated
  assert.equal(news[0].value.sourceTierHeuristic,true);
  assert.equal(news[1].value.duplicate,true);
  assert.equal(news[1].value.duplicateOf,news[0].id);
+ assert.equal(news[1].value.duplicateReason,"normalized-headline-same-day");
  assert.equal(news[2].value.duplicate,true);
  assert.equal(news[2].value.duplicateOf,news[0].id);
+ assert.equal(news[2].value.duplicateReason,"canonical-url");
  assert.equal(news[3].value.scope,"macro");
  assert.equal(news[4].value.scope,"sector");
  assert.equal(news[5].value.scope,"ambiguous");
