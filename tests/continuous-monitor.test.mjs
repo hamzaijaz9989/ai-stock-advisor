@@ -46,7 +46,7 @@ function yahooQuotePayload(timestampSeconds, price = 210, previousClose = 200) {
  };
 }
 
-test("FMP quote uses the single canonical key in the apikey header, not the URL", async () => {
+test("FMP quote uses the documented apikey query parameter and never sends a custom key header", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
  const quote = await getFmpQuote("AAPL", "test-only-fmp-key", async (input, init) => {
@@ -60,8 +60,12 @@ test("FMP quote uses the single canonical key in the apikey header, not the URL"
   }]);
  }, now);
  assert.equal(calls.length, 1);
- assert.equal(new URL(calls[0].url).searchParams.has("apikey"), false);
- assert.equal(calls[0].headers.get("apikey"), "test-only-fmp-key");
+ const url = new URL(calls[0].url);
+ assert.equal(url.origin, "https://financialmodelingprep.com");
+ assert.equal(url.pathname, "/stable/quote");
+ assert.equal(url.searchParams.get("symbol"), "AAPL");
+ assert.equal(url.searchParams.get("apikey"), "test-only-fmp-key");
+ assert.equal(calls[0].headers.get("apikey"), null);
  assert.equal(quote.source, "Financial Modeling Prep");
  assert.ok(Math.abs(quote.changePct - 5) < 1e-9);
  assert.equal(quote.price, 210);
