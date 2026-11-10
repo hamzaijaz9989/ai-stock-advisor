@@ -10,6 +10,13 @@ const claim = (text, ids) => ({claim:text,factIds:ids});
 const factsOf = (context, type) => (context?.facts || []).filter(x=>x.type===type);
 const evidenceOf = (context, type) => (context?.evidence || []).filter(x=>x.type===type);
 const tickerOf = context => String(context?.ticker||"").toUpperCase();
+const exactTimestampMs = value => {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) return null;
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 export function runMarketScanner(context) {
   const quotes=factsOf(context,"QUOTE"), histories=factsOf(context,"DAILY_OHLCV_HISTORY");
@@ -114,17 +121,17 @@ export function runFundamentalAnalyst(context) {
 export function runNewsAnalyst(context) {
   const items=evidenceOf(context,"NEWS_DISCOVERY");
   if(!items.length) return unavailable("No news discovery evidence was supplied.");
-  const asOf=Date.parse(context?.asOf||"");
+  const asOf=exactTimestampMs(context?.asOf);
   const seen=new Set(), usable=[], duplicateIds=[], futureIds=[], undatedIds=[], unverifiedIds=[];
   for(const item of items){
     const v=item.value||{}, url=String(v.url||"").trim(), title=String(v.title||"").trim();
     const key=url.toLowerCase()||title.toLowerCase();
     if(key&&seen.has(key)){duplicateIds.push(item.id);continue;}
     if(key)seen.add(key);
-    const published=Date.parse(v.publishedAt||"");
+    const published=exactTimestampMs(v.publishedAt);
     if(!title||!url||!/^https?:\/\//i.test(url)) continue;
-    if(!Number.isFinite(published)){undatedIds.push(item.id);continue;}
-    if(Number.isFinite(asOf)&&published>asOf){futureIds.push(item.id);continue;}
+    if(published===null||asOf===null){undatedIds.push(item.id);continue;}
+    if(published>asOf){futureIds.push(item.id);continue;}
     usable.push(item);
     if(v.sourceTier==="unverified-source"||v.publisherVerified!==true||!v.publisher)unverifiedIds.push(item.id);
   }
