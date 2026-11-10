@@ -92,12 +92,12 @@
 
 
 ## Repository and continuity status — 2026-11-10
-- GitHub repository `hamzaijaz9989/ai-stock-advisor` is **PUBLIC**, intentionally changed by the user. Do not request reconfirmation unless the user later reports a change.
+- Repository visibility remains unresolved: owner states private; GitHub API reports `visibility=public`; GitHub Settings has not been independently verified. Treat contents as publicly accessible until verified; do not change visibility without explicit authorization.
 - The project handbook and blocker log are the continuity source of truth. Read them before asking the user for project details and update them after every meaningful change.
 
 
 ## 2026-11-10 — Continuation audit after user instruction to move forward
-- Repository visibility is PUBLIC, intentionally changed by the user. This supersedes older private/unresolved wording elsewhere in historical entries. Do not ask again.
+- Repository visibility remains unresolved: owner states private; GitHub API reports `visibility=public`; GitHub Settings has not been independently verified. Treat contents as publicly accessible until verified; do not change visibility without explicit authorization.
 - Canonical FMP secret name is `FMP_API_KEY` only. User has confirmed it is already configured; do not ask them to add/re-add it.
 - Read-only Cloudflare API inventory confirms Worker `northstar-market-monitor` has a secret binding named `FMP_API_KEY` and D1 binding `NORTHSTAR_DB`. This confirms the binding name only, not the secret value or a successful provider request. Worker version 6 (`1690bbc4-a330-42ce-834e-e999b583c648`) is a preview version; production traffic was not promoted.
 - Separate Pages project `ai-stock-advisor` metadata currently lists Production names `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY`, `FMP_API_KEY`, `GEMINI_API_KEY`, `NORTHSTAR_OPERATOR_TOKEN`; Preview metadata currently lists only `NORTHSTAR_OPERATOR_TOKEN`. This is a distinct Pages Functions environment from the Worker. Secret values were never read. Do not infer that the user's Worker Preview key automatically binds to Pages Preview.
@@ -107,3 +107,12 @@
 - PR #103 changes include nine-agent dashboard, server-side research collector/council endpoints, evidence/fact adapters, telemetry/evaluation and tests. Static review confirmed collector requires explicit successful read-only Alpaca sync and reconciles broker/ledger before refreshing; research remains read-only and no order submission path is invoked by the collector. Full runtime acceptance remains blocked by stale equity history and missing seven-day baseline.
 - Production D1/strategy/ execution gates remain as documented in the preceding latest audit; no D1 query/write, migration, broker call, order, secret mutation, execution-control change or Production deployment was performed in this continuation.
 - Next exact action: get a successful Preview deployment for the latest application-code head, verify its endpoints using a permitted runtime path, and resolve the Pages Preview binding discrepancy without requesting the user's key or exposing any secret. Then complete exact-head CI and independent review before any merge. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+
+## 2026-11-10 12:27 PKT / 07:27 UTC — visibility correction carried forward to latest main
+
+- Current main: `d1a966debfc69b59ac465f942d807720ae585c71`; main CI passed Tests `42775472499`, Validate `42775472494`, and full-history secret scan `42775472704`.
+- This focused PR now includes the latest main continuation-audit commits while correcting all unsupported statements that the owner confirmed public visibility. The current owner instruction says owner intent is private; API metadata reports public; Settings is not independently verified.
+- PR #107 branch is being synchronized with main and remains a documentation-only correction. No repository setting, code, secret, deployment, D1, broker, order or execution control is changed.
+- Exact next action: run exact-head CI and keep PR #107 open for independent review. No visibility change is authorized.
