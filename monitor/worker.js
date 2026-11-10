@@ -82,8 +82,12 @@ function dateKey(date) {
 export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
   const url = new URL("https://financialmodelingprep.com/stable/quote");
   url.searchParams.set("symbol", symbol);
+  // FMP's official quickstart documents the apikey query parameter. Use the
+  // same transport as the working Pages provider adapter; do not rely on an
+  // undocumented header that can fail closed across separate Worker bindings.
+  url.searchParams.set("apikey", apiKey);
   const response = await fetchImpl(url.toString(), {
-    headers: { Accept: "application/json", apikey: apiKey },
+    headers: { Accept: "application/json" },
     signal: AbortSignal.timeout(7000)
   });
   if (!response.ok) throw new Error("FMP quote HTTP " + response.status);
