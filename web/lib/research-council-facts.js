@@ -201,6 +201,7 @@ function buildResourceCoverage(facts, evidence, portfolio, asOf, newsQuality = {
           ...(!news.length ? ["No decision-eligible timestamped news items published at or before the research as-of time are available."] : []),
           ...(Number(newsQuality.excludedFutureDatedCount || 0) > 0 ? ["Excluded " + Number(newsQuality.excludedFutureDatedCount) + " future-dated news items after the research as-of time."] : []),
           ...(Number(newsQuality.excludedUndatedCount || 0) > 0 ? ["Excluded " + Number(newsQuality.excludedUndatedCount) + " news items with missing or invalid publication timestamps."] : []),
+          ...(Number(newsQuality.excludedStaleCount || 0) > 0 ? ["Excluded " + Number(newsQuality.excludedStaleCount) + " stale news items older than the " + NEWS_MAX_AGE_DAYS + "-day research freshness window."] : []),
           ...(Number(newsQuality.companySpecificCount || 0) === 0 && news.length ? ["No unique timestamped news item explicitly identifies the ticker; macro, sector and ambiguous stories are context only."] : []),
           ...(Number(newsQuality.duplicateCount || 0) > 0 ? ["Marked " + Number(newsQuality.duplicateCount) + " duplicate or syndicated news items; do not count them as independent corroboration."] : []),
           ...(Number(newsQuality.unverifiedSourceCount || 0) > 0 ? ["Unverified publisher/source heuristics apply to " + Number(newsQuality.unverifiedSourceCount) + " unique items; they remain discovery claims only."] : []),
