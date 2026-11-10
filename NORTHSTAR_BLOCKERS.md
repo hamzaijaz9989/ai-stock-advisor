@@ -1658,3 +1658,14 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Reddit's official Data API Terms require a separate agreement for commercial use and impose user-content retention/use restrictions; the official Responsible Builder Policy requires approval before API access and written approval for commercial use: https://redditinc.com/policies/data-api-terms and https://support.reddithelp.com/hc/en-us/articles/16471395473812-Moderation-Bots-Tooling.
 - No scraping, unofficial wrapper, or price/news-derived crowd sentiment was adopted. The nine-role acceptance remains blocked until an approved feed or another licensed source is available.
 - No code, secret, D1, broker, order, execution-control or deployment changes. Next: obtain approved provider access/rights, then add a timestamped population-specific adapter with sample counts and methodology tests.
+
+
+## 2026-11-10 18:06 PKT — sentiment provider decision verified
+
+- Stocktwits official developer registration is currently closed to new applications during its API/terms review: https://api.stocktwits.com/developers.
+- Reddit's official Data API Terms require a separate agreement for commercial use and restrict user-content use/retention; the Responsible Builder Policy requires approval before API access and written approval for commercial use: https://redditinc.com/policies/data-api-terms and https://support.reddithelp.com/hc/en-us/articles/16471395473812-Moderation-Bots-Tooling.
+- Do not scrape, use unofficial wrappers, or infer crowd sentiment from prices/headlines. sentiment_analyst remains UNAVAILABLE until a permitted timestamped source exists.
+- Exact CI for docs/code head 35b3c0a2a2f5ebb6d83c9adcb0869fe2313ff066: Tests 42821213045, Python tests 42821212956, secret scan 42821212740, Cloudflare Pages SUCCESS; duplicate Tests run 42821204983 PASS.
+- Preview deployment 93907c0b-8f5b-4d87-9e99-e0de877d0f6b SUCCESS; Trading Lab/readiness routes 200, FMP health 503 MISSING_BINDING. Production unchanged; no D1 writes or orders.
+- PR #108 is 60 ahead / 0 behind, unreviewed; #111/#112 closed as superseded; #103 remains open pending diff reconciliation.
+- Next: obtain authorized FMP daily-history and sentiment provider rights; then fresh snapshot, seven-day baseline, authenticated research-only acceptance. No execution enablement or BUY approval.

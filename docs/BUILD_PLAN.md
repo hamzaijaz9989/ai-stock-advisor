@@ -724,3 +724,17 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [ ] Implement a source-specific adapter preserving timestamp, population, source, sample count, normalized score, lookback and retention policy; add tests for future/missing timestamps, source concentration and population separation.
 - Evidence: Stocktwits developer page https://api.stocktwits.com/developers; Reddit Data API Terms https://redditinc.com/policies/data-api-terms; Responsible Builder Policy https://support.reddithelp.com/hc/en-us/articles/16471395473812-Moderation-Bots-Tooling.
 - Safety: no code or runtime changes; no data collection, credentials, D1 writes, broker calls/orders or deployment.
+
+
+## Phase 2 — sentiment source gate and verification (2026-11-10 18:06 PKT)
+
+- [x] Confirm Stocktwits API registration is closed to new applications during its API/terms review.
+- [x] Confirm Reddit Data API commercial use requires a separate agreement and API access approval.
+- [x] Preserve sentiment_analyst as UNAVAILABLE without an authorized timestamped source.
+- [x] CI on 35b3c0a2a2f5ebb6d83c9adcb0869fe2313ff066: Tests 42821213045, Python tests 42821212956, secret scan 42821212740, Cloudflare Pages SUCCESS; duplicate Tests run 42821204983 PASS.
+- [x] Preview 93907c0b-8f5b-4d87-9e99-e0de877d0f6b deployed with Functions; Trading Lab and readiness smoke 200, FMP health 503 due missing Preview bindings.
+- [ ] Obtain authorized FMP daily-history access and approved timestamped sentiment/positioning source.
+- [ ] Establish fresh reconciled snapshot and genuine seven-day equity baseline.
+- [ ] Complete authenticated research-only nine-role acceptance and durable trace/replay verification.
+- [ ] Obtain independent PR #108 review and governance approval before merge.
+- Safety: no D1 writes/migrations, secrets, broker calls/orders, execution-control changes or Production deployment; BUY remains disabled.

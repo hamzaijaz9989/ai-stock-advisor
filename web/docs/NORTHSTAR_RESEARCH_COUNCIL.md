@@ -509,3 +509,10 @@ No authenticated council acceptance run has occurred. Next: verify the new Previ
 The sentiment analyst must not invent crowd positioning or infer it from price movements/headline wording. Stocktwits currently says it is not accepting new API registrations while it reviews its APIs and terms. Reddit requires a separate agreement for commercial API use and restricts user-content use/retention; its Responsible Builder Policy requires approval before API access and written approval for commercial use. No scraping or unofficial wrapper is approved. Keep the role UNAVAILABLE until a permitted source is connected.
 
 Any future source adapter must label the population (retail, analyst, options/positioning, or news), retain exact timezone-qualified observation timestamps, provider identity, sample count, normalized score scale/methodology, lookback and applicable retention/redistribution rights. Never blend different populations or scores without explicit normalization and disclosure.
+
+
+## Sentiment gate verification — 2026-11-10
+
+Stocktwits is not accepting new API registrations while it reviews its APIs, documentation and terms. Reddit's Data API requires a separate agreement for commercial use and access approval. Northstar therefore does not scrape either source or use unofficial wrappers. The sentiment analyst remains UNAVAILABLE until a permitted, timestamped source is connected. This is an intentional quality gate, not a reason to synthesize crowd sentiment from prices or headlines.
+
+Verification: PR #108 head 35b3c0a2a2f5ebb6d83c9adcb0869fe2313ff066; Tests 42821213045, Python tests 42821212956, secret scan 42821212740 passed; Preview deployment 93907c0b-8f5b-4d87-9e99-e0de877d0f6b succeeded with Functions. No Production change or database write.

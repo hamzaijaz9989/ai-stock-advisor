@@ -44,3 +44,10 @@ The current dashboard's news endpoint aggregates Yahoo Finance RSS and Google Ne
 A sentiment observation must come from an authorized, timestamped source with an explicit population and methodology. Stocktwits currently is not accepting new API registrations while its APIs, documentation and terms are under review. Reddit's Data API requires a separate agreement for commercial use and approval for API access; user content cannot be used for model training without express rightsholder permission. Northstar must not scrape either source or substitute unofficial wrappers. If no authorized source is connected, the sentiment analyst must report UNAVAILABLE. Price movements and ordinary news headlines are not a substitute for crowd/positioning sentiment.
 
 Official references: https://api.stocktwits.com/developers, https://redditinc.com/policies/data-api-terms, https://support.reddithelp.com/hc/en-us/articles/16471395473812-Moderation-Bots-Tooling.
+
+
+## Sentiment access gate verification — 2026-11-10
+
+Official Stocktwits developer registration remains closed to new applications during its API/terms review. Reddit's Data API requires approval and a separate agreement for commercial use. Northstar must keep sentiment_analyst UNAVAILABLE until an authorized source is connected; do not scrape, use unofficial wrappers, or manufacture crowd sentiment from price/news signals.
+
+Verification on PR #108 head 35b3c0a2a2f5ebb6d83c9adcb0869fe2313ff066: Tests 42821213045, Python tests 42821212956 and secret scan 42821212740 passed; Preview 93907c0b-8f5b-4d87-9e99-e0de877d0f6b deployed. Production unchanged.
