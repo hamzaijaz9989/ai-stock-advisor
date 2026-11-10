@@ -1285,3 +1285,61 @@ Keep `mode=paper`, `enabled=0`, `kill_switch=1`; no live or paper orders; no BUY
 
 ### Handover owner action / access dependency
 The operator-token-protected collector cannot be truthfully accepted without an authorized run. Use the Trading Lab's run-time token prompt; do not paste the token into source, GitHub documentation, issue comments, browser storage or this chat. If the operator session is not available to the connected tools, record the collector and all dependent agent tests as BLOCKED rather than pretending they ran.
+
+
+---
+
+## 2026-11-11 00:31 PKT — Live production API and NVDA agent-input smoke test
+
+### Important correction to the previous incident diagnosis
+The current Production API checks show that the owner's API repair is present in Production. Do **not** continue reporting Alpaca/FMP as globally unconfigured:
+- `GET /api/alpaca/status`: HTTP 200, `connected=true`, `environment=paper`, checked `2026-11-10T19:27:54.252Z`; a second check at `19:27:45.519Z` also returned connected true.
+- `GET /api/fmp-health`: HTTP 200, `fmpBindingPresent=true`, `fmpConfigured=true`, Alpaca/Gemini bindings present; quote, history and fundamentals checks each HTTP 200. History returned 32 rows through `2026-11-10`; fundamentals returned one dataset dated `2026-01-25`. Checked `19:29:21.688Z`.
+- `GET /api/fmp-fundamentals?ticker=NVDA`: available/configured true, requested 5/5 datasets available, estimates present, errors empty; retrieved `19:29:24.980Z`. Latest annual statement period is FY ending `2026-01-25`; latest quarterly reported figures are Q2 FY2027 ending `2026-07-26`.
+- `GET /api/fmp-history?ticker=NVDA&from=2025-11-10&to=2026-11-10`: available true, 252 daily price bars, 5 annual income, 5 quarterly income; retrieved `19:29:36.753Z`. However the optional FMP news subdataset failed with HTTP 402 (`news/stock`) and returned zero news articles. Price/fundamental datasets succeeded; news entitlement is a separate remaining issue.
+- `GET /api/quote?ticker=NVDA`: HTTP 200; Nasdaq quote `$167.76`, quote time `2026-11-10T19:30:00Z`, fetched `19:30:33.092Z`, marketState Open, provider-labelled real-time with an explicit independent-verification warning.
+- `GET /api/news?ticker=NVDA`: HTTP 200; discovery items fetched `19:30:42.720Z`. Sources are discovery-only and `publisherVerified=false`; do not treat their claims as independently verified catalysts.
+- `GET /api/history?ticker=NVDA`: HTTP 200, Nasdaq historical API, 251 observations, fetched `19:27:58.468Z`, end date `2026-11-09`. This route is one session behind the current intraday quote; do not confuse its prior close with the current session price.
+- Read-only Alpaca market-data connector returned NVDA quote/trade around `19:26:11Z` at approximately `$167.62–$167.67`, and a 2026-11-10 daily bar close of `$167.675`; this broadly corroborates the Production quote near `$167.76`. Market-movers/most-active feeds returned data with last_updated `19:26:00Z`.
+- Worker health at `19:27:46.460Z` returned `marketOpen=true`, but latest scheduled run `19:25:52.755Z` failed closed with `Shortlist cache is stale or incomplete`, `symbols_checked=0`, no unacknowledged events, execution false. A later recheck attempt at about `19:30Z` failed DNS resolution; no newer successful Worker run is established.
+
+### NVDA technical evidence from Alpaca IEX daily bars
+220 valid daily bars were retrieved, ending `2026-11-10`. Calculated from the returned close series:
+- Latest close: $167.675
+- SMA20: $206.1428; SMA50: $217.9892; SMA200: $204.5297
+- RSI(14): 18.79
+- 5-session return: -18.83%; 20-session return: -26.62%; 60-session return: -25.51%
+- SPY RSI(14): 39.46; QQQ RSI(14): 35.08, with both below their 20- and 50-session averages in the same series.
+Interpretation: NVDA and broad growth benchmarks show strong downside momentum; NVDA's RSI is deeply oversold by the conventional 30 threshold, but oversold is not a reversal signal. This is a research observation, not a trade recommendation. The current market quote and daily close are separate timestamps.
+
+### SEC and fundamentals evidence
+- SEC EDGAR resolved NVIDIA to CIK `0001045810`; latest SEC filing date returned `2026-09-03`. Recent filing list in the 2026-08-01 through 2026-11-11 window returned a 10-Q filed `2026-08-26` (report date `2026-07-26`) and 8-K filings dated `2026-08-17`, `2026-08-26`, and `2026-09-03`. No filing newer than September 3 was returned by this SEC index query.
+- SEC XBRL facts: revenue Q2 FY2027 `$96.221B` for quarter ended `2026-07-26`; net income same quarter `$59.688B`; assets at quarter end `$320.272B`. Latest SEC filing date for those quarterly facts is `2026-08-26`.
+- FMP annual FY2026 revenue `$215.938B`, net income `$120.067B`, operating cash flow `$102.718B`, free cash flow `$96.676B`; latest quarter FY2027 Q2 revenue `$96.221B`, net income `$59.688B`, operating cash flow `$24.077B`, free cash flow `$21.400B`. These are reported periods, not intraday data. Do not mix them with current market price as if same as-of period.
+- FMP stock quote/history/fundamentals bindings are therefore present in Production now; old screenshot diagnostics are stale relative to this live check.
+
+### Nine-agent live test matrix — what was actually exercised
+The Production app exposes a protected `POST /api/research/specialists` endpoint for Market Scanner + Technical Analyst and protected `POST /api/research/fundamentals-news` for Fundamental + News Analyst; both require `NORTHSTAR_OPERATOR_TOKEN`. The full collector `POST /api/research/collect` also requires an authorized operator token and a reconciled read-only portfolio snapshot. No token was read, disclosed or bypassed in this smoke test. Thus external data was tested live, but the nine in-app role workers were **not** falsely marked as executed.
+
+| Role | Live inputs observed now | Product-agent acceptance |
+|---|---|---|
+| Market Scanner | Production quote HTTP 200; FMP 252 bars; separate scheduled Worker is stale-cache failed closed, zero symbols | BLOCKED — protected scanner POST not invoked; Worker scan did not complete |
+| Technical Analyst | 220 valid IEX daily bars; calculated SMA20/50/200, RSI14 and returns above | INPUTS PASS; agent execution BLOCKED — protected specialists POST not invoked |
+| Fundamental Analyst | FMP health/fundamentals HTTP 200, 5/5 datasets; SEC CIK, 10-Q and XBRL facts retrieved | INPUTS PASS; agent execution BLOCKED — protected fundamentals/news POST not invoked |
+| News & Catalyst Analyst | Production discovery endpoint returned timestamped headlines; Alpaca news feed returned timestamped items; FMP news/stock HTTP 402 | PARTIAL INPUTS; BLOCKED for verified catalyst acceptance because publisher verification and source-primary checks are absent |
+| Sentiment Analyst | X public-post search timed out HTTP 504; no licensed, timestamped equity social-sentiment feed confirmed | BLOCKED — no accepted sentiment observations; never infer crowd sentiment from headlines or price |
+| Bull Researcher | Positive reported financials and growth evidence available | NOT EXECUTED — council debate worker requires upstream independent reports |
+| Bear Researcher | Sharp price deterioration and timestamped governance/news headlines available; underlying allegations unverified | NOT EXECUTED — council debate worker requires upstream independent reports |
+| Portfolio Analyst | Production Alpaca paper status connected true; read-only account connector ACTIVE, zero positions | INPUTS PARTIAL PASS; agent execution BLOCKED — collector's full reconciliation and trusted snapshot requirements not accepted |
+| Risk Committee | Safety interlocks unchanged; key upstream data-quality/news/sentiment and scanner gates remain incomplete | NOT EXECUTED; expected fail-closed outcome is REJECT/BLOCKED, not acceptance |
+
+### Required remediation, in order
+1. Repair shortlist-cache generation/scheduled refresh; validate generatedAt, source run ID, ticker count and quote freshness; then confirm a Worker run checks symbols and persists quote rows.
+2. Resolve the FMP `news/stock` HTTP 402 entitlement/endpoint issue. Do not let a news subdataset error invalidate working price/fundamental datasets, but report it clearly.
+3. Replace/upgrade unverified Bing discovery news with a primary-source and timestamp-validated pipeline; retain publisher verification false until checked.
+4. Obtain a documented, permitted, timestamped sentiment source with clear UTC/as-of semantics. X public search timeout is not a sentiment pass.
+5. Use the Trading Lab run-time operator-token prompt to invoke the protected specialists and collector. No token in code, GitHub docs, browser storage or chat. Verify nine persisted outcomes, evidence IDs, scorecard, trace, telemetry and idempotent replay.
+6. Maintain seven-day trusted Alpaca read-only snapshot baseline and existing risk/strategy gates. Until baseline and source requirements pass, Risk Committee must reject and BUY remains disabled.
+
+### Safety
+No credentials or token values read/copied/changed; no order submitted; no paper/live execution; no kill-switch/control change; no D1 mutation, migration or deployment. This is a read-only production smoke test and evidence handover.
