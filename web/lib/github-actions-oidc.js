@@ -22,12 +22,12 @@ function decodeJsonPart(value) {
   return JSON.parse(new TextDecoder().decode(decodeBase64Url(value)));
 }
 function validTimeClaims(claims,nowSeconds) {
-  const issuedAt=Number(claims.iat),expiresAt=Number(claims.exp);
+  const issuedAt=claims?.iat,expiresAt=claims?.exp;
   if(!Number.isSafeInteger(issuedAt)||!Number.isSafeInteger(expiresAt)) return false;
   const skew=30;
   if(expiresAt<=nowSeconds-skew||issuedAt>nowSeconds+skew||nowSeconds-issuedAt>600||expiresAt-issuedAt>900) return false;
   if(claims.nbf!==undefined) {
-    const notBefore=Number(claims.nbf);
+    const notBefore=claims.nbf;
     if(!Number.isSafeInteger(notBefore)||notBefore>nowSeconds+skew) return false;
   }
   return true;
