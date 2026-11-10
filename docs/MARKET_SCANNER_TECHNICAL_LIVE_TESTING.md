@@ -21,6 +21,14 @@
 - Fix branch commit `a501a269284dd78e8b39c88b4a3e5c7390289e8f` passed GitHub Actions checks on draft PR #115: Node tests, Python tests and full-history secret scan all completed successfully. The PR remains draft and unmerged; the run IDs are `42893834185`, `42893834109` and `42893834027` respectively.
 - The scanner workflow run verified for the prior cache was `42887359931` on November 10. The Actions page was reachable signed out, but dispatch controls were unavailable, so no fresh workflow run was started.
 
+## Follow-up validation — 2026-11-11 (refreshed repository and production state)
+
+- GitHub `main` remains `85c51f847f4b4a966be629ff9f3702194d6ae262`. PR #108 remains open/non-draft with the FMP query-auth change embedded in its broader 38-file/96-commit integration; PR #115 remains open/draft with the same auth change plus scanner-only failure diagnostics. Neither was merged. Their overlapping patch was consolidated on `fix/market-scanner-fmp-resolution`, based on current main, with three scanner files changed; branch head is `9bf89ede467e914e73bc23175374d0b34d5a5da4`.
+- The new branch's GitHub `test` check `42895704265` completed successfully. Local focused tests passed 18/18, and syntax checks passed for the Worker and scanner/validator scripts.
+- Production D1 read-only query: latest run #281 at `2026-11-10T20:25:53.134Z` failed with zero symbols checked and ten quote failures; `monitor_quotes=0`, `monitor_events=0`. Worker health GET at `2026-11-10T20:27:16Z` returned HTTP 200 with `marketOpen=true` and the same failed run. Execution remains `paper`, disabled, kill switch engaged; the D1 reads wrote zero rows.
+- Current production Worker deployment is still `7326f3e7-f323-4856-badf-aa8b979dffb4` / version `2739d49a-4182-423f-8113-616252c5ddd6`. Read-only source inspection confirmed FMP `apikey` remains in a custom header and absent from the query string. This is the primary quote-path defect. Existing deployed telemetry does not classify the Yahoo fallback response, so that provider failure is not yet diagnosed.
+- The checked-in cache still has `generatedAt=2026-11-10T19:42:15.959Z`; the local validator exited 1 because it exceeds the 30-minute limit. Available GitHub fetch access is GET-only and the Actions page was signed out, so no refresh or Worker deployment was triggered. No PR was merged, no secret read or changed, and no production write was performed.
+
 # Parallel live-data acceptance: Market Scanner + Technical Analyst
 
 The authenticated POST endpoint `/api/research/specialists` collects quote and FMP historical OHLCV evidence without invoking Alpaca, D1, portfolio sync, or execution. It requires the existing `NORTHSTAR_OPERATOR_TOKEN` bearer token and a ticker.
