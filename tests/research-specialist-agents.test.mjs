@@ -126,7 +126,7 @@ test("deterministic risk committee fails closed on incomplete or invalid portfol
  const missing=await workers.risk_committee({portfolio:{...base.portfolio,equityUsd:undefined}});
  assert.equal(missing.decision,"REJECT");assert.match(missing.vetoReasons[0],/incomplete/);
  const invalid=await workers.risk_committee({portfolio:{...base.portfolio,dailyLossFraction:1.2}});
- assert.equal(invalid.decision,"REJECT");assert.match(invalid.vetoReasons[0],/outside supported units/);
+ assert.equal(invalid.decision,"REJECT");assert.match(invalid.vetoReasons[0],/unsupported units or bounds/);
 });
 test("deterministic risk committee applies all configured hard limits at threshold",async()=>{
  const workers=await createResearchCouncilWorkers({});
