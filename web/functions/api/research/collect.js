@@ -35,6 +35,12 @@ export function requireFreshResearchQuote(context){
  }
  return freshness;
 }
+export function requireVerifiedEquitySnapshotProvenance(snapshots){
+ if(!Array.isArray(snapshots)||snapshots.length===0)throw new Error("Verified equity history is unavailable.");
+ if(snapshots.some(row=>row?.source!=="alpaca_paper_read_only_sync"))
+  throw new Error("Equity history contains a snapshot without verified Alpaca Paper read-only sync provenance.");
+ return snapshots;
+}
 async function secFacts(ticker,asOf){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
  const mapResponse=await fetch("https://www.sec.gov/files/company_tickers.json",{headers,signal:AbortSignal.timeout(8000)});
@@ -67,7 +73,7 @@ async function portfolioSnapshot(env){
  const [account,brokerPositions,brokerOrders,ledgerRows,snapshotRows]=await Promise.all([
   get("/v2/account"),get("/v2/positions"),get("/v2/orders?status=open&limit=500&direction=desc"),
   db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all(),
-  db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all()
+  db.prepare("SELECT captured_at,equity_usd,source FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all()
  ]);
  if(account?.status!=="ACTIVE"||account.trading_blocked||account.account_blocked||!Array.isArray(brokerPositions)||!Array.isArray(brokerOrders))throw new Error("Alpaca Paper account is not active or returned incomplete positions/orders.");
  if(brokerOrders.length)throw new Error("Open broker orders exist; reconcile them before research sizing.");
@@ -77,7 +83,7 @@ async function portfolioSnapshot(env){
  if(bp.length)throw new Error("Existing positions have no independently verified protective-stop risk ledger; portfolio risk cannot be represented as zero.");
  const equity=finite(account.equity),lastEquity=finite(account.last_equity);
  if(equity===null||equity<=0||lastEquity===null||lastEquity<=0)throw new Error("Broker equity snapshot is incomplete.");
- const snapshots=snapshotRows?.results||[];
+ const snapshots=requireVerifiedEquitySnapshotProvenance(snapshotRows?.results||[]);
  const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:1000});
  if(!history.ok)throw new Error("Verified equity history is required for daily-loss/drawdown controls ("+history.reason+").");
  const now=Date.now(),latest=snapshots[0],latestMs=Date.parse(latest?.captured_at||"");
