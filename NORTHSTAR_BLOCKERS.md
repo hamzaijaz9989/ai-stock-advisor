@@ -1649,3 +1649,12 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - CI on 5ab317d87e39edcdb10ed8560a6ec2f44a87ee8d: Tests 42820802873 PASS, Python tests 42820803006 PASS, full-history secret scan 42820802939 PASS; docs-only Pages deployment skipped by path_config. Latest successful Functions Preview remains cf2c1da8-9c6a-44f8-9715-163b1165044e.
 - Production and D1 state unchanged. Execution remains disabled; kill switch engaged; no orders or migrations.
 - Next: resolve authorized FMP daily-history access or select a licensed provider; then complete fresh 15-minute snapshot, genuine seven-day baseline, sentiment/news evidence and authenticated research-only acceptance. Independent review and governance still required.
+
+
+## 2026-11-10 18:05 PKT — sentiment-provider access is not yet authorized
+
+- The sentiment_analyst remains deliberately UNAVAILABLE when no dedicated timestamped source is present; this is a fail-closed data gap, not a fabricated score.
+- Official Stocktwits developer registration currently states that new API registrations are not being accepted while its APIs, documentation and terms are under review: https://api.stocktwits.com/developers.
+- Reddit's official Data API Terms require a separate agreement for commercial use and impose user-content retention/use restrictions; the official Responsible Builder Policy requires approval before API access and written approval for commercial use: https://redditinc.com/policies/data-api-terms and https://support.reddithelp.com/hc/en-us/articles/16471395473812-Moderation-Bots-Tooling.
+- No scraping, unofficial wrapper, or price/news-derived crowd sentiment was adopted. The nine-role acceptance remains blocked until an approved feed or another licensed source is available.
+- No code, secret, D1, broker, order, execution-control or deployment changes. Next: obtain approved provider access/rights, then add a timestamped population-specific adapter with sample counts and methodology tests.

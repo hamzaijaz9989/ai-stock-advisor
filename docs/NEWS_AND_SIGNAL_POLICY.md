@@ -37,3 +37,10 @@ The current dashboard's news endpoint aggregates Yahoo Finance RSS and Google Ne
 - Store point-in-time news history before backtesting any news signal.
 - Test duplicates, stale timestamps, missing publication times, source outages, ticker ambiguity and untrusted article content.
 - Evaluate whether news adds measurable value beyond fundamentals and valuation before it can influence signals.
+
+
+## Sentiment provider access — 2026-11-10
+
+A sentiment observation must come from an authorized, timestamped source with an explicit population and methodology. Stocktwits currently is not accepting new API registrations while its APIs, documentation and terms are under review. Reddit's Data API requires a separate agreement for commercial use and approval for API access; user content cannot be used for model training without express rightsholder permission. Northstar must not scrape either source or substitute unofficial wrappers. If no authorized source is connected, the sentiment analyst must report UNAVAILABLE. Price movements and ordinary news headlines are not a substitute for crowd/positioning sentiment.
+
+Official references: https://api.stocktwits.com/developers, https://redditinc.com/policies/data-api-terms, https://support.reddithelp.com/hc/en-us/articles/16471395473812-Moderation-Bots-Tooling.

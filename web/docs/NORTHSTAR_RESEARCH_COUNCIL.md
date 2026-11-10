@@ -502,3 +502,10 @@ No authenticated council acceptance run has occurred. Next: verify the new Previ
 - FMP daily OHLCV history remains required by the current collector. This change does not bypass missing/invalid history, quote freshness, read-only Alpaca reconciliation, 15-minute snapshot freshness, the genuine seven-day baseline, model access, news chronology or dedicated sentiment requirements.
 - This is a research-only resilience improvement. It does not authorize orders, enable paper execution, enable BUY, or approve strategy validation.
 - Verified implementation: PR #108, code commit 6fc3530ea6eb71ac481481697f9a2655ad24eaf3; exact-head Tests 42819884077, Python tests 42819884062 and full-history secret scan 42819884161 passed. Preview deployment 98773cbf-8748-4ff9-999a-dbfca4cc84c6 succeeded; Production unchanged.
+
+
+## Sentiment source gate — 2026-11-10
+
+The sentiment analyst must not invent crowd positioning or infer it from price movements/headline wording. Stocktwits currently says it is not accepting new API registrations while it reviews its APIs and terms. Reddit requires a separate agreement for commercial API use and restricts user-content use/retention; its Responsible Builder Policy requires approval before API access and written approval for commercial use. No scraping or unofficial wrapper is approved. Keep the role UNAVAILABLE until a permitted source is connected.
+
+Any future source adapter must label the population (retail, analyst, options/positioning, or news), retain exact timezone-qualified observation timestamps, provider identity, sample count, normalized score scale/methodology, lookback and applicable retention/redistribution rights. Never blend different populations or scores without explicit normalization and disclosure.

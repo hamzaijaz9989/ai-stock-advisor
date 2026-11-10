@@ -712,3 +712,15 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [ ] Establish fresh reconciled snapshot, genuine seven-day baseline, news/sentiment evidence and authenticated research-only acceptance.
 - Evidence: latest CI on 5ab317d87e39edcdb10ed8560a6ec2f44a87ee8d — Tests 42820802873, Python tests 42820803006, secret scan 42820802939 all PASS. Docs-only Pages deployment skipped by path_config; latest successful Functions Preview cf2c1da8-9c6a-44f8-9715-163b1165044e.
 - Safety: no D1 writes/migrations, secret changes, broker calls/orders, execution-control changes or Production deployment; BUY remains disabled.
+
+
+## Sentiment-provider due diligence — 2026-11-10 18:05 PKT
+
+- [x] Confirm Stocktwits developer API registration is currently closed to new registrations during its API/terms review.
+- [x] Confirm Reddit Data API requires a separate agreement for commercial use and explicit approval; do not use unapproved access.
+- [x] Preserve the deterministic sentiment analyst's UNAVAILABLE result when no authorized timestamped feed exists.
+- [x] Do not infer crowd sentiment from price moves or news headlines and do not use unofficial scraping/wrappers.
+- [ ] Obtain approved sentiment/positioning data rights and credentials.
+- [ ] Implement a source-specific adapter preserving timestamp, population, source, sample count, normalized score, lookback and retention policy; add tests for future/missing timestamps, source concentration and population separation.
+- Evidence: Stocktwits developer page https://api.stocktwits.com/developers; Reddit Data API Terms https://redditinc.com/policies/data-api-terms; Responsible Builder Policy https://support.reddithelp.com/hc/en-us/articles/16471395473812-Moderation-Bots-Tooling.
+- Safety: no code or runtime changes; no data collection, credentials, D1 writes, broker calls/orders or deployment.

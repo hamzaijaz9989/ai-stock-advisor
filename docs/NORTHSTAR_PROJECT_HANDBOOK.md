@@ -920,3 +920,10 @@ Decision: keep FMP as the current daily-history provider and require valid autho
 - Production remains unchanged on Pages deployment 3782f3e9-0d2e-4d04-b95a-4dcd931a6133 / main 3f765d8dd0f9099e05df57d09c9f48c9b247ba9c. No D1 writes/migrations, secret changes, broker calls/orders, execution-control changes or Production deployments.
 - Safety state remains execution disabled, paper mode, kill switch engaged, BUY disabled and strategy NOT APPROVED.
 - Exact next action: continue investigating licensed FMP recovery/provider entitlement and a genuine timestamped sentiment source; then re-run the controlled research-only acceptance only after the fresh snapshot and seven-day baseline exist. Keep PR #108 unmerged until independent review and governance are satisfied.
+
+
+## 2026-11-10 18:05 PKT — timestamped sentiment-source due diligence
+
+The sentiment_analyst remains intentionally UNAVAILABLE until a real, timestamped, source-identified sentiment/positioning feed is authorized. Official Stocktwits developer registration currently says new API registrations are not being accepted while its APIs, documentation and terms are under review (https://api.stocktwits.com/developers). Reddit's current Data API Terms require a separate agreement for commercial purposes and restrict use/retention of user content; the official terms also prohibit model training without rightsholder permission (https://redditinc.com/policies/data-api-terms). The Reddit Responsible Builder Policy requires approval before API access and written approval for commercial use (https://support.reddithelp.com/hc/en-us/articles/16471395473812-Moderation-Bots-Tooling).
+
+Decision: do not scrape Stocktwits/Reddit, use an unofficial wrapper, or infer crowd positioning from price/news headlines. Keep the role explicitly UNAVAILABLE when no approved feed exists. A future adapter must preserve observation timestamp, source/provider, population (retail, analyst, options/positioning, or news), sample count, normalized score methodology, lookback, and rights/retention rules. No code, credentials, D1, broker, or deployment changes were made by this due-diligence check.
