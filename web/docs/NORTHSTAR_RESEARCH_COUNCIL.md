@@ -516,3 +516,10 @@ Any future source adapter must label the population (retail, analyst, options/po
 Stocktwits is not accepting new API registrations while it reviews its APIs, documentation and terms. Reddit's Data API requires a separate agreement for commercial use and access approval. Northstar therefore does not scrape either source or use unofficial wrappers. The sentiment analyst remains UNAVAILABLE until a permitted, timestamped source is connected. This is an intentional quality gate, not a reason to synthesize crowd sentiment from prices or headlines.
 
 Verification: PR #108 head 35b3c0a2a2f5ebb6d83c9adcb0869fe2313ff066; Tests 42821213045, Python tests 42821212956, secret scan 42821212740 passed; Preview deployment 93907c0b-8f5b-4d87-9e99-e0de877d0f6b succeeded with Functions. No Production change or database write.
+
+## 2026-11-10 18:25 PKT / 13:25 UTC — telemetry contract correction
+
+- Six roles are deterministic: the five evidence-first specialists plus `risk_committee`. Each records latency, provider=`deterministic`, and a versioned deterministic model label; token and cost fields remain null.
+- Three roles are model-assisted: `bull_researcher`, `bear_researcher`, `portfolio_analyst`. Only these roles contribute provider-reported token/cost totals. Totals are null when required model-role usage is missing; do not infer usage or cost from prompt size or assumed pricing.
+- Regression test injects false token/cost values into deterministic telemetry and proves the scorecard ignores them while retaining all nine measured latencies.
+- Code/test commit `f9e9bd4359b3c57dfadf2bacd14017b6b8d28d2d`; PR #108. Tests `42824109684`, Validate `42824109727`, secret scan `42824110005` all SUCCESS. Preview deployment `33dac559-e3c9-41ff-b394-afbf25dda626` SUCCESS; Trading Lab, paper readiness and performance routes returned HTTP 200; FMP health returned 503 MISSING_BINDING. No authenticated collector request, D1 write/migration, Production deployment, broker call or order action.

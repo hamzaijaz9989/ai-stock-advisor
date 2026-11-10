@@ -738,3 +738,13 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - [ ] Complete authenticated research-only nine-role acceptance and durable trace/replay verification.
 - [ ] Obtain independent PR #108 review and governance approval before merge.
 - Safety: no D1 writes/migrations, secrets, broker calls/orders, execution-control changes or Production deployment; BUY remains disabled.
+
+## Phase 2 — scorecard telemetry accounting correction (2026-11-10 18:25 PKT / 13:25 UTC)
+
+- [x] Restrict token/cost aggregation to the three model-assisted roles: Bull, Bear and Portfolio.
+- [x] Keep latency/provider/version telemetry for all nine roles, including six deterministic roles.
+- [x] Force deterministic role token/cost fields to null and add a regression with deliberately misleading deterministic usage values.
+- [x] Exact-head CI: Tests `42824109684`, Validate `42824109727`, full-history secret scan `42824110005` — all SUCCESS.
+- [x] Exact-commit Preview deployment `33dac559-e3c9-41ff-b394-afbf25dda626` — SUCCESS; Trading Lab and paper read-only endpoints 200; Preview FMP health 503 MISSING_BINDING.
+- [ ] Independent PR #108 review and branch governance; fresh seven-day Production equity baseline; Preview provider bindings if Preview provider acceptance is required; controlled authenticated research-only acceptance.
+- Database changes: none. Production remains execution-disabled and kill-switched; BUY remains NOT APPROVED.
