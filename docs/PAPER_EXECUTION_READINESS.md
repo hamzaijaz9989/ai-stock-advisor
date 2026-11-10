@@ -120,3 +120,13 @@ The synthetic endpoint tests prove successful OIDC orchestration and sequential 
 - Production D1 contains two trusted server-side read-only sync snapshots and one plugin capture. The plugin capture is excluded from the risk baseline. The first trusted snapshot is `2026-11-08T18:34:38.720Z`; the genuine seven-day baseline cannot exist before `2026-11-15T18:34:38.720Z`, assuming recurring trusted snapshots continue.
 - Production controls remain `enabled=0`, `mode=paper`, `kill_switch=1`. No paper orders, positions, intents, fills or trade events are present. No order was submitted by the OIDC workflow. Strategy validation remains NOT APPROVED and validated BUY remains disabled.
 - Exact next action: verify a scheduled OIDC snapshot event, keep collecting only read-only reconciled snapshots, and wait for the genuine seven-day baseline before any controlled research-only Council collection. Do not enable paper execution or submit even a paper test order.
+
+
+## 2026-11-10 23:56 PKT — exact documentation-head verification
+
+- Documentation/source commit verified: `c4f60fee02b8f7adc61eb654bf1e8f6fa12cef8a` on PR #108, branch `northstar/stock-brain-clean-review-20261110`.
+- Exact-head CI on `c4f60fee02b8f7adc61eb654bf1e8f6fa12cef8a`: Tests run `42881677857` PASS; Validate run `42881678080` PASS; full-history secret scan run `42881677828` PASS. These results are for the exact c4f60 commit.
+- Cloudflare Preview deployment `b08bcda9-7952-4da1-9f07-e061fe0a0c10` succeeded from `c4f60fee02b8f7adc61eb654bf1e8f6fa12cef8a`, with Functions enabled and the isolated Preview D1 binding. Production remains on deployment `ab1f9eb5-eb68-4824-9bb4-d7b5c2cea8f5` from main `68c0c7b8a547487073e25ef286b91a3a892b2187`; no Production deployment occurred.
+- PR #108 is now 84 commits ahead / 0 behind main, open/non-draft, mergeable clean, with zero formal reviews. Main remains `protected=false`; do not merge before independent review and governance approval.
+- Files in this documentation verification addendum: README, project handbook, blocker register, build plan, Stock Brain spec, continuous-monitor runbook, paper-readiness runbook and Research Council spec. Database changes: NONE; SELECT-only audit; no secrets read/changed, no broker mutation, no orders, no Production migration/control change/deployment. Safety interlocks remain unchanged.
+- Exact next action: independent formal review/governance for PR #108; continue separate verification of scheduled OIDC snapshots and cache-refresh delivery; preserve the seven-day baseline and research-only acceptance gates.
