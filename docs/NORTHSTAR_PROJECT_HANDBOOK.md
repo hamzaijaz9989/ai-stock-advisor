@@ -203,6 +203,7 @@ Only after review, strategy approval, paper-lifecycle validation, migration revi
 - [Paper execution readiness](PAPER_EXECUTION_READINESS.md)
 - [Paper lifecycle and risk](PAPER_LIFECYCLE_AND_RISK.md)
 - [Continuous market monitor](CONTINUOUS_MARKET_MONITOR.md)
+- [Cloudflare-native agent architecture](NORTHSTAR_CLOUDFLARE_AGENT_ARCHITECTURE.md)
 - [News and signal policy](NEWS_AND_SIGNAL_POLICY.md)
 - [Market data and recommendations policy](MARKET_DATA_AND_RECOMMENDATIONS.md)
 
