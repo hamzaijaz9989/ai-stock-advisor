@@ -348,3 +348,15 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - **State separation:** portfolio and coverage facts are implemented, exact-head CI-passed and Preview-deployed. They are not endpoint-verified or acceptance-run-verified. The nine-agent authenticated collection remains pending; strategy validation is NOT APPROVED; paper lifecycle remains NOT READY.
 - **Other open PRs:** #85 is draft, 490 ahead / 6 behind and not mergeable; #88 is draft, 26 ahead / 13 behind and mergeable but depends on #85's manual-recovery contract; #101 is draft, 1 ahead / 2 behind and not mergeable. No merge was attempted.
 - **Exact next action:** resolve authorized independent review/branch governance and Preview credential setup; validate a rotated FMP key with a fresh provider response; investigate Production schema-history drift without applying migrations; establish genuine scheduled read-only equity history; then perform one controlled authenticated research-only council run and verify all nine roles, cited coverage/portfolio facts, scorecard, telemetry and durable `research_council_runs` replay. Keep execution disabled, kill switch engaged and BUY disabled.
+
+
+## Phase 2 — point-in-time evidence chronology hardening (2026-11-10 09:40 PKT)
+
+- [x] Capture the Research Council as-of timestamp after quote/fundamental/history/news/earnings provider snapshots return.
+- [x] Exclude same-day date-only SEC filings unless exact verified public availability is at or before as-of.
+- [x] Require FMP snapshot retrieval no later than as-of and accepted-time/prior-day filing-date evidence for statement rows; explicitly label provider timestamps as unverified public availability.
+- [x] Add regression coverage for SEC/FMP chronology, same-day filings, provider retrieval cutoffs and collector sequencing.
+- [x] Exact-head CI passed on `8cd95d81c613e9b987a41359e55fc740e13010bc`: Tests `42757286985`, Validate `42757287170`, secret scan `42757286961`, push Tests `42757282017`.
+- [x] Preview application code deployed successfully as `ad694418-abfb-41d1-ba16-b7806ccd51ce` for `dea731e59a56632f1162b41c48cbf1562b12d260`; test-only follow-up deployment skipped by Pages `path_config`.
+- [ ] Complete authenticated research-only council acceptance; still blocked by Pages Preview credentials, FMP provider authentication, fresh reconciled seven-day equity history, live endpoint verification and independent review.
+- [ ] Keep execution disabled, kill switch engaged, BUY disabled; no paper/live orders or Production migrations/deployments.

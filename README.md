@@ -26,7 +26,7 @@ Fetch official SEC filing/fundamental records (not signals) for a set of symbols
 python scripts/fetch_sec_history.py --symbols AAPL MSFT NVDA --cutoff 2026-10-28 --output data/sec-source-bundle.json
 ```
 
-See [SEC point-in-time ingestion](docs/SEC_POINT_IN_TIME_INGESTION.md). The bundle preserves accession IDs and exact acceptance timestamps where available; it never guesses timestamps. It is explicitly not decision-eligible and does not unlock BUY.
+See [SEC point-in-time ingestion](docs/SEC_POINT_IN_TIME_INGESTION.md). The bundle preserves accession IDs and exact acceptance timestamps where available; it never guesses timestamps. The Research Council also excludes same-day date-only SEC facts unless an exact verified public-availability timestamp is supplied; FMP statement rows require a pre-as-of accepted timestamp or a prior-day filing date, and provider retrieval timestamps must not exceed the research as-of time. It is explicitly not decision-eligible and does not unlock BUY.
 
 ## Research-only historical price collection
 

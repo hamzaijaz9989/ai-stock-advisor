@@ -297,3 +297,12 @@ The append-only `research_council_runs` table is defined in migration `0003_rese
 - **State separation:** portfolio and coverage facts are implemented, exact-head CI-passed and Preview-deployed. They are not endpoint-verified or acceptance-run-verified. The nine-agent authenticated collection remains pending; strategy validation is NOT APPROVED; paper lifecycle remains NOT READY.
 - **Other open PRs:** #85 is draft, 490 ahead / 6 behind and not mergeable; #88 is draft, 26 ahead / 13 behind and mergeable but depends on #85's manual-recovery contract; #101 is draft, 1 ahead / 2 behind and not mergeable. No merge was attempted.
 - **Exact next action:** resolve authorized independent review/branch governance and Preview credential setup; validate a rotated FMP key with a fresh provider response; investigate Production schema-history drift without applying migrations; establish genuine scheduled read-only equity history; then perform one controlled authenticated research-only council run and verify all nine roles, cited coverage/portfolio facts, scorecard, telemetry and durable `research_council_runs` replay. Keep execution disabled, kill switch engaged and BUY disabled.
+
+
+## Point-in-time admission and chronology hardening — 2026-11-10
+
+- Research `asOf` is captured after live quote/fundamental/history/news/earnings snapshots return, so provider retrieval timestamps are not later than the declared context timestamp.
+- SEC companyfacts with date-only `filed` metadata is eligible only when `filed < asOfDate`. Same-day filings are excluded unless an exact, explicitly verified `availableAt` timestamp is at or before as-of. The collector currently has no such verified timestamp, so its same-day SEC facts are excluded.
+- FMP provider snapshots must have `retrievedAt <= asOf`. FMP statement rows require a pre-as-of `acceptedDate` timestamp or a filing date strictly before the as-of date. These provider timestamps are not independently verified public availability; the facts are labeled as secondary cross-checks, not immutable historical evidence. Estimate snapshots are retrieval-time evidence only and historical revisions are not claimed.
+- Regression tests cover SEC same-day exclusions, verified timestamps before/after as-of, FMP accepted-time/prior-day filing admission, post-as-of retrieval exclusion and collector sequencing.
+- These controls improve evidence chronology; they do not measure factual truth, strategy performance, or approve BUY.

@@ -56,3 +56,8 @@ Do not use synthetic examples as evidence of strategy performance. A report shou
 - [ ] Automated tests pass and deployment is verified on production.
 
 A high win rate by itself is not proof of an edge. Passing a historical test does not guarantee future returns.
+
+
+## Conservative SEC/FMP chronology admission — 2026-11-10
+
+For any point-in-time reconstruction, a date-only SEC `filed` value is insufficient to establish intraday availability. Exclude same-day filings unless a separately verified exact public-availability timestamp is no later than the decision timestamp; prior-day date-only filings may be included, with the limitation retained. FMP statement rows require a provider `acceptedDate` time no later than the decision timestamp, or a `filingDate` strictly earlier than the decision date. Provider accepted/filing timestamps are not independently verified public availability, so preserve that caveat. FMP snapshot `retrievedAt` must not be later than the research as-of time. Provider estimates are retrieval-time snapshots, not immutable historical estimate archives. The validator must continue to reject future/missing availability and never infer it from fiscal period end.
