@@ -854,3 +854,13 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - Production Council runs/traces remain 0; trusted snapshot history remains one row; sentiment unavailable; monitor latest run #235 fail-closed on stale shortlist. Strategy NOT APPROVED, BUY disabled, paper lifecycle NOT READY, execution disabled and kill switch engaged.
 - Files updated in this work item: handbook, blockers, build plan, Stock Brain spec, monitor runbook, paper-readiness runbook. Audited source commit `c2a3a061d1423db0641223c1d8466d750b58041e`; documentation commit is recorded in the PR/commit history. No database changes, secrets, broker calls, orders, migrations, production control changes or deployments.
 - Exact next action: independent review/governance for PR #108; then approved Production Pages/OIDC verification, separate Worker release, fresh trusted seven-day snapshot history, permitted sentiment source and controlled research-only acceptance. Do not restart scanner work.
+
+
+## 2026-11-10 — documentation evidence commit pointer
+- Phase: Phase 2 Research Council / Stock Brain live acceptance and operations audit.
+- Source/code head audited: `c2a3a061d1423db0641223c1d8466d750b58041e`.
+- Consolidated six-file evidence refresh commit: `c9a7a4add2a5cdb3e4b93f2c3d9ebd8ff04a3a3e` (handbook, blocker log, build plan, Stock Brain spec, monitor runbook, paper-readiness runbook).
+- PR: #108. Exact-head push Tests for the evidence refresh: run `42856710511` SUCCESS. Pull-request Validate and full-history secret scan were not observed for this docs-only Git-data ref update; prior code-head PR runs on `c2a3a061` remain successful and are not represented as tests on the documentation head.
+- Database changes: NONE. Deployment: no Production deployment; Preview static evidence remains deployment `020c9c4d-bb0d-41c6-bd17-2ba4b1a70738` on the source/code head.
+- Safety: research-only; execution disabled, kill switch engaged, BUY disabled; no broker calls or orders.
+- Exact next action: complete independent review/governance for PR #108, then verify all release checks on the approved final head before merge/deploy.
