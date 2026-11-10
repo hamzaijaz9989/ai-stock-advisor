@@ -154,7 +154,7 @@ function collectorRequest(requestId){
  });
 }
 
-test("synthetic collector acceptance runs all nine roles, persists scorecard/trace, and replays without provider access",async()=>{
+test("synthetic collector records all nine role outcomes, fails closed on missing news/sentiment, and replays without provider access",async()=>{
  const {db,state}=makeD1();
  const {fetcher,calls}=syntheticFetch();
  const originalFetch=globalThis.fetch;
@@ -173,19 +173,31 @@ test("synthetic collector acceptance runs all nine roles, persists scorecard/tra
   assert.equal(body.traceDurable,true);
   assert.equal(body.execution,false);
   assert.equal(body.automatedOrderSubmission,false);
-  assert.equal(body.result.status,"RESEARCH_REVIEW_REQUIRED");
+  assert.equal(body.result.status,"NO_TRADE");
   assert.equal(body.result.traceDurable,true);
   assert.deepEqual(body.result.agents.map(agent=>agent.role),[
    "market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst",
    "bull_researcher","bear_researcher","portfolio_analyst","risk_committee"
   ]);
-  assert.ok(body.result.agents.every(agent=>agent.status==="COMPLETE"));
-  assert.equal(body.result.reports.length,9);
+  assert.deepEqual(Object.fromEntries(body.result.agents.map(agent=>[agent.role,agent.status])),{
+    market_scanner:"COMPLETE",
+    technical_analyst:"COMPLETE",
+    fundamental_analyst:"COMPLETE",
+    news_analyst:"UNAVAILABLE",
+    sentiment_analyst:"UNAVAILABLE",
+    bull_researcher:"BLOCKED",
+    bear_researcher:"BLOCKED",
+    portfolio_analyst:"BLOCKED",
+    risk_committee:"BLOCKED"
+   });
+  assert.equal(body.result.reports.length,5);
   assert.equal(body.result.evaluation.totals.roleCount,9);
-  assert.equal(body.result.evaluation.totals.rolesComplete,9);
-  assert.equal(body.result.evaluation.totals.telemetryRoles,9);
+  assert.equal(body.result.evaluation.totals.rolesComplete,3);
+  assert.equal(body.result.evaluation.totals.telemetryRoles,5);
   assert.equal(body.result.evaluation.roles.news_analyst.resourceStatus,"INSUFFICIENT");
   assert.equal(body.result.resourceCoverage.newsQuality.eligibleCount,0);
+   assert.ok(body.result.vetoReasons.some(reason=>reason.includes("news_analyst")));
+   assert.ok(body.result.vetoReasons.some(reason=>reason.includes("sentiment_analyst")));
   assert.equal(state.runs.size,1);
   assert.ok(state.writes.includes("research_council_runs"));
   assert.ok(state.writes.includes("paper_equity_snapshots"));
