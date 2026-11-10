@@ -1,6 +1,6 @@
 # Northstar AI — Project Handbook and Operating Workflow
 
-**Last reviewed:** 2026-11-10 06:43 PKT
+**Last reviewed:** 2026-11-10 06:47 PKT
 **Repository:** `hamzaijaz9989/ai-stock-advisor`  
 **Production dashboard:** https://ai-stock-advisor.pages.dev  
 **Default branch:** `main`  
@@ -471,3 +471,17 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - Complete: the collector now verifies explicit read-only sync success semantics; regression tests, exact-head CI and Preview deployment pass. This is not a full Research Council acceptance run or Production verification.
 - Blockers: valid provider credentials (Preview FMP/Alpaca Paper/Gemini; Production FMP key was previously rejected), fresh reconciled seven-day equity baseline, independent PR review, and authorized branch governance. Repository visibility remains unresolved (GitHub API public vs owner intent private); treat source as public until GitHub Settings confirms otherwise.
 - Exact next action: keep PR #103 unmerged. Once credentials and a genuine seven-day baseline are verified, perform read-only reconciliation followed by one controlled research-only collection; verify all nine roles, deterministic veto, scorecard, actual telemetry and durable replay. Keep execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-10 06:47 PKT — seven-day snapshot workflow dependency audit
+
+- Phase: Phase 2 — Stock Brain acceptance prerequisites. Universe scanning remains COMPLETE; no scanner rebuild.
+- Objective: inspect the open read-only snapshot automation PRs that could establish the missing seven-day equity baseline.
+- PR #88 `northstar/github-oidc-readonly-sync` is OPEN and DRAFT, head `59b354f4feb1b4a8871980489f4dc190cef54fae`, currently 26 commits ahead / 13 behind main `839e135dad88849350a7f6f61c929ee8ce4bc046`, with no formal reviews. Its description explicitly depends on PR #85's `safeToContinue` / `requiresManualRecovery` fill-import contract and says the branch must be reconciled after #85. Exact-head Tests `42690358362` and Validate `42690358816` passed on that older head; this does not validate the current main combination.
+- PR #85 `northstar/paper-execution-risk-controls` is OPEN and DRAFT, head `d540184d622bb910ca29e6f55ff3e6f4530a4d78`, currently 490 commits ahead / 6 behind main, and GitHub reports mergeable=false. It has no formal reviews. Its exact-head Tests `42704079093`, Validate `42704078787`, and full-history secret scan `42704078818` passed, but it is not current-main-synchronized or release-approved.
+- PR #85 and #88 overlap `.github/workflows/northstar-equity-snapshot.yml` and `web/wrangler.toml`; #85 also owns the newer fill-sync/manual-recovery response contract required by #88. Do not merge either PR or weaken #88's manual-recovery guard. Reconcile #88 only after #85 has been safely updated/reviewed and the combined contract is tested.
+- Main branch currently reports `protected=false`, `protection.enabled=false`, and required status-check enforcement `off`; independent reviews are absent. These are explicit governance blockers, not routine CI failures.
+- Production D1 remains at migrations `0001`–`0005`, with one stale equity snapshot from `2026-11-08T18:34:38.720Z` and no genuine seven-day baseline. No schedule run was assumed; no Production D1 writes, migrations, broker requests, order actions or execution-control changes were performed in this audit.
+- Complete: both snapshot PRs were inspected for current head, divergence, CI, files and review state. Neither is safe to merge or use as an operational schedule yet.
+- Blockers: reconcile PR #85 with current main; independent review/governance; then update PR #88 onto the reviewed fill-sync contract and rerun exact-head CI/Preview verification. Only after release gates pass may a read-only scheduled sync establish the seven-day baseline.
+- Exact next action: keep PRs #85 and #88 DRAFT and unmerged; continue Phase 2 Stock Brain work. Do not invoke the scheduled snapshot workflow or claim seven-day history until the reviewed combined workflow is deployed and actual snapshots are observed.
