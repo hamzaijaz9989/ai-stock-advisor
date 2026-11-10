@@ -2,10 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {SPECIALIST_AGENTS,runMarketScanner,runTechnicalAnalyst,runFundamentalAnalyst,runNewsAnalyst,runSentimentAnalyst} from "../web/lib/research-specialist-agents.js";
 import {createResearchCouncilWorkers} from "../web/lib/research-council-adapters.js";
+import {COUNCIL_ROLES,runResearchCouncil} from "../web/lib/research-council.js";
 
 function context(){
  const rows=Array.from({length:80},(_,i)=>({date:new Date(Date.UTC(2025,0,1+i)).toISOString().slice(0,10),open:100+i,high:102+i,low:99+i,close:101+i,volume:1000+i*5}));
- return {ticker:"TEST",facts:[
+ return {ticker:"TEST",asOf:"2026-11-10T12:00:00Z",portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0},facts:[
   {id:"q1",type:"QUOTE",value:{price:180,changePercent:1.2,quoteFreshness:{status:"FRESH"}}},
   {id:"h1",type:"DAILY_OHLCV_HISTORY",value:{rows,observationCount:80,dataQuality:"verified-adjusted"}},
   {id:"sec1",type:"SEC_REPORTED_FACT",value:{metric:"Revenue",availabilityTimestampVerified:true}},
@@ -27,6 +28,42 @@ test("all five specialist agents return evidence-linked reports on sufficient fi
   for(const item of [...out.findings,...out.risks]) for(const id of item.factIds) assert.ok([...c.facts,...c.evidence].some(x=>x.id===id),role+" cites unknown "+id);
  }
 });
+
+test("worker adapter records latency and provider usage for all nine roles",async()=>{
+ const c=context();
+ const fetcher=async(input,init={})=>{
+  const url=new URL(input);
+  if(url.pathname.endsWith("/models"))return Response.json({models:[{name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]}]});
+  if(url.pathname.includes(":generateContent")){
+   const request=JSON.parse(init.body);
+   const prompt=JSON.parse(request.contents[0].parts[0].text);
+   const factId=prompt.context.facts[0].id;
+   const report={status:"COMPLETE",findings:[{claim:"Model-backed specialist provides an evidence-linked synthetic finding for review.",factIds:[factId]}],risks:[{claim:"Independent source confirmation and human review remain necessary.",factIds:[factId]}]};
+   return Response.json({candidates:[{content:{parts:[{text:JSON.stringify(report)}]}}],usageMetadata:{promptTokenCount:120,candidatesTokenCount:40,totalTokenCount:160}});
+  }
+  throw new Error("Unexpected telemetry test fetch: "+url);
+ };
+ const workers=await createResearchCouncilWorkers({GEMINI_API_KEY:"synthetic-gemini-key"},fetcher);
+ const result=await runResearchCouncil({requestId:"specialist-telemetry-001",context:c,workers});
+ assert.equal(result.status,"RESEARCH_REVIEW_REQUIRED");
+ const roles=[...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,...COUNCIL_ROLES.synthesis,...COUNCIL_ROLES.veto];
+ assert.equal(roles.length,9);
+ assert.deepEqual(Object.keys(workers.telemetry).sort(),[...roles].sort());
+ for(const role of roles)assert.ok(Number.isFinite(workers.telemetry[role].latencyMs),role);
+ for(const role of Object.keys(SPECIALIST_AGENTS)){
+  assert.equal(workers.telemetry[role].provider,"deterministic",role);
+  assert.match(workers.telemetry[role].model,/^northstar-/);
+ }
+ for(const role of [...COUNCIL_ROLES.debate,...COUNCIL_ROLES.synthesis]){
+  assert.equal(workers.telemetry[role].provider,"gemini",role);
+  assert.equal(workers.telemetry[role].inputTokens,120,role);
+  assert.equal(workers.telemetry[role].outputTokens,40,role);
+  assert.equal(workers.telemetry[role].totalTokens,160,role);
+ }
+ assert.equal(workers.telemetry.risk_committee.provider,"deterministic");
+ assert.equal(workers.providerMetadata.defaultProvider,"gemini");
+});
+
 test("scanner and technical analyst fail closed on missing history",()=>{
  const c={ticker:"TEST",facts:[{id:"q",type:"QUOTE",value:{price:10}}],evidence:[]};
  assert.equal(runMarketScanner(c).status,"UNAVAILABLE");
@@ -63,7 +100,9 @@ test("news analyst excludes future and undated items and flags unverified source
  const c={asOf:"2026-11-10T12:00:00Z",facts:[],evidence:[
   {id:"n1",type:"NEWS_DISCOVERY",value:{title:"Issuer results",url:"https://example.com/a",publishedAt:"2026-11-10T10:00:00Z",publisher:"Unknown"}},
   {id:"n2",type:"NEWS_DISCOVERY",value:{title:"Future story",url:"https://example.com/b",publishedAt:"2026-11-10T13:00:00Z"}},
-  {id:"n3",type:"NEWS_DISCOVERY",value:{title:"Undated story",url:"https://example.com/c"}}
+  {id:"n3",type:"NEWS_DISCOVERY",value:{title:"Undated story",url:"https://example.com/c"}},
+  {id:"n4",type:"NEWS_DISCOVERY",value:{title:"Date-only story",url:"https://example.com/d",publishedAt:"2026-11-10"}},
+  {id:"n5",type:"NEWS_DISCOVERY",value:{title:"Timezone-less story",url:"https://example.com/e",publishedAt:"2026-11-10T11:00:00"}}
  ]};
  const out=runNewsAnalyst(c);
  assert.equal(out.status,"COMPLETE");
@@ -103,7 +142,9 @@ test("sentiment analyst rejects future-dated and malformed observations and weig
  const c={asOf:"2026-11-10T12:00:00Z",facts:[],evidence:[
   {id:"s-old",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:00:00Z",source:"Feed A",sampleCount:100,score:0.2}},
   {id:"s-large",type:"ANALYST_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:30:00Z",source:"Feed B",sampleCount:300,score:0.6}},
-  {id:"s-future",type:"POSITIONING_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T13:00:00Z",source:"Feed C",sampleCount:500,score:-1}}
+  {id:"s-future",type:"POSITIONING_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T13:00:00Z",source:"Feed C",sampleCount:500,score:-1}},
+  {id:"s-date-only",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10",source:"Feed D",sampleCount:1000,score:1}},
+  {id:"s-nozone",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:00:00",source:"Feed E",sampleCount:1000,score:-1}}
  ]};
  const out=runSentimentAnalyst(c);assert.equal(out.status,"COMPLETE");
  assert.match(out.findings[0].claim,/0.500/);assert.ok(out.risks.some(x=>x.claim.includes("excluded")));
