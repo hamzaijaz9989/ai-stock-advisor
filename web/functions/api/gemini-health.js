@@ -1,5 +1,5 @@
 // Secure Gemini API health check: discovers models available to this key and performs
-// a real generation request. Never returns or logs the API key or generated text.
+// a minimal real text-generation request. Never returns or logs the API key or generated text.
 export async function onRequestGet({ env }) {
   const key = env?.GEMINI_API_KEY;
   const headers = {
@@ -32,13 +32,9 @@ export async function onRequestGet({ env }) {
       !/embedding|aqa|tts|image|audio|veo|live|transcri/i.test(m.name));
     const preferred=[
       env.GEMINI_RESEARCH_MODEL,
-      "models/gemini-3.6-flash",
-      "models/gemini-3.8-flash",
-      "models/gemini-3.7-flash",
-      "models/gemini-3.5-flash",
-      "models/gemini-3.1-flash-lite",
       "models/gemini-2.5-flash",
-      "models/gemini-2.5-pro"
+      "models/gemini-2.5-pro",
+      "models/gemini-2.0-flash"
     ].filter(Boolean);
     const candidates=[
       ...preferred.map(name=>supported.find(m=>m.name===name||m.name==="models/"+name)).filter(Boolean),
@@ -61,18 +57,16 @@ export async function onRequestGet({ env }) {
           method:"POST",
           headers:{"Content-Type":"application/json","x-goog-api-key":key},
           body:JSON.stringify({
-            systemInstruction:{parts:[{text:"Return valid JSON only."}]},
-            contents:[{role:"user",parts:[{text:'Return exactly this JSON: {"status":"NORTHSTAR_GEMINI_OK"}'}]}],
-            generationConfig:{responseMimeType:"application/json",temperature:0,maxOutputTokens:32}
+            contents:[{role:"user",parts:[{text:"Reply with exactly this text and nothing else: NORTHSTAR_GEMINI_OK"}]}],
+            generationConfig:{temperature:0,maxOutputTokens:64}
           }),
           signal:AbortSignal.timeout(20000)
         }
       );
       attempted.push({model:candidate.name.replace(/^models\//,""),status:generationResponse.status});
       if(generationResponse.ok) break;
-      // Model-specific 404s can occur when a model is listed but unavailable to this key.
-      // Continue to the next listed model; stop only for request errors or quota limits.
-      if([400,429].includes(generationResponse.status)) break;
+      // Continue across model-specific incompatibilities; stop for quota or authorization failures.
+      if([401,403,429].includes(generationResponse.status)) break;
     }
     if(!generationResponse?.ok) return Response.json({
       available:false,configured:true,authenticated:true,generationTest:"failed",
@@ -82,15 +76,23 @@ export async function onRequestGet({ env }) {
     },{status:502,headers});
 
     const generated=await generationResponse.json();
+    const candidate=generated.candidates?.[0];
     const generatedText=(generated.candidates||[]).flatMap(c=>c.content?.parts||[])
-      .some(p=>typeof p.text==="string"&&p.text.trim().length>0);
+      .map(p=>typeof p.text==="string"?p.text:"").join("").trim();
+    const passed=generatedText.includes("NORTHSTAR_GEMINI_OK");
+    const blockReason=generated.promptFeedback?.blockReason||null;
     return Response.json({
-      available:generatedText,configured:true,authenticated:true,
-      generationTest:generatedText?"passed":"no_text_returned",
+      available:passed,configured:true,authenticated:true,
+      generationTest:passed?"passed":"no_valid_text",
       provider:"Google Gemini",model:chosen?.name?.replace(/^models\//,"")||null,
+      finishReason:candidate?.finishReason||null,
+      promptBlockReason:blockReason,
+      responseCandidates:Array.isArray(generated.candidates)?generated.candidates.length:0,
+      responseTextLength:generatedText.length,
       modelsListed:models.length,generateContentModelsAvailable:supported.length,
-      checkedAt:new Date().toISOString()
-    },{status:generatedText?200:502,headers});
+      checkedAt:new Date().toISOString(),
+      reason:passed?undefined:"Gemini authenticated, but the generation response did not contain the expected text. Inspect finishReason and promptBlockReason."
+    },{status:passed?200:502,headers});
   }catch(error){
     return Response.json({
       available:false,configured:true,provider:"Google Gemini",generationTest:"failed",
