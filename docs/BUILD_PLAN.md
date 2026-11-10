@@ -655,3 +655,15 @@ Immediate next sequence: keep PR #103 open for independent review and governance
 - Production GET smoke: paper readiness, performance, monitor and FMP health all HTTP 200. Production D1 has migrations 0001–0006, one stale snapshot, 168 market_closed monitor runs, zero research traces/runs and zero paper lifecycle rows. Controls remain disabled/paper/kill-switched.
 - Blocked: timestamped news and sentiment inputs, Preview provider credentials, fresh reconciled seven-day equity baseline, independent PR review/governance, Production schema parity and verified repository visibility. Strategy validation NOT APPROVED; paper lifecycle NOT READY; BUY disabled.
 - Next exact action: verify the fresh isolated Preview deployment after the runbook update, then reconcile #109/#111 into #108 without duplicate provider code. Do not invoke the protected collector until all live-data and broker-reconciliation gates are met.
+
+
+## 2026-11-10 17:31 PKT — Phase 2 OIDC hardening and live acceptance checkpoint
+
+- Phase 1 universe scanning remains user-confirmed COMPLETE.
+- Phase 2 code/test head: `b8fb8704e8cbbe0720808098c99bb8a703f9e46e` (OIDC NumericDate type hardening and regression tests); implementation commit `47e2a19b37e78b9a2ee8c5076fb02885bccf6eaf`; PR #108.
+- Exact-head CI: Tests `42817051649` PASS (274 JS tests, 94 Python tests, Ruff); Validate `42817052712` PASS; full-history secret scan `42817051960` PASS.
+- Preview: deployment `2e9280db-2275-49cc-a473-ac117013dbfa` SUCCESS for implementation commit; Trading Lab 200; paper readiness 200 (execution disabled / kill switch engaged); monitor 200; FMP health 503 MISSING_BINDING (Preview provider secrets absent). Preview D1 is isolated.
+- Production Pages: `3782f3e9-0d2e-4d04-b95a-4dcd931a6133` SUCCESS for main `3f765d8dd0f9099e05df57d09c9f48c9b247ba9c`; no Production deploy by this work item.
+- Production D1: migrations 0001–0006; 2 equity snapshots (latest `2026-11-10T11:42:59.813Z`), not a seven-day baseline; 186 monitor runs, all market_closed / 0 symbols / 0 errors; no council runs/traces or paper lifecycle rows; execution disabled and kill switch engaged. Preview migrations 0001–0012 and empty research/paper ledgers.
+- No database writes/migrations, secret changes, broker calls, order actions, execution-control changes or Production deployment. Strategy validation NOT APPROVED; paper lifecycle NOT READY; BUY disabled.
+- Next: reconcile news-quality helper PR #109 into the canonical Council evidence path without adding recommendation authority; keep collector gated until seven-day history and broker reconciliation are verified.
