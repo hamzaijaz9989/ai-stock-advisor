@@ -275,7 +275,7 @@ export function buildResearchCouncilContext(input) {
   const newsQuality = {eligibleCount:0,excludedFutureDatedCount:0,excludedUndatedCount:0};
   if (Array.isArray(news?.items)) for (const item of news.items.slice(0, 50)) {
     if (!item || typeof item.title !== "string" || typeof item.url !== "string" || !/^https?:\/\//i.test(item.url)) continue;
-    const published = dateMs(item.publishedAt);
+    const published = exactTimestampMs(item.publishedAt);
     if (published === null) {
       newsQuality.excludedUndatedCount++;
       continue;
