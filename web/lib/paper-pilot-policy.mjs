@@ -66,6 +66,7 @@ export function sizePaperPilotOrder({
   const quantity = Math.floor(Math.min(riskBudget / riskPerShare, availableAllocation / entry, cash / entry));
   if (!Number.isSafeInteger(quantity) || quantity < 1) return deny("NO_VALID_POSITION_SIZE");
   const notional = Number((quantity * entry).toFixed(2));
+  if (sector + notional > PAPER_PILOT_LIMITS.maxSectorExposureUsd) return deny("SECTOR_EXPOSURE_LIMIT_EXCEEDED");
   const plannedRisk = Number((quantity * riskPerShare).toFixed(2));
   if (plannedRisk > PAPER_PILOT_LIMITS.maxRiskPerTradeUsd + 0.000001)
     return deny("PER_TRADE_RISK_LIMIT_EXCEEDED");
