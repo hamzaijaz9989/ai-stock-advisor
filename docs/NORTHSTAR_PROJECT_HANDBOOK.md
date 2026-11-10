@@ -1,6 +1,8 @@
 # Northstar AI — Project Handbook and Operating Workflow
 
-****Last reviewed:** 2026-11-10 23:56 PKTn dashboard:** https://ai-stock-advisor.pages.dev  
+**Last reviewed:** 2026-11-10 23:56 PKT
+
+**Production dashboard:** https://ai-stock-advisor.pages.dev
 **Default branch:** `main`  
 **Operating mode:** Research-first; paper-only infrastructure remains disabled; live trading prohibited.
 
