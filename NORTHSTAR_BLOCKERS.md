@@ -916,3 +916,11 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Impact: do not claim nine-agent production dashboard acceptance, market-open monitor acceptance, seven-day portfolio readiness or paper lifecycle completion.
 - Next action: finish a safe read-only Research Council status/dashboard integration and a separately authenticated operator launch flow; collect and verify the seven-day read-only equity history before attempting the collector. Keep paper execution disabled and the kill switch engaged.
 - Governance note: GitHub API metadata reports `private=false / visibility=public`, contrary to the user's statement that the repository is private. No visibility change was attempted; verify directly in GitHub Settings.
+
+
+## 2026-11-10 — Repository visibility and user-history correction
+- User explicitly confirmed that `hamzaijaz9989/ai-stock-advisor` was changed from private to **public**. This is intentional current state. Do not ask the user to reconfirm it.
+- Earlier handbook/blocker statements describing the repository as private or asking the user to resolve a visibility discrepancy are stale and superseded by this confirmation. README visibility wording must match the public state.
+- User reiterated the required continuity workflow: update the GitHub project documents after every meaningful code/configuration/deployment/project change, and read those documents before asking the user for information. This is mandatory, not optional.
+- No code, secret, deployment, database, broker or execution-control change was made in this documentation-only correction.
+- Next: read the handbook and blocker log before every Northstar work item; append exact evidence and next action after each meaningful change. Do not repeat questions already answered in project records.
