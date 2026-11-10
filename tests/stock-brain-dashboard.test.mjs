@@ -25,6 +25,7 @@ test("Stock Brain client uses authenticated server-side collection without persi
   assert.match(client, /parseStockBrainResponse\(response\)/);
   assert.match(client, /renderCouncilEvaluation\(result\.evaluation,result\.agents,coverage\)/);
   assert.doesNotMatch(client, /localStorage\.setItem\([^\n]*token/i);
+  assert.doesNotMatch(client, /sessionStorage|localStorage\.setItem\([^\n]*northstar_operator_token/i);
 });
 
 test("Stock Brain report renderer writes untrusted specialist text with textContent", () => {
@@ -73,4 +74,10 @@ test("Stock Brain scorecard exposes role coverage and renders untrusted values a
   assert.match(renderer, /resource\.status/);
   assert.match(renderer, /\.textContent\s*=/);
   assert.doesNotMatch(renderer, /\.innerHTML\s*=/);
+});
+
+test("Trading Lab has no client-side login facade or session-persisted operator token", () => {
+  assert.doesNotMatch(html, /northstar-login|northstar_operator_token|sessionStorage|auth\\/check|Hamza Rana/);
+  assert.match(client, /const token=prompt\\("Enter the NORTHSTAR_OPERATOR_TOKEN/);
+  assert.doesNotMatch(client, /sessionStorage|localStorage\\.setItem\\([^\\n]*token/i);
 });
