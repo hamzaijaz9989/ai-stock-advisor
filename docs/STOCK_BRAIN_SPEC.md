@@ -523,3 +523,15 @@ The Research Council canonical fact adapter now classifies quote freshness relat
 - Telemetry regression tests must target model-backed roles (`bull_researcher` / `bear_researcher`) for Gemini/OpenAI usage metrics. Deterministic sentiment telemetry is tested separately and must report the missing feed honestly.
 - Exact test head `f97af5ff8a37440f14dbf4715d2fa25a74a4a634`: Tests `42803828769`, Validate `42803828737`, secret scan `42803828623` all SUCCESS; 264 JavaScript tests passed. PR #108 is 21 ahead / 0 behind main `485b1d3f4b7e552fa54f26f09503a1a0e4d6cb74`, still awaiting independent review.
 - Cloudflare Pages Preview project binding has been corrected to isolated D1 `bdffc29f-a4f6-498e-ade7-22c85d9bd373`; Production remains `528f3a23-1d1f-4d16-8463-f643d85f5deb`. Existing pre-correction Preview deployments must not be called until a fresh isolated deployment is verified. Production read-only endpoints returned HTTP 200; no Production deployment or D1 write/migration occurred.
+
+
+## 2026-11-10 17:31 PKT — OIDC validator and Preview verification
+
+The scoped GitHub Actions OIDC verifier now validates `iat`, `exp`, and optional `nbf` as safe-integer JSON NumericDate values; numeric strings and null are rejected instead of being coerced. The existing 30-second clock-skew allowance, 10-minute maximum token age and 15-minute token lifetime remain. Regression tests cover expiry within/outside skew and malformed NumericDate types.
+
+- Code commit: `47e2a19b37e78b9a2ee8c5076fb02885bccf6eaf`; exact test head: `b8fb8704e8cbbe0720808098c99bb8a703f9e46e`; PR #108.
+- CI: Tests `42817051649` PASS (274 JS, 94 Python, Ruff); Validate `42817052712` PASS; secret scan `42817051960` PASS.
+- Preview deployment `2e9280db-2275-49cc-a473-ac117013dbfa` SUCCESS for code commit, Functions enabled and isolated Preview D1. Trading Lab 200; paper readiness 200 with execution disabled and kill switch engaged; monitor 200; FMP health 503 MISSING_BINDING (Preview provider bindings absent).
+- Production main deployment `3782f3e9-0d2e-4d04-b95a-4dcd931a6133` SUCCESS; no Production deployment, D1 write/migration or control change in this work item.
+- Production D1 remains migrations 0001–0006, two snapshots (latest `2026-11-10T11:42:59.813Z`), 186 market-closed monitor runs with zero symbols, zero Council runs/traces and zero paper lifecycle rows. The two snapshots are insufficient for the seven-day baseline. Execution remains disabled and kill-switched.
+- Strategy validation remains NOT APPROVED and BUY remains disabled. No authenticated collector call or order action occurred.
