@@ -1361,3 +1361,28 @@ No credentials or token values read/copied/changed; no order submitted; no paper
 - Complete: Production Alpaca and FMP quote/history/fundamental bindings are verified by live GET health; input-level Technical/Fundamental evidence was retrieved; monitor failure and data-quality gaps are classified. This is not nine-agent acceptance.
 - Blockers: stale shortlist schedule and zero quote/event persistence; FMP news HTTP 402; primary-source verification for discovery news; permitted licensed UTC-qualified sentiment; authorized operator-token session for protected POST; seven-day trusted baseline; independent review/governance; strategy validation and approval.
 - Exact next action: restore and verify scheduled shortlist refresh without rebuilding the completed scanner; verify the next scheduled OIDC snapshot; resolve FMP news entitlement and source-quality/sentiment gates; only then use the authorized run-time token prompt for one controlled research-only agent/collector acceptance and verify all nine roles, vetoes, scorecard, telemetry, durable trace and replay. Never enable execution or submit an order.
+
+
+## 2026-11-11 — Additional Alpaca connector smoke test (read-only)
+
+A separate read-only Alpaca connector smoke test was performed after the earlier Production Pages API acceptance recorded above. These connector results are evidence about Alpaca data access, not proof that the Northstar Pages UI or protected agent endpoints completed a run.
+
+- `get_account_info`: returned account status ACTIVE; paper account read-only. Account was not blocked and trading was not suspended. `get_all_positions` returned zero positions. No account mutations were made.
+- `get_stock_bars` for NVDA, SPY and QQQ returned 220 daily IEX bars per symbol through `2026-11-10T05:00:00Z`. Derived technical observations: NVDA close 167.61, RSI14 18.77, SMA20 206.14, SMA50 217.99, SMA200 204.53; QQQ RSI14 35.09; SPY RSI14 39.57. These are historical indicator inputs, not current intraday signals or recommendations.
+- `get_stock_latest_quote` returned quotes for ten symbols, but the latest returned timestamps were around `2026-11-10T19:34:09Z`. `get_market_movers` and `get_most_active_stocks` had `last_updated=2026-11-10T19:34:00Z`. These are stale relative to the Nov 11 acceptance date; they do not prove a fresh Nov 11 live-market scan.
+- `get_clock` returned `is_open=true` but its own timestamp was `2026-11-10T14:34:09-05:00`, with next_open `2026-11-11T09:30:00-05:00`. Since the clock response itself was dated Nov 10, it cannot be used to assert the current Nov 11 session state.
+- `get_news` returned timestamped NVDA headlines, latest observed `2026-11-10T19:10:59Z`. This is discovery/news input, not publisher-verified catalyst evidence. No licensed sentiment feed was returned.
+- Snapshot call returned an empty data object for the requested symbols; treat the snapshot endpoint smoke as inconclusive, not a pass.
+
+### Revised agent acceptance matrix after connector smoke
+1. Market Scanner — FAIL freshness acceptance: market movers/actives/quotes were dated Nov 10; no fresh Nov 11 shortlist/quote persistence proven.
+2. Technical Analyst — PARTIAL INPUT PASS only: 220 daily bars and reproducible SMA/RSI calculations available through Nov 10; the actual protected Northstar specialist was not run.
+3. Fundamental Analyst — PARTIAL INPUT PASS from the earlier Production SEC/FMP health/facts smoke documented above; actual protected specialist not run.
+4. News & Catalyst Analyst — PARTIAL DISCOVERY INPUT only: timestamped Alpaca/Benzinga news returned through Nov 10; no verified primary-source catalyst dossier or protected specialist run.
+5. Sentiment Analyst — BLOCKED: no accepted licensed feed with explicit UTC/as-of semantics.
+6. Bull Researcher — NOT RUN: protected specialist execution requires the authorized operator-token session and complete upstream dossier.
+7. Bear Researcher — NOT RUN: same dependency.
+8. Portfolio Analyst — PARTIAL INPUT PASS: read-only paper account status and empty positions returned; fresh reconciled snapshot and protected specialist run not proven.
+9. Risk Committee — NOT RUN / FAIL-CLOSED: no complete nine-role output; no approval or BUY signal.
+
+No secret values were read or changed. No orders or broker mutations were made. No execution controls, migrations or Production deployments were changed. Preserve mode=paper, enabled=0, kill_switch=1.
