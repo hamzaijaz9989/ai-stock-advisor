@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-09T20:44:58.272Z",
+  "generatedAt": "2026-11-10T01:32:07.589Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -17,7 +17,7 @@
       "name": "Taiwan Semiconductor Manufacturing Co. Ltd.",
       "score": 90.2,
       "financialPeriod": "2024-12-31",
-      "fundamentalAgeDays": 678,
+      "fundamentalAgeDays": 679,
       "fundamentalFreshness": "STALE_OR_UNVERIFIED",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -50,7 +50,7 @@
       "name": "Keycorp /New/",
       "score": 89.7,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 313,
+      "fundamentalAgeDays": 314,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -76,14 +76,14 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified; potential material-risk headline needs review. Latest provider price: $21.48 (Nasdaq quote API; 11/9/2026, 8:44:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.12. Estimated reward/risk from entry midpoint: 9.98:1; illustrative model gap: 0.47×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $21.41 (Nasdaq quote API; 11/10/2026, 12:35:00 AM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.12. Estimated reward/risk from entry midpoint: 9.98:1; illustrative model gap: 0.47×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ANET",
       "name": "Arista Networks, Inc.",
       "score": 88.6,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 313,
+      "fundamentalAgeDays": 314,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -109,14 +109,14 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $186.22 (Nasdaq quote API; 11/10/2026, 12:56:00 AM). Model entry watch zone: $57.54–$61.37; base-case reference: $76.72; risk reference: $37.72. Estimated reward/risk from entry midpoint: 0.79:1; illustrative model gap: 2.43×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AAPL",
       "name": "Apple Inc.",
       "score": 87.6,
       "financialPeriod": "2026-09-26",
-      "fundamentalAgeDays": 44,
+      "fundamentalAgeDays": 45,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -142,14 +142,14 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $350.66 (Nasdaq quote API; 11/9/2026, 8:44:00 PM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $145.16. Estimated reward/risk from entry midpoint: 2.63:1; illustrative model gap: 1.67×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $350.50 (Nasdaq quote API; 11/10/2026, 12:59:00 AM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $145.16. Estimated reward/risk from entry midpoint: 2.63:1; illustrative model gap: 1.66×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ADI",
       "name": "Analog Devices Inc.",
       "score": 86.5,
       "financialPeriod": "2025-11-01",
-      "fundamentalAgeDays": 373,
+      "fundamentalAgeDays": 374,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -175,14 +175,14 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable. Latest provider price: $392.51 (Nasdaq quote API; 11/10/2026, 12:49:00 AM). Model entry watch zone: $148.91–$158.84; base-case reference: $198.55; risk reference: $113.61. Estimated reward/risk from entry midpoint: 1.11:1; illustrative model gap: 1.98×. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "V",
       "name": "Visa Inc.",
       "score": 85.3,
       "financialPeriod": "2026-09-30",
-      "fundamentalAgeDays": 40,
+      "fundamentalAgeDays": 41,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -208,14 +208,14 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid; valuation unavailable; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $421.00 (Nasdaq quote API; 11/10/2026, 12:59:00 AM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "JNJ",
       "name": "Johnson & Johnson",
       "score": 84.6,
       "financialPeriod": "2025-12-28",
-      "fundamentalAgeDays": 316,
+      "fundamentalAgeDays": 317,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -241,14 +241,14 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $281.89 (Nasdaq quote API; 11/9/2026, 8:44:00 PM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $80.71. Estimated reward/risk from entry midpoint: 1.78:1; illustrative model gap: 2.27×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $282.52 (Nasdaq quote API; 11/10/2026, 12:59:00 AM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $80.71. Estimated reward/risk from entry midpoint: 1.78:1; illustrative model gap: 2.27×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AMGN",
       "name": "Amgen Inc.",
       "score": 84.2,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 313,
+      "fundamentalAgeDays": 314,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -274,14 +274,14 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $464.12 (Nasdaq quote API; 11/10/2026, 12:59:00 AM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $188.17. Estimated reward/risk from entry midpoint: 2.36:1; illustrative model gap: 1.68×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "VRTX",
       "name": "Vertex Pharmaceuticals Inc. / Ma",
       "score": 84.2,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 313,
+      "fundamentalAgeDays": 314,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -307,14 +307,14 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $551.53 (Nasdaq quote API; 11/9/2026, 8:44:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $541.26 (Nasdaq quote API; 11/10/2026, 12:37:00 AM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "MNST",
       "name": "Monster Beverage Corp",
       "score": 84.1,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 313,
+      "fundamentalAgeDays": 314,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-10 to 2026-11-06",
       "components": [
@@ -340,13 +340,13 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — quote price is missing or invalid; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $45.59 (Nasdaq quote API; 11/10/2026, 12:56:00 AM). Model entry watch zone: $15.66–$16.71; base-case reference: $20.89; risk reference: $13.57. Estimated reward/risk from entry midpoint: 1.79:1; illustrative model gap: 2.18×. Historical validation remains incomplete; no profit probability is claimed."
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-09T20:44:58.272Z",
-  "workflowRunId": "42695329710",
-  "sourceCommit": "b00a7b67f16c9b8463b3e01f463d036ae2aa4bdc",
-  "scanDurationSeconds": 188,
+  "completedAt": "2026-11-10T01:32:07.589Z",
+  "workflowRunId": "42735845035",
+  "sourceCommit": "d1c9b964204c89639bf1c13d511e75d9c398d51f",
+  "scanDurationSeconds": 206,
   "enrichedCount": 10
 }
