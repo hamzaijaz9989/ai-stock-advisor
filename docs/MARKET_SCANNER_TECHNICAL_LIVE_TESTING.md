@@ -1,5 +1,11 @@
 # Market Scanner production acceptance audit
 
+## Isolated provider release — 2026-11-11 02:30 PKT (2026-11-10 21:30 UTC)
+
+- Narrow PR #117 (`19be2f98e895cef1d0fb67c27b20a7001fd06307`) contains only the Worker FMP auth/diagnostic fix, Gemini exact-output health fix, tests and this audit. Local provider tests passed 14/14 and the main-based full JavaScript suite passed 225/225. The initial Pages Preview build succeeded, but its deployment metadata exposed a Preview D1 binding drift: Preview pointed to the Production database despite `web/wrangler.toml` specifying the isolated Preview database.
+- Corrected only the Pages project Preview `NORTHSTAR_DB` binding to `bdffc29f-a4f6-498e-ade7-22c85d9bd373`. Cloudflare's PATCH response confirmed Preview now points to `northstar-preview`; Production remains `528f3a23-1d1f-4d16-8463-f643d85f5deb`. The Preview operator-token binding remained configured; no provider secret value was read or changed. A new Preview deployment is required before exercising any Preview Function, so the previous Preview deployment is not used for runtime testing.
+- PR #117 GitHub validation and full-history secret scan were still running at this timestamp. No Production deployment or PR merge has happened yet. Production FMP/Alpaca/Gemini observations above are direct live endpoint reads; Production remains on the old Gemini health check and old monitor Worker until the reviewed changes are released.
+
 ## Provider API verification — 2026-11-11 02:18 PKT (2026-11-10 21:18 UTC)
 
 - Production `GET /api/fmp-health` at `2026-11-10T21:16:30.842Z` returned HTTP 200. The FMP quote, history and fundamentals probes each returned HTTP 200 with 1, 32 and 1 rows respectively; the latest history date was `2026-11-10`. This verifies authenticated provider access and non-empty responses, not independent market-data accuracy. It also confirms FMP itself is reachable while the separate Production monitor Worker still has the FMP authentication transport defect documented below.
