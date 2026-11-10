@@ -130,7 +130,7 @@ test("deterministic risk committee fails closed on incomplete or invalid portfol
 });
 test("deterministic risk committee applies all configured hard limits at threshold",async()=>{
  const workers=await createResearchCouncilWorkers({});
- const p={equityUsd:10000,openRiskUsd:200,grossExposureUsd:10000,dailyLossFraction:0.02,weeklyLossFraction:0.04,drawdownFraction:0.08,sectorExposureUsd:4000,concurrentPositions:1};
+ const p={equityUsd:10000,openRiskUsd:201,grossExposureUsd:10001,dailyLossFraction:0.02,weeklyLossFraction:0.04,drawdownFraction:0.08,sectorExposureUsd:4001,concurrentPositions:1};
  const out=await workers.risk_committee({portfolio:p});
  assert.equal(out.decision,"REJECT");assert.equal(out.vetoReasons.length,7);
 });

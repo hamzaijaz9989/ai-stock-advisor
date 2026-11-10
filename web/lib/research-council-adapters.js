@@ -130,7 +130,7 @@ function riskCommittee(payload) {
      equity<=0 || openRisk<0 || gross<0 || sector<0 ||
      daily<0 || daily>1 || weekly<0 || weekly>1 || drawdown<0 || drawdown>1 ||
      !Number.isSafeInteger(positions) || positions<0 || positions>1000) {
-    reasons.push("Portfolio risk state is incomplete, outside supported units, or invalid; fail closed.");
+    reasons.push("Portfolio risk state is incomplete or invalid (unsupported units or bounds); fail closed.");
   }
   else {
     if(openRisk/equity>0.02) reasons.push("Aggregate open risk exceeds 2% of equity.");
