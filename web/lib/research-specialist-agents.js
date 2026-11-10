@@ -151,11 +151,10 @@ export function runNewsAnalyst(context) {
 export function runSentimentAnalyst(context) {
   const feeds=evidenceOf(context,"SENTIMENT_OBSERVATION").concat(evidenceOf(context,"ANALYST_SENTIMENT"),evidenceOf(context,"POSITIONING_SENTIMENT"));
   if(!feeds.length) return unavailable("No dedicated timestamped sentiment or positioning feed is connected.");
-  const asOf=Date.parse(context?.asOf||"");
+  const asOf=exactTimestampMs(context?.asOf);
   const valid=feeds.filter(x=>{
-    const v=x.value||{}, observed=Date.parse(v.timestamp||"");
-    return v.timestampStatus==="PRESENT" && Number.isFinite(observed) &&
-      (!Number.isFinite(asOf)||observed<=asOf) &&
+    const v=x.value||{}, observed=exactTimestampMs(v.timestamp);
+    return v.timestampStatus==="PRESENT" && asOf!==null && observed!==null && observed<=asOf &&
       typeof v.source==="string" && v.source.trim() &&
       finite(v.sampleCount) && v.sampleCount>0 &&
       finite(v.score) && v.score>=-1 && v.score<=1;
