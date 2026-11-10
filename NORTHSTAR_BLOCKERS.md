@@ -1,9 +1,9 @@
 # Northstar Completion Sprint — Blockers and Evidence
 
-Last updated: 2026-11-10T04:43:00Z
+Last updated: 2026-11-10T18:56:00Z
 Repository: `hamzaijaz9989/ai-stock-advisor`  
 Production branch: `main`  
-Work branch: `northstar/research-council-status-dashboard` (PR #103)
+Work branch: `northstar/stock-brain-clean-review-20261110` (PR #108)
 
 ## Completed and verified
 
@@ -1870,3 +1870,19 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Exact next action: obtain independent formal review/governance for PR #108. After approved merge, separately verify Production Pages/OIDC route and a scheduled read-only snapshot; investigate cache refresh schedule delivery without changing the completed scanner; accumulate a genuine seven-day trusted equity baseline. Only then run one controlled research-only Council acceptance and verify nine roles, vetoes, scorecard, telemetry, durable trace and idempotent replay. Keep execution disabled, kill switch engaged and BUY disabled; never submit any paper or live order.
 
 Correction retained: the previous 'GitHub operator secret missing/empty' diagnosis is withdrawn. Run 42837941172 passed readiness and secret-presence checks; POST /api/paper/sync returned HTTP 401. Secret values were not read or compared.
+
+
+## 2026-11-10 23:56 PKT — current live evidence and blocker refresh
+
+- Phase/objective: Phase 2 Research Council / Stock Brain; reconcile latest main, PR divergence, CI, Pages/Worker deployment, D1 migration and read-only lifecycle state. Universe scanning remains COMPLETE; no scanner code changed.
+- Audited main `68c0c7b8a547487073e25ef286b91a3a892b2187`; PR #108 head `7345c3333860329413e25800d1f3e33b750e9e3c`, 83 ahead / 0 behind, mergeable clean, open/non-draft, zero reviews. Exact-head CI: Tests `42879636217` PASS; Validate `42879636245` PASS; secret scan `42879636208` PASS. Main branch is `protected=false`; no independent review/governance approval exists.
+- Open PR divergence from main: #109 5 ahead/4 behind (draft news-intelligence follow-up); #107 3/4; #103 184/7; #101 1/15; #88 26/26; #85 490/19; #83 2/42; #82 1/43; #39 14/103; #30 3/397; #24 2/402; #23 10/403. PR #108 is the only active Stock Brain branch aligned to main. No stale PR was merged or closed.
+- Pages: Production `ab1f9eb5-eb68-4824-9bb4-d7b5c2cea8f5` from main `68c0c7b8a547487073e25ef286b91a3a892b2187`; Preview `f82b5260-3b84-45d8-9a13-b39f9731a48d` from PR head `7345c3333860329413e25800d1f3e33b750e9e3c`, Functions enabled. Direct Preview endpoint response was not independently accessible in this runtime. Preview env contains only the operator-token secret name; Gemini/FMP/Alpaca provider bindings are absent.
+- Production OIDC snapshot run `42878930747` succeeded on push event (attempt 2); logs confirm readiness PASS, protected OIDC snapshot POST success, pre/post reconciliation PASS, execution=false and automatedOrderSubmission=false. A trusted read-only sync snapshot and completion audit were persisted. The schedule `17 */3 * * *` has not yet been observed succeeding on a schedule event.
+- Production D1: migrations `0001`–`0006`; Preview ledger has 12 historical entries; current repository migration folder contains `0001`–`0006`. No Production migration was applied in this work item. Production monitor has 264 runs (55 failed, 209 market_closed), 70 aggregate errors, 0 symbols, 0 quotes and 0 events; latest #264 failed closed on stale/incomplete shortlist. Cache timestamp `2026-11-10T11:04:27.273Z`, last successful refresh `42803828945`; no later scheduled refresh run observed. Worker remains deployment `7326f3e7-f323-4856-badf-aa8b979dffb4` at 100%, cron `*/5 * * * *`; PR #108 FMP auth fix is not Worker-production-verified.
+- Research Council runs/traces remain 0 in Production. Synthetic collector test records 3 COMPLETE, 2 UNAVAILABLE (news/sentiment), 4 BLOCKED downstream and NO_TRADE. No authenticated collector call was made. Paper orders, positions, intents, fills and trade events remain 0; controls remain disabled/paper/kill-switched. Two trusted sync snapshots and one plugin capture exist; plugin capture is excluded. Seven-day baseline earliest possible `2026-11-15T18:34:38.720Z` if scheduled trusted snapshots continue.
+- Strategy validation NOT APPROVED; BUY disabled. Repository visibility unresolved (owner says private; GitHub API reports public); treat contents as publicly accessible until Settings confirms. Do not change visibility.
+- Files updated in this documentation-only work item: README, handbook, blockers, build plan, Stock Brain spec, monitor runbook, paper-readiness runbook, Research Council spec. Audited code SHA `7345c3333860329413e25800d1f3e33b750e9e3c`; PR #108; exact-head CI IDs above apply to the pre-documentation source head, not this docs commit. New docs-head CI must be checked after push. Preview deployment evidence as above; no new deployment requested for docs-only files. Database changes in this audit: NONE (SELECT-only); no secrets read/changed, no broker mutation, no orders, no production migration/control change/deployment.
+- Safety: execution remains disabled, kill switch engaged, no paper/live orders. The separate OIDC workflow success wrote only the intended trusted snapshot and audit after read-only reconciliation.
+- Complete: exact-head PR CI green; Preview deployment succeeded; Production OIDC snapshot route verified from workflow logs and D1 audit. Blockers: independent review/governance; seven-day baseline; cache refresh schedule delivery; Preview provider credentials; verified timestamped news and permitted sentiment; controlled research acceptance; independent strategy validation.
+- Exact next action: obtain independent review/governance for PR #108; verify scheduled OIDC and cache refresh deliveries; keep cache freshness fail-closed; continue trusted snapshots until the seven-day baseline; only then run a controlled research-only Council acceptance. Never enable paper execution or submit orders.

@@ -190,3 +190,13 @@ The latest Production failure is the four-hour shortlist freshness gate, not a n
 - Exact next action: obtain independent formal review/governance for PR #108. After approved merge, separately verify Production Pages/OIDC route and a scheduled read-only snapshot; investigate cache refresh schedule delivery without changing the completed scanner; accumulate a genuine seven-day trusted equity baseline. Only then run one controlled research-only Council acceptance and verify nine roles, vetoes, scorecard, telemetry, durable trace and idempotent replay. Keep execution disabled, kill switch engaged and BUY disabled; never submit any paper or live order.
 
 Cache freshness remains a separate operational incident: latest Production monitor run #248 failed closed; last successful shortlist refresh remains workflow run 42803828945 at 11:00:13Z–11:04:34Z. No cache-age bypass or scanner rebuild was made.
+
+
+## 2026-11-10 23:56 PKT — live Production monitor evidence
+
+- Production Worker deployment `7326f3e7-f323-4856-badf-aa8b979dffb4` remains at 100%; Cron Trigger remains `*/5 * * * *`. No Worker deployment or schedule mutation occurred in this evidence refresh.
+- Production D1 monitor ledger: 264 total runs; 55 failed; 209 market_closed; 70 aggregate errors; 0 symbols checked; 0 monitor_quotes; 0 monitor_events. Latest observed run #264 completed `2026-11-10T19:00:53.758Z` with `Shortlist cache is stale or incomplete; monitoring fail-closed.`.
+- The cache remains generated at `2026-11-10T11:04:27.273Z`, workflow run `42803828945`, source commit `485b1d3f4b7e552fa54f26f09503a1a0e4d6cb74`. Workflow `.github/workflows/refresh-stock-cache.yml` declares `7 */3 * * *`; no later scheduled run was present in the observed Actions history. This is a schedule-delivery/freshness incident, not proof of a scanner-code regression.
+- The Worker correctly stops before quote collection when the cache is stale. Do not relax its four-hour freshness gate, reuse stale candidates, fabricate quotes, or rebuild the user-confirmed completed universe scanner.
+- PR #108 changes FMP authentication transport in `monitor/worker.js`, but that code is not deployed to the Worker. The current monitor run fails before provider quote requests, so this separate FMP fix cannot be called production-verified yet.
+- Exact next action: verify the next scheduled cache refresh and inspect its workflow logs; if schedule delivery remains absent, prepare a narrowly scoped operational fix with regression coverage. Keep the monitor fail-closed until a fresh validated cache is published. No database writes/migrations, secrets, broker calls, orders or control changes were made in this audit.

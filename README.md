@@ -105,3 +105,11 @@ The SEC ingestion workflow now creates a separate bounded sample cross-checked a
 
 
 Repository visibility is unresolved: GitHub API metadata currently reports `public` while the owner states it is `private`. Do not change visibility without explicit authorization; treat repository contents as publicly accessible until GitHub Settings confirms otherwise.
+
+
+## Latest verified Northstar checkpoint
+
+- Active phase: nine-agent Research Council / Stock Brain. Universe scanning remains complete; do not rebuild it without a demonstrated regression.
+- Main: `68c0c7b8a547487073e25ef286b91a3a892b2187`. Active PR #108 head: `7345c3333860329413e25800d1f3e33b750e9e3c`, 83 ahead / 0 behind, mergeable, but awaiting independent review and governance. Exact-head Tests, Validate and secret scan runs `42879636217`, `42879636245`, `42879636208` passed.
+- Production OIDC snapshot workflow run `42878930747` successfully completed read-only sync and pre/post reconciliation with execution disabled. Production Pages deployment: `ab1f9eb5-eb68-4824-9bb4-d7b5c2cea8f5`; Stock Brain Preview: `f82b5260-3b84-45d8-9a13-b39f9731a48d`.
+- Production Research Council acceptance remains pending: no durable Council runs/traces exist, a genuine seven-day trusted equity baseline is not yet available, Preview provider secrets are absent, and the market monitor remains fail-closed on a stale shortlist. Keep execution disabled, kill switch engaged and BUY disabled.
