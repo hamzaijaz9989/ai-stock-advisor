@@ -82,7 +82,7 @@ export async function verifyNorthstarSnapshotOidcToken(token,{fetcher=fetch,now=
     if(!["schedule","workflow_dispatch","push"].includes(claims.event_name)) return null;
     const runId=String(claims.run_id||"");
     const runAttempt=Number(claims.run_attempt);
-    if(!/^\\d{1,20}$/.test(runId)||!Number.isSafeInteger(runAttempt)||runAttempt<1||runAttempt>1000) return null;
+    if(!/^\d{1,20}$/.test(runId)||!Number.isSafeInteger(runAttempt)||runAttempt<1||runAttempt>1000) return null;
     if(!/^[a-f0-9]{40}$/i.test(String(claims.sha||""))||! /^[a-f0-9]{40}$/i.test(String(claims.workflow_sha||""))) return null;
     return {
       runId,runAttempt,commitSha:String(claims.sha).toLowerCase(),
