@@ -56,3 +56,12 @@ The monitor rotates through the configured allowlist in two-symbol batches. This
 - This change does not enable paper-order execution or live trading.
 - The request ledger counts monitor FMP attempts only. Other Northstar components using the same FMP account/key must preserve the 50-call headroom; they are not automatically charged against this monitor ledger.
 - The FMP daily reset timezone is not assumed. The ledger uses UTC dates; verify the provider's reset boundary before relying on exact end-of-day alignment.
+
+
+## Runtime audit — 2026-11-12
+
+The latest production audit is recorded in [Provider Health Audit](../docs/PROVIDER_HEALTH_AUDIT_2026-11-12.md).
+
+Important environment separation: `FMP_API_KEY` in Cloudflare Pages Production does not automatically configure the separate `northstar-market-monitor` Worker. The current Worker settings did not list the FMP binding and included a deletion annotation. Production monitor runs recorded FMP HTTP 401 fallbacks. The user must set/update `FMP_API_KEY` as a Worker Secret as well as in Pages Production; secret values must never be pasted into chat or committed.
+
+Finnhub is configured as a Worker Secret and is confirmed in recent production quote rows. It successfully served FMP fallback requests in the latest market-session runs, although a transient symbol-level provider failure was also observed. This is runtime evidence, not a guarantee of universal symbol coverage.
