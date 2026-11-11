@@ -93,7 +93,8 @@
     history.scrollTop=0;
     history.dataset.back="dashboard";
     history.setAttribute("aria-label",agent.name+" execution history");
-    $("agent-detail-view").scrollIntoView({behavior:"smooth",block:"start"});
+    document.body.style.overflow="hidden";
+    $("agent-detail-close").focus();
     history.dataset.role=agent.role;
   }
   async function refreshCouncil(){
@@ -116,12 +117,22 @@
       });
     });
   });
-  $("agent-detail-back").addEventListener("click",()=>{
+  function closeAgentDetails(){
     $("agent-detail-view").hidden=true;
+    document.body.style.overflow="";
     [".main > .pagehead","#overview",".main > .layout",".main > .lower",".main > .footer"].forEach(selector=>{
       const node=document.querySelector(selector);if(node)node.hidden=false;
     });
-    window.scrollTo({top:0,behavior:"smooth"});
+    const opener=document.querySelector('[data-agent="'+$("agent-detail-history").dataset.role+'"]');
+    if(opener)opener.focus();
+  }
+  $("agent-detail-back").addEventListener("click",closeAgentDetails);
+  $("agent-detail-close").addEventListener("click",closeAgentDetails);
+  $("agent-detail-view").addEventListener("click",event=>{
+    if(event.target===$("agent-detail-view"))closeAgentDetails();
+  });
+  document.addEventListener("keydown",event=>{
+    if(event.key==="Escape"&&!$("agent-detail-view").hidden)closeAgentDetails();
   });
 
   const chat=$("northstar-chat"),launch=$("northstar-chat-launch"),messages=$("chat-messages");
