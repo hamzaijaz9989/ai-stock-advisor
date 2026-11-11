@@ -27,7 +27,7 @@
     row.append(label,content);root.appendChild(row);
   }
   function findAgentRecord(run,role){return Array.isArray(run?.agents)?run.agents.find(item=>item?.role===role):null;}
-  function showAgent(agent){
+  async function showAgent(agent){
     const dashboard=document.querySelector(".main > .pagehead");
     const stats=document.getElementById("overview");
     const layout=document.querySelector(".main > .layout");
@@ -47,19 +47,49 @@
     addDataRow(summary,"Run created",safeTime(council?.latestRun?.createdAt));
     const data=$("agent-detail-data");data.replaceChildren();
     if(record){
-      const safeEntries=Object.entries(record).filter(([key])=>!/(secret|token|password|authorization|api.?key|credential)/i.test(key));
-      if(safeEntries.length) safeEntries.forEach(([key,value])=>addDataRow(data,key,value));
-      else data.textContent="The persisted agent record contains no additional displayable fields.";
+      addDataRow(data,"Persisted role status",record.status||"UNKNOWN");
+      addDataRow(data,"Ticker",council?.latestRun?.symbol||"Not recorded");
+      addDataRow(data,"Note","Detailed report fields are loaded from the allowlisted agent detail endpoint.");
     } else data.textContent="No persisted execution record for this agent. The agent is not shown as running.";
     const history=$("agent-detail-history");history.replaceChildren();
-    const matches=(Array.isArray(runs)?runs:[]).map(run=>({run,record:findAgentRecord(run,agent.role)})).filter(item=>item.record);
-    if(!matches.length) history.textContent="No historical execution records found for this agent.";
-    else matches.slice(0,12).forEach(({run,record})=>{
-      const row=document.createElement("div");row.className="agent-data-row";
-      const label=document.createElement("b");label.textContent=String(record.status||"UNKNOWN").replaceAll("_"," ")+" · "+String(run.symbol||"UNKNOWN");
-      const detail=document.createElement("span");detail.textContent=safeTime(run.createdAt);
-      row.append(label,detail);history.appendChild(row);
-    });
+    const ticker=String(council?.latestRun?.symbol||"").toUpperCase();
+    if(!ticker){history.textContent="No ticker-specific Research Council run is available. No agent history can be displayed.";data.textContent="No persisted report exists for this agent yet."; }
+    else {
+      try{
+        const response=await fetch("/api/research/agent?symbol="+encodeURIComponent(ticker)+"&role="+encodeURIComponent(agent.role),{headers:{Accept:"application/json"},cache:"no-store"});
+        const detail=await response.json();
+        if(!response.ok||detail.ok!==true)throw new Error(detail.error||"Agent detail unavailable");
+        const latest=detail.latest;
+        data.replaceChildren();
+        if(!latest){data.textContent="No detailed persisted report for this agent."; }
+        else {
+          const report=latest.agent;
+          addDataRow(data,"Agent status",report.status);
+          addDataRow(data,"Execution duration (ms)",report.durationMs);
+          addDataRow(data,"Unavailable reason",report.unavailableReason||report.reason);
+          addDataRow(data,"Evidence references",report.evidenceCount);
+          const findings=document.createElement("div");findings.className="agent-data-row";
+          const fh=document.createElement("b");fh.textContent="FINDINGS";
+          findings.appendChild(fh);
+          if(report.findings?.length)report.findings.forEach(item=>{const p=document.createElement("span");p.textContent=item.claim+" · Evidence: "+(item.factIds||[]).join(", ");findings.appendChild(p);});
+          else {const p=document.createElement("span");p.textContent="No findings recorded.";findings.appendChild(p);}
+          data.appendChild(findings);
+          const risks=document.createElement("div");risks.className="agent-data-row";
+          const rh=document.createElement("b");rh.textContent="RISKS / LIMITATIONS";
+          risks.appendChild(rh);
+          if(report.risks?.length)report.risks.forEach(item=>{const p=document.createElement("span");p.textContent=item.claim+" · Evidence: "+(item.factIds||[]).join(", ");risks.appendChild(p);});
+          else {const p=document.createElement("span");p.textContent="No risks recorded.";risks.appendChild(p);}
+          data.appendChild(risks);
+        }
+        if(detail.history?.length)detail.history.slice(0,12).forEach(item=>{
+          const row=document.createElement("div");row.className="agent-data-row";
+          const label=document.createElement("b");label.textContent=String(item.agent.status||"UNKNOWN").replaceAll("_"," ")+" · "+item.symbol;
+          const when=document.createElement("span");when.textContent=safeTime(item.createdAt);
+          row.append(label,when);history.appendChild(row);
+        });
+        else history.textContent="No historical execution records found for this agent.";
+      }catch(error){data.textContent="Agent detail unavailable: "+(error.message||"request failed");history.textContent="No verified history available.";}
+    }
     history.scrollTop=0;
     history.dataset.back="dashboard";
     history.setAttribute("aria-label",agent.name+" execution history");
