@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote, classifyQuoteFailure } from "../monitor/worker.js";
+import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, reserveFmpRequest } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.deepEqual(parseWatchZone("NOT ENTRY-READY — Model entry watch zone: $34.01–$36.28; base-case reference"),{low:34.01,high:36.28});
@@ -46,6 +46,66 @@ function yahooQuotePayload(timestampSeconds, price = 210, previousClose = 200) {
  };
 }
 
+function fakeFmpBudgetDb() {
+ return {
+  prepare(sql) {
+   return {
+    run: async () => ({ success: true }),
+    bind: (...args) => ({ first: async () => ({ requests: 1 }) })
+   };
+  }
+ };
+}
+
+test("FMP Free universe exactly matches the canonical 87-symbol account whitelist in order",()=>{
+ const expected = ["AAPL","TSLA","AMZN","MSFT","NVDA","GOOGL","META","NFLX","JPM","V","BAC","PYPL","DIS","T","PFE","COST","INTC","KO","TGT","NKE","SPY","BA","BABA","XOM","WMT","GE","CSCO","VZ","JNJ","CVX","PLTR","SQ","SHOP","SBUX","SOFI","HOOD","RBLX","SNAP","AMD","UBER","FDX","ABBV","ETSY","MRNA","LMT","GM","F","LCID","CCL","DAL","UAL","AAL","TSM","SONY","ET","MRO","COIN","RIVN","RIOT","CPRX","VWO","SPYG","NOK","ROKU","VIAC","ATVI","BIDU","DOCU","ZM","PINS","TLRY","WBA","MGM","NIO","C","GS","WFC","ADBE","PEP","UNH","CARR","HCA","TWTR","BILI","SIRI","FUBO","RKT"];
+ assert.equal(FMP_FREE_SYMBOLS.length,87);
+ assert.equal(new Set(FMP_FREE_SYMBOLS).size,87);
+ assert.deepEqual(FMP_FREE_SYMBOLS,expected);
+ const batch=getFmpScanBatch(new Date("2026-11-10T15:00:00.000Z"));
+ assert.equal(batch.length,2);
+ assert.ok(batch.every(symbol=>expected.includes(symbol)));
+ assert.notDeepEqual(batch,getFmpScanBatch(new Date("2026-11-10T15:05:00.000Z")));
+});
+
+test("FMP rotation covers all 87 allowed symbols within 44 five-minute runs",()=>{
+ const start=Date.parse("2026-11-10T15:00:00.000Z");
+ const covered=new Set();
+ for(let run=0;run<44;run++) {
+  for(const symbol of getFmpScanBatch(new Date(start+run*5*60*1000))) covered.add(symbol);
+ }
+ assert.equal(covered.size,87);
+ assert.ok(FMP_FREE_SYMBOLS.every(symbol=>covered.has(symbol)));
+});
+
+test("atomic FMP budget reservation allows 200 attempts and rejects attempt 201",async()=>{
+ let requests=0;
+ const db={
+  prepare(sql) {
+   assert.match(sql,/ON CONFLICT\(day\) DO UPDATE SET requests=requests\+1 WHERE requests < \?/);
+   return {
+    bind(day,limit) {
+     assert.equal(day,"2026-11-11");
+     assert.equal(limit,200);
+     return {first:async()=>{
+      if(requests>=limit) return null;
+      requests+=1;
+      return {requests};
+     }};
+    }
+   };
+  }
+ };
+ for(let attempt=1;attempt<=200;attempt++) {
+  assert.equal(await reserveFmpRequest(db,new Date("2026-11-11T12:00:00.000Z")),attempt);
+ }
+ await assert.rejects(
+  reserveFmpRequest(db,new Date("2026-11-11T12:00:00.000Z")),
+  /FMP daily request budget exhausted/
+ );
+ assert.equal(requests,200);
+});
+
 test("FMP quote uses the documented apikey query parameter and never sends a custom key header", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
@@ -74,7 +134,7 @@ test("FMP quote uses the documented apikey query parameter and never sends a cus
 test("FMP stale quotes fall back to a fresh Yahoo quote without exposing the key", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
- const quote = await getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key" }, async (input) => {
+ const quote = await getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key", NORTHSTAR_DB: fakeFmpBudgetDb() }, async (input) => {
   const url = new URL(String(input));
   calls.push(url.hostname);
   if (url.hostname === "financialmodelingprep.com") {
@@ -109,7 +169,7 @@ test("missing FMP key uses Yahoo only and never attempts an FMP request", async 
 test("FMP and Yahoo failures both fail closed instead of returning an unverified quote", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  await assert.rejects(
-  getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key" }, async (input) => {
+  getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key", NORTHSTAR_DB: fakeFmpBudgetDb() }, async (input) => {
    const host = new URL(String(input)).hostname;
    return new Response("", { status: host === "financialmodelingprep.com" ? 401 : 503 });
   }, now),

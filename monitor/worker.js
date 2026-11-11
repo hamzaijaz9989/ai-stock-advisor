@@ -3,7 +3,9 @@ const QUOTE_HOSTS = ["query1.finance.yahoo.com","query2.finance.yahoo.com"];
 const MAX_CACHE_AGE_MS = 4 * 60 * 60 * 1000;
 const MAX_QUOTE_AGE_MS = 15 * 60 * 1000;
 const MAX_FUTURE_QUOTE_SKEW_MS = 2 * 60 * 1000;
-const MAX_SYMBOLS = 10;
+export const FMP_FREE_SYMBOLS = Object.freeze(["AAPL","TSLA","AMZN","MSFT","NVDA","GOOGL","META","NFLX","JPM","V","BAC","PYPL","DIS","T","PFE","COST","INTC","KO","TGT","NKE","SPY","BA","BABA","XOM","WMT","GE","CSCO","VZ","JNJ","CVX","PLTR","SQ","SHOP","SBUX","SOFI","HOOD","RBLX","SNAP","AMD","UBER","FDX","ABBV","ETSY","MRNA","LMT","GM","F","LCID","CCL","DAL","UAL","AAL","TSM","SONY","ET","MRO","COIN","RIVN","RIOT","CPRX","VWO","SPYG","NOK","ROKU","VIAC","ATVI","BIDU","DOCU","ZM","PINS","TLRY","WBA","MGM","NIO","C","GS","WFC","ADBE","PEP","UNH","CARR","HCA","TWTR","BILI","SIRI","FUBO","RKT"]);
+const FMP_DAILY_LIMIT = 200;
+const FMP_REQUESTS_PER_SCAN = 2;
 const MAX_CONCURRENCY = 1;
 const QUOTE_REQUEST_GAP_MS = 900;
 const MAX_YAHOO_ATTEMPTS = 3;
@@ -81,6 +83,19 @@ export function parseWatchZone(text) {
 function dateKey(date) {
   const p=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date).map(x=>[x.type,x.value]));
   return p.year+p.month+p.day;
+}
+export function getFmpScanBatch(date = new Date()) {
+  const bucket = Math.floor(date.getTime() / (5 * 60 * 1000));
+  const start = ((bucket * FMP_REQUESTS_PER_SCAN) % FMP_FREE_SYMBOLS.length);
+  return Array.from({length:FMP_REQUESTS_PER_SCAN},(_,i)=>FMP_FREE_SYMBOLS[(start+i)%FMP_FREE_SYMBOLS.length]);
+}
+export async function reserveFmpRequest(db, now = new Date()) {
+  if (!db) throw new Error("FMP daily budget unavailable: NORTHSTAR_DB binding missing");
+  const day = now.toISOString().slice(0,10);
+  const row = await db.prepare("INSERT INTO fmp_request_budget(day,requests) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET requests=requests+1 WHERE requests < ? RETURNING requests")
+    .bind(day,FMP_DAILY_LIMIT).first();
+  if (!row) throw new Error("FMP daily request budget exhausted");
+  return Number(row.requests);
 }
 export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
   const url = new URL("https://financialmodelingprep.com/stable/quote");
@@ -162,6 +177,7 @@ export async function getYahooQuote(symbol, fetchImpl = fetch, now = Date.now())
 export async function getQuote(symbol, env, fetchImpl = fetch, now = Date.now()) {
   if (env.FMP_API_KEY) {
     try {
+      await reserveFmpRequest(env.NORTHSTAR_DB, new Date(now));
       return await getFmpQuote(symbol, env.FMP_API_KEY, fetchImpl, now);
     } catch (fmpError) {
       try {
@@ -219,13 +235,15 @@ async function scan(env) {
       await db.prepare("UPDATE monitor_runs SET completed_at=?,status='market_closed',detail=? WHERE id=?").bind(new Date().toISOString(),"US regular session closed; monitor intentionally idle.",runId).run();
       return {status:"market_closed",checked:0,errors:0};
     }
+    if (env.FMP_API_KEY) await db.prepare("CREATE TABLE IF NOT EXISTS fmp_request_budget (day TEXT PRIMARY KEY, requests INTEGER NOT NULL DEFAULT 0)").run();
     const response=await fetch(CACHE_URL,{headers:{Accept:"application/json"},cf:{cacheTtl:0},signal:AbortSignal.timeout(10000)});
     if(!response.ok) throw new Error("Shortlist cache HTTP "+response.status);
     const cache=await response.json();
     const cacheAge=Date.now()-Date.parse(cache.completedAt||cache.generatedAt||"");
     if(!Number.isFinite(cacheAge)||cacheAge<0||cacheAge>MAX_CACHE_AGE_MS||cache.status!=="success"||!Array.isArray(cache.stocks)) throw new Error("Shortlist cache is stale or incomplete; monitoring fail-closed.");
-    const candidates=cache.stocks.slice(0,MAX_SYMBOLS).filter(s=>/^[A-Z0-9.^=-]{1,12}$/.test(s.ticker));
-    const results=await bounded(candidates,MAX_CONCURRENCY,async symbol=>{try{return await getQuote(symbol,env);}finally{await sleep(QUOTE_REQUEST_GAP_MS);}});
+    const shortlistBySymbol = new Map(cache.stocks.filter(s=>/^[A-Z0-9.^=-]{1,12}$/.test(s.ticker)).map(s=>[s.ticker,s]));
+    const candidates = getFmpScanBatch().map(ticker=>shortlistBySymbol.get(ticker)||{ticker,entryStatus:""});
+    const results=await bounded(candidates,MAX_CONCURRENCY,async stock=>{try{return await getQuote(stock.ticker,env);}finally{await sleep(QUOTE_REQUEST_GAP_MS);}});
     const at=new Date().toISOString(), day=dateKey(new Date());
     for(let i=0;i<results.length;i++) {
       const result=results[i], stock=candidates[i];
@@ -242,7 +260,7 @@ async function scan(env) {
     }
     const status=errors===0?"success":checked>0?"partial":"failed";
     const failureSummary=[...quoteFailureCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
-    const detail="Checked "+checked+" of "+candidates.length+" candidates; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"");
+    const detail="Checked "+checked+" of "+candidates.length+" rotating FMP Free-universe candidates; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"");
     await db.prepare("UPDATE monitor_runs SET completed_at=?,status=?,symbols_checked=?,errors=?,detail=? WHERE id=?").bind(at,status,checked,errors,detail,runId).run();
     return {status,checked,errors,at};
   } catch(error) {
