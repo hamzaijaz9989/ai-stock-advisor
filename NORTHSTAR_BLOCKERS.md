@@ -1009,3 +1009,17 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Read-only Pages API smoke checks were attempted for monitor, research-council, research-status, stock-brain, health, and scan paths. All were blocked at the outbound network boundary with 403 `requests to ai-stock-advisor.pages.dev are not allowed`; these are inconclusive connectivity failures, not application HTTP responses.
 - No source code or production state changed; no DB writes, migrations, deployment, provider-secret changes, or broker actions. Paper execution remains disabled.
 - Next exact action: run existing tests and one full council request from an authorized preview/connected runtime; capture the exact commit, run ID, role statuses, missing resources, evidence references, scorecard, and durable trace. Keep validated BUY disabled.
+
+
+## 2026-11-12 — Phase 2 exact-head CI and integration-state audit
+
+- Rechecked open PRs rather than assuming the nine-agent work is merged into main.
+- PR #108 (Stock Brain integration) remains open and non-draft. Its exact head is `8fe6e0ce07069a4bf50026cce8a33bbfc0ab1760`; exact-head GitHub Actions runs all completed successfully: Tests #42883689085, Validate #42883689055, full-history secret scan #42883689056.
+- PR #118 (Cloudflare-native autonomous research orchestration) remains open and draft. Exact head `95dc116735e755046f6cc30cff2eaca308287f41`; exact-head Actions all passed: Validate #43004808966, Tests #43004808684, full-history secret scan #43004808836.
+- These passing CI runs prove repository checks on their respective PR heads only. They do not prove PR merge, Preview/Production deployment, a real-provider nine-role run, verified portfolio-context acceptance, durable trace persistence, idempotent replay, or dashboard end-to-end behavior.
+- Main's latest documentation commits have no status checks/workflow runs attached in the GitHub connector response; do not claim main CI passed from those empty results.
+- Open PR #108 description explicitly records outstanding acceptance: production Research Council runs/traces remain zero; Preview is not provisioned for real-provider acceptance; provider/runtime and trusted portfolio baseline gates remain.
+- Open PR #118 likewise records required exact-head Preview acceptance, durable trace/replay verification, lease/concurrency recovery tests and portfolio/strategy gates.
+- A direct production Pages API probe from the connected Cloudflare execution environment was blocked by outbound 403 before reaching the application. Therefore no runtime API status is inferred from that probe.
+- No PR was merged, no code deployed, no D1 writes/migrations, no secret changes, no broker requests or orders. Paper execution remains disabled; kill switch remains engaged.
+- Next exact acceptance: use an authorized Preview runtime with its own D1 binding and explicit verified portfolio snapshot; invoke the protected research collector once in read-only mode; verify all nine role statuses, evidence references/timestamps, missing-resource behavior, deterministic Risk Committee veto, persisted run/decision trace and idempotent replay; then verify the dashboard against that exact Preview deployment. Keep BUY disabled.
