@@ -10,6 +10,21 @@ AAPL, TSLA, AMZN, MSFT, NVDA, GOOGL, META, NFLX, JPM, V, BAC, PYPL, DIS, T, PFE,
 
 The implementation and automated tests must match this list exactly, including membership and order. Do not silently add, remove, rename, or substitute symbols.
 
+## Secondary quote provider: Finnhub
+
+Finnhub is an optional secondary quote provider configured with the Cloudflare Worker secret `FINNHUB_API_KEY`.
+
+Provider routing is deliberately subscription-aware:
+- If a ticker is in the exact FMP Free-plan allowlist, Northstar tries FMP first and reserves an FMP request from the daily monitor budget.
+- If the ticker is outside that allowlist, Northstar skips FMP entirely and does not spend an FMP request.
+- If FMP fails, Northstar tries Finnhub when `FINNHUB_API_KEY` is configured.
+- Yahoo Finance remains the final fallback only; every provider quote must pass the same timestamp and positive-price checks.
+- Finnhub's free quote endpoint is not a historical OHLC/candles replacement. Use another validated source for backtesting and historical bars.
+- Finnhub free access is subject to its personal-use terms. Do not use this key for a commercial or shared service without written permission from Finnhub.
+- A missing Finnhub key leaves the existing FMP-to-Yahoo behavior intact.
+
+The Finnhub token is sent in the `X-Finnhub-Token` request header, never exposed in browser code or logged. The quote's provider timestamp is required; missing, stale, future-dated, zero, or malformed quotes fail closed.
+
 ## Request-budget policy
 
 - FMP Free-plan stated allowance: 250 API calls per day.
