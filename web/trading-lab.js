@@ -514,8 +514,7 @@
       root.appendChild(sampleNotice);
       const metrics=[
         ["Strategy total return",sampleAdequate?fmtPct(data.strategy?.totalReturnPercent):"INSUFFICIENT SAMPLE","Historical diagnostic; not a live or paper return"],
-        ["Trade-ledger compounded return",sampleAdequate?fmtPct(data.ledgerTotalReturnPercent):"INSUFFICIENT SAMPLE","Historical diagnostic; not a live or paper return"],
-        ["Trade-ledger compounded return",fmtPct(data.ledgerTotalReturnPercent),"Same entries, exits and assumed costs as the daily equity curve"],
+        ["Trade-ledger compounded return",sampleAdequate?fmtPct(data.ledgerTotalReturnPercent):"INSUFFICIENT SAMPLE","Same entries, exits and assumed costs as the daily equity curve"],
         ["Equity / ledger difference",data.reconciliationDifferencePercent===null||data.reconciliationDifferencePercent===undefined?"—":Number(data.reconciliationDifferencePercent).toFixed(6)+" pp","Expected to be approximately zero"],
         ["Reconciliation status",String(data.reconciliationStatus||"NOT REPORTED"),"A mismatch means do not interpret headline performance"],
         ["Strategy annualized return",sampleAdequate?fmtPct(data.strategy?.annualizedReturnPercent):"INSUFFICIENT SAMPLE"],
