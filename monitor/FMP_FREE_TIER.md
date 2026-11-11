@@ -27,7 +27,7 @@ The Finnhub token is sent in the `X-Finnhub-Token` request header, never exposed
 
 ## Expanded shortlist coverage through Finnhub
 
-The monitor continues rotating two symbols from the exact FMP allowlist per five-minute run. In addition, it now checks up to ten valid symbols from the current research shortlist that are outside the FMP allowlist. These symbols skip FMP entirely and route to Finnhub when `FINNHUB_API_KEY` is configured; otherwise they use the existing Yahoo fallback. This keeps the FMP budget isolated while allowing Northstar's research shortlist to include stocks beyond the 87 FMP-supported symbols.
+The monitor continues rotating two symbols from the exact FMP allowlist per five-minute run. In addition, it checks a rotating batch of up to ten valid symbols from the current research shortlist that are outside the FMP allowlist. The batch cursor advances every five-minute scan, so larger shortlists are covered over successive runs instead of repeatedly selecting only the first ten. These symbols skip FMP entirely and route to Finnhub when `FINNHUB_API_KEY` is configured; otherwise they use the existing Yahoo fallback. This keeps the FMP budget isolated while allowing Northstar's research shortlist to include stocks beyond the 87 FMP-supported symbols.
 
 Finnhub requests are serialized by the monitor's existing single-concurrency queue and request gap. The provider's free-tier rate limit must still be respected; the implementation does not assume historical-candle access or a guaranteed daily allowance.
 
