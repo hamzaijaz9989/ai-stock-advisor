@@ -18,7 +18,7 @@ function summarize(row){
   symbol:/^[A-Z][A-Z0-9.-]{0,11}$/.test(String(row.symbol||"").toUpperCase())?String(row.symbol).toUpperCase():"UNKNOWN",
   status:allowedRunStatus.has(result?.status)?result.status:"TRACE_UNAVAILABLE",
   createdAt:typeof row.created_at==="string"?row.created_at:null,
-  agents:AGENT_ROLES.map(role=>({role,status:byRole.get(role)||"NOT_RUN"}))
+  agents:AGENT_ROLES.map(role=>{const agent=(Array.isArray(result?.agents)?result.agents:[]).find(x=>x?.role===role);const t=agent?.telemetry&&typeof agent.telemetry==="object"?agent.telemetry:null;return {role,status:byRole.get(role)||"NOT_RUN",latencyMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,provider:typeof t?.provider==="string"?t.provider:null,model:typeof t?.model==="string"?t.model:null,failed:t?.failed===true,unavailable:t?.unavailable===true,inputTokens:Number.isSafeInteger(t?.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t?.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t?.totalTokens)?t.totalTokens:null}})
  };
 }
 export async function onRequestGet({request,env}){

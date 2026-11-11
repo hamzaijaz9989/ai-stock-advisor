@@ -110,7 +110,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
     status:approvedForReview?"RESEARCH_REVIEW_REQUIRED":"NO_TRADE",
     execution:false, automatedOrderSubmission:false,
     decisionAuthority:"Deterministic Northstar risk and validation gates remain authoritative; council output is advisory only.",
-    agents:all.map(x=>({role:x.role,status:x.status,reason:x.reason||null})),
+    agents:all.map(x=>({role:x.role,status:x.status,reason:x.reason||null,telemetry:workers?.telemetry?.[x.role] ? {latencyMs:workers.telemetry[x.role].latencyMs,provider:workers.telemetry[x.role].provider||null,model:workers.telemetry[x.role].model||null,failed:workers.telemetry[x.role].failed===true,unavailable:workers.telemetry[x.role].unavailable===true,inputTokens:workers.telemetry[x.role].inputTokens??null,outputTokens:workers.telemetry[x.role].outputTokens??null,totalTokens:workers.telemetry[x.role].totalTokens??null} : null})),
     reports:all.filter(x=>x.report).map(x=>({role:x.role,report:x.report})),
     vetoReasons:approvedForReview?[]:[
       ...all.filter(x=>x.status!=="COMPLETE").map(x=>x.reason||x.role+" did not complete."),
