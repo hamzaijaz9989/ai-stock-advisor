@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote } from "../monitor/worker.js";
+import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote, classifyQuoteFailure } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.deepEqual(parseWatchZone("NOT ENTRY-READY — Model entry watch zone: $34.01–$36.28; base-case reference"),{low:34.01,high:36.28});
@@ -46,7 +46,7 @@ function yahooQuotePayload(timestampSeconds, price = 210, previousClose = 200) {
  };
 }
 
-test("FMP quote uses the single canonical key in the apikey header, not the URL", async () => {
+test("FMP quote uses the documented apikey query parameter and no custom key header", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
  const quote = await getFmpQuote("AAPL", "test-only-fmp-key", async (input, init) => {
@@ -60,8 +60,12 @@ test("FMP quote uses the single canonical key in the apikey header, not the URL"
   }]);
  }, now);
  assert.equal(calls.length, 1);
- assert.equal(new URL(calls[0].url).searchParams.has("apikey"), false);
- assert.equal(calls[0].headers.get("apikey"), "test-only-fmp-key");
+ const url = new URL(calls[0].url);
+ assert.equal(url.origin, "https://financialmodelingprep.com");
+ assert.equal(url.pathname, "/stable/quote");
+ assert.equal(url.searchParams.get("symbol"), "AAPL");
+ assert.equal(url.searchParams.get("apikey"), "test-only-fmp-key");
+ assert.equal(calls[0].headers.get("apikey"), null);
  assert.equal(quote.source, "Financial Modeling Prep");
  assert.ok(Math.abs(quote.changePct - 5) < 1e-9);
  assert.equal(quote.price, 210);
@@ -111,6 +115,14 @@ test("FMP and Yahoo failures both fail closed instead of returning an unverified
   }, now),
   /FMP failed .*Yahoo fallback failed/
  );
+});
+
+test("quote failure diagnostics retain provider and status classes without raw error details",()=>{
+ const classified=classifyQuoteFailure(new Error("FMP failed (FMP quote HTTP 401); Yahoo fallback failed (Yahoo quote HTTP 429)"));
+ assert.equal(classified,"fmp_http_401+yahoo_http_429");
+ assert.equal(classified.includes("test-only-fmp-key"),false);
+ assert.equal(classifyQuoteFailure("FMP quote timestamp missing, stale, or unexpectedly in the future"),"fmp_stale_quote");
+ assert.equal(classifyQuoteFailure("Yahoo quote request timed out"),"yahoo_timeout");
 });
 
 test("FMP quote rejects a missing provider timestamp", async () => {

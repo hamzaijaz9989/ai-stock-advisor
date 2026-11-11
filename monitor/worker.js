@@ -82,8 +82,9 @@ function dateKey(date) {
 export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
   const url = new URL("https://financialmodelingprep.com/stable/quote");
   url.searchParams.set("symbol", symbol);
+  url.searchParams.set("apikey", apiKey);
   const response = await fetchImpl(url.toString(), {
-    headers: { Accept: "application/json", apikey: apiKey },
+    headers: { Accept: "application/json" },
     signal: AbortSignal.timeout(7000)
   });
   if (!response.ok) throw new Error("FMP quote HTTP " + response.status);
@@ -144,6 +145,29 @@ export async function getQuote(symbol, env, fetchImpl = fetch, now = Date.now())
   }
   return getYahooQuote(symbol, fetchImpl, now);
 }
+function quoteFailureCategory(message) {
+  const value=String(message||"").toLowerCase();
+  const status=value.match(/\bhttp\s+(\d{3})\b/);
+  if(status) return "http_"+status[1];
+  if(/rate.?limit|too many requests/.test(value)) return "rate_limited";
+  if(/timestamp missing|stale|unexpectedly in the future/.test(value)) return "stale_quote";
+  if(/invalid price|no usable price|empty quote|no quote/.test(value)) return "invalid_quote";
+  if(/timeout|timed out|abort/.test(value)) return "timeout";
+  if(/fetch failed|network|connection|dns/.test(value)) return "network_error";
+  return "provider_error";
+}
+export function classifyQuoteFailure(error) {
+  const message=String(error?.message||error||"");
+  const fmp=message.match(/FMP failed \(([^)]*)\)/i);
+  const yahoo=message.match(/Yahoo fallback failed \(([^)]*)\)/i);
+  const categories=[];
+  if(fmp) categories.push("fmp_"+quoteFailureCategory(fmp[1]));
+  if(yahoo) categories.push("yahoo_"+quoteFailureCategory(yahoo[1]));
+  if(categories.length) return categories.join("+");
+  if(/\bFMP\b/i.test(message)) return "fmp_"+quoteFailureCategory(message);
+  if(/\bYahoo\b/i.test(message)) return "yahoo_"+quoteFailureCategory(message);
+  return quoteFailureCategory(message);
+}
 async function bounded(items,limit,fn) {
   const out=new Array(items.length); let next=0;
   await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{while(true){const i=next++;if(i>=items.length)return;try{out[i]={ok:true,value:await fn(items[i])};}catch(error){out[i]={ok:false,error:String(error?.message||error)};}}}));
@@ -160,6 +184,7 @@ async function scan(env) {
   const run=await db.prepare("INSERT INTO monitor_runs(started_at,status) VALUES(?, 'running')").bind(started).run();
   const runId=run.meta?.last_row_id;
   let checked=0,errors=0;
+  const quoteFailureCounts=new Map();
   try {
     if(!isUsMarketOpen()) {
       await db.prepare("UPDATE monitor_runs SET completed_at=?,status='market_closed',detail=? WHERE id=?").bind(new Date().toISOString(),"US regular session closed; monitor intentionally idle.",runId).run();
@@ -175,7 +200,7 @@ async function scan(env) {
     const at=new Date().toISOString(), day=dateKey(new Date());
     for(let i=0;i<results.length;i++) {
       const result=results[i], stock=candidates[i];
-      if(!result.ok){errors++;continue;}
+      if(!result.ok){errors++;const category=classifyQuoteFailure(result.error);quoteFailureCounts.set(category,(quoteFailureCounts.get(category)||0)+1);continue;}
       const q=result.value, zone=parseWatchZone(stock.entryStatus);
       const inside=Boolean(zone&&q.price>=zone.low&&q.price<=zone.high);
       const prior=await db.prepare("SELECT in_watch_zone FROM monitor_quotes WHERE symbol=?").bind(q.symbol).first();
@@ -187,7 +212,9 @@ async function scan(env) {
       checked++;
     }
     const status=errors===0?"success":checked>0?"partial":"failed";
-    await db.prepare("UPDATE monitor_runs SET completed_at=?,status=?,symbols_checked=?,errors=?,detail=? WHERE id=?").bind(at,status,checked,errors,"Checked "+checked+" of "+candidates.length+" candidates; quote failures: "+errors,runId).run();
+    const failureSummary=[...quoteFailureCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
+    const detail="Checked "+checked+" of "+candidates.length+" candidates; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"");
+    await db.prepare("UPDATE monitor_runs SET completed_at=?,status=?,symbols_checked=?,errors=?,detail=? WHERE id=?").bind(at,status,checked,errors,detail,runId).run();
     return {status,checked,errors,at};
   } catch(error) {
     await db.prepare("UPDATE monitor_runs SET completed_at=?,status='failed',symbols_checked=?,errors=?,detail=? WHERE id=?").bind(new Date().toISOString(),checked,errors,String(error?.message||error).slice(0,500),runId).run();
