@@ -2,7 +2,7 @@
   "use strict";
   const $ = id => document.getElementById(id);
   const CAPITAL = 1000;
-  const RISK_PCT_MAX = 1;
+  const RISK_PCT_MAX = 2.5;
   const STORAGE_KEY = "northstar-trading-lab-plans-v1";
   const money = value => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD",maximumFractionDigits:2}).format(value);
   const safeReadPlans = () => {
@@ -31,7 +31,7 @@
       Number.isFinite(riskPct) && riskPct > 0 && riskPct <= RISK_PCT_MAX;
     if (!valid) {
       $("quantity").textContent = "NO TRADE";
-      $("risk-result").textContent = "Enter a valid ticker, an entry above a positive stop, and a risk budget from 0.1% to 1%.";
+      $("risk-result").textContent = "Enter a valid ticker, an entry above a positive stop, and a risk budget from 0.1% to 2.5% ($25 maximum).";
       return null;
     }
     const perShareRisk = entry - stop;
