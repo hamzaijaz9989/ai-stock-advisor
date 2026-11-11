@@ -214,3 +214,23 @@ Additional rules:
 - Safety note: the paper account's reported USD 100,000 equity/buying power is not the pilot budget. The module caps the pilot policy at USD 2,500 and must be wired to a separately persisted virtual ledger before execution can exist.
 - Latest feature-branch commit at this tracker update: `410e7ec12511d8f515d64c825609364c16e949be`. The tracker commit itself will advance the branch head.
 - Next: wire the policy only into a disabled-by-default, authenticated paper-only preview path; inspect and test persistent execution controls and D1 ledger; then implement broker submission only after the strategy and runtime acceptance gates are met.
+
+
+## 8. 2026-11-11 — Continuation audit and Preview database isolation
+
+- Main was refreshed to commit `def7967ec208a32a87a7d83498669b42dbffaef4`; documentation changes passed Tests, Validate, and full-history secret scan. The latest Production Pages deployment still serves the prior application commit `d6457bf16757d49c92dd178454299a106bed6af5` successfully; docs-only commits do not change app code.
+- Read-only Cloudflare inspection found Preview and Production had both been configured with the production `northstar-paper-ledger` D1 binding. Corrected Preview only to the existing `northstar-preview` D1 database and verified Production remained unchanged. Preview currently has only the operator-token secret binding name; provider credentials were not read or copied.
+- Production controls remain disabled, paper mode, kill switch engaged; the production allocation constraint is still USD 1,000. User-approved pilot caps are USD 2,500 allocation, USD 25 max planned risk per trade, and USD 50 daily loss stop. The current production collector and execution-control schema still enforce the old USD 1,000 configuration; the approved policy module on this branch is not yet integrated into a complete submission lifecycle.
+- Production read-only counts: 0 orders, positions, intents, trade events, research council runs and decision traces; 440 monitor runs but 0 quotes/events. Five equity snapshots span less than seven days. Production does not have the `northstar_strategy_approval` table. The separate Preview database already has strategy-approval and expanded lifecycle tables but currently contains no research runs, traces, orders, or snapshots.
+- Current branch contains a pure fail-closed pilot policy, tests, and research-run lease migration/collector integration. These are previews and safeguards only; they do not submit orders. Lease renewal/heartbeat and targeted concurrency/recovery tests remain open. The collector still assumes the old $1,000 portfolio configuration and seven-day equity baseline.
+- Strategy validation remains NOT APPROVED. No point-in-time historical dataset, 100-trade sample, four walk-forward folds, untouched holdout, or independent review is evidenced. BUY remains disabled; automatic paper execution remains disabled.
+- Branch/PR hygiene: PR #118 is 16 commits ahead and 3 behind the latest main at this audit. Reconcile with main and verify CI against the exact resulting head before review/merge. Do not merge based on older successful CI alone.
+- No production D1 writes/migrations, broker requests, orders, secret reads/writes, execution-control changes, or production deployments occurred. Only the Preview D1 binding was changed. Read-only SQL queries reported zero rows written.
+
+### Next exact work items
+1. Reconcile the feature branch with current main and refresh the tracker/blocker evidence.
+2. Finish lease renewal/expiry/concurrency tests and inspect idempotent recovery under interruption.
+3. Integrate the approved $2,500/$25/$50 pilot policy with the virtual ledger and risk controls without changing production controls; add tests for sector exposure, daily baseline, allocation reservations, concurrency and order lifecycle.
+4. Complete the read-only nine-agent dashboard status/history integration and verify a controlled Preview research run after the required Preview provider secrets are configured securely.
+5. Establish the seven-day read-only equity baseline, complete real point-in-time strategy validation, and independent review.
+6. Only after all gates pass, conduct a separate final paper-only activation review. Never enable live trading.
