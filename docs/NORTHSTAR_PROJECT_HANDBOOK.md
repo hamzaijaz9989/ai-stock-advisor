@@ -287,3 +287,11 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - Trading Lab now includes a nine-agent status panel and recent durable run list. It only reads status; it does not start research or execute orders.
 - Acceptance pending exact-head CI and successful Preview deployment of the dashboard change. Preview currently has no durable Council runs, so the UI must honestly show an empty ledger until a controlled run is accepted.
 - Lease renewal/heartbeat and concurrency/recovery testing remain outstanding. Execution remains disabled and kill switch engaged.
+
+
+## 2026-11-11 — Preview research dashboard and lease schema verified
+- The nine-agent Trading Lab panel and sanitized status endpoint are deployed successfully in Preview. A live page scrape confirmed the panel and approved $25/$50 limits; the status API reports nine roles and no runs yet.
+- The new lease migration is correctly sequenced as `0013_research_council_run_leases.sql` after Preview's existing migration 0012. It has been applied and verified in the isolated Preview D1 database only.
+- No Preview Council run has been recorded yet. Provider secret bindings required by the collector are absent from Pages Preview (FMP, Alpaca Paper key ID/secret, Gemini). Production secret values were not read or copied.
+- Next step: add the four provider secrets directly in Cloudflare Pages > ai-stock-advisor > Settings > Variables and Secrets > Preview, then run a controlled research-only collection and verify durable trace + idempotent replay. Never paste secret values into ChatGPT.
+- Production remains untouched; paper execution disabled, kill switch engaged and BUY disabled.

@@ -258,3 +258,12 @@ Additional rules:
 - Acceptance criteria: exact-head GitHub Tests workflow passes; Preview deployment for the dashboard commit succeeds; browser/API check confirms empty state, all nine roles and no sensitive payload; a separately authorized research-only run later creates a durable trace in Preview.
 - Current Preview D1 has no council run records; therefore current agent activity is **not yet verified**. This is dashboard plumbing, not proof of agents running.
 - Lease heartbeat/renewal and concurrency/recovery tests remain open. Production collection, paper orders and live trading remain disabled.
+
+
+## 2026-11-11 — Preview release acceptance checkpoint
+- GitHub Tests passed for app commit `83950077cf11e0dba4b288b151e91d8c5de66aa8` (run `43003431352`). The status endpoint's explicit `NOT_RUN` case was fixed and separately passed on `1c7dafb...` (run `43003396384`).
+- Cloudflare Preview deployment `2b533ef6-6ae6-4746-a3ef-e6e30089845f` succeeded. Live scrape confirms Trading Lab shows the nine-agent panel, the approved $25 per-trade risk cap and $50 daily stop. The public status endpoint returns `agentCount=9`, `latestRun=null`, and `runs=[]`; no agent execution is claimed.
+- Preview migration history ends at 0012, so the lease migration is now `0013_research_council_run_leases.sql`. Applied only to Preview D1; migration ledger, table and index verified. Production D1 remains unchanged.
+- Preview currently lacks `FMP_API_KEY`, `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` and `GEMINI_API_KEY`. Only `NORTHSTAR_OPERATOR_TOKEN` is configured there. Configure the four provider secrets in the Cloudflare Pages Preview environment before attempting the first real research-only collection. Never paste values into chat.
+- Remaining gates: controlled Preview collector run, durable trace and idempotent replay; lease concurrency/recovery tests; seven-day portfolio baseline; point-in-time strategy validation; complete virtual ledger and paper-order lifecycle.
+- Safety unchanged: USD 1,000 virtual allocation, USD 25 max planned risk per trade, USD 50 daily loss stop. Execution disabled, kill switch engaged, BUY disabled, no real money.

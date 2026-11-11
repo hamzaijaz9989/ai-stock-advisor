@@ -965,3 +965,13 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - This is not yet accepted: exact-head CI and a Preview deployment for the dashboard change must pass, then verify empty-ledger behavior and role status display. Preview currently has no research runs, so no agent completion is claimed.
 - Existing collector lease still has no heartbeat/renewal and targeted concurrency/recovery coverage remains outstanding. Do not run production collection or enable order execution.
 - User-approved limits remain USD 1,000 allocation, USD 25 maximum planned risk per trade, and USD 50 daily loss stop. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-11 — Preview dashboard accepted; Preview lease migration applied
+- GitHub Tests passed on application commit `83950077cf11e0dba4b288b151e91d8c5de66aa8` (push run `43003431352`). The prior status-endpoint failure was corrected by preserving `NOT_RUN` as a valid role state; exact-head run `43003396384` passed for that fix.
+- Cloudflare Pages Preview deployment `2b533ef6-6ae6-4746-a3ef-e6e30089845f` succeeded for `8395007...`. Deployment log confirms Wrangler compiled the Pages Worker and published the assets.
+- Live Preview scrape verified the Trading Lab includes the nine-agent panel, the $25 per-trade cap and $50 daily stop. `GET /api/research/status?limit=5` returns `agentCount: 9`, `latestRun: null`, and an empty run list. This correctly reports that no research run has yet been recorded.
+- Preview D1 ledger showed migrations through `0012_paper_execution_activation_audit.sql`; the lease migration was therefore corrected to `0013_research_council_run_leases.sql` and applied **only to Preview**. Read-only verification confirmed the migration ledger row, lease table and index. No production D1 change was made.
+- Preview D1 currently has zero Research Council runs. A successful dashboard deployment is not proof that all nine agents have completed a real research run.
+- Pages Preview environment currently contains only `NORTHSTAR_OPERATOR_TOKEN`; production additionally has `FMP_API_KEY`, `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` and `GEMINI_API_KEY`. Secret values were not read. A controlled Preview collection remains blocked until the four provider secret bindings are configured in the Pages **Preview** environment.
+- Production deployment and Production D1 were not modified. Keep execution disabled, kill switch engaged and BUY disabled.
