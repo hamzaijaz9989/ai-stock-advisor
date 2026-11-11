@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getFinnhubQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, reserveFmpRequest } from "../monitor/worker.js";
+import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getFinnhubQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, getMonitorCandidates, reserveFmpRequest } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.deepEqual(parseWatchZone("NOT ENTRY-READY — Model entry watch zone: $34.01–$36.28; base-case reference"),{low:34.01,high:36.28});
@@ -66,6 +66,15 @@ test("FMP Free universe exactly matches the canonical 87-symbol account whitelis
  assert.equal(batch.length,2);
  assert.ok(batch.every(symbol=>expected.includes(symbol)));
  assert.notDeepEqual(batch,getFmpScanBatch(new Date("2026-11-10T15:05:00.000Z")));
+});
+
+test("monitor scans additional shortlist symbols outside the FMP allowlist",()=>{
+ const shortlist=[{ticker:"XYZ",entryStatus:"watch"},{ticker:"ABCD",entryStatus:"watch"},{ticker:"AAPL",entryStatus:"supported"},{ticker:"BAD TICKER",entryStatus:"invalid"}];
+ const candidates=getMonitorCandidates(shortlist,new Date("2026-11-10T15:00:00.000Z"));
+ assert.equal(candidates.length,4);
+ assert.deepEqual(candidates.slice(2).map(stock=>stock.ticker),["XYZ","ABCD"]);
+ assert.ok(candidates.slice(0,2).every(stock=>FMP_FREE_SYMBOLS.includes(stock.ticker)));
+ assert.equal(candidates.some(stock=>stock.ticker==="BAD TICKER"),false);
 });
 
 test("FMP rotation covers all 87 allowed symbols within 44 five-minute runs",()=>{
