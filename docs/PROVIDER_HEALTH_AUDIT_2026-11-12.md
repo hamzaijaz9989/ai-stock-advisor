@@ -79,3 +79,16 @@ Direct HTTP probes of the Pages API endpoints were blocked by the connected runt
 - No later monitor run or quote observation is currently present in the queried D1 tables. The configured Cron and deployed version are present, but schedule invocation continuity is **not verified** after run #569. The available evidence does not establish why no later D1 records appeared; do not assume the Cron is disabled or change its schedule without diagnosing invocation logs.
 - The five-minute Cron, Worker deployment, secret bindings, and D1 were inspected read-only. D1 query metadata reported zero rows written and no database change. No secrets were read, no deployment/configuration was changed, and paper execution remains disabled.
 - Follow-up: inspect Worker invocation/exception telemetry and the scheduled-event path before making any runtime change; then verify a new scheduled run and fresh D1 quote persistence. Do not trigger manual order or paper-trading actions.
+
+
+## Correction — scheduled monitor continuity verified (2026-11-12)
+
+The prior follow-up section reported that run #569 was the latest D1 record and that invocation continuity was unverified. A subsequent read-only D1 query and Cloudflare Workers Observability query resolved that apparent gap:
+
+- D1 run #570 started `2026-11-11T20:30:53.254Z` and completed `2026-11-11T20:31:03.480Z`; status `success`, 8 symbols checked, 0 errors, 0 FMP fallbacks.
+- The latest quote observations were persisted around 20:30:58–20:31:02 UTC, including Finnhub-sourced non-FMP symbols.
+- Cloudflare Workers Observability returned 13 scheduled-event records for `northstar-market-monitor` between approximately 19:44 and 20:31 UTC. They show the configured `*/5 * * * *` trigger, event type `scheduled`, outcome `ok`, and active version `60bc9eb2-b4c0-40b1-a33f-db2f18d8cd6f`.
+- The observability query was executed with `dry=true`; no telemetry query result was persisted. D1 checks were SELECT-only and reported `rows_written=0`, `changed_db=false`.
+- No Cron repair, deployment, schedule mutation, D1 write, or secret access was necessary. The earlier apparent gap was caused by checking before the next D1 run had become visible, not a confirmed scheduler failure.
+
+**Current conclusion:** scheduled invocations and D1 persistence are both verified through run #570. Continue monitoring subsequent runs for sustained reliability; this finite window does not prove indefinite uptime.
