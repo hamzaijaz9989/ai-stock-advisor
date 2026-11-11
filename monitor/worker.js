@@ -278,6 +278,7 @@ async function scan(env) {
   const runId=run.meta?.last_row_id;
   let checked=0,errors=0;
   const quoteFailureCounts=new Map();
+  const quoteFailureDetails=[];
   try {
     if(!isUsMarketOpen()) {
       await db.prepare("UPDATE monitor_runs SET completed_at=?,status='market_closed',detail=? WHERE id=?").bind(new Date().toISOString(),"US regular session closed; monitor intentionally idle.",runId).run();
@@ -294,7 +295,7 @@ async function scan(env) {
     const at=new Date().toISOString(), day=dateKey(new Date());
     for(let i=0;i<results.length;i++) {
       const result=results[i], stock=candidates[i];
-      if(!result.ok){errors++;const category=classifyQuoteFailure(result.error);quoteFailureCounts.set(category,(quoteFailureCounts.get(category)||0)+1);continue;}
+      if(!result.ok){errors++;const category=classifyQuoteFailure(result.error);quoteFailureCounts.set(category,(quoteFailureCounts.get(category)||0)+1);quoteFailureDetails.push(stock.ticker+":"+category);continue;}
       const q=result.value, zone=parseWatchZone(stock.entryStatus);
       const inside=Boolean(zone&&q.price>=zone.low&&q.price<=zone.high);
       const prior=await db.prepare("SELECT in_watch_zone FROM monitor_quotes WHERE symbol=?").bind(q.symbol).first();
@@ -307,7 +308,8 @@ async function scan(env) {
     }
     const status=errors===0?"success":checked>0?"partial":"failed";
     const failureSummary=[...quoteFailureCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
-    const detail="Checked "+checked+" quotes: rotating FMP Free-universe symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" non-FMP shortlist symbols; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"");
+    const failureSymbols=quoteFailureDetails.length?" [failed symbols: "+quoteFailureDetails.join(", ").slice(0,240)+"]":"";
+    const detail="Checked "+checked+" quotes: rotating FMP Free-universe symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" non-FMP shortlist symbols; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"")+failureSymbols;
     await db.prepare("UPDATE monitor_runs SET completed_at=?,status=?,symbols_checked=?,errors=?,detail=? WHERE id=?").bind(at,status,checked,errors,detail,runId).run();
     return {status,checked,errors,at};
   } catch(error) {
