@@ -274,3 +274,12 @@ Additional rules:
 - Preview deployment for the collector renewal code (`fe0f18a...`) succeeded. Migration `0013_research_council_run_leases.sql` is applied only to Preview D1.
 - Actual Research Council collection has not run. Preview provider secrets (FMP, Alpaca Paper key ID/secret, Gemini) must be added directly in Cloudflare Pages Preview. No secret values were read or copied.
 - Production remains untouched. Safety limits: USD 1,000 allocation, USD 25 max planned risk per trade, USD 50 daily loss stop; execution disabled, kill switch engaged, BUY disabled.
+
+
+## 2026-11-11 — Percentage-based risk policy replaces fixed $25 per-trade cap
+- User clarified that Northstar must calculate risk mathematically as a percentage, not impose a fixed USD 25 loss per trade. The earlier USD 25 per-trade and USD 50 daily limits are superseded for current configuration; historical entries remain for audit.
+- Implemented in `web/lib/paper-pilot-policy.mjs`: 0.5% of current pilot equity per trade, 1% aggregate open planned risk, 2% daily loss stop, 25% maximum single-position notional, 40% sector exposure, one concurrent position; hard USD 1,000 virtual allocation ceiling.
+- Updated policy tests to cover dynamic equity, stop-distance sizing, aggregate risk remaining, daily loss stop, and non-executing preview. Updated Trading Lab calculator and risk panel to show percentage-based controls.
+- At USD 1,000 equity, initial limits equal USD 5 per trade, USD 10 aggregate open risk, USD 20 daily loss stop, USD 250 position notional, and USD 400 sector exposure. Example: USD 100 position with 5% stop distance risks USD 5; with 2% stop distance it risks USD 2.
+- This is an initial conservative paper-pilot profile, not a profitability guarantee. It must be evaluated using out-of-sample performance and a reconciled virtual ledger. Execution remains disabled and kill switch engaged.
+- Files changed: policy module/tests, Trading Lab HTML/JS, and Trading Lab specification. Exact-head CI and Preview deployment are pending.
