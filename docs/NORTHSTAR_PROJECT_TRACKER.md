@@ -234,3 +234,11 @@ Additional rules:
 4. Complete the read-only nine-agent dashboard status/history integration and verify a controlled Preview research run after the required Preview provider secrets are configured securely.
 5. Establish the seven-day read-only equity baseline, complete real point-in-time strategy validation, and independent review.
 6. Only after all gates pass, conduct a separate final paper-only activation review. Never enable live trading.
+
+
+## 2026-11-11 — User-approved paper allocation corrected to USD 1,000
+- User explicitly superseded the earlier USD 2,500 allocation and confirmed the Northstar paper pilot will use **USD 1,000**. The unchanged risk limits remain USD 25 maximum planned risk per trade and USD 50 daily loss stop.
+- Updated `web/lib/paper-pilot-policy.mjs` allocation cap from USD 2,500 to USD 1,000. Updated `web/lib/paper-pilot-policy.test.mjs` fixtures/assertions and added a pending-order allocation-overflow check.
+- Commits: policy `5d346cad47f58f68827afb2bf4f1699e44c303df`; tests `d2c6d03b58a4ae11a2c87fe4020bfbae6869ab1b`.
+- This is a feature-branch policy/test change only. It does not change production D1, broker settings, deployment, or order behavior. Execution remains disabled, strategy remains unapproved, and the kill switch remains engaged. Exact-head CI and Preview acceptance are still required.
+- Important: the existing collector already has a production $1,000 configuration assumption, but the policy module remains a preview-only sizing gate and is not integrated into a complete broker order lifecycle. Do not interpret this cap correction as paper-trading activation.
