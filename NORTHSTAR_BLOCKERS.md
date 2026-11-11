@@ -970,3 +970,15 @@ The additional review did not issue broker requests or modify any D1 row. These 
 5. Keep order execution disabled and the kill switch engaged. Do not loosen current production controls or infer approval from passing software tests.
 
 **Operational status: partially ready.** Provider authentication correction is deployed and the five-minute monitor schedule is invoking. Live quote retrieval/persistence, fresh-cache acceptance, nine-agent execution, seven-day baseline, strategy validation and paper-order lifecycle are not yet proven. A fully operational trading system cannot honestly be declared before these gates pass.
+
+
+## 2026-11-12 00:55 PKT — GitHub/Pages and market-provider verification
+
+- Latest `main` is `2752b0c0930956c55d274ad1972fc4cf0eaf27d8`. Cloudflare Pages Production deployment `21fd21d5-1bc5-4569-8e76-cc41155a2bc6` succeeded from the exact same commit. The commit adds a push trigger for Worker source/config/workflow changes.
+- Active `northstar-market-monitor` Worker deployment is `55a32182-cda3-47b5-95ab-48e285e78cd7`, version `dd19998b-c4f3-4f1c-a0d1-c7338cd4e7cc`, 100%.
+- **FMP blocker:** Pages Production environment metadata lists an `FMP_API_KEY` secret binding name, but the separate Worker settings do not list `FMP_API_KEY` and contain the annotation `Deleted Secret binding FMP_API_KEY`. Production monitor run #562 records two FMP HTTP 401 fallbacks to Finnhub; run #561 records a TWTR failure after FMP 401, Finnhub provider error and Yahoo 429. The evidence does not establish whether the 401s came from an invalid/expired key or an earlier binding state. The user will update the key in Cloudflare. It must be configured separately as a Worker Secret on `northstar-market-monitor` and as a Pages Production Secret for Pages Functions; Pages and Worker environments do not share bindings.
+- **Finnhub verified:** Worker settings list `FINNHUB_API_KEY`; production D1 contains fresh Finnhub-sourced quote rows and event rows. Run #562 checked 8 symbols with zero final quote errors and successfully fell back to Finnhub for BILI and SIRI. Run #561 shows a transient symbol-level Finnhub error for TWTR, so provider reliability is not assumed universal.
+- Independent FMP connector tests returned valid AAPL quote, company profile, annual income statements and historical EOD data. This is not proof that the Cloudflare application secret works.
+- GitHub combined commit-status API returned no status entries for the latest SHA; exact-head CI remains unverified. Direct Pages API probes were blocked by the runtime egress policy; no public endpoint health result is claimed.
+- All D1 evidence queries were SELECT-only with `rows_written=0` and `changed_db=false`. No secrets were read or changed; no broker requests, orders, migrations, or paper-control changes occurred. Paper execution remains disabled and kill switch remains engaged.
+- Detailed evidence: `docs/PROVIDER_HEALTH_AUDIT_2026-11-12.md`. Next action: user updates the FMP key in the Worker and Pages Production secret stores; then verify the Worker binding and a fresh market-open FMP quote run plus the Pages FMP health check.
