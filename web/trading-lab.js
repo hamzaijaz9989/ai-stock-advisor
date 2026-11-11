@@ -166,6 +166,68 @@
       monitorMetric("monitor-symbols","—");monitorMetric("monitor-errors","—");monitorMetric("monitor-alert-count","—");
     }finally{if(button)button.disabled=false;}
   }
+  const COUNCIL_AGENTS = [
+    ["market_scanner","market-scanner"],["technical_analyst","technical-analyst"],
+    ["fundamental_analyst","fundamental-analyst"],["news_analyst","news-analyst"],
+    ["sentiment_analyst","sentiment-analyst"],["bull_researcher","bull-researcher"],
+    ["bear_researcher","bear-researcher"],["portfolio_analyst","portfolio-analyst"],
+    ["risk_committee","risk-committee"]
+  ];
+  const councilTime = value => {const d=new Date(value||"");return Number.isFinite(d.getTime())?d.toLocaleString():"Not recorded";};
+  function renderCouncilAgents(run){
+    const statuses=new Map((Array.isArray(run?.agents)?run.agents:[]).map(agent=>[agent.role,agent.status]));
+    for(const [role,id] of COUNCIL_AGENTS){
+      const node=$("council-agent-"+id);
+      if(node)node.textContent=run?(statuses.get(role)||"NOT RUN"):"NOT VERIFIED";
+    }
+  }
+  function renderCouncilRuns(runs){
+    const root=$("council-runs");root.replaceChildren();
+    if(!Array.isArray(runs)||!runs.length){
+      const p=document.createElement("p");p.className="muted small";
+      p.textContent="No durable Research Council runs have been recorded yet.";root.appendChild(p);return;
+    }
+    for(const run of runs){
+      const row=document.createElement("div");row.className="journal-row";
+      const left=document.createElement("div");
+      const title=document.createElement("strong");title.textContent=String(run.symbol||"UNKNOWN")+" · "+String(run.status||"UNKNOWN").replaceAll("_"," ");
+      const detail=document.createElement("div");detail.className="muted tiny";
+      const complete=(run.agents||[]).filter(agent=>agent.status==="COMPLETE").length;
+      detail.textContent=councilTime(run.createdAt)+" · "+complete+"/9 roles complete";
+      left.append(title,detail);
+      const state=document.createElement("span");state.className="state";state.textContent=String(run.status||"UNKNOWN").replaceAll("_"," ");
+      row.append(left,state);root.appendChild(row);
+    }
+  }
+  async function loadResearchCouncil(){
+    const status=$("council-status"),button=$("refresh-council");
+    if(status)status.textContent="Refreshing the read-only research ledger…";
+    if(button)button.disabled=true;
+    try{
+      const response=await fetch("/api/research/status?limit=5",{headers:{Accept:"application/json"},cache:"no-store"});
+      const data=await response.json();
+      if(!response.ok||data.ok!==true)throw new Error(data.error||"Research status unavailable");
+      const latest=data.latestRun;
+      if(latest){
+        $("council-latest-status").textContent=String(latest.status||"UNKNOWN").replaceAll("_"," ");
+        $("council-latest-symbol").textContent=String(latest.symbol||"UNKNOWN");
+        $("council-latest-time").textContent=councilTime(latest.createdAt);
+      }else{
+        $("council-latest-status").textContent="NO RUNS";
+        $("council-latest-symbol").textContent="—";
+        $("council-latest-time").textContent="No persisted run";
+      }
+      renderCouncilAgents(latest);
+      renderCouncilRuns(data.runs);
+      if(status)status.textContent="Read-only ledger connected · "+data.agentCount+" specialist roles · checked "+councilTime(data.checkedAt);
+    }catch(error){
+      if(status)status.textContent="Research ledger unavailable · "+(error?.message||"request failed");
+      $("council-latest-status").textContent="UNAVAILABLE";
+      $("council-latest-symbol").textContent="—";$("council-latest-time").textContent="Not verified";
+      renderCouncilAgents(null);renderCouncilRuns([]);
+    }finally{if(button)button.disabled=false;}
+  }
+
   async function loadCandidates() {
     const status = $("scanner-state");
     const root = $("candidates");
@@ -460,5 +522,8 @@
   loadLedgerReadiness();
   $("refresh-monitor").addEventListener("click",loadMonitor);
   loadMonitor();
+  $("refresh-council").addEventListener("click",loadResearchCouncil);
+  loadResearchCouncil();
   window.setInterval(loadMonitor,60000);
+  window.setInterval(loadResearchCouncil,60000);
 })();
