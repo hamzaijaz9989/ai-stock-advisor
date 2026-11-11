@@ -250,3 +250,11 @@ Additional rules:
 - PR #118 remains draft. Exact-head CI is not yet reported by GitHub for the merge commit. Cloudflare Preview and newest Production deployment records are queued, not successful. No new deployment acceptance is claimed.
 - Next: verify CI and deployment stages; review the nine-agent collector, dashboard routes and lease migration; complete Preview end-to-end research-only acceptance and durable trace checks. Do not run a Production collector or change Production D1 until its seven-day portfolio baseline and schema are verified.
 - Safety: paper execution disabled, kill switch engaged, BUY disabled, no orders submitted. No live-money capability is authorized.
+
+
+## 2026-11-11 — Nine-agent status dashboard added (acceptance pending)
+- Implemented `GET /api/research/status`, a read-only/sanitized API that returns the latest five durable runs and exactly nine role/status pairs. It intentionally omits full reports, evidence, portfolio/account values, request IDs and provider payloads.
+- Added the nine-agent Research Council panel and run history to Trading Lab; added `tests/research-status-endpoint.test.mjs`. Existing UI reads only this status endpoint and cannot trigger collection.
+- Acceptance criteria: exact-head GitHub Tests workflow passes; Preview deployment for the dashboard commit succeeds; browser/API check confirms empty state, all nine roles and no sensitive payload; a separately authorized research-only run later creates a durable trace in Preview.
+- Current Preview D1 has no council run records; therefore current agent activity is **not yet verified**. This is dashboard plumbing, not proof of agents running.
+- Lease heartbeat/renewal and concurrency/recovery tests remain open. Production collection, paper orders and live trading remain disabled.
