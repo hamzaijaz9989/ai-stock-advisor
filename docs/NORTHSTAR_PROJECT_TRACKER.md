@@ -242,3 +242,11 @@ Additional rules:
 - Commits: policy `5d346cad47f58f68827afb2bf4f1699e44c303df`; tests `d2c6d03b58a4ae11a2c87fe4020bfbae6869ab1b`.
 - This is a feature-branch policy/test change only. It does not change production D1, broker settings, deployment, or order behavior. Execution remains disabled, strategy remains unapproved, and the kill switch remains engaged. Exact-head CI and Preview acceptance are still required.
 - Important: the existing collector already has a production $1,000 configuration assumption, but the policy module remains a preview-only sizing gate and is not integrated into a complete broker order lifecycle. Do not interpret this cap correction as paper-trading activation.
+
+
+## 2026-11-11 — Reconciliation checkpoint
+- Merged current main `def7967ec208a32a87a7d83498669b42dbffaef4` into the feature branch with merge commit `3de4a359181fe4e41b12fc54c84212c1925a0531`. Preserved current main versions of `NORTHSTAR_BLOCKERS.md`, this handbook and `web/data/top-stocks-cache.json`; retained the research architecture/reuse docs, collector update, lease migration and fail-closed pilot policy/tests.
+- **Current approved limits (supersede all earlier references): USD 1,000 total virtual allocation; USD 25 maximum planned risk per trade; USD 50 daily loss stop.**
+- PR #118 remains draft. Exact-head CI is not yet reported by GitHub for the merge commit. Cloudflare Preview and newest Production deployment records are queued, not successful. No new deployment acceptance is claimed.
+- Next: verify CI and deployment stages; review the nine-agent collector, dashboard routes and lease migration; complete Preview end-to-end research-only acceptance and durable trace checks. Do not run a Production collector or change Production D1 until its seven-day portfolio baseline and schema are verified.
+- Safety: paper execution disabled, kill switch engaged, BUY disabled, no orders submitted. No live-money capability is authorized.
