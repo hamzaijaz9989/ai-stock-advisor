@@ -504,20 +504,29 @@
       const provider=document.createElement("div");provider.className="warning";
       provider.textContent="DATA SOURCE · "+(data.source||"Unknown")+" · "+(data.sourceStatus||"STATUS UNKNOWN")+" · SPY: "+(data.benchmarkSource||"Unknown");
       root.appendChild(provider);
+      const completedTradeCount=Number(data.completedTrades)||0;
+      const sampleAdequate=completedTradeCount>=20;
+      const sampleNotice=document.createElement("div");
+      sampleNotice.className="warning";
+      sampleNotice.textContent=sampleAdequate
+        ? "SAMPLE CHECK · "+completedTradeCount+" completed trades. This is still experimental historical analysis, not proof of future performance."
+        : "INSUFFICIENT SAMPLE · Only "+completedTradeCount+" completed trade(s). Strategy return, annualized return, win rate and profit factor are withheld. At least 20 completed trades are required even for a preliminary sample review; this does not establish a validated strategy.";
+      root.appendChild(sampleNotice);
       const metrics=[
-        ["Strategy total return",fmtPct(data.strategy?.totalReturnPercent),"Daily equity curve; compare with the compounded trade ledger below"],
+        ["Strategy total return",sampleAdequate?fmtPct(data.strategy?.totalReturnPercent):"INSUFFICIENT SAMPLE","Historical diagnostic; not a live or paper return"],
+        ["Trade-ledger compounded return",sampleAdequate?fmtPct(data.ledgerTotalReturnPercent):"INSUFFICIENT SAMPLE","Historical diagnostic; not a live or paper return"],
         ["Trade-ledger compounded return",fmtPct(data.ledgerTotalReturnPercent),"Same entries, exits and assumed costs as the daily equity curve"],
         ["Equity / ledger difference",data.reconciliationDifferencePercent===null||data.reconciliationDifferencePercent===undefined?"—":Number(data.reconciliationDifferencePercent).toFixed(6)+" pp","Expected to be approximately zero"],
         ["Reconciliation status",String(data.reconciliationStatus||"NOT REPORTED"),"A mismatch means do not interpret headline performance"],
-        ["Strategy annualized return",fmtPct(data.strategy?.annualizedReturnPercent)],
+        ["Strategy annualized return",sampleAdequate?fmtPct(data.strategy?.annualizedReturnPercent):"INSUFFICIENT SAMPLE"],
         ["Strategy maximum drawdown",fmtPct(data.strategy?.maxDrawdownPercent)],
         ["Strategy annualized volatility",fmtPct(data.strategy?.volatilityPercent)],
         ["SPY buy-and-hold return",fmtPct(data.spyBuyHold?.totalReturnPercent)],
         ["SPY maximum drawdown",fmtPct(data.spyBuyHold?.maxDrawdownPercent)],
         ["Completed trades",data.completedTrades??"—","Open-at-end positions are excluded"],
         ["Open at test end",data.openAtEnd??"—"],
-        ["Win rate",fmtPct(data.winRatePercent),"Completed trades only"],
-        ["Profit factor",Number.isFinite(Number(data.profitFactor))?Number(data.profitFactor).toFixed(2):"INSUFFICIENT DATA"],
+        ["Win rate",sampleAdequate?fmtPct(data.winRatePercent):"INSUFFICIENT SAMPLE","Requires at least 20 completed trades for preliminary review"],
+        ["Profit factor",sampleAdequate&&Number.isFinite(Number(data.profitFactor))?Number(data.profitFactor).toFixed(2):"INSUFFICIENT SAMPLE"],
         ["Walk-forward positive folds",String(data.walkForward?.positiveFolds??"—")+"/"+String(data.walkForward?.totalFolds??"—")]
       ];
       const grid=document.createElement("div");grid.className="stat-grid";
