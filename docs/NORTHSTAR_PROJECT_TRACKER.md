@@ -283,3 +283,9 @@ Additional rules:
 - At USD 1,000 equity, initial limits equal USD 5 per trade, USD 10 aggregate open risk, USD 20 daily loss stop, USD 250 position notional, and USD 400 sector exposure. Example: USD 100 position with 5% stop distance risks USD 5; with 2% stop distance it risks USD 2.
 - This is an initial conservative paper-pilot profile, not a profitability guarantee. It must be evaluated using out-of-sample performance and a reconciled virtual ledger. Execution remains disabled and kill switch engaged.
 - Files changed: policy module/tests, Trading Lab HTML/JS, and Trading Lab specification. Exact-head CI and Preview deployment are pending.
+
+
+### Risk-engine precision follow-up
+- Daily loss stop is anchored to the persisted session-start equity baseline (2% of that baseline), while per-trade and aggregate open risk use current pilot equity. This prevents a losing session from silently shrinking its own daily-stop threshold.
+- The policy now requires both current pilot equity and session-start equity as explicit inputs; missing baseline fails closed. Added a regression test for this distinction.
+- Exact-head CI and Preview verification are pending for the latest follow-up commit.
