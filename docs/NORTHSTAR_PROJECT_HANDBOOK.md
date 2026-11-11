@@ -272,3 +272,11 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - PR #118 remains open, documentation-only in its actual diff, and behind current main. It is not paper execution implementation. Reconcile its contents and claims before merge.
 - Strategy validation remains NOT APPROVED; validated BUY and automatic paper execution remain disabled. No production D1 writes/migrations, broker actions, orders, secret reads/writes or production deployments occurred in this audit. Only the Preview D1 binding was changed.
 - Next exact action: reconcile PR #118, then implement and verify the nine-agent research dashboard path in isolated Preview before advancing to portfolio-history, strategy-validation and paper-lifecycle acceptance.
+
+
+## 2026-11-11 — Branch reconciliation and release status
+- Feature branch `northstar/cloudflare-research-orchestration` now includes current main `def7967ec208a32a87a7d83498669b42dbffaef4` through merge commit `3de4a359181fe4e41b12fc54c84212c1925a0531`. Current main versions of the blocker log, handbook and top-stocks cache were retained; feature implementation files were preserved.
+- PR #118 is still a draft and requires exact-head CI, Preview acceptance and review. Do not merge or deploy its research changes solely because the branch has been reconciled.
+- User-approved limits supersede every older value in historical notes: **USD 1,000 total virtual allocation, USD 25 maximum planned risk per trade, USD 50 daily loss stop**.
+- Cloudflare Pages currently reports a new main deployment and a feature Preview deployment queued at the last check. Their build stage is not successful yet; the last confirmed successful Production deployment is still the earlier `d6457bf` application commit.
+- No production D1 migration/write, provider secret mutation, broker request or order submission was performed in this milestone. Keep paper execution disabled, kill switch engaged and BUY disabled.
