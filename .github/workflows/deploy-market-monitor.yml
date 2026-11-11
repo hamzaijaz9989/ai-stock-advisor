@@ -2,6 +2,12 @@ name: Deploy Northstar market monitor
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'monitor/worker.js'
+      - 'monitor/wrangler.toml'
+      - '.github/workflows/deploy-market-monitor.yml'
 
 permissions:
   contents: read
