@@ -3,113 +3,288 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#080a0d">
-<meta name="description" content="Northstar AI Trading Lab — verified research and paper portfolio overview.">
+<meta name="theme-color" content="#070b12">
+<meta name="description" content="Northstar AI Trading Lab — a risk-first market intelligence and paper portfolio workspace.">
 <title>Northstar AI — Trading Lab</title>
 <style>
-:root{color-scheme:dark;--bg:#080a0d;--panel:#11161d;--panel2:#151c25;--line:#29333e;--muted:#8b98a7;--text:#eef3f8;--silver:#dce4ed;--green:#8ee5a2;--red:#ff858b;--amber:#efc56e;--blue:#83b9ff}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -30%,#263443 0,transparent 55%),var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,sans-serif}a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}.topbar{height:64px;position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:30px;padding:0 24px;background:#090d12ed;border-bottom:1px solid #ffffff12;backdrop-filter:blur(18px)}.brand{display:flex;align-items:center;gap:10px;font-weight:850;letter-spacing:.04em;white-space:nowrap}.mark{font-size:26px;color:#e5edf5}.brand small{display:block;color:var(--muted);font-size:9px;letter-spacing:.12em;font-weight:600}.toplinks{display:flex;align-items:center;gap:24px;color:#aeb9c5;font-size:11px;font-weight:700}.toplinks a.active{color:#fff;background:#dce4ed1b;border:1px solid #dce4ed30;border-radius:8px;padding:8px 13px}.right{margin-left:auto;color:#9da9b5;font-size:11px}.shell{display:grid;grid-template-columns:190px minmax(0,1fr);min-height:calc(100vh - 64px)}.sidebar{padding:22px 12px;border-right:1px solid #ffffff12;background:#0b0f14}.side-title{padding:0 10px 12px;color:#73808d;font-size:9px;font-weight:850;letter-spacing:.16em}.side a{display:flex;gap:10px;align-items:center;padding:10px;border-radius:8px;color:#9ba7b3;font-size:11px;margin:3px 0}.side a.active,.side a:hover{background:#dce4ed18;color:#f5f8fb;border:1px solid #dce4ed20}.side-note{margin:28px 8px;padding-top:16px;border-top:1px solid #ffffff13;color:#7f8b98;font-size:10px}.main{width:min(1500px,100%);padding:22px 24px 40px;margin:0 auto}.pagehead{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}.pagehead h1{font-size:22px;letter-spacing:-.04em;margin:0}.pagehead p{margin:4px 0 0;color:var(--muted);font-size:11px}.paper-tag{border:1px solid #66542e;color:#f0d28c;background:#1a170f;border-radius:20px;padding:6px 11px;font-size:9px;font-weight:850;letter-spacing:.12em}.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}.stat,.panel{border:1px solid var(--line);border-radius:12px;background:linear-gradient(145deg,#151c24,#10151c);box-shadow:0 10px 28px #0004;min-width:0}.stat{padding:13px 14px}.stat label{display:block;color:#91a0af;font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}.stat strong{display:block;margin-top:7px;font-size:22px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.stat small{display:block;margin-top:4px;color:#83909d;font-size:9px}.green{color:var(--green)}.muted{color:var(--muted)}.layout{display:grid;grid-template-columns:1.1fr 1.2fr .9fr;gap:12px;align-items:stretch}.panel{padding:14px}.panelhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}.panelhead h2{font-size:13px;margin:0;letter-spacing:-.02em}.panelhead small{color:var(--muted);font-size:9px}.state{border:1px solid #43515d;color:#aebbc7;border-radius:6px;padding:4px 7px;font-size:8px;font-weight:800;letter-spacing:.08em}.state.good{color:var(--green);border-color:#315a3e}.state.warn{color:var(--amber);border-color:#5d4d2e}.chart-placeholder{height:178px;display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed #34414e;border-radius:9px;background:linear-gradient(180deg,#101b27,#0e141b);color:#8e9baa;font-size:11px;padding:16px}.quote-list,.list{display:grid;gap:0}.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid #ffffff10;font-size:10px}.row:last-child{border:0}.row strong{font-size:11px}.agents{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.agent{border:1px solid #303b46;border-radius:8px;background:#111922;padding:9px;min-height:59px}.agent b{display:block;font-size:9px}.agent span{display:block;margin-top:5px;color:#9aa8b5;font-size:8px;text-transform:uppercase;letter-spacing:.07em}.agent [data-state="COMPLETE"]{color:var(--green)}.agent [data-state="BLOCKED"],.agent [data-state="UNAVAILABLE"]{color:var(--red)}.decision{border-color:#39444f}.decision .decision-state{font-size:23px;font-weight:850;letter-spacing:-.04em;margin:12px 0 7px}.decision p{font-size:10px;color:#9ba8b4}.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border:1px solid #596775;border-radius:8px;background:linear-gradient(#e7edf3,#b9c4ce);color:#101820;font-size:9px;font-weight:850}.btn.secondary{background:#18222c;color:#dce5ed;border-color:#354554}.lower{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px}.lower .panel{min-height:150px}.footer{margin-top:18px;color:#697684;font-size:9px;display:flex;justify-content:space-between;gap:12px}.legacy{display:none!important}
-@media(max-width:1100px){.stats{grid-template-columns:repeat(3,1fr)}.layout{grid-template-columns:1fr 1fr}.decision{grid-column:span 2}.lower{grid-template-columns:1fr 1fr}.toplinks{gap:12px}}
-@media(max-width:700px){.topbar{height:56px;padding:0 14px}.toplinks{display:none}.shell{display:block}.sidebar{display:flex;overflow:auto;padding:7px;border-right:0;border-bottom:1px solid #ffffff12}.side-title,.side-note{display:none}.side{display:flex;gap:4px}.side a{white-space:nowrap;padding:8px;font-size:10px}.main{padding:16px 12px 30px}.pagehead h1{font-size:19px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{padding:11px}.stat strong{font-size:19px}.layout{grid-template-columns:1fr}.decision{grid-column:auto}.lower{grid-template-columns:1fr}.agents{grid-template-columns:repeat(3,minmax(0,1fr))}.footer{display:block;line-height:2}}
+:root{color-scheme:dark;--bg:#070b12;--bg2:#0a111b;--panel:#0d1722;--panel2:#101d2a;--line:#203242;--line2:#29495b;--text:#eaf5fb;--muted:#8499a9;--cyan:#6de7f2;--lime:#c8ff59;--violet:#a99cff;--amber:#f6c66c;--red:#ff858e;--green:#76e0ae;--shadow:0 18px 60px #0005}
+*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:110px}body{margin:0;background:radial-gradient(ellipse at 15% -10%,#123347 0,transparent 35%),radial-gradient(ellipse at 100% 8%,#211d46 0,transparent 28%),var(--bg);color:var(--text);font:14px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;letter-spacing:.005em}a{color:var(--cyan);text-decoration:none}button,input{font:inherit}button{cursor:pointer}.wrap{width:min(1440px,100% - 44px);margin:auto}
+.topbar{height:70px;position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;padding:0 max(22px,calc((100vw - 1440px)/2));border-bottom:1px solid #243949;background:#070d16eF;backdrop-filter:blur(20px)}.brand{display:flex;align-items:center;gap:11px;color:var(--text);font-size:14px;font-weight:900;letter-spacing:.13em}.brand-mark{width:36px;height:36px;border:1px solid #3c7381;border-radius:12px;display:grid;place-items:center;color:var(--cyan);font-size:19px;box-shadow:inset 0 0 20px #55d9e51c}.brand span:last-child{color:var(--lime)}.head-right{display:flex;align-items:center;gap:12px}.navlink{color:#b6c8d4;font-size:12px;font-weight:750}.mode-pill,.micro-pill,.state{display:inline-flex;align-items:center;gap:7px;border:1px solid #315263;border-radius:999px;padding:6px 10px;color:#b8e9ed;font-size:10px;font-weight:850;letter-spacing:.1em}.mode-pill:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 12px var(--amber)}
+.hero{padding:34px 0 22px;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,.7fr);gap:24px;align-items:end}.eyebrow{font-size:10px;font-weight:900;letter-spacing:.2em;color:var(--cyan);text-transform:uppercase}.hero h1{font-size:clamp(35px,5vw,62px);line-height:.98;letter-spacing:-.065em;margin:12px 0}.hero h1 em{font-style:normal;color:var(--cyan)}.hero p{color:#9db1c0;max-width:700px;margin:14px 0 0;font-size:14px}.hero-side{border:1px solid #2b4b5b;background:linear-gradient(140deg,#102633d9,#11152bd9);border-radius:20px;padding:17px 19px;box-shadow:var(--shadow)}.hero-side .tiny{color:#7f9aaa;font-size:9px;letter-spacing:.17em;font-weight:900}.hero-side strong{display:block;font-size:20px;margin-top:5px}.hero-side p{font-size:11px;margin:4px 0 0}
+.control-strip{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 16px}.control-strip .micro-pill{border-radius:8px;background:#0d1a25}.micro-pill.ok{color:var(--green);border-color:#285b4a}.micro-pill.warn{color:var(--amber);border-color:#67522f}.micro-pill.lock{color:var(--red);border-color:#653941}
+.nav{display:flex;gap:7px;overflow-x:auto;position:sticky;top:70px;z-index:20;padding:10px 0 13px;background:#070b12eF;backdrop-filter:blur(16px);scrollbar-width:none}.nav::-webkit-scrollbar{display:none}.nav a{white-space:nowrap;border:1px solid #253b4b;background:#0b1520;border-radius:9px;padding:8px 12px;color:#a8bdcb;font-size:10px;font-weight:850;letter-spacing:.08em}.nav a:hover,.nav a:focus-visible{border-color:var(--cyan);color:var(--cyan)}
+.section{margin:15px 0 18px}.section-head{display:flex;align-items:end;justify-content:space-between;gap:15px;margin:0 0 11px}.section-head h2{margin:4px 0 0;font-size:19px;letter-spacing:-.04em}.section-head p{margin:3px 0 0;color:var(--muted);font-size:11px}.section-index{color:#6e899b;font-size:9px;letter-spacing:.17em;font-weight:900}
+.card{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,#0e1b28f5,#0a121df5);padding:19px;box-shadow:var(--shadow);min-width:0}.card:before{content:"";position:absolute;inset:0 0 auto;height:1px;background:linear-gradient(90deg,transparent,#68d8e555,transparent);pointer-events:none}.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.span-12{grid-column:span 12}.span-8{grid-column:span 8}.span-7{grid-column:span 7}.span-6{grid-column:span 6}.span-5{grid-column:span 5}.span-4{grid-column:span 4}
+.stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.stat{border:1px solid #20394a;border-radius:13px;padding:14px;background:linear-gradient(145deg,#102433,#0b1722)}.stat label{display:block;color:#83a0b1;font-size:9px;font-weight:900;letter-spacing:.15em;text-transform:uppercase}.stat strong{display:block;margin-top:8px;font-size:clamp(21px,2.6vw,32px);line-height:1.05;letter-spacing:-.04em;font-variant-numeric:tabular-nums}.stat small{display:block;color:#728b9d;font-size:10px;margin-top:7px}.stat.hero-stat{background:linear-gradient(135deg,#10313b,#102331);border-color:#317080}.stat.hero-stat strong{color:var(--cyan)}.muted{color:var(--muted)}.small{font-size:11px}.tiny{font-size:9px}.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.card-head h2{font-size:15px;letter-spacing:-.025em;margin:0}.card-head p{font-size:10px;color:var(--muted);margin:4px 0 0}.state{border-radius:7px;padding:5px 8px;color:var(--amber);border-color:#5b4d31}.state.good{color:var(--green);border-color:#285c4c}.state.bad{color:var(--red);border-color:#653b43}
+.warning{display:flex;align-items:center;gap:10px;border:1px solid #5b4a2e;background:#1d1b15;color:#e9cc91;padding:12px 15px;border-radius:12px;font-size:11px;margin:14px 0}.warning b{color:#ffe0a0}.warning .lockicon{font-size:17px}
+.modules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.module{border:1px solid #203949;border-radius:11px;padding:12px;background:#0c1924;min-width:0}.module b{display:block;font-size:11px}.module span{display:block;color:#819aaa;font-size:9px;margin-top:5px;line-height:1.4}
+.candidate{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid #203544}.candidate:last-child{border-bottom:0}.candidate-link{display:flex;align-items:center;gap:12px;min-width:0;color:inherit}.ticker{color:var(--cyan);font-weight:900;font-size:14px;flex:0 0 58px}.candidate-link .muted{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.score{font-weight:850;font-variant-numeric:tabular-nums;color:#d9e9f0}.candidate-link:hover .ticker{text-decoration:underline}.linkrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field label{display:block;color:#8ea7b7;font-size:10px;letter-spacing:.1em;font-weight:800;margin-bottom:6px}.field input{width:100%;border:1px solid #2b4658;border-radius:10px;background:#07111a;color:var(--text);padding:12px;outline:none}.field input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #6de7f21a}.result{border:1px solid #326070;background:linear-gradient(135deg,#102a35,#0c1a27);border-radius:13px;padding:14px;margin-top:13px}.result strong{display:block;font-size:27px;color:var(--lime);letter-spacing:-.04em}.result .muted{color:#8faab9}
+button{border:1px solid transparent;border-radius:10px;padding:11px 14px;font-size:11px;font-weight:850;letter-spacing:.035em}button.primary{background:linear-gradient(110deg,var(--lime),#8df5a5);color:#10170c}button.secondary{background:#10202d;border-color:#315064;color:#d5e6ee}button:hover{filter:brightness(1.08)}button:disabled{opacity:.55;cursor:not-allowed}
+.journal-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #203544;font-size:11px}.journal-row:last-child{border-bottom:0}.journal-row strong{color:#e5f1f6}
+.dash-foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:28px 0 42px;color:#71899a;font-size:10px}.section-anchor{scroll-margin-top:128px}
+@media(min-width:1100px){.hero{padding-top:45px}.card{padding:22px}.grid{gap:16px}}
+@media(max-width:820px){.wrap{width:min(100% - 28px,700px)}.hero{grid-template-columns:1fr;padding-top:27px}.hero-side{display:none}.span-8,.span-7,.span-6,.span-5,.span-4{grid-column:span 12}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.modules{grid-template-columns:repeat(2,minmax(0,1fr))}.nav{top:60px}.topbar{height:60px;padding:0 14px}.nav{top:60px}.card{padding:16px}.section-head h2{font-size:17px}}
+@media(max-width:420px){.wrap{width:calc(100% - 22px)}.hero h1{font-size:39px}.mode-pill{font-size:8px;padding:6px 8px}.brand{font-size:12px}.brand-mark{width:32px;height:32px}.stat{padding:12px}.stat strong{font-size:23px}.form-grid{gap:9px}.card{border-radius:15px}}
 
-/* Mobile navigation inspired by the supplied Northstar phone concept. */
-@media(max-width:700px){.topbar{height:auto;min-height:56px;display:flex;flex-wrap:wrap;gap:0;padding:8px 12px 0}.brand{min-height:44px}.right{margin-left:auto}.toplinks{order:3;display:flex!important;width:100%;overflow-x:auto;gap:8px;padding:7px 0 9px;scrollbar-width:none;border-top:1px solid #ffffff10}.toplinks::-webkit-scrollbar{display:none}.toplinks a{flex:0 0 auto;padding:7px 10px;border:1px solid #ffffff14;border-radius:8px;font-size:10px}.toplinks a.active{padding:7px 10px}.sidebar{display:none}.main{padding-bottom:100px}.mobile-bottom-nav{position:fixed;z-index:25;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(8,13,19,.96);border-top:1px solid #ffffff20;backdrop-filter:blur(18px)}.mobile-nav-item{display:flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:7px 2px;border:1px solid transparent;border-radius:11px;color:#9eacba;text-decoration:none}.mobile-nav-item span{font-size:20px;line-height:1}.mobile-nav-item small{font-size:9px;font-weight:700;white-space:nowrap}.mobile-nav-item.active{color:#f2f6fa;background:linear-gradient(145deg,#273544,#121b25);border-color:#718294;box-shadow:inset 0 1px 0 #ffffff25}.chat-launch{bottom:calc(78px + env(safe-area-inset-bottom))!important}.northstar-chat{bottom:calc(130px + env(safe-area-inset-bottom))!important}.agent-detail-view{z-index:60}}
-@media(min-width:701px){.mobile-bottom-nav{display:none}}
+/* Trading Lab refinement: restrained terminal-grade depth and real agent-state accents. */
+.agent-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.agent-grid .module{position:relative;min-height:88px;padding:14px 14px 13px 17px;border-color:#263f50;background:linear-gradient(145deg,#101f2c,#0a141f);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.agent-grid .module:before{content:"";position:absolute;left:0;top:13px;bottom:13px;width:2px;border-radius:2px;background:#526575;opacity:.7}
+.agent-grid .module:hover{transform:translateY(-3px);border-color:#4b8292;box-shadow:0 12px 28px #0007,0 0 22px #4bd7e512}
+.agent-grid .module b{font-size:11px;letter-spacing:.015em}
+.agent-grid .module span{font-size:9px;letter-spacing:.08em;font-weight:800;text-transform:uppercase}
+.agent-grid .module[data-state="COMPLETE"]:before{background:var(--green);box-shadow:0 0 12px #76e0ae99}
+.agent-grid .module[data-state="COMPLETE"] span{color:var(--green)}
+.agent-grid .module[data-state="BLOCKED"]:before,.agent-grid .module[data-state="UNAVAILABLE"]:before{background:var(--red);box-shadow:0 0 12px #ff858e66}
+.agent-grid .module[data-state="BLOCKED"] span,.agent-grid .module[data-state="UNAVAILABLE"] span{color:var(--red)}
+.agent-grid .module[data-state="NOT_RUN"]:before{background:#647b8a}
+.council-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0}
+.council-metric{border:1px solid #243e4e;border-radius:11px;background:#0a1621;padding:12px 14px}
+.council-metric label{display:block;color:#8299a8;font-size:9px;font-weight:850;letter-spacing:.13em;text-transform:uppercase}
+.council-metric strong{display:block;margin-top:5px;font-size:20px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.council-progress{height:4px;margin-top:10px;border-radius:9px;background:#1c303d;overflow:hidden}
+.council-progress span{display:block;width:0;height:100%;border-radius:9px;background:linear-gradient(90deg,#4baebd,#9cf4dd);box-shadow:0 0 12px #6de7f277;transition:width .35s ease}
+.council-ledger-note{border-left:2px solid #4a7887;padding:8px 12px;margin:13px 0 0;background:#0a1721;color:#91a8b7;font-size:10px}
+.card,.stat,.module{backdrop-filter:blur(8px)}
+.card{transition:border-color .18s ease,box-shadow .18s ease}
+.card:hover{border-color:#2d5264}
+button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+@media(max-width:820px){.agent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.council-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:480px){.agent-grid{grid-template-columns:1fr 1fr}.council-metric{padding:10px}.council-metric strong{font-size:17px}}
+@media(prefers-reduced-motion:reduce){.agent-grid .module,.council-progress span,.card{transition:none}}
 
-/* Northstar green refresh — mobile-first Trading Lab overview. */
-:root{--bg:#070d0b;--panel:#101a16;--panel2:#14231c;--line:#294235;--muted:#91a69a;--text:#eff8f1;--green:#53e18b;--green2:#a5f3bd;--amber:#f0c875;--red:#ff8c8c;--silver:#dce4ed}
-body{background:radial-gradient(ellipse at 50% -20%,#17452c 0,transparent 50%),#070d0b}
-.topbar{height:auto;min-height:62px;flex-wrap:wrap;gap:0;padding:8px 14px 0;background:#07100df2;border-bottom-color:#294235}
-.brand{min-height:42px}.mark{color:var(--green)}.brand small{color:#91a69a}
-.toplinks{order:3;display:flex!important;width:100%;overflow-x:auto;gap:8px;padding:8px 0 10px;scrollbar-width:none;border-top:1px solid #ffffff10}.toplinks::-webkit-scrollbar{display:none}.toplinks a{flex:0 0 auto;padding:7px 10px;border:1px solid #294235;border-radius:9px;color:#a9bdb0;font-size:10px}.toplinks a.active{background:#153c28;border-color:#3c9e65;color:#eaffef;padding:7px 10px}
-.right{margin-left:auto;color:#a5f3bd;font-size:9px;font-weight:850;letter-spacing:.07em}
-.main{padding:18px 13px 104px}.pagehead{align-items:flex-start;margin:6px 0 16px}.pagehead h1{font-size:23px}.pagehead p{font-size:11px;line-height:1.5}.paper-tag{border-color:#3b8154;color:#b7f6c8;background:#10271b;line-height:1.5}
-.stat,.panel{border-color:#294235;border-radius:15px;background:linear-gradient(145deg,#14231b,#0d1712);box-shadow:0 12px 28px #0005}.stat{padding:13px}.stat label{color:#9bb3a2;font-size:9px}.stat strong{font-size:21px;color:#effff3}.stat small{font-size:9px;color:#91a69a}.green{color:#65e992!important}
-.layout,.lower{gap:12px}.panel{padding:15px}.panelhead h2{font-size:14px}.panelhead small{font-size:10px}.state{border-radius:99px;border-color:#3b654a;color:#b6e9c3;background:#10251a;font-size:8px}.state.good{color:#79efa0;border-color:#367a4c}.btn{border-color:#398658;background:linear-gradient(135deg,#1e7544,#14522f);color:#effff3}.btn.secondary{background:#15231b;border-color:#385743;color:#c7e5d0}
-.agent{border-color:#345641;border-radius:11px;background:linear-gradient(145deg,#14271c,#101a14);min-height:66px;padding:10px}.agent b{font-size:9px;color:#eaffef}.agent span{color:#a5b9aa}.agent [data-state="COMPLETE"]{color:#65e992}.decision{border-color:#3c694a}.decision .decision-state{color:#70efa0}.quote-list .row,.list .row{border-color:#ffffff12}
-#opportunities .candidate{border-color:#2d4c38;background:linear-gradient(135deg,#14251b,#0d1712)}.candidate-link .ticker{color:#effff3}.candidate-score strong{color:#8cf0aa}
-.mobile-bottom-nav{position:fixed;z-index:25;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(7,16,12,.97);border-top:1px solid #294235;backdrop-filter:blur(18px)}.mobile-nav-item{display:flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 2px;border:1px solid transparent;border-radius:11px;color:#91a69a;text-decoration:none}.mobile-nav-item span{font-size:20px;line-height:1}.mobile-nav-item small{font-size:9px;font-weight:750;white-space:nowrap}.mobile-nav-item.active{color:#effff3;background:linear-gradient(145deg,#214d34,#11251a);border-color:#43895d;box-shadow:inset 0 1px 0 #ffffff20}
-.chat-launch{right:12px;bottom:calc(78px + env(safe-area-inset-bottom))!important;background:linear-gradient(135deg,#e7fff0,#a8e7bb)!important;color:#0a2112!important;border:1px solid #77c991!important}.northstar-chat{bottom:calc(132px + env(safe-area-inset-bottom))!important}
-.agent-detail-view{background:rgba(2,10,5,.84)}.agent-detail-modal{border-color:#3b654a;background:linear-gradient(145deg,#14231b,#08110c)}
-@media(max-width:700px){.topbar{height:auto}.shell{display:block}.sidebar{display:none}.main{padding:16px 12px calc(105px + env(safe-area-inset-bottom))}.pagehead{gap:10px}.pagehead h1{font-size:21px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stat{padding:12px}.stat strong{font-size:19px}.layout,.lower{grid-template-columns:1fr;gap:11px}.agents{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.agent{min-height:66px}.panel{padding:14px}.chat-launch{bottom:calc(78px + env(safe-area-inset-bottom))!important}.northstar-chat{bottom:calc(130px + env(safe-area-inset-bottom))!important}}
-@media(min-width:701px){.mobile-bottom-nav{display:none}.topbar{height:auto;min-height:64px}.toplinks{order:initial;width:auto;padding:0;margin-left:20px;border:0}.right{margin-left:auto}}
-</style>
 
-<style>
-.agent-open{width:100%;text-align:left;color:inherit;font:inherit;cursor:pointer;transition:border-color .15s,transform .15s}.agent-open:hover,.agent-open:focus-visible{border-color:#aebdcb;transform:translateY(-1px);outline:2px solid #aebdcb55;outline-offset:2px}.agent-open small{display:block;margin-top:5px;color:#9eacba;font-size:8px}.agent-detail-view{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(2,6,10,.82);backdrop-filter:blur(9px);overflow-y:auto}.agent-detail-view:not([hidden]){display:flex}.agent-detail-modal{width:min(960px,100%);max-height:calc(100dvh - 32px);overflow-y:auto;padding:20px;border:1px solid #536273;border-radius:18px;background:linear-gradient(145deg,#111a24,#080d13);box-shadow:0 24px 90px #000d}.agent-detail-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.agent-detail-close{width:36px;height:36px;border:1px solid #536273;border-radius:50%;background:#1b2632;color:#fff;font-size:23px;cursor:pointer}.agent-detail-view h2{font-size:24px;margin:20px 0 4px}.agent-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.agent-detail-grid h3{font-size:13px;margin:0 0 12px}.agent-detail-data{display:grid;gap:8px;overflow-wrap:anywhere}.agent-data-row{padding:9px;border:1px solid #ffffff12;border-radius:8px;background:#0b1118}.agent-data-row b{display:block;font-size:10px;color:#cbd5df;margin-bottom:4px}.agent-data-row span{font-size:11px;color:#96a5b4;white-space:pre-wrap;overflow-wrap:anywhere}.chat-launch{position:fixed;z-index:30;right:18px;bottom:18px;display:flex;align-items:center;gap:9px;padding:12px 16px;border-radius:999px;border:1px solid #dce4ed70;background:linear-gradient(145deg,#e4ebf2,#9eacbb);color:#111820;font-weight:850;box-shadow:0 10px 35px #0009}.chat-launch span{font-size:12px}.northstar-chat{position:fixed;z-index:40;right:16px;bottom:78px;width:min(420px,calc(100vw - 24px));height:min(600px,calc(100dvh - 120px));border:1px solid #465463;border-radius:16px;background:#0b1118;box-shadow:0 18px 60px #000c;display:flex;flex-direction:column;overflow:hidden}.northstar-chat[hidden],.agent-detail-view[hidden]{display:none}.chat-head{display:flex;align-items:center;justify-content:space-between;padding:14px;border-bottom:1px solid #ffffff18}.chat-head strong,.chat-head small{display:block}.chat-head small{font-size:9px;color:#9aa8b6;margin-top:4px}.chat-head button{background:transparent;border:0;color:#fff;font-size:24px}.chat-messages{padding:12px;overflow:auto;display:flex;flex-direction:column;gap:10px;flex:1}.chat-msg{max-width:92%;padding:10px 12px;border:1px solid #ffffff18;border-radius:12px;font-size:12px;line-height:1.5;white-space:pre-wrap}.chat-msg.user{align-self:flex-end;background:#243342}.chat-msg.assistant{align-self:flex-start;background:#121c26;color:#d9e2eb}.chat-form{display:flex;gap:8px;padding:10px;border-top:1px solid #ffffff18}.chat-form input{min-width:0;flex:1;background:#080d12;border:1px solid #344352;border-radius:9px;padding:11px;color:#fff}.chat-form button{border:1px solid #aebdcb;border-radius:9px;background:#cbd6e0;color:#111820;font-weight:800;padding:0 14px}
-@media(max-width:700px){.agent-detail-modal{padding:14px;border-radius:14px;max-height:calc(100dvh - 20px)}.agent-detail-grid{grid-template-columns:1fr}.agent-detail-view h2{font-size:21px}.chat-launch{right:12px;bottom:12px;padding:11px 14px}.northstar-chat{right:8px;bottom:68px;width:calc(100vw - 16px);height:min(72dvh,620px)}}
-</style>
-<style>
-/* Readable shortlist cards: clear separation, hierarchy and touch-friendly spacing. */
-#opportunities .panelhead{align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px}
-#opportunities .panelhead>div{min-width:0;flex:1 1 150px}
-#opportunities .panelhead h2{font-size:15px;letter-spacing:-.025em}
-#opportunities .panelhead small{display:block;margin-top:5px;line-height:1.45}
-#scanner-state{white-space:normal;max-width:100%;line-height:1.45}
-#candidates{display:grid;grid-template-columns:1fr;gap:10px;margin:0}
-.candidate{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:13px 14px;border:1px solid #303d49;border-radius:12px;background:linear-gradient(135deg,#121c26,#0d141c);min-width:0;transition:border-color .15s,background .15s}
-.candidate:hover{border-color:#718397;background:linear-gradient(135deg,#172330,#101923)}
-.candidate-link{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:10px;row-gap:4px;min-width:0}
-.candidate-rank{grid-row:1/3;display:grid;place-items:center;width:30px;height:30px;border:1px solid #3a4856;border-radius:9px;color:#aebdca;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
-.candidate-link .ticker{display:block;color:#f1f5f9;font-size:13px;font-weight:850;letter-spacing:.025em}
-.candidate-link .candidate-name{display:block;min-width:0;color:#9eacba;font-size:10px;line-height:1.4;overflow-wrap:anywhere}
-.candidate-score{min-width:68px;text-align:right}
-.candidate-score strong{display:block;color:#dbe5ef;font-size:14px;font-variant-numeric:tabular-nums}
-.candidate-score small{display:block;margin-top:3px;color:#8291a0;font-size:8px;letter-spacing:.07em;text-transform:uppercase}
-.candidate-meta{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:1px}
-.candidate-pill{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid #394754;border-radius:999px;color:#b6c3cf;font-size:8px;line-height:1.2}
-.candidate-pill.good{border-color:#315b40;color:#9cebb2}.candidate-pill.warn{border-color:#65532f;color:#f0d18a}.candidate-status{grid-column:1/-1;margin:0;color:#94a3b2;font-size:9px;line-height:1.5}
-#cache-note{margin-top:14px!important;padding-top:12px;border-top:1px solid #ffffff12;font-size:10px!important;line-height:1.6}
-#refresh-candidates{padding:7px 10px;font-size:9px;white-space:nowrap}
-@media(min-width:900px){#candidates{grid-template-columns:repeat(2,minmax(0,1fr))}.candidate{align-content:start}}
-@media(max-width:700px){#opportunities{padding:16px 14px}#opportunities .panelhead{margin-bottom:14px}.candidate{padding:13px;gap:9px;border-radius:13px}.candidate-link .candidate-name{font-size:10px}.candidate-score strong{font-size:13px}}
+/* NORTHSTAR TRADING LAB — command-centre redesign */
+:root{
+  color-scheme:dark;
+  --bg:#080a0b;--bg2:#0d1011;--panel:#111516;--panel2:#151b1c;
+  --line:#252d2c;--line2:#39433d;--text:#f1f4ef;--muted:#8d9991;
+  --cyan:#d7ff57;--lime:#d7ff57;--violet:#b2a6ff;--amber:#f3c76b;
+  --red:#ff777d;--green:#9de6a7;--shadow:0 18px 55px #0008;
+}
+html{scroll-padding-top:94px}
+body{
+  background:
+    radial-gradient(ellipse at 76% -16%,#c6f54a0b,transparent 34%),
+    radial-gradient(ellipse at 0% 40%,#6c8d6b09,transparent 30%),
+    #080a0b;
+  color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  letter-spacing:-.012em;
+}
+body:after{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.12;background-image:linear-gradient(#ffffff08 1px,transparent 1px),linear-gradient(90deg,#ffffff08 1px,transparent 1px);background-size:54px 54px;mask-image:linear-gradient(to bottom,#000,transparent 75%)}
+a{color:var(--lime)}
+.topbar{
+  height:68px;padding:0 30px;background:#090c0deF;border-bottom:1px solid #ffffff12;
+  box-shadow:0 8px 28px #0005;backdrop-filter:blur(22px)
+}
+.brand{font-size:12px;letter-spacing:.16em;gap:12px}
+.brand-mark{width:34px;height:34px;border-radius:10px;border:1px solid #d7ff5755;background:#d7ff570c;color:var(--lime);box-shadow:0 0 22px #d7ff5714,inset 0 0 16px #d7ff5710}
+.brand span:last-child{color:#f2f5ef}.brand span:last-child span{color:var(--lime)}
+.navlink{color:#b7c0b9;font-size:11px}
+.mode-pill{border-color:#66552c;background:#19170f;color:#f1d58e;font-size:9px;letter-spacing:.13em}
+.mode-pill:before{background:var(--amber);box-shadow:0 0 10px #f3c76b88}
+.wrap{width:min(1500px,calc(100% - 300px));max-width:1500px;margin:0 28px 0 250px}
+.nav{
+  position:fixed;left:16px;top:84px;bottom:16px;width:210px;z-index:25;
+  display:flex;flex-direction:column;align-items:stretch;gap:5px;overflow-y:auto;overflow-x:hidden;
+  padding:14px 11px;background:linear-gradient(180deg,#111616f5,#0c1010f5);
+  border:1px solid #29312d;border-radius:16px;box-shadow:0 18px 50px #0009;
+  scrollbar-width:thin;scrollbar-color:#46513c transparent
+}
+.nav:before{content:"WORKSPACE";display:block;padding:4px 10px 10px;color:#768179;font-size:9px;font-weight:900;letter-spacing:.18em}
+.nav a{
+  display:flex;align-items:center;min-height:39px;padding:9px 11px;border:1px solid transparent;
+  border-radius:9px;background:transparent;color:#a6b0a8;font-size:10px;font-weight:800;
+  letter-spacing:.055em;white-space:normal;transition:background .18s,border-color .18s,color .18s,transform .18s
+}
+.nav a:hover,.nav a:focus-visible{background:#d7ff570c;border-color:#d7ff5733;color:var(--lime);transform:translateX(2px)}
+.hero{padding:38px 0 22px;grid-template-columns:minmax(0,1.55fr) minmax(245px,.7fr);gap:22px;align-items:center}
+.eyebrow,.section-index{color:var(--lime);font-size:9px;letter-spacing:.2em;font-weight:900}
+.hero h1{font-size:clamp(38px,4.3vw,64px);line-height:.98;letter-spacing:-.075em;font-weight:760;margin:12px 0}
+.hero h1 em{color:var(--lime)}
+.hero p{color:#9ba69d;font-size:13px;line-height:1.7;max-width:620px}
+.hero-side{border:1px solid #343d32;background:linear-gradient(145deg,#171d18,#101515);border-radius:14px;padding:18px 19px;box-shadow:0 12px 38px #0007}
+.hero-side strong{font-size:18px;letter-spacing:-.04em;color:#eaf1e6}
+.hero-side p{font-size:10px;color:#8d9991}
+.control-strip{margin:3px 0 14px;gap:7px}
+.control-strip .micro-pill{padding:6px 9px;border-radius:6px;background:#111615;border-color:#2b3430;color:#aeb9af;font-size:8px;letter-spacing:.1em}
+.micro-pill.ok{color:#9de6a7;border-color:#31553a}.micro-pill.warn{color:#f3c76b;border-color:#5a4b2b}.micro-pill.lock{color:#ff8b8e;border-color:#593439}
+.warning{border:1px solid #5a4a2b;background:#17150f;color:#e8d39a;border-radius:10px;padding:11px 14px;font-size:10px;margin:13px 0 18px}
+.section{margin:20px 0 23px}
+.section-head{align-items:center;margin:0 0 12px}
+.section-head h2{font-size:19px;font-weight:720;letter-spacing:-.045em}
+.section-head p{font-size:10px;color:#859188}
+.card{
+  padding:19px;border:1px solid #242d2a;border-radius:14px;
+  background:linear-gradient(145deg,#121818f5,#0e1313f5);
+  box-shadow:0 12px 34px #0005;backdrop-filter:blur(12px);
+  transition:border-color .2s,box-shadow .2s,transform .2s
+}
+.card:before{height:1px;background:linear-gradient(90deg,transparent,#d7ff5730,transparent)}
+.card:hover{border-color:#3b493e;box-shadow:0 16px 42px #0008,0 0 24px #d7ff5708}
+.grid{gap:12px}
+.stat-grid{gap:9px}
+.stat{padding:13px 14px;border:1px solid #27312d;border-radius:10px;background:linear-gradient(145deg,#171e1b,#111615)}
+.stat label{color:#89968d;font-size:8px;letter-spacing:.14em}
+.stat strong{font-size:clamp(20px,2.2vw,29px);font-weight:700;letter-spacing:-.055em;color:#eff4ed}
+.stat small{font-size:9px;color:#77847b}
+.stat.hero-stat{background:linear-gradient(135deg,#1b2618,#141c17);border-color:#667b3d}
+.stat.hero-stat strong{color:var(--lime)}
+.card-head{margin-bottom:12px}
+.card-head h2{font-size:13px;font-weight:750;letter-spacing:-.025em}
+.card-head p{font-size:9px;color:#829087}
+.state{border-radius:6px;padding:5px 8px;border-color:#55492e;background:#19160f;color:#e9c979;font-size:8px;letter-spacing:.1em}
+.state.good{color:#a5e9ae;border-color:#315b3a;background:#101a13}
+.state.bad{color:#ff969b;border-color:#633a3d;background:#1c1113}
+.modules{gap:8px}
+.module{border:1px solid #29332e;border-radius:9px;background:linear-gradient(145deg,#171e1a,#111615);padding:11px}
+.module b{font-size:10px;color:#e2e9e1}
+.module span{font-size:9px;color:#89968d}
+.agent-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.agent-grid .module{min-height:84px;padding:13px 13px 12px 16px;background:linear-gradient(145deg,#171f1a,#111615);border-color:#303b32}
+.agent-grid .module:before{left:0;top:12px;bottom:12px;width:2px;background:#5d6b60}
+.agent-grid .module:hover{transform:translateY(-2px);border-color:#75894b;box-shadow:0 10px 28px #0008,0 0 18px #d7ff5710}
+.agent-grid .module b{font-size:10px}
+.agent-grid .module span{font-size:8px;letter-spacing:.1em}
+.agent-grid .module[data-state="COMPLETE"]:before{background:#9de6a7;box-shadow:0 0 10px #9de6a777}
+.agent-grid .module[data-state="COMPLETE"] span{color:#9de6a7}
+.agent-grid .module[data-state="BLOCKED"]:before,.agent-grid .module[data-state="UNAVAILABLE"]:before{background:#ff777d;box-shadow:0 0 10px #ff777d66}
+.agent-grid .module[data-state="BLOCKED"] span,.agent-grid .module[data-state="UNAVAILABLE"] span{color:#ff9297}
+.council-metrics{gap:8px}
+.council-metric{border:1px solid #2a342e;border-radius:9px;background:#101615;padding:11px 13px}
+.council-metric label{font-size:8px;color:#87938a}
+.council-metric strong{font-size:19px;color:#edf3e9}
+.council-progress{height:3px;background:#273129}
+.council-progress span{background:linear-gradient(90deg,#9bbf3b,#d7ff57);box-shadow:0 0 12px #d7ff5770}
+.council-ledger-note{border-left-color:#9dbd45;background:#111813;color:#9ba99d;font-size:9px}
+.candidate{padding:11px 2px;border-color:#27312d}
+.ticker{color:var(--lime)}
+.candidate-link .muted{font-size:10px}
+.score{color:#dce6d8}
+.form-grid{gap:10px}
+.field label{color:#929f95;font-size:8px;letter-spacing:.12em}
+.field input{background:#0a0f0e;border:1px solid #344039;border-radius:8px;padding:11px;color:#f1f4ef;font-size:12px}
+.field input:focus{border-color:#b5d94a;box-shadow:0 0 0 3px #d7ff5714}
+.result{border:1px solid #526536;background:linear-gradient(135deg,#1b2417,#111a15);border-radius:10px;padding:14px}
+.result strong{color:var(--lime);font-size:25px}
+.result .muted{color:#a0ad9d}
+button{border-radius:8px;padding:10px 13px;font-size:9px;font-weight:850;letter-spacing:.08em;transition:transform .18s,border-color .18s,background .18s,box-shadow .18s}
+button.primary{background:var(--lime);color:#11150b;border:1px solid var(--lime);box-shadow:0 5px 18px #d7ff5719}
+button.primary:hover{background:#e4ff91;box-shadow:0 6px 22px #d7ff5730}
+button.secondary{background:#171e1a;border:1px solid #3a463d;color:#d4ddd3}
+button.secondary:hover{border-color:#a4bd58;color:#e9f5d2;background:#20291e}
+button:focus-visible,a:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+.journal-row{padding:10px 0;border-color:#27312d;font-size:10px}
+.journal-row strong{color:#e8eee5;font-size:10px}
+.muted{color:#8c9990}.small{font-size:10px}.tiny{font-size:8px}
+.linkrow{gap:8px}.linkrow a{font-size:10px;color:var(--lime)}
+.section-anchor{scroll-margin-top:90px}
+.dash-foot{padding:25px 0 38px;border-top:1px solid #202823;color:#718078;font-size:9px}
+#performance-panel .stat-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+#ledger-panel .grid{align-items:stretch}
+#pipeline .modules{grid-template-columns:repeat(4,minmax(0,1fr))}
+#journal-panel .card,#time-machine .card{background:linear-gradient(145deg,#121817,#0d1211)}
+/* Responsive tablet and phone layout */
+@media(max-width:1100px){
+  .wrap{width:min(100% - 30px,900px);margin:0 auto}
+  .nav{position:sticky;left:auto;top:68px;bottom:auto;width:auto;max-height:none;
+    flex-direction:row;align-items:center;overflow-x:auto;overflow-y:hidden;
+    margin:0 -15px;padding:9px 15px;border:0;border-bottom:1px solid #252e29;border-radius:0;
+    background:#090d0cf2;box-shadow:none;backdrop-filter:blur(18px)}
+  .nav:before{display:none}.nav a{flex:0 0 auto;min-height:34px;white-space:nowrap;padding:8px 10px}
+  .hero{padding-top:28px}
+}
+@media(max-width:760px){
+  .topbar{height:60px;padding:0 14px}.wrap{width:calc(100% - 24px)}
+  .hero{grid-template-columns:1fr;padding:25px 0 17px}.hero-side{display:none}
+  .hero h1{font-size:42px}.hero p{font-size:11px}
+  .nav{top:60px;margin:0 -12px;padding:8px 12px}
+  .section{margin:16px 0 19px}.section-head h2{font-size:17px}
+  .card{padding:14px;border-radius:12px}
+  .span-8,.span-7,.span-6,.span-5,.span-4{grid-column:span 12}
+  .stat-grid,#performance-panel .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .agent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #pipeline .modules{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .council-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .council-metric{padding:9px}.council-metric strong{font-size:16px}
+  .warning{font-size:9px}
+}
+@media(max-width:420px){
+  .brand{font-size:10px;letter-spacing:.12em}.brand-mark{width:30px;height:30px}
+  .mode-pill{font-size:7px;padding:5px 7px}.hero h1{font-size:37px}
+  .stat{padding:10px}.stat strong{font-size:21px}
+  .council-metrics{grid-template-columns:1fr 1fr}.council-metric:last-child{grid-column:span 2}
+  .agent-grid{gap:7px}.agent-grid .module{min-height:78px;padding:10px 9px 10px 13px}
+  .form-grid{gap:8px}.card-head{align-items:flex-start}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
 </style>
 </head>
 <body>
-<header class="topbar"><div class="brand"><span class="mark">✦</span><div>Northstar AI<small>AI INVESTMENT INTELLIGENCE</small></div></div><nav class="toplinks"><a class="active" href="./trading-lab.html">Trading Lab</a><a href="./research.html">Research Lab</a><a href="./research.html">Market Intel</a><a href="./watchlist.html">Watchlist</a></nav><div class="right">PAPER ENVIRONMENT · <span class="green">●</span></div></header>
-<div class="shell">
-<aside class="sidebar"><div class="side"><div class="side-title">WORKSPACE</div><a class="active" href="#overview">▦ Overview</a><a href="#council">✧ Research Council</a><a href="#opportunities">⌕ Opportunities</a><a href="#positions">▤ Paper Portfolio</a><a href="#safety">◇ Safety</a></div><div class="side-note">Northstar AI<br><br>Research → Decide → Trade (paper only)</div></aside>
-<main class="main">
-<div class="pagehead"><div><h1>Trading Lab</h1><p>Your paper portfolio and the latest verified research, at a glance.</p></div><span class="paper-tag">PAPER TRADING · EXECUTION LOCKED</span></div>
-<section id="overview" class="stats">
-<div class="stat"><label>Portfolio value</label><strong id="paper-equity">—</strong><small>Verified paper account</small></div>
-<div class="stat"><label>Cash available</label><strong id="paper-buying-power">—</strong><small>Broker reported</small></div>
-<div class="stat"><label>Open positions</label><strong id="paper-position-count">—</strong><small>Paper holdings</small></div>
-<div class="stat"><label>Total P&amp;L</label><strong id="paper-unrealized">—</strong><small>Open unrealized only</small></div>
-<div class="stat"><label>Today's P&amp;L</label><strong id="paper-day-pl">—</strong><small>Since prior equity</small></div>
-</section>
-<section class="layout">
-<article class="panel"><div class="panelhead"><div><h2>Market watch</h2><small>Latest recorded quotes</small></div><span class="state" id="monitor-run-status">CHECKING</span></div><div id="monitor-quotes" class="quote-list"><div class="muted">Waiting for verified quotes…</div></div><p id="monitor-status" class="muted" style="font-size:9px;margin:10px 0 0">Connecting to market monitor…</p><button id="refresh-monitor" class="btn secondary" type="button" style="margin-top:10px">Refresh quotes</button></article>
-<article class="panel" id="council"><div class="panelhead"><div><h2>AI Research Council</h2><small>Latest persisted agent results</small></div><span class="state" id="council-latest-status">NOT CHECKED</span></div><div class="row"><span>Latest ticker</span><strong id="council-latest-symbol">—</strong></div><div class="row"><span>Agents completed</span><strong id="council-complete-count">0 / 9</strong></div><div class="agents" style="margin-top:10px">
-<button class="agent agent-open" type="button" data-agent="market-scanner" aria-label="Open Market Scanner details"><b>Market Scanner</b><span id="council-agent-market-scanner">NOT RUN</span><small>View details →</small></button><button class="agent agent-open" type="button" data-agent="technical-analyst" aria-label="Open Technical Analyst details"><b>Technical Analyst</b><span id="council-agent-technical-analyst">NOT RUN</span><small>View details →</small></button><button class="agent agent-open" type="button" data-agent="fundamental-analyst" aria-label="Open Fundamental Analyst details"><b>Fundamental Analyst</b><span id="council-agent-fundamental-analyst">NOT RUN</span><small>View details →</small></button><button class="agent agent-open" type="button" data-agent="news-analyst" aria-label="Open News Analyst details"><b>News Analyst</b><span id="council-agent-news-analyst">NOT RUN</span><small>View details →</small></button><button class="agent agent-open" type="button" data-agent="sentiment-analyst" aria-label="Open Sentiment Analyst details"><b>Sentiment Analyst</b><span id="council-agent-sentiment-analyst">NOT RUN</span><small>View details →</small></button><button class="agent agent-open" type="button" data-agent="bull-researcher" aria-label="Open Bull Researcher details"><b>Bull Researcher</b><span id="council-agent-bull-researcher">NOT RUN</span><small>View details →</small></button><button class="agent agent-open" type="button" data-agent="bear-researcher" aria-label="Open Bear Researcher details"><b>Bear Researcher</b><span id="council-agent-bear-researcher">NOT RUN</span><small>View details →</small></button><button class="agent agent-open" type="button" data-agent="portfolio-analyst" aria-label="Open Portfolio Analyst details"><b>Portfolio Analyst</b><span id="council-agent-portfolio-analyst">NOT RUN</span><small>View details →</small></button><button class="agent agent-open" type="button" data-agent="risk-committee" aria-label="Open Risk Committee details"><b>Risk Committee</b><span id="council-agent-risk-committee">NOT RUN</span><small>View details →</small></button></div><p id="council-status" class="muted" style="font-size:9px;margin:10px 0">Checking research ledger…</p><button id="refresh-council" class="btn secondary" type="button">Refresh council</button></article>
-<article class="panel decision"><div class="panelhead"><div><h2>Northstar decision</h2><small>Evidence-led recommendation</small></div><span class="state warn">NO SIGNAL</span></div><div class="decision-state">WAIT</div><p id="decision-explanation">No verified ticker-specific decision is available on this overview. Open a full research report before considering any trade.</p><div class="row"><span>Entry / target / stop</span><strong>Not verified</strong></div><div class="row"><span>Holding period</span><strong>Not established</strong></div><a class="btn" href="./research.html" style="margin-top:12px">Open full analysis →</a></article>
-</section>
-<section class="lower">
-<article class="panel" id="opportunities"><div class="panelhead"><div><h2>Top opportunities</h2><small>Research shortlist · not buy signals</small></div><span class="state" id="scanner-state">LOADING</span><button id="refresh-candidates" class="btn secondary" type="button">Check for updates</button></div><div id="candidates" class="list"><p class="muted">Loading shortlist…</p></div><p id="cache-note" class="muted" style="font-size:9px;margin-bottom:0">Candidates require full analysis.</p></article>
-<article class="panel" id="positions"><div class="panelhead"><div><h2>Paper portfolio</h2><small>Current open positions</small></div><span class="state">READ ONLY</span></div><div id="paper-positions" class="list"><p class="muted">No account data loaded.</p></div><p id="performance-status" class="muted" style="font-size:9px">Paper account not checked yet.</p></article>
-<article class="panel" id="safety"><div class="panelhead"><div><h2>Risk &amp; safety</h2><small>Trading safeguards</small></div><span class="state warn" id="ledger-badge">CHECKING</span></div><p id="ledger-message" class="muted" style="font-size:10px">Verifying risk controls…</p><div class="row"><span>Order execution</span><strong>Disabled</strong></div><div class="row"><span>Kill switch</span><strong class="green">Engaged</strong></div><div id="ledger-detail" class="muted" style="font-size:9px;margin-top:8px"></div></article>
-</section>
-
-<section id="agent-detail-view" class="agent-detail-view" hidden aria-live="polite" role="dialog" aria-modal="true" aria-labelledby="agent-detail-title"><div class="agent-detail-modal"><div class="agent-detail-top"><button id="agent-detail-back" class="btn secondary" type="button">← Dashboard</button><span class="state" id="agent-detail-status">NOT VERIFIED</span><button id="agent-detail-close" class="agent-detail-close" type="button" aria-label="Close agent details">×</button></div><h2 id="agent-detail-title">Agent</h2><p id="agent-detail-purpose" class="muted"></p><div class="agent-detail-grid"><article class="panel"><h3>Latest execution</h3><div id="agent-detail-summary" class="muted">No execution record loaded.</div></article><article class="panel"><h3>Recorded inputs &amp; outputs</h3><div id="agent-detail-data" class="agent-detail-data">No persisted details available.</div></article><article class="panel"><h3>Recent history</h3><div id="agent-detail-history" class="agent-detail-data">No history available.</div></article></div></div></section>
-<div id="northstar-chat" class="northstar-chat" hidden aria-label="Northstar system assistant"><div class="chat-head"><div><strong>Northstar Assistant</strong><small>Read-only system answers · grounded in available records</small></div><button id="chat-close" type="button" aria-label="Close assistant">×</button></div><div id="chat-messages" class="chat-messages"><div class="chat-msg assistant">Hi. Ask me about agent runs, market monitor, paper account status, risk readiness, or recent system errors. I only report information returned by Northstar's connected endpoints.</div></div><form id="chat-form" class="chat-form"><input id="chat-input" type="text" autocomplete="off" maxlength="500" placeholder="Ask about your Northstar system…" required><button type="submit">Send</button></form></div>
-<button id="northstar-chat-launch" class="chat-launch" type="button" aria-label="Open Northstar Assistant">✦<span>Ask Northstar</span></button>
-<div class="footer"><span>NORTHSTAR AI · TRADING LAB</span><span>Verified data only · Paper environment · No guaranteed returns</span></div>
-<div class="legacy" aria-hidden="true">
-<div id="paper-position-count-legacy"></div><div id="snapshot-return"></div><div id="snapshot-drawdown"></div><div id="snapshot-count"></div><div id="snapshot-realized"></div><div id="snapshot-win-rate"></div><div id="snapshot-profit-factor"></div><div id="snapshot-range"></div><div id="snapshot-status"></div><div id="snapshot-curve"></div>
-<div id="monitor-symbols"></div><div id="monitor-errors"></div><div id="monitor-alert-count"></div><div id="monitor-run-time"></div><div id="monitor-events"></div>
-<div id="council-latest-time"></div><div id="council-pending-count"></div><div id="council-blocked-count"></div><div id="council-completion-bar"></div><div id="council-runs"></div>
-<div id="risk-budget"></div><div id="max-position"></div><div id="plan-count"></div><div id="capital"></div><div id="journal"></div>
-<div id="symbol"></div><div id="entry"></div><div id="stop"></div><div id="risk-pct"></div><div id="quantity"></div><div id="risk-result"></div><button id="save-plan" type="button"></button><button id="reset-calc" type="button"></button>
-<button id="refresh-performance" type="button"></button><button id="sync-paper-snapshot" type="button"></button><button id="sync-paper-fills" type="button"></button><button id="check-alpaca" type="button"></button><div id="alpaca-badge"></div><div id="alpaca-message"></div><div id="alpaca-detail"></div><div id="paper-equity-legacy"></div><div id="paper-day-pl-legacy"></div><div id="paper-unrealized-legacy"></div><div id="paper-buying-power-legacy"></div>
-<div id="backtest-symbol"></div><button id="run-backtest" type="button"></button><div id="backtest-status"></div><div id="backtest-results"></div><div id="pipeline"></div><div id="scanner-state-legacy"></div>
+<header class="topbar"><a class="brand" href="./trading-lab.html"><span class="brand-mark">⌁</span><span>NORTHSTAR <span>TRADING LAB</span></span></a><div class="head-right"><a class="navlink" href="./research.html">AI Research ↗</a><span class="mode-pill">PAPER ENVIRONMENT</span></div></header>
+<main class="wrap">
+<section class="hero"><div><div class="eyebrow">NORTHSTAR / TRADING COMMAND CENTRE</div><h1>Capital. <em>Under control.</em></h1><p>Your paper portfolio, market intelligence, risk controls and research operations in one focused workspace. Evidence first. Risk always. Execution stays locked.</p></div><aside class="hero-side"><div class="tiny">OPERATING POSTURE</div><strong>Observe → Validate → Plan</strong><p>Research intelligence is separate. This workspace does not place orders or promise returns.</p></aside></section>
+<div class="control-strip"><span class="micro-pill ok">● RESEARCH ENGINE AVAILABLE</span><span class="micro-pill warn">◈ PAPER MODE ONLY</span><span class="micro-pill lock">▣ EXECUTION LOCKED</span><span class="micro-pill">LIVE DATA · REQUEST-BASED</span></div>
+<nav class="nav" aria-label="Trading Lab navigation"><a href="#overview">OVERVIEW</a><a href="#performance-panel">PORTFOLIO</a><a href="#candidates-panel">OPPORTUNITY RADAR</a><a href="#monitor-panel">MARKET MONITOR</a><a href="#research-council-panel">NINE-AGENT COUNCIL</a><a href="#risk-calculator">RISK ENGINE</a><a href="#ledger-panel">SAFETY</a><a href="#journal-panel">JOURNAL</a><a href="#time-machine">HISTORICAL LAB</a><a href="#pipeline">SYSTEM HEALTH</a></nav>
+<div class="warning"><span class="lockicon">◈</span><span><b>Safety interlock active.</b> Paper account telemetry is read-only. The $1,000 virtual planning allocation is separate from broker equity. No live orders, no automated paper orders, no real-money account access.</span></div>
+<section id="overview" class="section section-anchor">
+<div class="section-head"><div><div class="section-index">01 / ACCOUNT SNAPSHOT</div><h2>Command deck</h2><p>Planning capital and verified broker values are deliberately separated.</p></div><span class="state">SIMULATION</span></div>
+<div class="grid">
+<article class="card span-12"><div class="stat-grid">
+<div class="stat hero-stat"><label>Virtual planning capital</label><strong id="capital">$1,000</strong><small>Fixed research allocation · not broker equity</small></div>
+<div class="stat"><label>Default risk / idea</label><strong id="risk-budget">$5</strong><small>0.5% planning capital</small></div>
+<div class="stat"><label>Position notional cap</label><strong id="max-position">$250</strong><small>25% planning capital</small></div>
+<div class="stat"><label>Saved trade plans</label><strong id="plan-count">0</strong><small>Local to this device</small></div>
+</div><p class="muted small" style="margin:13px 0 0">Planned stop risk is not a guaranteed maximum loss. Gaps, slippage and liquidity can cause larger losses.</p></article>
+<article id="performance-panel" class="card span-12 section-anchor">
+<div class="card-head"><div><div class="section-index">02 / BROKER TELEMETRY</div><h2>Portfolio performance cockpit</h2><p>Alpaca Paper account · read-only · reconciled on request</p></div><button id="refresh-performance" class="secondary" type="button">↻ Refresh account</button></div>
+<div class="stat-grid">
+<div class="stat hero-stat"><label>Account equity</label><strong id="paper-equity">—</strong><small>Verified broker value only</small></div>
+<div class="stat"><label>Day P&amp;L</label><strong id="paper-day-pl">—</strong><small>Versus prior account equity</small></div>
+<div class="stat"><label>Open unrealized P&amp;L</label><strong id="paper-unrealized">—</strong><small>Open paper positions only</small></div>
+<div class="stat"><label>Buying power</label><strong id="paper-buying-power">—</strong><small>Broker reported · paper only</small></div>
 </div>
-</main></div>
-<nav class="mobile-bottom-nav" aria-label="Main navigation">
-<a class="mobile-nav-item active" href="./trading-lab.html"><span>⌂</span><small>Overview</small></a>
-<a class="mobile-nav-item" href="./watchlist.html"><span>▤</span><small>Watchlist</small></a>
-<a class="mobile-nav-item" href="./agents.html"><span>✧</span><small>Agents</small></a>
-<a class="mobile-nav-item" href="./positions.html"><span>◫</span><small>Positions</small></a>
-<a class="mobile-nav-item" href="./history.html"><span>◷</span><small>History</small></a>
-</nav>
-<script src="./trading-lab.js?v=silver-dashboard-2" defer></script><script src="./mobile-agent-center.js?v=1" defer></script>
+<p id="performance-status" class="muted small" style="margin:13px 0 6px">P&amp;L not verified yet. Refresh to check the connected paper account.</p>
+<div class="card-head" style="margin:18px 0 8px"><div><h2>Durable equity history</h2><p>Stored D1 snapshots · not strategy returns</p></div><button id="sync-paper-snapshot" class="secondary" type="button">＋ Save snapshot</button><button id="sync-paper-fills" class="secondary" type="button">Import fill history</button></div>
+<div class="stat-grid">
+<div class="stat"><label>Observed return</label><strong id="snapshot-return">—</strong><small>First to latest saved equity</small></div>
+<div class="stat"><label>Maximum drawdown</label><strong id="snapshot-drawdown">—</strong><small>From saved account snapshots</small></div>
+<div class="stat"><label>Saved snapshots</label><strong id="snapshot-count">0</strong><small id="snapshot-range">No history yet</small></div>
+<div class="stat"><label>Gross realized P&amp;L</label><strong id="snapshot-realized">—</strong><small>FIFO · excludes fees</small></div><div class="stat"><label>Fill win rate</label><strong id="snapshot-win-rate">—</strong><small id="snapshot-profit-factor">Profit factor —</small></div>
+</div>
+<p id="snapshot-status" class="muted small" style="margin:10px 0 0">No durable equity snapshots have been recorded yet.</p>
+<div id="snapshot-curve" class="small muted" style="margin-top:8px">The historical equity curve will appear after snapshots are saved.</div>
+<div class="card-head" style="margin:18px 0 5px"><h2>Open positions</h2><span id="paper-position-count" class="state">NOT LOADED</span></div><div id="paper-positions" class="small muted">No broker data loaded.</div>
+<p class="muted small">Lifetime realized P&amp;L, win rate and profit factor remain unavailable until a verified closed-trade ledger exists. This panel never reads your real-money holdings.</p>
+</article>
+</div></section>
+<section class="section section-anchor" id="monitor-panel"><div class="section-head"><div><div class="section-index">03 / CONTINUOUS MONITOR</div><h2>Market monitor</h2><p>Five-minute scheduled checks during US regular hours · research alerts only.</p></div><span class="state">NO ORDER EXECUTION</span></div><article class="card"><div class="card-head"><div><h2>Live monitoring ledger</h2><p id="monitor-status">Connecting to the monitor ledger…</p></div><button id="refresh-monitor" class="secondary" type="button">Refresh</button></div><div class="stat-grid"><div class="stat"><label>Latest run</label><strong id="monitor-run-status">—</strong><small id="monitor-run-time">No verified run yet</small></div><div class="stat"><label>Symbols checked</label><strong id="monitor-symbols">—</strong><small>Most recent scheduled run</small></div><div class="stat"><label>Quote errors</label><strong id="monitor-errors">—</strong><small>Most recent scheduled run</small></div><div class="stat"><label>Unacknowledged alerts</label><strong id="monitor-alert-count">—</strong><small>Research events only</small></div></div><div class="card-head" style="margin-top:18px"><div><h2>Latest verified quotes</h2><p>Top monitored symbols · timestamp and freshness are explicit</p></div></div><div id="monitor-quotes"><p class="muted small">Loading verified quotes…</p></div><div class="card-head" style="margin-top:18px"><div><h2>Research alerts</h2><p>Price movement and watch-zone events, not trading instructions</p></div></div><div id="monitor-events" style="margin-top:14px"><p class="muted small">Loading recent monitor events…</p></div><p class="muted small" style="margin-bottom:0">Quote timestamps and source attribution are shown when available. A scheduled run marked market_closed is expected outside US regular hours. Missing, stale or unverified quotes are not treated as actionable prices.</p></article></section>
+<section class="section section-anchor" id="research-council-panel"><div class="section-head"><div><div class="section-index">04 / NINE-AGENT RESEARCH COUNCIL</div><h2>Research Council status</h2><p>Verified run history and role-level completion. Research only; no trade execution.</p></div><button id="refresh-council" class="secondary" type="button">Refresh</button></div><article class="card"><div class="card-head"><div><h2>Latest durable research run</h2><p id="council-status">Checking the research audit ledger…</p></div><span id="council-latest-status" class="state">NOT CHECKED</span></div><div class="stat-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><label>Latest ticker</label><strong id="council-latest-symbol">—</strong><small>Most recent persisted run</small></div><div class="stat"><label>Recorded at</label><strong id="council-latest-time" style="font-size:14px">—</strong><small>Server ledger timestamp</small></div></div><div class="card-head" style="margin-top:18px"><div><h2>Nine specialist roles</h2><p>Each status comes from the persisted council result; missing roles are not assumed complete.</p></div><span class="state">9 ROLES</span></div><div class="council-metrics"><div class="council-metric"><label>Agents completed</label><strong id="council-complete-count">0 / 9</strong><div class="council-progress"><span id="council-completion-bar"></span></div></div><div class="council-metric"><label>Awaiting execution</label><strong id="council-pending-count">9</strong><div class="muted tiny">Not yet recorded as complete</div></div><div class="council-metric"><label>Blocked / unavailable</label><strong id="council-blocked-count">0</strong><div class="muted tiny">Requires investigation</div></div></div><div class="modules agent-grid"><div class="module"><b>01 · Market Scanner</b><span id="council-agent-market-scanner">NOT RUN</span></div><div class="module"><b>02 · Technical Analyst</b><span id="council-agent-technical-analyst">NOT RUN</span></div><div class="module"><b>03 · Fundamental Analyst</b><span id="council-agent-fundamental-analyst">NOT RUN</span></div><div class="module"><b>04 · News Analyst</b><span id="council-agent-news-analyst">NOT RUN</span></div><div class="module"><b>05 · Sentiment Analyst</b><span id="council-agent-sentiment-analyst">NOT RUN</span></div><div class="module"><b>06 · Bull Researcher</b><span id="council-agent-bull-researcher">NOT RUN</span></div><div class="module"><b>07 · Bear Researcher</b><span id="council-agent-bear-researcher">NOT RUN</span></div><div class="module"><b>08 · Portfolio Analyst</b><span id="council-agent-portfolio-analyst">NOT RUN</span></div><div class="module"><b>09 · Risk Committee</b><span id="council-agent-risk-committee">NOT RUN</span></div></div><div class="card-head" style="margin-top:18px"><div><h2>Recent research runs</h2><p>Only ticker, overall research state, time and agent statuses are shown.</p></div></div><div id="council-runs"><p class="muted small">Loading saved research runs…</p></div><div class="council-ledger-note">Activity indicators are driven only by persisted agent results. No synthetic “thinking” animation, fabricated calculations or simulated profit is shown. A role marked NOT RUN has not yet produced a recorded result.</div><p class="muted small" style="margin-bottom:0">RESEARCH_REVIEW_REQUIRED means eligible for a separate human review—not a BUY signal or trade approval. Missing or blocked specialists default to NO_TRADE. This panel never displays reports, portfolio values or provider payloads, and it cannot place orders.</p></article></section>
+<section class="section section-anchor" id="candidates-panel"><div class="section-head"><div><div class="section-index">03 / OPPORTUNITY RADAR</div><h2>Research shortlist</h2><p>Cached discovery feed · candidates are not buy signals.</p></div><span class="state">VERIFY BEFORE DECISION</span></div><div class="grid">
+<article class="card span-7"><div class="card-head"><div><h2>Priority candidates</h2><p>Open a ticker in the separate AI Research workspace.</p></div><span class="state">TOP SCREEN</span></div><div id="candidates"><p class="muted small">Loading latest cached screen…</p></div><p id="cache-note" class="muted small" style="margin-bottom:0">Candidates are research priorities only. Verify live price, valuation, earnings, news and risk.</p><div class="linkrow"><a href="./research.html#ranking-disclosure">Explore full research scan ↗</a></div></article>
+<article class="card span-5"><div class="card-head"><div><h2>Decision workflow</h2><p>A disciplined sequence, not an automatic signal.</p></div><span class="state">GUARDRAILS</span></div><div class="modules" style="grid-template-columns:1fr 1fr"><div class="module"><b>01 · Discover</b><span>Scanner shortlist</span></div><div class="module"><b>02 · Investigate</b><span>Full AI Research</span></div><div class="module"><b>03 · Invalidate</b><span>Define stop level</span></div><div class="module"><b>04 · Size</b><span>Risk limits apply</span></div></div><p class="muted small" style="margin:13px 0 0">No model score overrides the deterministic risk gate. Missing evidence means no trade.</p></article>
+</div></section>
+<section class="section section-anchor" id="risk-calculator"><div class="section-head"><div><div class="section-index">04 / POSITION ENGINE</div><h2>Risk &amp; sizing console</h2><p>Calculate a hypothetical position using the current planning limits.</p></div><span class="state">NO ORDER ROUTE</span></div><div class="grid">
+<article class="card span-7"><div class="card-head"><h2>Define a trade plan</h2><span class="state">ILLUSTRATIVE INPUTS</span></div><div class="form-grid">
+<div class="field"><label for="symbol">TICKER</label><input id="symbol" maxlength="10" value="NVDA" autocomplete="off"></div>
+<div class="field"><label for="risk-pct">RISK PER TRADE (% PORTFOLIO EQUITY · MAX 0.5%)</label><input id="risk-pct" type="number" min="0.1" max="0.5" step="0.1" value="0.5"></div>
+<div class="field"><label for="entry">PLANNED ENTRY ($)</label><input id="entry" type="number" min="0.01" step="0.01" value="180"></div>
+<div class="field"><label for="stop">INVALIDATION / STOP ($)</label><input id="stop" type="number" min="0.01" step="0.01" value="175"></div>
+</div><div class="result" aria-live="polite"><div class="muted small">MAXIMUM PLANNED QUANTITY</div><strong id="quantity">0 shares</strong><div id="risk-result" class="small" style="margin-top:6px">Enter valid entry and stop values.</div></div><div class="linkrow"><button id="save-plan" class="primary" type="button">＋ Save plan</button><button id="reset-calc" class="secondary" type="button">Reset inputs</button></div><p class="muted small">Sizing uses 0.5% of current pilot equity, the stop-loss distance, and a 25% position-notional cap. Quantity rounds down to whole shares. A trade is skipped if the math cannot fit the limits.</p></article>
+<article class="card span-5"><div class="card-head"><h2>Risk policy</h2><span class="state">HARD LIMITS</span></div><div class="modules" style="grid-template-columns:1fr 1fr"><div class="module"><b>0.5%</b><span>Maximum planned risk per trade (equity-based)</span></div><div class="module"><b>1%</b><span>Maximum aggregate open risk</span></div><div class="module"><b>2%</b><span>Daily loss stop</span></div><div class="module"><b>25%</b><span>Maximum single-position notional</span></div></div><p class="muted small" style="margin:13px 0 0">For $1,000 starting equity: $5 maximum planned risk per trade, $10 aggregate open risk, $20 daily stop and $250 maximum position notional. Limits scale with current pilot equity where specified. Not yet connected to a complete order lifecycle; execution remains disabled and the kill switch stays engaged.</p></article>
+</div></section>
+<section class="section section-anchor" id="ledger-panel"><div class="section-head"><div><div class="section-index">05 / SAFETY &amp; CONNECTIVITY</div><h2>Risk authority &amp; broker link</h2><p>System readiness is reported only when the server verifies it.</p></div></div><div class="grid">
+<article class="card span-6" aria-live="polite"><div class="card-head"><h2>Paper ledger readiness</h2><span id="ledger-badge" class="state">CHECKING</span></div><p id="ledger-message" class="muted small">Verifying the durable ledger and risk limits…</p><div id="ledger-detail" class="small muted"></div><p class="muted small">Read-only status. Order execution remains disabled; no trades are submitted here.</p></article>
+<article id="broker-panel" class="card span-6 section-anchor"><div class="card-head"><h2>Alpaca paper connection</h2><span id="alpaca-badge" class="state">NOT CHECKED</span></div><p id="alpaca-message" class="muted small">The existing integration is read-only. Test it to verify that the server can reach your paper account.</p><button id="check-alpaca" class="secondary" type="button">Test paper connection</button><div id="alpaca-detail" class="small muted" style="margin-top:12px"></div><p class="muted small">Broker account cash and buying power are separate from the virtual planning allocation.</p></article>
+<article id="pipeline" class="card span-12 section-anchor"><div class="card-head"><div><h2>System health matrix</h2><p>Configured capabilities and current operating restrictions.</p></div><span class="state">OBSERVABILITY</span></div><div class="modules">
+<div class="module"><b>01 · Scanner</b><span id="scanner-state">Loading cached shortlist…</span></div><div class="module"><b>02 · Setup analyst</b><span>Research-only · no validated edge</span></div><div class="module"><b>03 · Event guard</b><span>Full ticker analysis required</span></div><div class="module"><b>04 · Risk guard</b><span>Calculator active · hard limits</span></div><div class="module"><b>05 · Paper executor</b><span>Disabled · no order route</span></div><div class="module"><b>06 · Audit journal</b><span>Local trade plans only</span></div><div class="module"><b>07 · Equity monitor</b><span>Read-only broker reconciliation</span></div><div class="module"><b>08 · Kill switch</b><span>Engaged · execution unavailable</span></div>
+</div></article>
+</div></section>
+<section class="section section-anchor" id="journal-panel"><div class="section-head"><div><div class="section-index">06 / DECISION RECORD</div><h2>Trade-plan journal</h2><p>Saved intentions, never represented as fills or completed trades.</p></div><span class="state">LOCAL STORAGE</span></div><article class="card"><div class="card-head"><h2>Saved plans</h2><span class="state">THIS DEVICE ONLY</span></div><div id="journal"><p class="muted small">No saved plans yet.</p></div><p class="muted small">Plans are stored in this browser only and are not synced to a server. They are not orders, fills or performance results.</p></article></section>
+<section class="section section-anchor" id="time-machine"><div class="section-head"><div><div class="section-index">07 / HISTORICAL LAB</div><h2>Time Machine</h2><p>Backtest diagnostics and strategy validation—not a forecast.</p></div><span class="state">EXPERIMENTAL</span></div><article class="card"><div class="card-head"><div><h2>Historical strategy diagnostics</h2><p>Compare historical strategy output with the SPY benchmark where data permits.</p></div><span class="state">NO EXECUTION</span></div><div class="form-grid"><div class="field"><label for="backtest-symbol">TICKER</label><input id="backtest-symbol" maxlength="12" value="NVDA" autocomplete="off"></div><div class="field" style="display:flex;align-items:end"><button id="run-backtest" class="primary" type="button">Run historical test ↗</button></div></div><p id="backtest-status" class="muted small" style="margin-top:13px">No backtest run in this session.</p><div id="backtest-results" class="muted small"></div><p class="muted small">Historical provider data may be revised and does not fully reconstruct point-in-time fundamentals, delisted securities or exact fills. Results are not proof of future profitability and cannot unlock BUY or execution.</p></article></section>
+<footer class="dash-foot"><span>NORTHSTAR AI · TRADING LAB · PAPER ONLY</span><span>Research separately · Execution locked · No guaranteed returns</span></footer>
+</main>
+<script src="./trading-lab.js?v=silver-dashboard-2" defer></script>
 </body></html>
