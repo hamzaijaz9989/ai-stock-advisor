@@ -46,7 +46,9 @@ To enable it, add `FMP_API_KEY` as a **Cloudflare Pages secret/environment varia
 
 FMP is an independent secondary data source. Northstar keeps its figures separate from SEC observations because fiscal periods, currencies, units, and later restatements may differ. Analyst estimates are explicitly forecasts. Missing endpoints are reported as partial coverage rather than silently filled. This integration does **not** enable BUY: the historical-validation gate remains closed until the actual strategy passes point-in-time walk-forward and untouched holdout testing with verified inputs and realistic costs.
 
-Official FMP docs: https://site.financialmodelingprep.com/developer/docs/quickstart and https://site.financialmodelingprep.com/developer/docs.\n\nThe scheduled market monitor uses the account-provided FMP Free-plan symbol allowlist, rotates two symbols per five-minute market-open run, and enforces a 200-request-per-UTC-day monitor ceiling to preserve headroom. See [FMP Free-tier monitor policy](monitor/FMP_FREE_TIER.md).
+Official FMP docs: https://site.financialmodelingprep.com/developer/docs/quickstart and https://site.financialmodelingprep.com/developer/docs.
+
+The scheduled market monitor uses the account-provided FMP Free-plan symbol allowlist, rotates two symbols per five-minute market-open run, and enforces a 200-request-per-UTC-day monitor ceiling to preserve headroom. See [FMP Free-tier monitor policy](monitor/FMP_FREE_TIER.md).
 
 ## Alpaca Paper Trading connection (read-only)
 
@@ -80,7 +82,11 @@ The dashboard in `web/` is deployed to Cloudflare Pages. The repository is publi
 
 It includes SEC EDGAR reported facts and filings, best-effort quote and one-year history data, headline discovery, a third-party upcoming-earnings calendar check, a provisional five-year cash-flow-per-share valuation, ATR-based risk levels, and a decision checklist.
 
-## Historical validation framework\n\nA Python backtesting module now supports next-session entries, risk/target exits, gap-aware stop fills, transaction costs, benchmark comparisons, outcome summaries, and expanding walk-forward folds. It is a framework for testing defined signals, **not a completed backtest of the dashboard strategy**. After installing the project, run its explicitly synthetic smoke-test input with `python scripts/run_backtest.py --input examples/backtest_input.example.json`. The runner always marks reports as not decision-eligible. The recommendation engine remains locked to WAIT/AVOID/INSUFFICIENT EVIDENCE until point-in-time strategy signals pass walk-forward and untouched holdout evaluation. See [Historical Validation Framework](docs/BACKTESTING.md).\n\n## Decision policy and current limitations
+## Historical validation framework
+
+A Python backtesting module now supports next-session entries, risk/target exits, gap-aware stop fills, transaction costs, benchmark comparisons, outcome summaries, and expanding walk-forward folds. It is a framework for testing defined signals, **not a completed backtest of the dashboard strategy**. After installing the project, run its explicitly synthetic smoke-test input with `python scripts/run_backtest.py --input examples/backtest_input.example.json`. The runner always marks reports as not decision-eligible. The recommendation engine remains locked to WAIT/AVOID/INSUFFICIENT EVIDENCE until point-in-time strategy signals pass walk-forward and untouched holdout evaluation. See [Historical Validation Framework](docs/BACKTESTING.md).
+
+## Decision policy and current limitations
 
 The dashboard's decision panel is deliberately gated. It can show preliminary scenario values and conditional watch levels when the SEC facts are sufficiently complete. These are **not validated buy or sell signals**.
 
