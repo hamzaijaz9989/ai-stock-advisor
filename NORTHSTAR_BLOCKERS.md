@@ -984,3 +984,10 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Migration `0013_research_council_run_leases.sql` remains applied only to Preview. Production database and execution controls are unchanged.
 - First real Preview research collection is still blocked because Pages Preview lacks FMP, Alpaca Paper key ID/secret and Gemini secrets. No research run has been fabricated or recorded.
 - Keep execution disabled, kill switch engaged, BUY disabled. Approved limits remain USD 1,000 allocation / USD 25 max planned risk / USD 50 daily loss.
+
+
+## 2026-11-11 — Risk policy corrected to percentages
+- User superseded the fixed USD 25 maximum planned risk per trade. Current model uses 0.5% of current virtual pilot equity per trade, 1% aggregate open planned risk, and a 2% daily loss stop. At USD 1,000 equity these are USD 5, USD 10 and USD 20.
+- Maximum single-position notional is 25% of equity (USD 250 at current pilot size); sector exposure cap is 40% (USD 400); one concurrent position remains the initial pilot limit.
+- Policy sizes from stop distance and available risk budget. Example: USD 100 notional with a 5% stop risks USD 5; with a 2% stop it risks USD 2. No fixed-dollar risk cap is used.
+- Updated policy, tests, Trading Lab calculator/panel, risk specification and tracker. Exact-head CI and Preview acceptance are pending. Execution remains disabled; kill switch engaged; no orders submitted.
