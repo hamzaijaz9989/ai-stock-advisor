@@ -18,6 +18,24 @@ const finite=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Numb
 function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)return false;let d=a.length^b.length;for(let i=0;i<Math.max(a.length,b.length);i++)d|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return d===0;}
 function stable(v){if(Array.isArray(v))return "["+v.map(stable).join(",")+"]";if(v&&typeof v==="object")return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stable(v[k])).join(",")+"}";return JSON.stringify(v);}
 async function sha256(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");}
+async function claimResearchLease(db,requestId,ticker){
+ const token=crypto.randomUUID();
+ await db.prepare("INSERT OR IGNORE INTO research_council_run_leases(request_id,symbol,lease_token,lease_until) VALUES(?,?,?,strftime('%Y-%m-%dT%H:%M:%fZ','now','+10 minutes'))").bind(requestId,ticker,token).run();
+ let row=await db.prepare("SELECT symbol,lease_token,lease_until FROM research_council_run_leases WHERE request_id=?").bind(requestId).first();
+ if(!row)return {ok:false,reason:"RESEARCH_LEASE_UNAVAILABLE"};
+ if(String(row.symbol).toUpperCase()!==ticker)return {ok:false,reason:"REQUEST_ID_TICKER_CONFLICT"};
+ if(row.lease_token!==token){
+  const reclaim=await db.prepare("UPDATE research_council_run_leases SET lease_token=?,lease_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','+10 minutes'),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE request_id=? AND lease_until<=strftime('%Y-%m-%dT%H:%M:%fZ','now')").bind(token,requestId).run();
+  if(!(Number(reclaim?.meta?.changes)>0))return {ok:false,reason:"RESEARCH_ALREADY_RUNNING"};
+  row=await db.prepare("SELECT symbol,lease_token FROM research_council_run_leases WHERE request_id=?").bind(requestId).first();
+  if(!row||row.lease_token!==token)return {ok:false,reason:"RESEARCH_ALREADY_RUNNING"};
+ }
+ return {ok:true,token};
+}
+async function releaseResearchLease(db,requestId,token){
+ if(!db||!requestId||!token)return;
+ await db.prepare("DELETE FROM research_council_run_leases WHERE request_id=? AND lease_token=?").bind(requestId,token).run();
+}
 async function endpoint(handler,origin,path,env){const r=await handler({request:new Request(origin+path),env});if(!r.ok)throw new Error(path.split("?")[0]+" unavailable (HTTP "+r.status+")");return r.json();}
 async function secFacts(ticker,collectionStartedAt){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
@@ -83,6 +101,7 @@ export async function onRequestPost({request,env}){
  const ticker=String(body?.ticker||"").trim().toUpperCase(),requestId=String(body?.requestId||"").trim();
  if(!/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker)||!/^[A-Za-z0-9._:-]{8,100}$/.test(requestId))return reply({ok:false,error:"A valid US ticker and stable requestId are required."},400);
  const origin=new URL(request.url).origin;
+ let leaseToken=null;
  try{
   // A request ID is an idempotency key: return the durable result before making
   // new provider calls or writing another equity snapshot.
@@ -91,6 +110,12 @@ export async function onRequestPost({request,env}){
    if(String(prior.symbol||"").toUpperCase()!==ticker)return reply({ok:false,error:"requestId already belongs to a different ticker."},409);
    return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(prior.result_json),createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
   }
+  const lease=await claimResearchLease(env.NORTHSTAR_DB,requestId,ticker);
+  if(!lease.ok){
+   const conflict=lease.reason==="REQUEST_ID_TICKER_CONFLICT";
+   return reply({ok:false,error:conflict?"requestId already belongs to a different ticker.":"Research for this request is already running or its lease is unavailable.",retryable:!conflict,execution:false},conflict?409:202);
+  }
+  leaseToken=lease.token;
   // Refresh the read-only broker snapshot before using portfolio values.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
@@ -121,13 +146,18 @@ export async function onRequestPost({request,env}){
   if(context.facts.length+context.evidence.length<3)throw new Error("Collected research evidence is insufficient.");
   const inputHash=await sha256(stable({ticker,asOf,context}));
   const existing=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
-  if(existing){if(existing.input_sha256!==inputHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(existing.result_json),createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});}
+  if(existing){await releaseResearchLease(env.NORTHSTAR_DB,requestId,leaseToken);leaseToken=null;if(existing.input_sha256!==inputHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(existing.result_json),createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});}
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
   const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING").bind(requestId,inputHash,ticker,result.status,JSON.stringify(storedResult)).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);
+  await releaseResearchLease(env.NORTHSTAR_DB,requestId,leaseToken);
+  leaseToken=null;
   return reply({ok:true,replayed:!(Number(write?.meta?.changes)>0),traceDurable:true,createdAt:stored.created_at,result:JSON.parse(stored.result_json),execution:false,automatedOrderSubmission:false});
- }catch(error){return reply({ok:false,execution:false,traceDurable:false,error:String(error?.message||"Research collection failed safely.").slice(0,300)},503);}
+ }catch(error){
+  try{await releaseResearchLease(env?.NORTHSTAR_DB,requestId,leaseToken);}catch{}
+  return reply({ok:false,execution:false,traceDurable:false,error:String(error?.message||"Research collection failed safely.").slice(0,300)},503);
+ }
 }
