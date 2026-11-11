@@ -4,7 +4,7 @@ import {PAPER_PILOT_LIMITS,validatePaperEnvironment,sizePaperPilotOrder} from ".
 
 const valid=(overrides={})=>({
  symbol:"AAPL",side:"buy",orderType:"limit",entryPrice:100,stopPrice:95,
- pilotCashUsd:1000,pilotEquityUsd:1000,deployedNotionalUsd:0,openOrderNotionalUsd:0,
+ pilotCashUsd:1000,pilotEquityUsd:1000,sessionStartEquityUsd:1000,deployedNotionalUsd:0,openOrderNotionalUsd:0,
  openRiskUsd:0,dailyLossUsd:0,openPositions:0,sectorExposureUsd:0,
  quoteTimestamp:1_000_000,now:1_000_010,strategyApproved:true,sessionArmed:true,
  killSwitch:false,environmentVerified:true,operatorAuthorized:true,...overrides
@@ -31,7 +31,7 @@ test("sizes a $100 position from its stop distance rather than a fixed $25 cap",
  assert.equal(r.orderPreview.riskBudgetUsd,5);
 });
 test("risk budget is 0.5% of current pilot equity and adjusts dynamically",()=>{
- const r=sizePaperPilotOrder(valid({pilotCashUsd:500,pilotEquityUsd:800,entryPrice:100,stopPrice:98}));
+ const r=sizePaperPilotOrder(valid({pilotCashUsd:500,pilotEquityUsd:800,sessionStartEquityUsd:1000,entryPrice:100,stopPrice:98}));
  assert.equal(r.ok,true);
  assert.equal(r.orderPreview.riskBudgetUsd,4);
  assert.equal(r.orderPreview.plannedRiskUsd,4);
@@ -74,7 +74,7 @@ test("enforces aggregate open-risk cap and sizes down to remaining risk",()=>{
 test("invalid stops, missing inputs and unaffordable shares are rejected",()=>{
  assert.equal(sizePaperPilotOrder(valid({stopPrice:100})).reason,"INVALID_STOP_CASH_OR_STALE_QUOTE");
  assert.equal(sizePaperPilotOrder(valid({pilotCashUsd:10})).reason,"NO_VALID_POSITION_SIZE");
- assert.equal(sizePaperPilotOrder(valid({pilotEquityUsd:undefined})).reason,"MISSING_OR_INVALID_RISK_INPUT");
+ assert.equal(sizePaperPilotOrder(valid({sessionStartEquityUsd:undefined})).reason,"MISSING_OR_INVALID_RISK_INPUT");
 });
 test("preview is explicitly non-executing",()=>{
  const r=sizePaperPilotOrder(valid());
@@ -83,4 +83,11 @@ test("preview is explicitly non-executing",()=>{
 });
 test("blocks sector concentration above 40% of pilot equity",()=>{
  assert.equal(sizePaperPilotOrder(valid({sectorExposureUsd:390})).reason,"NO_VALID_POSITION_SIZE");
+});
+
+test("daily loss stop stays anchored to session-start equity when current equity changes",()=>{
+ const r=sizePaperPilotOrder(valid({pilotEquityUsd:800,sessionStartEquityUsd:1000,dailyLossUsd:19}));
+ assert.equal(r.ok,true);
+ assert.equal(r.orderPreview.dailyLossLimitUsd,20);
+ assert.equal(r.orderPreview.riskBudgetUsd,1);
 });
