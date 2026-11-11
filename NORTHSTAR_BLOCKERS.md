@@ -1,3 +1,37 @@
+# Northstar Status Addendum — 2026-11-12
+
+This addendum supersedes older operational observations below where dates conflict. Historical notes remain for audit context.
+
+## Current verified Production state (read-only audit, 2026-11-12)
+
+- Worker `northstar-market-monitor` remains scheduled at `*/5 * * * *`.
+- Latest listed Worker deployment is version `60bc9eb2-b4c0-40b1-a33f-db2f18d8cd6f`, 100% traffic, deployed 2026-11-11 19:56:06 UTC.
+- Latest stored monitor runs are IDs 576–579, all `market_closed`, zero symbols checked and zero errors. Latest market-open success is run 575 (2026-11-11 20:55:53 UTC): 8 symbols, zero errors, zero FMP fallbacks.
+- Production quote table currently holds 24 FMP and 25 Finnhub rows. Newest stored quote fetches are 2026-11-11 20:55:55.782 UTC (FMP) and 20:56:01.713 UTC (Finnhub); these are historical evidence, not live quotes.
+- FMP budget row for 2026-11-11 is 46 requests against the Worker cap of 200.
+- Production D1 contains `fmp_request_budget`, but the migration ledger still records only migrations 0001–0006. Migration `0007_fmp_request_budget.sql` remains unapplied/unrecorded; PR #139 is the explicit migration candidate.
+- Production execution control remains `enabled=0`, `mode=paper`, `kill_switch=1`, allocation cap $1,000, default risk 0.5%, max risk 1%, max position 25%.
+- Production counts remain zero for research council runs, decision traces, paper intents, paper orders and paper positions.
+- Six equity snapshots exist. Five are trusted `alpaca_paper_read_only_sync` captures; latest is 2026-11-11 14:15:12.866 UTC with broker account equity $100,000. This is broker equity, not the $1,000 strategy allocation. The snapshot is stale for the collector's 15-minute freshness gate and does not establish a seven-day baseline.
+- No Production D1 writes, migrations, broker actions, or deployments were performed during this audit. D1 query metadata confirms zero rows written.
+
+## Current pull request state
+
+- PR #139: open, non-draft, mergeable; exact head `dcbe72d43665f2aa749375a4f4f812147456b2e5`. Tests, Python tests, validation and full-history secret scan passed. It consolidates explicit FMP migration/runtime-DDL removal and Finnhub fair rotation. Not merged.
+- PR #118: open, draft, non-mergeable. Portfolio capital-basis regression is included; its collector changes depend on integration with PR #116. No Production collector invocation.
+- PR #116: open, draft, non-mergeable. Nine-agent evidence adapter hardening is present; exact-head Tests, Python tests, validation and full-history secret scan passed. No formal review recorded.
+- PR #132: open, non-mergeable and superseded; do not merge independently. Its fair-rotation change is consolidated into PR #139.
+
+## Release gates remain closed
+
+1. Do not merge PRs, deploy Pages/Worker, apply migration 0007, write D1, change secrets/configuration, or run collector/sync workflows without explicit approval.
+2. Do not enable paper execution, release the kill switch, or submit paper/live orders.
+3. Wait for fresh trusted equity snapshots and a qualifying seven-day baseline; then verify all collector gates.
+4. Complete historical strategy validation and safe partial-fill/cancellation/recovery lifecycle before any paper execution.
+5. At the next US market-open session, verify a fresh monitor run and current FMP/Finnhub source timestamps. No fresh 2026-11-12 market-open scan was verified in this audit.
+
+---
+
 # Northstar Completion Sprint — Blockers and Evidence
 
 Last updated: 2026-11-09T02:47:47Z  
