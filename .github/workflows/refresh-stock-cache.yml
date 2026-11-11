@@ -19,7 +19,7 @@ permissions:
 
 concurrency:
   group: refresh-stock-shortlist
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   refresh:
@@ -38,6 +38,7 @@ jobs:
           npm install --no-save playwright
           npx playwright install --with-deps chromium
       - name: Scan the live 253-stock universe and save top ten
+        timeout-minutes: 15
         run: node .github/scripts/refresh-stock-cache.mjs
       - name: Validate scan completeness, enrichment and cache freshness
         run: node .github/scripts/validate-stock-cache.mjs
