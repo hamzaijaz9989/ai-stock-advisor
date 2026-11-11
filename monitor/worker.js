@@ -91,7 +91,6 @@ export function getFmpScanBatch(date = new Date()) {
 }
 async function reserveFmpRequest(db, now = new Date()) {
   if (!db) throw new Error("FMP daily budget unavailable: NORTHSTAR_DB binding missing");
-  await db.prepare("CREATE TABLE IF NOT EXISTS fmp_request_budget (day TEXT PRIMARY KEY, requests INTEGER NOT NULL DEFAULT 0)").run();
   const day = now.toISOString().slice(0,10);
   const row = await db.prepare("INSERT INTO fmp_request_budget(day,requests) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET requests=requests+1 WHERE requests < ? RETURNING requests")
     .bind(day,FMP_DAILY_LIMIT).first();
@@ -236,6 +235,7 @@ async function scan(env) {
       await db.prepare("UPDATE monitor_runs SET completed_at=?,status='market_closed',detail=? WHERE id=?").bind(new Date().toISOString(),"US regular session closed; monitor intentionally idle.",runId).run();
       return {status:"market_closed",checked:0,errors:0};
     }
+    if (env.FMP_API_KEY) await db.prepare("CREATE TABLE IF NOT EXISTS fmp_request_budget (day TEXT PRIMARY KEY, requests INTEGER NOT NULL DEFAULT 0)").run();
     const response=await fetch(CACHE_URL,{headers:{Accept:"application/json"},cf:{cacheTtl:0},signal:AbortSignal.timeout(10000)});
     if(!response.ok) throw new Error("Shortlist cache HTTP "+response.status);
     const cache=await response.json();
