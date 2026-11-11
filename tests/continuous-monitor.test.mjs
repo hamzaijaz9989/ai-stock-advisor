@@ -129,7 +129,7 @@ test("missing FMP key uses Yahoo only and never attempts an FMP request", async 
 test("FMP and Yahoo failures both fail closed instead of returning an unverified quote", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  await assert.rejects(
-  getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key" }, async (input) => {
+  getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key", NORTHSTAR_DB: fakeFmpBudgetDb() }, async (input) => {
    const host = new URL(String(input)).hostname;
    return new Response("", { status: host === "financialmodelingprep.com" ? 401 : 503 });
   }, now),
