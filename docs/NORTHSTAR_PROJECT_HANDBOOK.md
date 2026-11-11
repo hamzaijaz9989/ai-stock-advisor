@@ -368,3 +368,7 @@ Keep enabled=0, mode=paper, kill_switch=1, BUY disabled, and all order submissio
 ### Clarification — approved risk ceilings vs stricter defaults
 
 The PR #118 policy values of 0.5% per-trade risk and 2% daily loss at the $1,000 virtual allocation ($5 and $20 respectively) are **stricter internal defaults**, not a breach of the user's approved maximum ceilings of $25 planned risk per trade and $50 daily loss. Preserve the user's ceilings as hard maximums; any lower default may remain. Before any future paper activation, verify that both the implementation and UI clearly distinguish the approved maximums from the stricter active defaults, and that no setting can exceed the approved ceilings.
+
+## 2026-11-12 — Ten-task continuation: verified Production checkpoint
+
+undefined
