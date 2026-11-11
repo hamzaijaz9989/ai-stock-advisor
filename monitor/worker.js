@@ -272,7 +272,7 @@ async function emitEvent(db,event) {
 }
 function alpacaSyncErrorCategory(error) {
   const message=String(error?.message||error||"").toLowerCase();
-  const status=message.match(/http (\\d{3})/);
+  const status=message.match(/http (\d{3})/);
   if(status) return "http_"+status[1];
   if(message.includes("credential")||message.includes("binding")) return "configuration";
   if(message.includes("blocked")||message.includes("disabled")||message.includes("kill-switched")) return "safety_gate";
