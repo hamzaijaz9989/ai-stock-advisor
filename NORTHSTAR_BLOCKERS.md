@@ -990,3 +990,12 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Fresh Worker settings read now lists `FMP_API_KEY` as a `secret_text` binding alongside `FINNHUB_API_KEY` and `NORTHSTAR_DB`. Secret value was not read.
 - Latest available monitor run #563 (19:55:52–19:56:01 UTC) still recorded two FMP HTTP 401 fallbacks (FUBO, RKT). This run was at/around the key update and no later run was yet present, so do not interpret it as a conclusive post-update failure.
 - Next acceptance test: inspect the next scheduled Worker run after the secret update. Require eligible FMP symbols to be saved with source FMP and no HTTP 401; confirm Finnhub fallback remains available. Keep paper execution disabled.
+
+
+## 2026-11-12 — FMP post-update acceptance test PASSED
+
+- User confirmed updating the FMP key; Cloudflare Worker settings confirm the `FMP_API_KEY` secret binding is present. Secret value was not read.
+- Scheduled run #564 (2026-11-11 20:00:52–20:01:01 UTC) completed `success`, checked 8 symbols, recorded zero errors and zero FMP fallbacks.
+- Persisted quotes: AAPL $354.50 and TSLA $391.57, both source `Financial Modeling Prep`, provider quote time `2026-11-11T20:00:53Z`.
+- Six non-FMP shortlist symbols were supplied by Finnhub.
+- FMP Worker authentication is now verified after the update. Continue monitoring future runs for consistency. Paper execution remains disabled.
