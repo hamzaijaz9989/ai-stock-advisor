@@ -323,3 +323,16 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - A direct production Pages API probe from the connected Cloudflare execution environment was blocked by outbound 403 before reaching the application. Therefore no runtime API status is inferred from that probe.
 - No PR was merged, no code deployed, no D1 writes/migrations, no secret changes, no broker requests or orders. Paper execution remains disabled; kill switch remains engaged.
 - Next exact acceptance: use an authorized Preview runtime with its own D1 binding and explicit verified portfolio snapshot; invoke the protected research collector once in read-only mode; verify all nine role statuses, evidence references/timestamps, missing-resource behavior, deterministic Risk Committee veto, persisted run/decision trace and idempotent replay; then verify the dashboard against that exact Preview deployment. Keep BUY disabled.
+
+
+## 2026-11-12 — Preview acceptance readiness checkpoint
+
+The current nine-agent acceptance path is blocked by Preview provider configuration and the trusted portfolio-history gate, not by a missing Preview database. Cloudflare Pages Preview is correctly bound to the isolated `northstar-preview` D1 database and its research/execution tables are present. Preview currently has no persisted Council runs, decision traces, equity snapshots, paper orders or positions. Its execution control remains disabled with the kill switch engaged.
+
+The Pages Preview environment currently exposes only the `NORTHSTAR_OPERATOR_TOKEN` secret binding; provider secret bindings for FMP, Finnhub, Alpaca Paper and Gemini are absent. Production provider bindings are separate. Configure the required secrets in Preview through Cloudflare settings without copying values into GitHub or chat. No secret values were read during this audit.
+
+Production has six equity snapshots, five from the trusted read-only sync source, spanning `2026-11-08T18:34:38.720Z` to `2026-11-11T14:15:12.866Z`. The seven-day trusted baseline earliest possible completion is `2026-11-15T18:34:38.720Z`, assuming subsequent trusted snapshots continue. Production Research Council runs/traces remain 0/0. Both Preview and Production controls remain `enabled=0`, `mode=paper`, `kill_switch=1`; there are no paper orders or positions.
+
+PR #116 exact-head Tests, Validate and full-history secret scan passed at head `cb0c81635924bff7e1908ff1ec90933c4e4c72c2`. PR #118's corresponding checks passed at head `95dc116735e755046f6cc30cff2eaca308287f41`, but it remains draft. PR #108 and #118 have no formal review submissions in the current review check. CI is not runtime acceptance.
+
+All D1 queries for this checkpoint were read-only (zero rows written, no database changes). No collector POST, secret read/change, migration, merge, deployment, broker request or order occurred. Next: configure Preview provider secrets, continue trusted snapshots until seven days, verify provider health and portfolio context, then perform one protected research-only collector run and verify all nine roles, risk veto, durable trace and idempotent replay. Do not enable BUY or execution.
