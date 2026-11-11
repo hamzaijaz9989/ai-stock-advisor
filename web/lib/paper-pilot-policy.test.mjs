@@ -24,14 +24,14 @@ test("paper environment accepts only exact paper host and active account",()=>{
  assert.equal(validatePaperEnvironment({mode:"paper",brokerHost:"https://paper-api.alpaca.markets",accountStatus:"ACTIVE",tradingBlocked:true}).ok,false);
 });
 test("sizes a $100 position from its stop distance rather than a fixed $25 cap",()=>{
- const r=sizePaperPilotOrder(valid({entryPrice:100,stopPrice:98}));
+ const r=sizePaperPilotOrder(valid({entryPrice:100,stopPrice:95}));
  assert.equal(r.ok,true);
  assert.equal(r.orderPreview.notionalUsd,100);
- assert.equal(r.orderPreview.plannedRiskUsd,2);
+ assert.equal(r.orderPreview.plannedRiskUsd,5);
  assert.equal(r.orderPreview.riskBudgetUsd,5);
 });
 test("risk budget is 0.5% of current pilot equity and adjusts dynamically",()=>{
- const r=sizePaperPilotOrder(valid({pilotCashUsd:500,pilotEquityUsd:800,entryPrice:100,stopPrice:90}));
+ const r=sizePaperPilotOrder(valid({pilotCashUsd:500,pilotEquityUsd:800,entryPrice:100,stopPrice:98}));
  assert.equal(r.ok,true);
  assert.equal(r.orderPreview.riskBudgetUsd,4);
  assert.equal(r.orderPreview.plannedRiskUsd,4);
@@ -67,7 +67,7 @@ test("enforces the 2% daily stop, allocation and concurrent-position cap",()=>{
 });
 test("enforces aggregate open-risk cap and sizes down to remaining risk",()=>{
  assert.equal(sizePaperPilotOrder(valid({openRiskUsd:10})).reason,"AGGREGATE_OPEN_RISK_LIMIT_REACHED");
- const r=sizePaperPilotOrder(valid({openRiskUsd:8,entryPrice:100,stopPrice:95}));
+ const r=sizePaperPilotOrder(valid({openRiskUsd:8,entryPrice:100,stopPrice:99}));
  assert.equal(r.ok,true);
  assert.equal(r.orderPreview.plannedRiskUsd,2);
 });
