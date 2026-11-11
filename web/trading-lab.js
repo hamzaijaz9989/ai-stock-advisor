@@ -30,9 +30,14 @@
     const valid = /^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) &&
       Number.isFinite(entry) && Number.isFinite(stop) && entry > stop && stop > 0 &&
       Number.isFinite(riskPct) && riskPct > 0 && riskPct <= RISK_PCT_MAX;
+    if (!symbol || !Number.isFinite(entry) || entry <= 0 || !Number.isFinite(stop) || stop <= 0) {
+      $("quantity").textContent = "—";
+      $("risk-result").textContent = "Enter a ticker, planned entry and invalidation price to calculate position size.";
+      return null;
+    }
     if (!valid) {
       $("quantity").textContent = "NO TRADE";
-      $("risk-result").textContent = "Enter a valid ticker, an entry above a positive stop, and a risk budget from 0.1% to 0.5% of current pilot equity.";
+      $("risk-result").textContent = "Check the ticker, ensure entry is above the stop, and keep risk between 0.1% and 0.5% of pilot equity.";
       return null;
     }
     const perShareRisk = entry - stop;
@@ -104,9 +109,9 @@
     renderJournal();
   });
   $("reset-calc").addEventListener("click", () => {
-    $("symbol").value = "NVDA";
-    $("entry").value = "180";
-    $("stop").value = "175";
+    $("symbol").value = "";
+    $("entry").value = "";
+    $("stop").value = "";
     $("risk-pct").value = "0.5";
     calculate();
   });
