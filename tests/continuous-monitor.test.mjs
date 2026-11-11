@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch } from "../monitor/worker.js";
+import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, reserveFmpRequest } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.deepEqual(parseWatchZone("NOT ENTRY-READY — Model entry watch zone: $34.01–$36.28; base-case reference"),{low:34.01,high:36.28});
@@ -64,6 +64,45 @@ test("FMP Free universe contains unique symbols and rotation batches stay within
  assert.equal(batch.length,2);
  assert.ok(batch.every(symbol=>FMP_FREE_SYMBOLS.includes(symbol)));
  assert.notDeepEqual(batch,getFmpScanBatch(new Date("2026-11-10T15:05:00.000Z")));
+});
+
+
+test("FMP rotation covers all 87 allowed symbols within 44 five-minute runs",()=>{
+ const start=Date.parse("2026-11-10T15:00:00.000Z");
+ const covered=new Set();
+ for(let run=0;run<44;run++) {
+  for(const symbol of getFmpScanBatch(new Date(start+run*5*60*1000))) covered.add(symbol);
+ }
+ assert.equal(covered.size,87);
+ assert.ok(FMP_FREE_SYMBOLS.every(symbol=>covered.has(symbol)));
+});
+
+test("atomic FMP budget reservation allows 200 attempts and rejects attempt 201",async()=>{
+ let requests=0;
+ const db={
+  prepare(sql) {
+   assert.match(sql,/ON CONFLICT\(day\) DO UPDATE SET requests=requests\+1 WHERE requests < \?/);
+   return {
+    bind(day,limit) {
+     assert.equal(day,"2026-11-11");
+     assert.equal(limit,200);
+     return {first:async()=>{
+      if(requests>=limit) return null;
+      requests+=1;
+      return {requests};
+     }};
+    }
+   };
+  }
+ };
+ for(let attempt=1;attempt<=200;attempt++) {
+  assert.equal(await reserveFmpRequest(db,new Date("2026-11-11T12:00:00.000Z")),attempt);
+ }
+ await assert.rejects(
+  reserveFmpRequest(db,new Date("2026-11-11T12:00:00.000Z")),
+  /FMP daily request budget exhausted/
+ );
+ assert.equal(requests,200);
 });
 
 test("FMP quote uses the documented apikey query parameter and never sends a custom key header", async () => {
