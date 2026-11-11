@@ -86,7 +86,7 @@ test("blocks sector concentration above 40% of pilot equity",()=>{
 });
 
 test("daily loss stop stays anchored to session-start equity when current equity changes",()=>{
- const r=sizePaperPilotOrder(valid({pilotEquityUsd:800,sessionStartEquityUsd:1000,dailyLossUsd:19}));
+ const r=sizePaperPilotOrder(valid({pilotEquityUsd:800,sessionStartEquityUsd:1000,dailyLossUsd:19,entryPrice:100,stopPrice:99}));
  assert.equal(r.ok,true);
  assert.equal(r.orderPreview.dailyLossLimitUsd,20);
  assert.equal(r.orderPreview.riskBudgetUsd,1);
