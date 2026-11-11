@@ -279,6 +279,8 @@ async function scan(env) {
   let checked=0,errors=0;
   const quoteFailureCounts=new Map();
   const quoteFailureDetails=[];
+  const providerFallbackCounts=new Map();
+  const providerFallbackDetails=[];
   try {
     if(!isUsMarketOpen()) {
       await db.prepare("UPDATE monitor_runs SET completed_at=?,status='market_closed',detail=? WHERE id=?").bind(new Date().toISOString(),"US regular session closed; monitor intentionally idle.",runId).run();
@@ -297,6 +299,11 @@ async function scan(env) {
       const result=results[i], stock=candidates[i];
       if(!result.ok){errors++;const category=classifyQuoteFailure(result.error);quoteFailureCounts.set(category,(quoteFailureCounts.get(category)||0)+1);quoteFailureDetails.push(stock.ticker+":"+category);continue;}
       const q=result.value, zone=parseWatchZone(stock.entryStatus);
+      if(q.fallbackReason && /FMP failed/i.test(q.fallbackReason)) {
+        const category=classifyQuoteFailure(q.fallbackReason);
+        providerFallbackCounts.set(category,(providerFallbackCounts.get(category)||0)+1);
+        providerFallbackDetails.push(q.symbol+":"+category+"->"+q.source);
+      }
       const inside=Boolean(zone&&q.price>=zone.low&&q.price<=zone.high);
       const prior=await db.prepare("SELECT in_watch_zone FROM monitor_quotes WHERE symbol=?").bind(q.symbol).first();
       await db.prepare("INSERT INTO monitor_quotes(symbol,price,previous_close,change_pct,quote_time,fetched_at,source,watch_low,watch_high,in_watch_zone) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(symbol) DO UPDATE SET price=excluded.price,previous_close=excluded.previous_close,change_pct=excluded.change_pct,quote_time=excluded.quote_time,fetched_at=excluded.fetched_at,source=excluded.source,watch_low=excluded.watch_low,watch_high=excluded.watch_high,in_watch_zone=excluded.in_watch_zone")
@@ -309,7 +316,9 @@ async function scan(env) {
     const status=errors===0?"success":checked>0?"partial":"failed";
     const failureSummary=[...quoteFailureCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
     const failureSymbols=quoteFailureDetails.length?" [failed symbols: "+quoteFailureDetails.join(", ").slice(0,240)+"]":"";
-    const detail="Checked "+checked+" quotes: rotating FMP Free-universe symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" non-FMP shortlist symbols; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"")+failureSymbols;
+    const fallbackSummary=[...providerFallbackCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
+    const fallbackSymbols=providerFallbackDetails.length?" [FMP fallback symbols: "+providerFallbackDetails.join(", ").slice(0,240)+"]":"";
+    const detail="Checked "+checked+" quotes: rotating FMP Free-universe symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" non-FMP shortlist symbols; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"")+failureSymbols+"; FMP fallbacks: "+providerFallbackDetails.length+(fallbackSummary?" ("+fallbackSummary+")":"")+fallbackSymbols;
     await db.prepare("UPDATE monitor_runs SET completed_at=?,status=?,symbols_checked=?,errors=?,detail=? WHERE id=?").bind(at,status,checked,errors,detail,runId).run();
     return {status,checked,errors,at};
   } catch(error) {
