@@ -96,7 +96,11 @@ async function portfolioSnapshot(env){
  if(weeklyEquity===null||weeklyEquity<=0)throw new Error("Seven-day equity baseline is invalid.");
  const weeklyLossFraction=Math.max(0,(weeklyEquity-equity)/weeklyEquity);
  return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:new Date().toISOString(),
-  equityUsd:1000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction,weeklyLossFraction,drawdownFraction,
+  // The Council fact adapter requires explicit virtual and broker capital bases.
+  // Risk metrics are normalized to the $1,000 virtual allocation; broker equity
+  // is retained separately and must never be mistaken for strategy capital.
+  equityUsd:1000,virtualAllocationUsd:1000,actualAccountEquityUsd:equity,riskMetricBasis:"actual_alpaca_paper_account_equity",
+  openRiskUsd:0,grossExposureUsd:0,dailyLossFraction,weeklyLossFraction,drawdownFraction,
   sectorExposureUsd:0,concurrentPositions:0};
 }
 export async function onRequestPost({request,env}){
