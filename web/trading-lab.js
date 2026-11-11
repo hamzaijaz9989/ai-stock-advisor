@@ -256,9 +256,10 @@
     const status=$("scanner-state"),root=$("candidates"),button=$("refresh-candidates");
     if(button){button.disabled=true;button.textContent="Checking…";}
     try{
-      const response=await fetch("./data/top-stocks-cache.json?check="+Date.now(),{cache:"no-store",headers:{Accept:"application/json"}});
+      const response=await fetch("/api/shortlist?check="+Date.now(),{cache:"no-store",headers:{Accept:"application/json"}});
       if(!response.ok)throw new Error("Shortlist cache unavailable (HTTP "+response.status+").");
       const data=await response.json();
+      if(data.ok!==true)throw new Error(data.error||"Published shortlist unavailable.");
       const generated=Date.parse(data.completedAt||data.generatedAt||"");
       if(!Number.isFinite(generated))throw new Error("The scan timestamp is missing; shortlist freshness cannot be verified.");
       const ageMs=Date.now()-generated,ageHours=ageMs/3600000;
