@@ -1,3 +1,4 @@
+// Cached candidates are research priorities, not an entry signal or a validated BUY.
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
