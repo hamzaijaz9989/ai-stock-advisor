@@ -31,36 +31,33 @@ Trading Lab has two future market tabs, but the first implementation is US equit
 
 Agents can run as logical services, but deterministic code owns eligibility and execution. Agent consensus cannot bypass a failed hard gate.
 
-## 3. Approved $1,000 pilot risk profile (paper simulation only)
+## 3. Percentage-based $1,000 pilot risk profile (paper simulation only)
 
-These are conservative engineering limits for a paper pilot, not personalized financial advice or a guarantee against loss.
+These are conservative initial engineering limits, not a return forecast or guarantee. The user's latest instruction supersedes the earlier fixed USD 25 per-trade cap and USD 50 daily stop. Risk is now expressed as percentages of current pilot equity and position size is calculated from the stop distance.
 
-| Control | Initial limit |
-|---|---:|
-| Maximum pilot allocation | $1,000 |
-| Maximum planned risk per trade | $25 absolute; size lower if the strategy or portfolio budget requires it |
-| Daily realized + unrealized loss stop | $50 absolute from the session baseline |
-| Aggregate open planned risk | Must not exceed $25 per trade multiplied by approved concurrent-position cap; initial implementation must use a single open position until correlation/exposure controls are validated |
-| Maximum single-position notional | Must fit within the $1,000 total pilot allocation; position size is further limited by stop-distance risk |
-| Maximum sector exposure | No more than 40% of the $1,000 pilot allocation ($400) |
-| Daily loss stop | $50 absolute (user-approved) |
-| Weekly loss stop | 4% of pilot allocation ($40), provisional additional safety ceiling |
-| Strategy drawdown pause | 8% of pilot allocation ($80), provisional additional safety ceiling |
-| Leverage, margin, options, shorting | Disabled |
-| Initial concurrent positions | One until portfolio-level validation passes |
+| Control | Initial rule | At $1,000 equity |
+|---|---:|---:|
+| Maximum pilot allocation | $1,000 absolute | $1,000 |
+| Planned risk per trade | 0.5% of current pilot equity | $5 |
+| Aggregate open planned risk | 1.0% of current pilot equity | $10 |
+| Daily realized + unrealized loss stop | 2.0% of session-start pilot equity | $20 |
+| Maximum single-position notional | 25% of current pilot equity | $250 |
+| Maximum sector exposure | 40% of current pilot equity | $400 |
+| Initial concurrent positions | One | One |
 
-Risk sizing:
+All percentage limits are recalculated from the authoritative virtual pilot ledger. The absolute $1,000 allocation remains a hard ceiling. Daily loss is measured from a persisted session-start equity baseline and includes realized and unrealized losses, fees and slippage. A missing or stale baseline blocks trading. The daily stop is not a target to use; reaching it disables new entries for the rest of the session.
 
-`shares = floor(min(risk_budget / (entry - stop), max_position_notional / entry, available_cash / entry))`
+Position sizing uses:
 
-The calculation must include expected spread, slippage, fees and currency precision. If the broker supports fractional shares, fractional sizing may be enabled only after its behavior is tested; otherwise round down to whole shares. If the planned loss exceeds the risk budget, data is stale, the stop is invalid, or the position does not fit cash/notional limits, reject the trade.
+`risk_budget = min(equity × 0.5%, aggregate_risk_remaining, daily_loss_remaining)`
 
-Stops do not guarantee execution at the stop price. Overnight gaps, halts, spread widening and liquidity shocks can produce larger losses. No martingale, averaging down, doubling after losses, or risk escalation after a winning streak.
+`shares = floor(min(risk_budget / (entry - stop), max_position_notional / entry, available_cash / entry, allocation_remaining / entry, sector_room / entry))`
 
-A 2% daily stop, 4% weekly stop or 8% peak-to-trough drawdown pause disables new entries and requires review. It must not liquidate holdings blindly; exits follow separately tested rules and broker-state reconciliation.
+For example, at $1,000 equity, a $100 position with a 5% stop distance risks $5; the same $100 position with a 2% stop distance risks $2. A wider stop reduces the number of shares; a tighter stop may allow more shares, but not beyond the 25% notional cap. Whole-share rounding can result in NO TRADE. The system must never widen a stop just to fit a desired position.
 
-The user's existing real holdings are not automatically imported as available cash and must not be sold, transferred or changed by this module. The $1,000 allocation is a separate simulation budget until the user explicitly reconciles real holdings.
+The calculation must include expected spread, slippage, fees and currency precision. If the planned loss exceeds any risk budget, the stop is invalid, data is stale, the virtual ledger cannot be reconciled, or the position does not fit cash/notional/concentration limits, reject the trade.
 
+Stops do not guarantee execution at the stop price. Overnight gaps, halts, spread widening and liquidity shocks can produce larger losses. No leverage, options, shorting, martingale, averaging down, doubling after losses, or risk escalation after a winning streak.
 ## 4. Strategy research sequence
 
 Start with one transparent, long-only US-equity swing strategy on liquid names. Do not launch a large collection of untested strategies at once.
@@ -153,7 +150,7 @@ Do not display fabricated balances, placeholder trades, guaranteed profit figure
 1. **Foundation audit:** reconcile current main branch, strategy validation status, Alpaca paper connection, data entitlements and account configuration.
 2. **Trading Lab read-only UI:** scanner diagnostics, account reconciliation, risk calculator and audit journal; no order submission.
 3. **Real historical evaluation:** build point-in-time dataset and evaluate frozen candidate strategies with walk-forward and holdout tests.
-4. **Paper execution:** only after authentication and server-side risk enforcement; hard cap the virtual allocation at $1,000, planned risk at $25 per trade, and daily loss at $50. Automation remains disabled until a final acceptance review.
+4. **Paper execution:** only after authentication and server-side risk enforcement; hard cap the virtual allocation at $1,000, planned risk at 0.5% of pilot equity per trade, aggregate open risk at 1%, and daily loss at 2%. Automation remains disabled until a final acceptance review.
 5. **Paper observation:** monitor fills, slippage, reconciliation and risk stops over a meaningful sample.
 6. **Independent review:** decide whether any strategy merits further consideration. Live trading remains a separate, explicit decision and is outside this implementation.
 
@@ -165,3 +162,10 @@ Do not display fabricated balances, placeholder trades, guaranteed profit figure
 - No leverage, options, shorting, martingale or loss-chasing.
 - No fabricated live data, paper results, trade fills or backtests.
 - A valid NO TRADE decision is a successful risk-control outcome.
+
+
+## 2026-11-11 — User superseded fixed-dollar trade risk with percentage-based risk
+- User clarified that the prior fixed USD 25 per-trade risk cap is not appropriate; risk must be calculated mathematically from trade size and stop distance with percentage-based controls.
+- New conservative starting profile: 0.5% of current pilot equity maximum planned risk per trade; 1% aggregate open planned risk; 2% daily loss stop; 25% maximum single-position notional; 40% maximum sector exposure; one concurrent position. At USD 1,000 equity these are USD 5, USD 10, USD 20, USD 250 and USD 400 respectively.
+- The absolute virtual allocation remains USD 1,000. This is a paper-pilot engineering policy, not a promise of profit. All limits require a persisted, reconciled virtual ledger and session baseline before any order path can be activated.
+- The prior USD 25 / USD 50 fixed-dollar limits are superseded for current configuration; historical entries are retained for audit history.
