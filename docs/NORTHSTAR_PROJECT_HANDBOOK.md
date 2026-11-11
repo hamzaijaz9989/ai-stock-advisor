@@ -336,3 +336,19 @@ Production has six equity snapshots, five from the trusted read-only sync source
 PR #116 exact-head Tests, Validate and full-history secret scan passed at head `cb0c81635924bff7e1908ff1ec90933c4e4c72c2`. PR #118's corresponding checks passed at head `95dc116735e755046f6cc30cff2eaca308287f41`, but it remains draft. PR #108 and #118 have no formal review submissions in the current review check. CI is not runtime acceptance.
 
 All D1 queries for this checkpoint were read-only (zero rows written, no database changes). No collector POST, secret read/change, migration, merge, deployment, broker request or order occurred. Next: configure Preview provider secrets, continue trusted snapshots until seven days, verify provider health and portfolio context, then perform one protected research-only collector run and verify all nine roles, risk veto, durable trace and idempotent replay. Do not enable BUY or execution.
+
+
+## 2026-11-12 — Agreed Production-first acceptance strategy
+
+**Decision:** Production is the agreed acceptance target. Preview is not required for this milestone and must not be treated as a prerequisite or blocker. The previous Preview-readiness checkpoint is retained as a historical technical observation only; its proposed Preview secret configuration and Preview acceptance sequence are superseded. Do not ask the user to configure Preview provider secrets.
+
+### Production-first sequence
+- During an open US equity session, verify the live Production Pages deployment and market-monitor Worker, including cron activity, latest successful market-open scan, quote timestamps/freshness, FMP/Finnhub attribution, fallbacks and per-symbol errors.
+- Read-only inspect Production Pages/Worker secret binding names independently. Never read secret values or assume a Worker binding proves the Pages environment is configured.
+- Read-only inspect Production D1 schema, execution controls, kill switch, orders, positions, intents, snapshots and council traces. No writes during diagnostics.
+- Inspect the actual collector route and code-level preconditions before any run. A successful research collection may append Production D1 run/decision traces; this is a write and requires explicit user authorization. It must never submit broker orders.
+- Check the seven-day trusted equity baseline and freshness requirements where the collector's portfolio gate applies. This does not block independent read-only scanner/provider diagnostics.
+- Validate all nine research roles, source provenance/timestamps, missing-resource reporting, deterministic risk veto, durable trace/idempotent replay and dashboard display on Production when authorized and eligible.
+
+### Safety boundary
+Keep enabled=0, mode=paper, kill_switch=1, BUY disabled, and all order submission paths unused. No real-money trades, paper orders, broker mutations, D1 writes/migrations, secret changes, PR merges or deployments are authorized by a request to perform read-only testing. Do not weaken freshness, portfolio or strategy-validation gates. Strategy approval remains separate from software/runtime health; successful scanner/provider tests do not authorize BUY or paper execution.
