@@ -948,3 +948,25 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - PR #118 is still open and its actual diff is documentation-only (blocker log plus Cloudflare architecture design); its PR description overstates included paper-policy tests/implementation. Do not treat it as implementation of paper-pilot safeguards. Its head is based on an older main commit and needs reconciliation before merge.
 - Strategy validation remains NOT APPROVED: no complete real point-in-time dataset, 100 completed trades, four walk-forward folds, untouched holdout, or independent review evidence. BUY remains disabled. Automatic paper execution remains disabled.
 - Next exact tasks: (1) reconcile PR #118 and correct its scope/claims; (2) build an isolated Preview acceptance path with required provider bindings supplied through Cloudflare secret controls (never expose values); (3) connect the nine-agent council to the dashboard and prove durable traces in Preview; (4) collect a valid seven-day read-only portfolio baseline; (5) design and test the approved $2,500/$25/$50 pilot limits in a dedicated virtual ledger without loosening production DB checks prematurely; (6) complete strategy validation and paper-order lifecycle tests before any separate activation review.
+
+
+## 2026-11-11 12:30 UTC — Provider release deployed; live-session acceptance pending
+
+- Correction to the earlier 2026-11-11 audit: the earlier PR #118 description of its diff as documentation-only was stale. Current PR #118 includes the research collection/status code, run-lease migration, pure fail-closed paper sizing policy and tests. It remains open/draft and must not be treated as production-ready; its own remaining-gates list still includes lease recovery/concurrency, durable Preview replay, seven-day baseline, point-in-time strategy validation, virtual ledger lifecycle and execution safeguards.
+- PR #117 was merged to `main` as `ac4f2508e9257eca6e88970a4eb24a4654aebebc` after exact-head Tests, Validate AI Stock Advisor and full-history secret-scan checks all passed.
+- Cloudflare Pages Production deployment `0da695c5` is active from that merge commit. Production D1 remains `528f3a23-1d1f-4d16-8463-f643d85f5deb`. Production binding names include Alpaca Paper key/secret, FMP key, Gemini key and operator token; no secret values were read or changed.
+- Deployed the merged `monitor/worker.js` to the separate `northstar-market-monitor` Worker. Version `49a3e91f-4dfd-4bc4-8a28-7262367f51f4` is at 100%. The existing FMP secret binding and Production D1 binding were preserved; the existing five-minute cron remains unchanged.
+- Post-deployment D1 run #473 at `2026-11-11T12:25:52.802Z` completed as `market_closed` with zero errors. This confirms scheduled Worker invocation outside market hours; it does not validate live-session provider retrieval.
+- The current cache was generated `2026-11-11T10:47:23.072Z`, with 253 symbols screened, 201 ranked, 52 excluded and 10 enriched. It is within the Worker four-hour maximum age at this checkpoint, but outside the stricter 30-minute application cache acceptance window.
+- Production D1 controls remain paper mode, `enabled=0`, `kill_switch=1`, `max_portfolio_usd=1000`, risk fractions 0.5% / 1%, and max position fraction 25%. Production still has zero persisted quotes, monitor events, Research Council runs, decision traces, paper intents, paper orders and paper positions. Five equity snapshots remain insufficient for the seven-day baseline.
+- No paper orders were submitted; no production D1 migration or direct data write was performed; no execution flag or kill switch was changed.
+
+### Remaining release gates
+
+1. At the next US regular-session opening, verify the scanner processes the current shortlist, stores fresh quotes and produces truthful provider failure classifications if a source fails. Do not accept the scanner until quote rows are persisted and fresh.
+2. Ensure the stock-cache workflow publishes a cache within the application's 30-minute acceptance limit before the market test.
+3. Apply and test the research-run lease migration only in isolated Preview; provide required Preview provider secrets through Cloudflare without exposing them in chat. Run a controlled research collection and verify durable traces and idempotent replay before any Production migration.
+4. Keep the Research Council advisory only. No validated strategy, seven-day baseline or completed paper-order lifecycle exists yet.
+5. Keep order execution disabled and the kill switch engaged. Do not loosen current production controls or infer approval from passing software tests.
+
+**Operational status: partially ready.** Provider authentication correction is deployed and the five-minute monitor schedule is invoking. Live quote retrieval/persistence, fresh-cache acceptance, nine-agent execution, seven-day baseline, strategy validation and paper-order lifecycle are not yet proven. A fully operational trading system cannot honestly be declared before these gates pass.
