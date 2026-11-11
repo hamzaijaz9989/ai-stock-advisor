@@ -131,6 +131,28 @@ export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.
     quoteTime, fetchedAt: new Date().toISOString(), source: "Financial Modeling Prep"
   };
 }
+export async function getFinnhubQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
+  const url = new URL("https://finnhub.io/api/v1/quote");
+  url.searchParams.set("symbol", symbol);
+  const response = await fetchImpl(url.toString(), {
+    headers: { Accept: "application/json", "X-Finnhub-Token": apiKey },
+    signal: AbortSignal.timeout(7000)
+  });
+  if (!response.ok) throw new Error("Finnhub quote HTTP " + response.status);
+  const row = await response.json();
+  const price = Number(row?.c);
+  const previousClose = Number(row?.pc);
+  const timestamp = Number(row?.t);
+  const quoteTime = Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp * 1000).toISOString() : null;
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Finnhub returned an invalid or unavailable price");
+  if (!isQuoteFresh(quoteTime, now)) throw new Error("Finnhub quote timestamp missing, stale, or unexpectedly in the future");
+  const reportedChange = row?.dp;
+  const changePct = reportedChange !== null && reportedChange !== undefined && Number.isFinite(Number(reportedChange))
+    ? Number(reportedChange)
+    : Number.isFinite(previousClose) && previousClose > 0 ? (price / previousClose - 1) * 100 : null;
+  return { symbol, price, previousClose: Number.isFinite(previousClose) && previousClose > 0 ? previousClose : null,
+    changePct, quoteTime, fetchedAt: new Date().toISOString(), source: "Finnhub" };
+}
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 function retryDelay(response, attempt) {
   const raw=response?.headers?.get?.("retry-after");
@@ -175,20 +197,32 @@ export async function getYahooQuote(symbol, fetchImpl = fetch, now = Date.now())
   throw last||new Error("Yahoo quote unavailable");
 }
 export async function getQuote(symbol, env, fetchImpl = fetch, now = Date.now()) {
-  if (env.FMP_API_KEY) {
+  const failures = [];
+  if (env.FMP_API_KEY && FMP_FREE_SYMBOLS.includes(symbol)) {
     try {
       await reserveFmpRequest(env.NORTHSTAR_DB, new Date(now));
       return await getFmpQuote(symbol, env.FMP_API_KEY, fetchImpl, now);
-    } catch (fmpError) {
-      try {
-        const fallback = await getYahooQuote(symbol, fetchImpl, now);
-        return { ...fallback, fallbackReason: String(fmpError?.message || fmpError).slice(0, 180) };
-      } catch (yahooError) {
-        throw new Error("FMP failed (" + String(fmpError?.message || fmpError) + "); Yahoo fallback failed (" + String(yahooError?.message || yahooError) + ")");
-      }
+    } catch (error) {
+      failures.push("FMP failed (" + String(error?.message || error) + ")");
+    }
+  } else if (env.FMP_API_KEY) {
+    failures.push("FMP skipped (symbol is outside the Free-plan allowlist)");
+  }
+  if (env.FINNHUB_API_KEY) {
+    try {
+      const quote = await getFinnhubQuote(symbol, env.FINNHUB_API_KEY, fetchImpl, now);
+      return failures.length ? { ...quote, fallbackReason: failures.join("; ").slice(0, 240) } : quote;
+    } catch (error) {
+      failures.push("Finnhub failed (" + String(error?.message || error) + ")");
     }
   }
-  return getYahooQuote(symbol, fetchImpl, now);
+  try {
+    const quote = await getYahooQuote(symbol, fetchImpl, now);
+    return failures.length ? { ...quote, fallbackReason: failures.join("; ").slice(0, 240) } : quote;
+  } catch (error) {
+    failures.push("Yahoo fallback failed (" + String(error?.message || error) + ")");
+    throw new Error(failures.join("; "));
+  }
 }
 function quoteFailureCategory(message) {
   const value=String(message||"").toLowerCase();
@@ -204,9 +238,11 @@ function quoteFailureCategory(message) {
 export function classifyQuoteFailure(error) {
   const message=String(error?.message||error||"");
   const fmp=message.match(/FMP failed \(([^)]*)\)/i);
+  const finnhub=message.match(/Finnhub failed \(([^)]*)\)/i);
   const yahoo=message.match(/Yahoo fallback failed \(([^)]*)\)/i);
   const categories=[];
   if(fmp) categories.push("fmp_"+quoteFailureCategory(fmp[1]));
+  if(finnhub) categories.push("finnhub_"+quoteFailureCategory(finnhub[1]));
   if(yahoo) categories.push("yahoo_"+quoteFailureCategory(yahoo[1]));
   if(categories.length) return categories.join("+");
   if(/\bFMP\b/i.test(message)) return "fmp_"+quoteFailureCategory(message);
