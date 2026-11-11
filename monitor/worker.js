@@ -6,6 +6,7 @@ const MAX_FUTURE_QUOTE_SKEW_MS = 2 * 60 * 1000;
 export const FMP_FREE_SYMBOLS = Object.freeze(["AAPL","TSLA","AMZN","MSFT","NVDA","GOOGL","META","NFLX","JPM","V","BAC","PYPL","DIS","T","PFE","COST","INTC","KO","TGT","NKE","SPY","BA","BABA","XOM","WMT","GE","CSCO","VZ","JNJ","CVX","PLTR","SQ","SHOP","SBUX","SOFI","HOOD","RBLX","SNAP","AMD","UBER","FDX","ABBV","ETSY","MRNA","LMT","GM","F","LCID","CCL","DAL","UAL","AAL","TSM","SONY","ET","MRO","COIN","RIVN","RIOT","CPRX","VWO","SPYG","NOK","ROKU","VIAC","ATVI","BIDU","DOCU","ZM","PINS","TLRY","WBA","MGM","NIO","C","GS","WFC","ADBE","PEP","UNH","CARR","HCA","TWTR","BILI","SIRI","FUBO","RKT"]);
 const FMP_DAILY_LIMIT = 200;
 const FMP_REQUESTS_PER_SCAN = 2;
+const MAX_NON_FMP_SHORTLIST_SYMBOLS = 10;
 const MAX_CONCURRENCY = 1;
 const QUOTE_REQUEST_GAP_MS = 900;
 const MAX_YAHOO_ATTEMPTS = 3;
@@ -97,6 +98,17 @@ export async function reserveFmpRequest(db, now = new Date()) {
   if (!row) throw new Error("FMP daily request budget exhausted");
   return Number(row.requests);
 }
+export function getMonitorCandidates(shortlist, date = new Date()) {
+  const valid = Array.isArray(shortlist)
+    ? shortlist.filter(stock => stock && /^[A-Z0-9.^=-]{1,12}$/.test(stock.ticker))
+    : [];
+  const shortlistBySymbol = new Map(valid.map(stock => [stock.ticker, stock]));
+  const fmpCandidates = getFmpScanBatch(date).map(ticker => shortlistBySymbol.get(ticker) || { ticker, entryStatus: "" });
+  const nonFmpCandidates = valid
+    .filter(stock => !FMP_FREE_SYMBOLS.includes(stock.ticker))
+    .slice(0, MAX_NON_FMP_SHORTLIST_SYMBOLS);
+  return [...fmpCandidates, ...nonFmpCandidates];
+}
 export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
   const url = new URL("https://financialmodelingprep.com/stable/quote");
   url.searchParams.set("symbol", symbol);
@@ -130,6 +142,28 @@ export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.
     changePct,
     quoteTime, fetchedAt: new Date().toISOString(), source: "Financial Modeling Prep"
   };
+}
+export async function getFinnhubQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
+  const url = new URL("https://finnhub.io/api/v1/quote");
+  url.searchParams.set("symbol", symbol);
+  const response = await fetchImpl(url.toString(), {
+    headers: { Accept: "application/json", "X-Finnhub-Token": apiKey },
+    signal: AbortSignal.timeout(7000)
+  });
+  if (!response.ok) throw new Error("Finnhub quote HTTP " + response.status);
+  const row = await response.json();
+  const price = Number(row?.c);
+  const previousClose = Number(row?.pc);
+  const timestamp = Number(row?.t);
+  const quoteTime = Number.isFinite(timestamp) && timestamp > 0 ? new Date(timestamp * 1000).toISOString() : null;
+  if (!Number.isFinite(price) || price <= 0) throw new Error("Finnhub returned an invalid or unavailable price");
+  if (!isQuoteFresh(quoteTime, now)) throw new Error("Finnhub quote timestamp missing, stale, or unexpectedly in the future");
+  const reportedChange = row?.dp;
+  const changePct = reportedChange !== null && reportedChange !== undefined && Number.isFinite(Number(reportedChange))
+    ? Number(reportedChange)
+    : Number.isFinite(previousClose) && previousClose > 0 ? (price / previousClose - 1) * 100 : null;
+  return { symbol, price, previousClose: Number.isFinite(previousClose) && previousClose > 0 ? previousClose : null,
+    changePct, quoteTime, fetchedAt: new Date().toISOString(), source: "Finnhub" };
 }
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 function retryDelay(response, attempt) {
@@ -175,20 +209,32 @@ export async function getYahooQuote(symbol, fetchImpl = fetch, now = Date.now())
   throw last||new Error("Yahoo quote unavailable");
 }
 export async function getQuote(symbol, env, fetchImpl = fetch, now = Date.now()) {
-  if (env.FMP_API_KEY) {
+  const failures = [];
+  if (env.FMP_API_KEY && FMP_FREE_SYMBOLS.includes(symbol)) {
     try {
       await reserveFmpRequest(env.NORTHSTAR_DB, new Date(now));
       return await getFmpQuote(symbol, env.FMP_API_KEY, fetchImpl, now);
-    } catch (fmpError) {
-      try {
-        const fallback = await getYahooQuote(symbol, fetchImpl, now);
-        return { ...fallback, fallbackReason: String(fmpError?.message || fmpError).slice(0, 180) };
-      } catch (yahooError) {
-        throw new Error("FMP failed (" + String(fmpError?.message || fmpError) + "); Yahoo fallback failed (" + String(yahooError?.message || yahooError) + ")");
-      }
+    } catch (error) {
+      failures.push("FMP failed (" + String(error?.message || error) + ")");
+    }
+  } else if (env.FMP_API_KEY) {
+    failures.push("FMP skipped (symbol is outside the Free-plan allowlist)");
+  }
+  if (env.FINNHUB_API_KEY) {
+    try {
+      const quote = await getFinnhubQuote(symbol, env.FINNHUB_API_KEY, fetchImpl, now);
+      return failures.length ? { ...quote, fallbackReason: failures.join("; ").slice(0, 240) } : quote;
+    } catch (error) {
+      failures.push("Finnhub failed (" + String(error?.message || error) + ")");
     }
   }
-  return getYahooQuote(symbol, fetchImpl, now);
+  try {
+    const quote = await getYahooQuote(symbol, fetchImpl, now);
+    return failures.length ? { ...quote, fallbackReason: failures.join("; ").slice(0, 240) } : quote;
+  } catch (error) {
+    failures.push("Yahoo fallback failed (" + String(error?.message || error) + ")");
+    throw new Error(failures.join("; "));
+  }
 }
 function quoteFailureCategory(message) {
   const value=String(message||"").toLowerCase();
@@ -204,9 +250,11 @@ function quoteFailureCategory(message) {
 export function classifyQuoteFailure(error) {
   const message=String(error?.message||error||"");
   const fmp=message.match(/FMP failed \(([^)]*)\)/i);
+  const finnhub=message.match(/Finnhub failed \(([^)]*)\)/i);
   const yahoo=message.match(/Yahoo fallback failed \(([^)]*)\)/i);
   const categories=[];
   if(fmp) categories.push("fmp_"+quoteFailureCategory(fmp[1]));
+  if(finnhub) categories.push("finnhub_"+quoteFailureCategory(finnhub[1]));
   if(yahoo) categories.push("yahoo_"+quoteFailureCategory(yahoo[1]));
   if(categories.length) return categories.join("+");
   if(/\bFMP\b/i.test(message)) return "fmp_"+quoteFailureCategory(message);
@@ -241,8 +289,7 @@ async function scan(env) {
     const cache=await response.json();
     const cacheAge=Date.now()-Date.parse(cache.completedAt||cache.generatedAt||"");
     if(!Number.isFinite(cacheAge)||cacheAge<0||cacheAge>MAX_CACHE_AGE_MS||cache.status!=="success"||!Array.isArray(cache.stocks)) throw new Error("Shortlist cache is stale or incomplete; monitoring fail-closed.");
-    const shortlistBySymbol = new Map(cache.stocks.filter(s=>/^[A-Z0-9.^=-]{1,12}$/.test(s.ticker)).map(s=>[s.ticker,s]));
-    const candidates = getFmpScanBatch().map(ticker=>shortlistBySymbol.get(ticker)||{ticker,entryStatus:""});
+    const candidates = getMonitorCandidates(cache.stocks);
     const results=await bounded(candidates,MAX_CONCURRENCY,async stock=>{try{return await getQuote(stock.ticker,env);}finally{await sleep(QUOTE_REQUEST_GAP_MS);}});
     const at=new Date().toISOString(), day=dateKey(new Date());
     for(let i=0;i<results.length;i++) {
@@ -260,7 +307,7 @@ async function scan(env) {
     }
     const status=errors===0?"success":checked>0?"partial":"failed";
     const failureSummary=[...quoteFailureCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
-    const detail="Checked "+checked+" of "+candidates.length+" rotating FMP Free-universe candidates; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"");
+    const detail="Checked "+checked+" quotes: rotating FMP Free-universe symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" non-FMP shortlist symbols; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"");
     await db.prepare("UPDATE monitor_runs SET completed_at=?,status=?,symbols_checked=?,errors=?,detail=? WHERE id=?").bind(at,status,checked,errors,detail,runId).run();
     return {status,checked,errors,at};
   } catch(error) {

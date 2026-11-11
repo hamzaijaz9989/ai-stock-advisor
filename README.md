@@ -50,6 +50,12 @@ Official FMP docs: https://site.financialmodelingprep.com/developer/docs/quickst
 
 The scheduled market monitor uses the account-provided FMP Free-plan symbol allowlist, rotates two symbols per five-minute market-open run, and enforces a 200-request-per-UTC-day monitor ceiling to preserve headroom. See [FMP Free-tier monitor policy](monitor/FMP_FREE_TIER.md).
 
+## Finnhub secondary quote provider
+
+The scheduled market monitor supports Finnhub as an optional secondary quote source. Add `FINNHUB_API_KEY` as a Cloudflare Worker secret for the market-monitor Worker; keep it server-side and never commit or expose it in browser code. Northstar uses FMP only for symbols in the exact account-specific Free-plan allowlist, routes other symbols directly to Finnhub when configured, and tries Finnhub after an FMP failure before the existing Yahoo fallback. Every quote must pass price and timestamp validation.
+
+Finnhub's free plan is subject to personal-use terms and endpoint restrictions. The free quote endpoint is not a substitute for historical OHLC data. Obtain written provider permission before using this key for a commercial or shared service. See [Finnhub's pricing and terms](https://finnhub.io/pricing) and [FMP Free-tier monitor policy](monitor/FMP_FREE_TIER.md).
+
 ## Alpaca Paper Trading connection (read-only)
 
 Northstar includes a server-side connection check for an Alpaca **Paper Trading** account at `/api/alpaca/status`. The Cloudflare Pages Function reads the secrets `ALPACA_API_KEY_ID` and `ALPACA_API_SECRET_KEY`, calls only the paper account and positions GET endpoints, and returns a small account/positions summary to the dashboard. The keys are never sent to browser JavaScript. The integration deliberately does not submit, cancel, or modify orders and does not connect to the live trading host.
