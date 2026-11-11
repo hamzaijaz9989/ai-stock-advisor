@@ -250,3 +250,19 @@ test("FMP quote rejects a missing provider timestamp", async () => {
   /timestamp missing, stale, or unexpectedly in the future/
  );
 });
+
+test("FMP budget reservation fails closed when the explicit migration has not been applied", async () => {
+ const db = {
+  prepare() {
+   return {
+    bind() {
+     return { first: async () => { throw new Error("no such table: fmp_request_budget"); } };
+    }
+   };
+  }
+ };
+ await assert.rejects(
+  reserveFmpRequest(db, new Date("2026-11-11T12:00:00.000Z")),
+  /no such table: fmp_request_budget/
+ );
+});
