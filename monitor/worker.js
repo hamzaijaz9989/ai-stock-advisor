@@ -4,7 +4,10 @@ const MAX_CACHE_AGE_MS = 4 * 60 * 60 * 1000;
 const MAX_QUOTE_AGE_MS = 15 * 60 * 1000;
 const MAX_FUTURE_QUOTE_SKEW_MS = 2 * 60 * 1000;
 const MAX_SYMBOLS = 10;
-const MAX_CONCURRENCY = 3;
+const MAX_CONCURRENCY = 1;
+const QUOTE_REQUEST_GAP_MS = 900;
+const MAX_YAHOO_ATTEMPTS = 3;
+const MAX_RETRY_AFTER_MS = 5000;
 const MOVE_ALERT_PCT = 3;
 const HEADERS = {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
 
@@ -113,11 +116,29 @@ export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.
     quoteTime, fetchedAt: new Date().toISOString(), source: "Financial Modeling Prep"
   };
 }
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+function retryDelay(response, attempt) {
+  const raw=response?.headers?.get?.("retry-after");
+  if(raw) {
+    const seconds=Number(raw);
+    const parsed=Number.isFinite(seconds)?seconds*1000:Date.parse(raw)-Date.now();
+    if(Number.isFinite(parsed)&&parsed>0) return Math.min(parsed,MAX_RETRY_AFTER_MS);
+  }
+  return Math.min(1000*(2**attempt),MAX_RETRY_AFTER_MS);
+}
 export async function getYahooQuote(symbol, fetchImpl = fetch, now = Date.now()) {
   let last;
-  for(const host of QUOTE_HOSTS) {
+  // A 429 from Yahoo is a provider-wide throttle signal. Do not fan out to
+  // another Yahoo hostname; retry the same endpoint with bounded backoff.
+  const host=QUOTE_HOSTS[0];
+  for(let attempt=0;attempt<MAX_YAHOO_ATTEMPTS;attempt++) {
     try {
       const response=await fetchImpl("https://"+host+"/v8/finance/chart/"+encodeURIComponent(symbol)+"?range=1d&interval=1m",{headers:{Accept:"application/json"},signal:AbortSignal.timeout(7000)});
+      if(response.status===429) {
+        last=new Error("Yahoo quote HTTP 429");
+        if(attempt<MAX_YAHOO_ATTEMPTS-1) await sleep(retryDelay(response,attempt));
+        continue;
+      }
       if(!response.ok) throw new Error("Yahoo quote HTTP "+response.status);
       const raw=await response.json(), result=raw?.chart?.result?.[0];
       if(!result) throw new Error("Yahoo returned an empty quote result");
@@ -129,7 +150,12 @@ export async function getYahooQuote(symbol, fetchImpl = fetch, now = Date.now())
       const quoteTime=idx>=0&&times[idx]?new Date(times[idx]*1000).toISOString():meta.regularMarketTime?new Date(meta.regularMarketTime*1000).toISOString():null;
       if(!isQuoteFresh(quoteTime, now)) throw new Error("Yahoo quote timestamp missing, stale, or unexpectedly in the future");
       return {symbol,price,previousClose:Number.isFinite(prev)?prev:null,changePct:Number.isFinite(prev)&&prev>0?(price/prev-1)*100:null,quoteTime,fetchedAt:new Date().toISOString(),source:"Yahoo Finance chart API"};
-    } catch(error) { last=error; }
+    } catch(error) {
+      last=error;
+      // Retry only throttling responses. Other failures should fail over
+      // immediately to the next provider (FMP is handled by getQuote).
+      break;
+    }
   }
   throw last||new Error("Yahoo quote unavailable");
 }
@@ -199,7 +225,7 @@ async function scan(env) {
     const cacheAge=Date.now()-Date.parse(cache.completedAt||cache.generatedAt||"");
     if(!Number.isFinite(cacheAge)||cacheAge<0||cacheAge>MAX_CACHE_AGE_MS||cache.status!=="success"||!Array.isArray(cache.stocks)) throw new Error("Shortlist cache is stale or incomplete; monitoring fail-closed.");
     const candidates=cache.stocks.slice(0,MAX_SYMBOLS).filter(s=>/^[A-Z0-9.^=-]{1,12}$/.test(s.ticker));
-    const results=await bounded(candidates,MAX_CONCURRENCY,symbol=>getQuote(symbol,env));
+    const results=await bounded(candidates,MAX_CONCURRENCY,async symbol=>{try{return await getQuote(symbol,env);}finally{await sleep(QUOTE_REQUEST_GAP_MS);}});
     const at=new Date().toISOString(), day=dateKey(new Date());
     for(let i=0;i<results.length;i++) {
       const result=results[i], stock=candidates[i];
