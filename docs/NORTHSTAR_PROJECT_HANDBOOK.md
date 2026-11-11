@@ -280,3 +280,10 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - User-approved limits supersede every older value in historical notes: **USD 1,000 total virtual allocation, USD 25 maximum planned risk per trade, USD 50 daily loss stop**.
 - Cloudflare Pages currently reports a new main deployment and a feature Preview deployment queued at the last check. Their build stage is not successful yet; the last confirmed successful Production deployment is still the earlier `d6457bf` application commit.
 - No production D1 migration/write, provider secret mutation, broker request or order submission was performed in this milestone. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-11 — Research Council dashboard implementation
+- Added sanitized read-only `GET /api/research/status` endpoint and tests. Public response is limited to ticker, run status/time and nine agent role/status pairs; no reports, evidence, portfolio values or provider payloads are returned.
+- Trading Lab now includes a nine-agent status panel and recent durable run list. It only reads status; it does not start research or execute orders.
+- Acceptance pending exact-head CI and successful Preview deployment of the dashboard change. Preview currently has no durable Council runs, so the UI must honestly show an empty ledger until a controlled run is accepted.
+- Lease renewal/heartbeat and concurrency/recovery testing remain outstanding. Execution remains disabled and kill switch engaged.
