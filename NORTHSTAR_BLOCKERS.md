@@ -948,3 +948,48 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - PR #118 is still open and its actual diff is documentation-only (blocker log plus Cloudflare architecture design); its PR description overstates included paper-policy tests/implementation. Do not treat it as implementation of paper-pilot safeguards. Its head is based on an older main commit and needs reconciliation before merge.
 - Strategy validation remains NOT APPROVED: no complete real point-in-time dataset, 100 completed trades, four walk-forward folds, untouched holdout, or independent review evidence. BUY remains disabled. Automatic paper execution remains disabled.
 - Next exact tasks: (1) reconcile PR #118 and correct its scope/claims; (2) build an isolated Preview acceptance path with required provider bindings supplied through Cloudflare secret controls (never expose values); (3) connect the nine-agent council to the dashboard and prove durable traces in Preview; (4) collect a valid seven-day read-only portfolio baseline; (5) design and test the approved $2,500/$25/$50 pilot limits in a dedicated virtual ledger without loosening production DB checks prematurely; (6) complete strategy validation and paper-order lifecycle tests before any separate activation review.
+
+
+## 2026-11-11 — Feature branch reconciled with current main
+- Reconciled `northstar/cloudflare-research-orchestration` with current main `def7967ec208a32a87a7d83498669b42dbffaef4` using a two-parent merge commit `3de4a359181fe4e41b12fc54c84212c1925a0531`. The merge preserved the current main versions of the blocker log, handbook and top-stocks cache while retaining the feature's architecture/reuse docs, tracker, trading spec, collector changes, pilot policy/tests and research lease migration.
+- The prior entries in this file that describe PR #118 as documentation-only or three commits behind are superseded by this merge. The new PR diff includes code, tests and a migration; it is not yet approved or production-ready.
+- Current approved paper pilot limits are **USD 1,000 total virtual allocation, USD 25 maximum planned risk per trade, and USD 50 daily loss stop**. Any earlier USD 2,500 references are obsolete and must not be used for configuration or execution.
+- Exact-head CI, Preview acceptance and independent review are still outstanding. No production deployment, D1 migration/write, broker request or order submission was performed by this merge.
+- Current release gate: keep execution disabled, paper-only mode, kill switch engaged and BUY disabled. Do not merge PR #118 or activate paper orders until exact-head CI, Preview research acceptance, schema review and all safety tests pass.
+
+
+## 2026-11-11 — Research Council observability milestone
+- Added read-only endpoint `GET /api/research/status` and tests. It exposes only ticker, run status/time, and the nine role/status pairs; it does not return reports, evidence, portfolio values, request IDs or provider payloads.
+- Added the nine-role Research Council panel to Trading Lab with latest run, per-role completion and recent run history. UI reads the sanitized endpoint only; it cannot trigger collection or orders.
+- New files: `web/functions/api/research/status.js`, `tests/research-status-endpoint.test.mjs`; updated `web/trading-lab.html` and `web/trading-lab.js`.
+- This is not yet accepted: exact-head CI and a Preview deployment for the dashboard change must pass, then verify empty-ledger behavior and role status display. Preview currently has no research runs, so no agent completion is claimed.
+- Existing collector lease still has no heartbeat/renewal and targeted concurrency/recovery coverage remains outstanding. Do not run production collection or enable order execution.
+- User-approved limits remain USD 1,000 allocation, USD 25 maximum planned risk per trade, and USD 50 daily loss stop. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-11 — Preview dashboard accepted; Preview lease migration applied
+- GitHub Tests passed on application commit `83950077cf11e0dba4b288b151e91d8c5de66aa8` (push run `43003431352`). The prior status-endpoint failure was corrected by preserving `NOT_RUN` as a valid role state; exact-head run `43003396384` passed for that fix.
+- Cloudflare Pages Preview deployment `2b533ef6-6ae6-4746-a3ef-e6e30089845f` succeeded for `8395007...`. Deployment log confirms Wrangler compiled the Pages Worker and published the assets.
+- Live Preview scrape verified the Trading Lab includes the nine-agent panel, the $25 per-trade cap and $50 daily stop. `GET /api/research/status?limit=5` returns `agentCount: 9`, `latestRun: null`, and an empty run list. This correctly reports that no research run has yet been recorded.
+- Preview D1 ledger showed migrations through `0012_paper_execution_activation_audit.sql`; the lease migration was therefore corrected to `0013_research_council_run_leases.sql` and applied **only to Preview**. Read-only verification confirmed the migration ledger row, lease table and index. No production D1 change was made.
+- Preview D1 currently has zero Research Council runs. A successful dashboard deployment is not proof that all nine agents have completed a real research run.
+- Pages Preview environment currently contains only `NORTHSTAR_OPERATOR_TOKEN`; production additionally has `FMP_API_KEY`, `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` and `GEMINI_API_KEY`. Secret values were not read. A controlled Preview collection remains blocked until the four provider secret bindings are configured in the Pages **Preview** environment.
+- Production deployment and Production D1 were not modified. Keep execution disabled, kill switch engaged and BUY disabled.
+
+## 2026-11-11 — Research lease recovery safeguards added
+- Collector lease ownership helpers are now exported for direct tests. Leases expire after 30 minutes and are renewed at phase boundaries (after account sync, before/after provider collection, and after Council execution). Every renewal requires the same unexpired token; lease loss aborts the run safely.
+- Added `tests/research-run-lease.test.mjs` covering concurrent duplicate rejection, expired-lease reclaim, valid/invalid renewal, and owner-only release.
+- GitHub Tests passed on exact feature head `c094059f2c6e898fc0a048bed62a5797350d0e9b`: push run `43003828936`; PR test runs `43003833401`, `43003833403`, and history scan `43003833664` all succeeded.
+- Cloudflare Preview deployment `8e4983eb-4b59-433b-82a1-573329e18c37` succeeded for collector lease-renewal code commit `fe0f18a...`. No Production deployment was performed.
+- Migration `0013_research_council_run_leases.sql` remains applied only to Preview. Production database and execution controls are unchanged.
+- First real Preview research collection is still blocked because Pages Preview lacks FMP, Alpaca Paper key ID/secret and Gemini secrets. No research run has been fabricated or recorded.
+- Keep execution disabled, kill switch engaged, BUY disabled. Approved limits remain USD 1,000 allocation / USD 25 max planned risk / USD 50 daily loss.
+
+
+## 2026-11-11 — Risk policy corrected to percentages
+- User superseded the fixed USD 25 maximum planned risk per trade. Current model uses 0.5% of current virtual pilot equity per trade, 1% aggregate open planned risk, and a 2% daily loss stop. At USD 1,000 equity these are USD 5, USD 10 and USD 20.
+- Maximum single-position notional is 25% of equity (USD 250 at current pilot size); sector exposure cap is 40% (USD 400); one concurrent position remains the initial pilot limit.
+- Policy sizes from stop distance and available risk budget. Example: USD 100 notional with a 5% stop risks USD 5; with a 2% stop it risks USD 2. No fixed-dollar risk cap is used.
+- Updated policy, tests, Trading Lab calculator/panel, risk specification and tracker. Exact-head CI and Preview acceptance are pending. Execution remains disabled; kill switch engaged; no orders submitted.
+
+- Follow-up: daily loss stop is anchored to explicit session-start equity, while trade and aggregate risk use current equity. Missing baseline is a hard rejection. Regression test added; latest exact-head CI/Preview acceptance pending.

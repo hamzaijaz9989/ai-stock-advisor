@@ -272,3 +272,33 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - PR #118 remains open, documentation-only in its actual diff, and behind current main. It is not paper execution implementation. Reconcile its contents and claims before merge.
 - Strategy validation remains NOT APPROVED; validated BUY and automatic paper execution remain disabled. No production D1 writes/migrations, broker actions, orders, secret reads/writes or production deployments occurred in this audit. Only the Preview D1 binding was changed.
 - Next exact action: reconcile PR #118, then implement and verify the nine-agent research dashboard path in isolated Preview before advancing to portfolio-history, strategy-validation and paper-lifecycle acceptance.
+
+
+## 2026-11-11 — Branch reconciliation and release status
+- Feature branch `northstar/cloudflare-research-orchestration` now includes current main `def7967ec208a32a87a7d83498669b42dbffaef4` through merge commit `3de4a359181fe4e41b12fc54c84212c1925a0531`. Current main versions of the blocker log, handbook and top-stocks cache were retained; feature implementation files were preserved.
+- PR #118 is still a draft and requires exact-head CI, Preview acceptance and review. Do not merge or deploy its research changes solely because the branch has been reconciled.
+- User-approved limits supersede every older value in historical notes: **USD 1,000 total virtual allocation, USD 25 maximum planned risk per trade, USD 50 daily loss stop**.
+- Cloudflare Pages currently reports a new main deployment and a feature Preview deployment queued at the last check. Their build stage is not successful yet; the last confirmed successful Production deployment is still the earlier `d6457bf` application commit.
+- No production D1 migration/write, provider secret mutation, broker request or order submission was performed in this milestone. Keep paper execution disabled, kill switch engaged and BUY disabled.
+
+
+## 2026-11-11 — Research Council dashboard implementation
+- Added sanitized read-only `GET /api/research/status` endpoint and tests. Public response is limited to ticker, run status/time and nine agent role/status pairs; no reports, evidence, portfolio values or provider payloads are returned.
+- Trading Lab now includes a nine-agent status panel and recent durable run list. It only reads status; it does not start research or execute orders.
+- Acceptance pending exact-head CI and successful Preview deployment of the dashboard change. Preview currently has no durable Council runs, so the UI must honestly show an empty ledger until a controlled run is accepted.
+- Lease renewal/heartbeat and concurrency/recovery testing remain outstanding. Execution remains disabled and kill switch engaged.
+
+
+## 2026-11-11 — Preview research dashboard and lease schema verified
+- The nine-agent Trading Lab panel and sanitized status endpoint are deployed successfully in Preview. A live page scrape confirmed the panel and approved $25/$50 limits; the status API reports nine roles and no runs yet.
+- The new lease migration is correctly sequenced as `0013_research_council_run_leases.sql` after Preview's existing migration 0012. It has been applied and verified in the isolated Preview D1 database only.
+- No Preview Council run has been recorded yet. Provider secret bindings required by the collector are absent from Pages Preview (FMP, Alpaca Paper key ID/secret, Gemini). Production secret values were not read or copied.
+- Next step: add the four provider secrets directly in Cloudflare Pages > ai-stock-advisor > Settings > Variables and Secrets > Preview, then run a controlled research-only collection and verify durable trace + idempotent replay. Never paste secret values into ChatGPT.
+- Production remains untouched; paper execution disabled, kill switch engaged and BUY disabled.
+
+## 2026-11-11 — Lease recovery and concurrency tests
+- Added 30-minute research-run leases with token-checked renewal at phase boundaries and safe abort if ownership is lost.
+- Added tests for duplicate-run exclusion, expired-lease recovery, renewal ownership and owner-only release. Exact-head GitHub Tests and PR workflows passed on `c094059f...`.
+- Preview Pages successfully deployed the collector lease changes. The additive lease migration remains applied to Preview D1 only.
+- A real research run remains pending because provider secret bindings are not configured in Pages Preview. Do not claim agent completion until a durable run is recorded.
+- No Production deployment, Production D1 mutation or broker action was performed. Execution remains disabled and kill switch engaged.
