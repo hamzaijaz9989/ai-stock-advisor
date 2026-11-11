@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote, classifyQuoteFailure } from "../monitor/worker.js";
+import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.deepEqual(parseWatchZone("NOT ENTRY-READY — Model entry watch zone: $34.01–$36.28; base-case reference"),{low:34.01,high:36.28});
@@ -46,6 +46,26 @@ function yahooQuotePayload(timestampSeconds, price = 210, previousClose = 200) {
  };
 }
 
+function fakeFmpBudgetDb() {
+ return {
+  prepare(sql) {
+   return {
+    run: async () => ({ success: true }),
+    bind: (...args) => ({ first: async () => ({ requests: 1 }) })
+   };
+  }
+ };
+}
+
+test("FMP Free universe contains unique symbols and rotation batches stay within the allowlist",()=>{
+ assert.equal(FMP_FREE_SYMBOLS.length,87);
+ assert.equal(new Set(FMP_FREE_SYMBOLS).size,87);
+ const batch=getFmpScanBatch(new Date("2026-11-10T15:00:00.000Z"));
+ assert.equal(batch.length,2);
+ assert.ok(batch.every(symbol=>FMP_FREE_SYMBOLS.includes(symbol)));
+ assert.notDeepEqual(batch,getFmpScanBatch(new Date("2026-11-10T15:05:00.000Z")));
+});
+
 test("FMP quote uses the documented apikey query parameter and never sends a custom key header", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
@@ -74,7 +94,7 @@ test("FMP quote uses the documented apikey query parameter and never sends a cus
 test("FMP stale quotes fall back to a fresh Yahoo quote without exposing the key", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
- const quote = await getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key" }, async (input) => {
+ const quote = await getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key", NORTHSTAR_DB: fakeFmpBudgetDb() }, async (input) => {
   const url = new URL(String(input));
   calls.push(url.hostname);
   if (url.hostname === "financialmodelingprep.com") {
