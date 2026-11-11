@@ -64,7 +64,7 @@ async function secFacts(ticker,collectionStartedAt){
  out.sort((a,b)=>b.filed.localeCompare(a.filed));
  return {cik,observations:out.slice(0,250)};
 }
-async function portfolioSnapshot(env){
+export async function portfolioSnapshot(env){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
  if(!db||!key||!secret)throw new Error("Paper ledger or Alpaca Paper credentials are unavailable.");
  const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd FROM execution_control WHERE id=1").first();
