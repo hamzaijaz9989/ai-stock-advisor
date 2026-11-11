@@ -18,21 +18,26 @@ const finite=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Numb
 function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)return false;let d=a.length^b.length;for(let i=0;i<Math.max(a.length,b.length);i++)d|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return d===0;}
 function stable(v){if(Array.isArray(v))return "["+v.map(stable).join(",")+"]";if(v&&typeof v==="object")return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stable(v[k])).join(",")+"}";return JSON.stringify(v);}
 async function sha256(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");}
-async function claimResearchLease(db,requestId,ticker){
+export async function claimResearchLease(db,requestId,ticker){
  const token=crypto.randomUUID();
- await db.prepare("INSERT OR IGNORE INTO research_council_run_leases(request_id,symbol,lease_token,lease_until) VALUES(?,?,?,strftime('%Y-%m-%dT%H:%M:%fZ','now','+10 minutes'))").bind(requestId,ticker,token).run();
+ await db.prepare("INSERT OR IGNORE INTO research_council_run_leases(request_id,symbol,lease_token,lease_until) VALUES(?,?,?,strftime('%Y-%m-%dT%H:%M:%fZ','now','+30 minutes'))").bind(requestId,ticker,token).run();
  let row=await db.prepare("SELECT symbol,lease_token,lease_until FROM research_council_run_leases WHERE request_id=?").bind(requestId).first();
  if(!row)return {ok:false,reason:"RESEARCH_LEASE_UNAVAILABLE"};
  if(String(row.symbol).toUpperCase()!==ticker)return {ok:false,reason:"REQUEST_ID_TICKER_CONFLICT"};
  if(row.lease_token!==token){
-  const reclaim=await db.prepare("UPDATE research_council_run_leases SET lease_token=?,lease_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','+10 minutes'),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE request_id=? AND lease_until<=strftime('%Y-%m-%dT%H:%M:%fZ','now')").bind(token,requestId).run();
+  const reclaim=await db.prepare("UPDATE research_council_run_leases SET lease_token=?,lease_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','+30 minutes'),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE request_id=? AND lease_until<=strftime('%Y-%m-%dT%H:%M:%fZ','now')").bind(token,requestId).run();
   if(!(Number(reclaim?.meta?.changes)>0))return {ok:false,reason:"RESEARCH_ALREADY_RUNNING"};
   row=await db.prepare("SELECT symbol,lease_token FROM research_council_run_leases WHERE request_id=?").bind(requestId).first();
   if(!row||row.lease_token!==token)return {ok:false,reason:"RESEARCH_ALREADY_RUNNING"};
  }
  return {ok:true,token};
 }
-async function releaseResearchLease(db,requestId,token){
+export async function renewResearchLease(db,requestId,token){
+ if(!db||!requestId||!token)return false;
+ const result=await db.prepare("UPDATE research_council_run_leases SET lease_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','+30 minutes'),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE request_id=? AND lease_token=? AND lease_until>strftime('%Y-%m-%dT%H:%M:%fZ','now')").bind(requestId,token).run();
+ return Number(result?.meta?.changes)>0;
+}
+export async function releaseResearchLease(db,requestId,token){
  if(!db||!requestId||!token)return;
  await db.prepare("DELETE FROM research_council_run_leases WHERE request_id=? AND lease_token=?").bind(requestId,token).run();
 }
@@ -119,11 +124,13 @@ export async function onRequestPost({request,env}){
   // Refresh the read-only broker snapshot before using portfolio values.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
+  if(!await renewResearchLease(env.NORTHSTAR_DB,requestId,leaseToken))throw new Error("Research lease expired before portfolio verification.");
   const portfolio=await portfolioSnapshot(env);
   // Record the collection start for date-bounded provider requests. The final as-of
   // timestamp is set after all providers return, so a fresh quote retrieved during
   // collection is not incorrectly marked as occurring after the research snapshot.
   const collectionStartedAt=new Date().toISOString();
+  if(!await renewResearchLease(env.NORTHSTAR_DB,requestId,leaseToken))throw new Error("Research lease expired before provider collection.");
   const [quote,fundamentals,history,news,earnings,sec]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
    endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
@@ -133,6 +140,7 @@ export async function onRequestPost({request,env}){
    secFacts(ticker,collectionStartedAt)
   ]);
   const asOf=new Date().toISOString();
+  if(!await renewResearchLease(env.NORTHSTAR_DB,requestId,leaseToken))throw new Error("Research lease expired during provider collection.");
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   if(!history?.available||!Array.isArray(history.prices)||history.prices.length<60)throw new Error("At least 60 valid daily price bars are required for research.");
   if(!fundamentals?.available)throw new Error("Fundamental data provider did not return usable statements.");
@@ -149,6 +157,7 @@ export async function onRequestPost({request,env}){
   if(existing){await releaseResearchLease(env.NORTHSTAR_DB,requestId,leaseToken);leaseToken=null;if(existing.input_sha256!==inputHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(existing.result_json),createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});}
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
+  if(!await renewResearchLease(env.NORTHSTAR_DB,requestId,leaseToken))throw new Error("Research lease expired during Council execution.");
   const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING").bind(requestId,inputHash,ticker,result.status,JSON.stringify(storedResult)).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
