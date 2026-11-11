@@ -982,3 +982,11 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - GitHub combined commit-status API returned no status entries for the latest SHA; exact-head CI remains unverified. Direct Pages API probes were blocked by the runtime egress policy; no public endpoint health result is claimed.
 - All D1 evidence queries were SELECT-only with `rows_written=0` and `changed_db=false`. No secrets were read or changed; no broker requests, orders, migrations, or paper-control changes occurred. Paper execution remains disabled and kill switch remains engaged.
 - Detailed evidence: `docs/PROVIDER_HEALTH_AUDIT_2026-11-12.md`. Next action: user updates the FMP key in the Worker and Pages Production secret stores; then verify the Worker binding and a fresh market-open FMP quote run plus the Pages FMP health check.
+
+
+## 2026-11-12 — User updated FMP key; binding confirmed
+
+- User confirmed the FMP key was updated in Cloudflare.
+- Fresh Worker settings read now lists `FMP_API_KEY` as a `secret_text` binding alongside `FINNHUB_API_KEY` and `NORTHSTAR_DB`. Secret value was not read.
+- Latest available monitor run #563 (19:55:52–19:56:01 UTC) still recorded two FMP HTTP 401 fallbacks (FUBO, RKT). This run was at/around the key update and no later run was yet present, so do not interpret it as a conclusive post-update failure.
+- Next acceptance test: inspect the next scheduled Worker run after the secret update. Require eligible FMP symbols to be saved with source FMP and no HTTP 401; confirm Finnhub fallback remains available. Keep paper execution disabled.
