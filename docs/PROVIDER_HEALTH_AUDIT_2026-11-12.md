@@ -69,3 +69,13 @@ Direct HTTP probes of the Pages API endpoints were blocked by the connected runt
 - [ ] Run a fresh Pages `/api/fmp-health` diagnostic through an authorized browser/runtime path; confirm quote, history, and fundamentals statuses.
 - [ ] Re-run exact-head CI and capture workflow run IDs; the combined status endpoint returned no entries in this audit.
 - [ ] Keep paper execution disabled and BUY validation gates closed.
+
+
+## 2026-11-12 PKT — follow-up monitor continuity check
+
+- Cloudflare Worker deployment history now shows active deployment `e412a3b8-8c76-42c3-b795-cef8a4ac8924`, version `60bc9eb2-b4c0-40b1-a33f-db2f18d8cd6f` (100% traffic), created `2026-11-11T19:56:06.988Z`. The version annotation is `Add secret: FMP_API_KEY`. This confirms the updated binding was deployed to the active version; the secret value was not inspected.
+- Worker settings still expose binding names `FMP_API_KEY`, `FINNHUB_API_KEY`, and `NORTHSTAR_DB`; Cron remains `*/5 * * * *`.
+- Latest Production D1 monitor record remains run #569, started `2026-11-11T20:25:53.345Z`, completed `2026-11-11T20:26:04.188Z`: success, 8 symbols, zero errors. Its quote rows show two FMP-sourced symbols and six Finnhub-sourced symbols with provider timestamps around 20:25 UTC.
+- No later monitor run or quote observation is currently present in the queried D1 tables. The configured Cron and deployed version are present, but schedule invocation continuity is **not verified** after run #569. The available evidence does not establish why no later D1 records appeared; do not assume the Cron is disabled or change its schedule without diagnosing invocation logs.
+- The five-minute Cron, Worker deployment, secret bindings, and D1 were inspected read-only. D1 query metadata reported zero rows written and no database change. No secrets were read, no deployment/configuration was changed, and paper execution remains disabled.
+- Follow-up: inspect Worker invocation/exception telemetry and the scheduled-event path before making any runtime change; then verify a new scheduled run and fresh D1 quote persistence. Do not trigger manual order or paper-trading actions.
