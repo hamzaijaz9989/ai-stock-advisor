@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, reserveFmpRequest } from "../monitor/worker.js";
+import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getFinnhubQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, reserveFmpRequest } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.deepEqual(parseWatchZone("NOT ENTRY-READY — Model entry watch zone: $34.01–$36.28; base-case reference"),{low:34.01,high:36.28});
@@ -131,6 +131,52 @@ test("FMP quote uses the documented apikey query parameter and never sends a cus
  assert.equal(quote.price, 210);
 });
 
+test("Finnhub quote uses the token header and validates the provider timestamp", async () => {
+ const now = Date.parse("2026-11-10T15:00:00.000Z");
+ const calls = [];
+ const quote = await getFinnhubQuote("AAPL", "test-only-finnhub-key", async (input, init) => {
+  calls.push({ url: String(input), headers: new Headers(init.headers) });
+  return jsonResponse({ c: 210, pc: 200, dp: 5, t: Math.floor((now - 60_000) / 1000) });
+ }, now);
+ const url = new URL(calls[0].url);
+ assert.equal(url.origin, "https://finnhub.io");
+ assert.equal(url.pathname, "/api/v1/quote");
+ assert.equal(url.searchParams.get("symbol"), "AAPL");
+ assert.equal(url.searchParams.has("token"), false);
+ assert.equal(calls[0].headers.get("X-Finnhub-Token"), "test-only-finnhub-key");
+ assert.equal(quote.source, "Finnhub");
+ assert.equal(quote.price, 210);
+ assert.equal(quote.changePct, 5);
+});
+
+test("symbols outside the FMP Free allowlist skip FMP and use Finnhub", async () => {
+ const now = Date.parse("2026-11-10T15:00:00.000Z");
+ const calls = [];
+ const quote = await getQuote("XYZ", { FMP_API_KEY: "test-only-fmp-key", FINNHUB_API_KEY: "test-only-finnhub-key" }, async (input, init) => {
+  calls.push({ host: new URL(String(input)).hostname, headers: new Headers(init.headers) });
+  return jsonResponse({ c: 42, pc: 40, dp: 5, t: Math.floor((now - 60_000) / 1000) });
+ }, now);
+ assert.deepEqual(calls.map(call=>call.host), ["finnhub.io"]);
+ assert.equal(calls[0].headers.get("X-Finnhub-Token"), "test-only-finnhub-key");
+ assert.equal(quote.source, "Finnhub");
+ assert.match(quote.fallbackReason, /outside the Free-plan allowlist/);
+});
+
+test("FMP failure falls back to Finnhub before Yahoo", async () => {
+ const now = Date.parse("2026-11-10T15:00:00.000Z");
+ const calls = [];
+ const quote = await getQuote("AAPL", {
+  FMP_API_KEY: "test-only-fmp-key", FINNHUB_API_KEY: "test-only-finnhub-key", NORTHSTAR_DB: fakeFmpBudgetDb()
+ }, async (input) => {
+  const url = new URL(String(input)); calls.push(url.hostname);
+  if (url.hostname === "financialmodelingprep.com") return new Response("", { status: 401 });
+  return jsonResponse({ c: 210, pc: 200, dp: 5, t: Math.floor((now - 60_000) / 1000) });
+ }, now);
+ assert.deepEqual(calls, ["financialmodelingprep.com", "finnhub.io"]);
+ assert.equal(quote.source, "Finnhub");
+ assert.match(quote.fallbackReason, /FMP failed/);
+});
+
 test("FMP stale quotes fall back to a fresh Yahoo quote without exposing the key", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
@@ -180,6 +226,7 @@ test("FMP and Yahoo failures both fail closed instead of returning an unverified
 test("quote failure diagnostics retain provider and status classes without raw error details",()=>{
  const classified=classifyQuoteFailure(new Error("FMP failed (FMP quote HTTP 401); Yahoo fallback failed (Yahoo quote HTTP 429)"));
  assert.equal(classified,"fmp_http_401+yahoo_http_429");
+ assert.equal(classifyQuoteFailure("FMP failed (FMP quote HTTP 401); Finnhub failed (Finnhub quote HTTP 429); Yahoo fallback failed (Yahoo quote HTTP 503)"),"fmp_http_401+finnhub_http_429+yahoo_http_503");
  assert.equal(classified.includes("test-only-fmp-key"),false);
  assert.equal(classifyQuoteFailure("FMP quote timestamp missing, stale, or unexpectedly in the future"),"fmp_stale_quote");
  assert.equal(classifyQuoteFailure("Yahoo quote request timed out"),"yahoo_timeout");
