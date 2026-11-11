@@ -31,6 +31,10 @@ The monitor continues rotating two symbols from the exact FMP allowlist per five
 
 Finnhub requests are serialized by the monitor's existing single-concurrency queue and request gap. The provider's free-tier rate limit must still be respected; the implementation does not assume historical-candle access or a guaranteed daily allowance.
 
+## Secondary provider rotation
+
+The monitor also checks up to ten valid shortlist symbols outside the FMP Free allowlist through Finnhub (when configured), with Yahoo as the final fallback. This non-FMP batch rotates every five-minute scan using a deterministic time-bucket cursor; it does not repeatedly select only the first ten symbols. Finnhub free access is subject to personal-use terms. Obtain written permission before using it for a commercial or shared service.
+
 ## Request-budget policy
 
 - FMP Free-plan stated allowance: 250 API calls per day.
