@@ -2,7 +2,7 @@
   "use strict";
   const $ = id => document.getElementById(id);
   const CAPITAL = 1000;
-  const RISK_PCT_MAX = 2.5;
+  const RISK_PCT_MAX = 0.5;
   const STORAGE_KEY = "northstar-trading-lab-plans-v1";
   const money = value => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD",maximumFractionDigits:2}).format(value);
   const safeReadPlans = () => {
@@ -31,7 +31,7 @@
       Number.isFinite(riskPct) && riskPct > 0 && riskPct <= RISK_PCT_MAX;
     if (!valid) {
       $("quantity").textContent = "NO TRADE";
-      $("risk-result").textContent = "Enter a valid ticker, an entry above a positive stop, and a risk budget from 0.1% to 2.5% ($25 maximum).";
+      $("risk-result").textContent = "Enter a valid ticker, an entry above a positive stop, and a risk budget from 0.1% to 0.5% of current pilot equity.";
       return null;
     }
     const perShareRisk = entry - stop;
@@ -43,7 +43,7 @@
     $("quantity").textContent = shares ? shares + (shares === 1 ? " share" : " shares") : "NO TRADE";
     $("risk-result").textContent = shares
       ? "Position value " + money(notional) + " · planned stop risk " + money(plannedLoss) +
-        " · risk budget " + money(riskBudget) + ". Whole-share sizing; gaps can cause larger losses."
+        " · risk budget " + money(riskBudget) + " (" + riskPct.toFixed(1) + "% of pilot equity). Whole-share sizing; gaps can cause larger losses."
       : "No whole share fits both the risk budget and 25% position cap. Do not force a trade.";
     return shares ? {symbol, entry, stop, shares, notional, plannedLoss, riskBudget, riskPct} : null;
   }
