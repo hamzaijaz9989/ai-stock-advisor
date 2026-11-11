@@ -1,7 +1,7 @@
 // Pure, fail-closed policy for Northstar's approved paper-only pilot.
 // No broker calls, secrets, persistence, or live-trading support belong in this module.
 export const PAPER_PILOT_LIMITS = Object.freeze({
-  allocationUsd: 2500,
+  allocationUsd: 1000,
   maxRiskPerTradeUsd: 25,
   dailyLossLimitUsd: 50,
   maxSectorExposureUsd: 1000,
@@ -66,7 +66,7 @@ export function sizePaperPilotOrder({
   const quantity = Math.floor(Math.min(riskBudget / riskPerShare, availableAllocation / entry, cash / entry));
   if (!Number.isSafeInteger(quantity) || quantity < 1) return deny("NO_VALID_POSITION_SIZE");
   const notional = Number((quantity * entry).toFixed(2));
-  if (sector + notional > PAPER_PILOT_LIMITS.maxSectorExposureUsd) return deny("SECTOR_EXPOSURE_LIMIT_EXCEEDED");
+  if (sector + notional > PAPER_PILOT_LIMITS.maxSectorExposureUsd) return deny("SECTOR_EXPOSURE_LIMIT_REACHED");
   const plannedRisk = Number((quantity * riskPerShare).toFixed(2));
   if (plannedRisk > PAPER_PILOT_LIMITS.maxRiskPerTradeUsd + 0.000001)
     return deny("PER_TRADE_RISK_LIMIT_EXCEEDED");
