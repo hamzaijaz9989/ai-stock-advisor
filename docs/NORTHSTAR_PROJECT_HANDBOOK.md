@@ -297,3 +297,15 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - Six non-FMP shortlist symbols were successfully served by Finnhub.
 - Verdict: FMP Worker authentication and quote ingestion are now runtime-verified after the key update. Continue observing subsequent scheduled runs for stability. Finnhub remains operational.
 - No secret values were read or changed by this verification. No broker requests or orders were made. Paper execution remains disabled.
+
+
+## 2026-11-12 — Research-pipeline acceptance audit
+
+- Active phase remains Phase 2 (nine-agent Stock Brain), not scanner rebuild. The handbook's earlier scanner-complete status is preserved.
+- Reviewed `docs/STOCK_BRAIN_SPEC.md`, `docs/STRATEGY_VALIDATION_STATUS.md`, `docs/STRATEGY_VALIDATION_RUNBOOK.md`, `docs/NEWS_AND_SIGNAL_POLICY.md`, and `docs/MARKET_DATA_AND_RECOMMENDATIONS.md`.
+- Research requirements reaffirmed: per-metric provenance and timestamps; fiscal-period alignment; issuer/SEC verification for material news and earnings; explicit missing-resource reporting; deterministic risk veto; no predictive claims from agent scorecards.
+- Latest prior production monitor evidence from run #566 (2026-11-11 20:10:53–20:11:02 UTC): 8 quotes, zero quote errors, zero FMP fallbacks; two FMP quotes (GOOGL, NVDA), six Finnhub quotes, and one NVDA +3.48% large-move warning. This is quote-monitor evidence only, not a nine-agent research-council execution.
+- Attempted read-only production GET smoke checks for `/api/monitor`, `/api/research-council`, `/api/research/status`, `/api/stock-brain`, `/api/health`, and `/api/scan`. The Cloudflare execution environment denied outbound requests to the Pages hostname (403: requests not allowed); therefore no endpoint result or council run is claimed.
+- No application code, production database, deployment, provider secret, trading control, or order was changed. Paper execution remains disabled.
+- Acceptance work still required: obtain exact current source paths for the council orchestrator and dashboard, run the existing unit/contract suite against the exact main SHA, execute one authorized read-only research-council request on a preview or supported connected runtime, verify all nine roles and persisted evidence trace/scorecard, then verify dashboard display and deployment for that exact commit.
+- Strategy validation remains NOT APPROVED; BUY remains disabled.
