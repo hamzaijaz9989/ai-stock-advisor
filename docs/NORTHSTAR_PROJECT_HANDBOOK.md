@@ -1,3 +1,17 @@
+# Operating Status Addendum — 2026-11-12
+
+Read this before using the historical roadmap below. The latest production and PR evidence is maintained in the root `NORTHSTAR_BLOCKERS.md` addendum dated 2026-11-12.
+
+- Production monitor cron remains every five minutes. Latest deployment is Worker version `60bc9eb2-b4c0-40b1-a33f-db2f18d8cd6f`.
+- The latest market-open success verified so far is 2026-11-11 20:55 UTC: 8 quotes, zero errors, zero FMP fallbacks. Later stored runs correctly reported market closed. Stored quote rows are not live market data.
+- FMP daily budget observed at 46/200 requests for 2026-11-11. Both FMP and Finnhub quote sources are represented in Production.
+- PR #139 is the consolidated FMP migration + Finnhub rotation release candidate and passes its exact-head workflows; it is not merged. PR #132 is superseded.
+- PR #116 (nine-agent evidence adapter) and PR #118 (collector portfolio-basis contract) remain draft/non-mergeable; integrate and review together before acceptance.
+- Production D1 migration ledger remains at 0001–0006. Migration 0007 is not applied.
+- Paper execution remains disabled and kill switch engaged. No paper orders, intents, positions, research council runs, or decision traces exist in Production.
+- Six broker equity snapshots exist; newest trusted sync snapshot is 2026-11-11 14:15:12 UTC and is stale for the collector freshness gate. Seven-day baseline is not yet established.
+- No Preview acceptance, Production deployment, D1 mutation, migration, secret/config change, collector invocation, or broker action is authorized by this status note.
+
 # Northstar AI — Project Handbook and Operating Workflow
 
 **Last reviewed:** 2026-11-10  
