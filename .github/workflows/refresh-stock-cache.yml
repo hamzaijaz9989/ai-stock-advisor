@@ -8,8 +8,10 @@ on:
       - ".github/scripts/refresh-stock-cache.mjs"
       - ".github/scripts/validate-stock-cache.mjs"
       - "web/app.js"
+      - "web/research.html"
+      - "monitor/worker.js"
   schedule:
-    - cron: "7 */3 * * *"
+    - cron: "7 * * * *"
   workflow_dispatch:
 
 permissions:
