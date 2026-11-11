@@ -48,7 +48,7 @@ FMP is an independent secondary data source. Northstar keeps its figures separat
 
 Official FMP docs: https://site.financialmodelingprep.com/developer/docs/quickstart and https://site.financialmodelingprep.com/developer/docs.
 
-The scheduled market monitor uses the account-provided FMP Free-plan symbol allowlist, rotates two symbols per five-minute market-open run, and enforces a 200-request-per-UTC-day monitor ceiling to preserve headroom. See [FMP Free-tier monitor policy](monitor/FMP_FREE_TIER.md).
+The scheduled market monitor uses the account-provided FMP Free-plan symbol allowlist, rotates two symbols per five-minute market-open run, and enforces a 200-request-per-UTC-day monitor ceiling to preserve headroom. Apply `web/migrations/0007_fmp_request_budget.sql` through the reviewed D1 release process before enabling FMP budget enforcement. See [FMP Free-tier monitor policy](monitor/FMP_FREE_TIER.md).
 
 ## Finnhub secondary quote provider
 
