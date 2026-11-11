@@ -57,15 +57,16 @@ function fakeFmpBudgetDb() {
  };
 }
 
-test("FMP Free universe contains unique symbols and rotation batches stay within the allowlist",()=>{
+test("FMP Free universe exactly matches the canonical 87-symbol account whitelist in order",()=>{
+ const expected = ["AAPL","TSLA","AMZN","MSFT","NVDA","GOOGL","META","NFLX","JPM","V","BAC","PYPL","DIS","T","PFE","COST","INTC","KO","TGT","NKE","SPY","BA","BABA","XOM","WMT","GE","CSCO","VZ","JNJ","CVX","PLTR","SQ","SHOP","SBUX","SOFI","HOOD","RBLX","SNAP","AMD","UBER","FDX","ABBV","ETSY","MRNA","LMT","GM","F","LCID","CCL","DAL","UAL","AAL","TSM","SONY","ET","MRO","COIN","RIVN","RIOT","CPRX","VWO","SPYG","NOK","ROKU","VIAC","ATVI","BIDU","DOCU","ZM","PINS","TLRY","WBA","MGM","NIO","C","GS","WFC","ADBE","PEP","UNH","CARR","HCA","TWTR","BILI","SIRI","FUBO","RKT"];
  assert.equal(FMP_FREE_SYMBOLS.length,87);
  assert.equal(new Set(FMP_FREE_SYMBOLS).size,87);
+ assert.deepEqual(FMP_FREE_SYMBOLS,expected);
  const batch=getFmpScanBatch(new Date("2026-11-10T15:00:00.000Z"));
  assert.equal(batch.length,2);
- assert.ok(batch.every(symbol=>FMP_FREE_SYMBOLS.includes(symbol)));
+ assert.ok(batch.every(symbol=>expected.includes(symbol)));
  assert.notDeepEqual(batch,getFmpScanBatch(new Date("2026-11-10T15:05:00.000Z")));
 });
-
 
 test("FMP rotation covers all 87 allowed symbols within 44 five-minute runs",()=>{
  const start=Date.parse("2026-11-10T15:00:00.000Z");
