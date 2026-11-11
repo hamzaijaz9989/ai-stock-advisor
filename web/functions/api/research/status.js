@@ -6,7 +6,7 @@ const AGENT_ROLES=Object.freeze([
  "market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst",
  "bull_researcher","bear_researcher","portfolio_analyst","risk_committee"
 ]);
-const allowedAgentStatus=new Set(["COMPLETE","UNAVAILABLE","BLOCKED"]);
+const allowedAgentStatus=new Set(["COMPLETE","UNAVAILABLE","BLOCKED","NOT_RUN"]);
 const allowedRunStatus=new Set(["NO_TRADE","RESEARCH_REVIEW_REQUIRED"]);
 const respond=(body,status=200)=>Response.json(body,{status,headers:HEADERS});
 function summarize(row){
