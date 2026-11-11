@@ -956,3 +956,12 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Current approved paper pilot limits are **USD 1,000 total virtual allocation, USD 25 maximum planned risk per trade, and USD 50 daily loss stop**. Any earlier USD 2,500 references are obsolete and must not be used for configuration or execution.
 - Exact-head CI, Preview acceptance and independent review are still outstanding. No production deployment, D1 migration/write, broker request or order submission was performed by this merge.
 - Current release gate: keep execution disabled, paper-only mode, kill switch engaged and BUY disabled. Do not merge PR #118 or activate paper orders until exact-head CI, Preview research acceptance, schema review and all safety tests pass.
+
+
+## 2026-11-11 — Research Council observability milestone
+- Added read-only endpoint `GET /api/research/status` and tests. It exposes only ticker, run status/time, and the nine role/status pairs; it does not return reports, evidence, portfolio values, request IDs or provider payloads.
+- Added the nine-role Research Council panel to Trading Lab with latest run, per-role completion and recent run history. UI reads the sanitized endpoint only; it cannot trigger collection or orders.
+- New files: `web/functions/api/research/status.js`, `tests/research-status-endpoint.test.mjs`; updated `web/trading-lab.html` and `web/trading-lab.js`.
+- This is not yet accepted: exact-head CI and a Preview deployment for the dashboard change must pass, then verify empty-ledger behavior and role status display. Preview currently has no research runs, so no agent completion is claimed.
+- Existing collector lease still has no heartbeat/renewal and targeted concurrency/recovery coverage remains outstanding. Do not run production collection or enable order execution.
+- User-approved limits remain USD 1,000 allocation, USD 25 maximum planned risk per trade, and USD 50 daily loss stop. Keep paper execution disabled, kill switch engaged and BUY disabled.
