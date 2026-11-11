@@ -28,7 +28,7 @@ export function validatePaperEnvironment({ mode, brokerHost, accountStatus, trad
 }
 
 export function sizePaperPilotOrder({
-  symbol, side, orderType, entryPrice, stopPrice, pilotCashUsd, pilotEquityUsd,
+  symbol, side, orderType, entryPrice, stopPrice, pilotCashUsd, pilotEquityUsd, sessionStartEquityUsd,
   deployedNotionalUsd = 0, openOrderNotionalUsd = 0, openRiskUsd = 0,
   dailyLossUsd, openPositions = 0, sectorExposureUsd = 0,
   quoteTimestamp, now = Date.now(), maxQuoteAgeMs = PAPER_PILOT_LIMITS.maxQuoteAgeMs,
@@ -43,7 +43,7 @@ export function sizePaperPilotOrder({
   if (side !== PAPER_PILOT_LIMITS.allowedSide) return deny("LONG_ONLY");
   if (orderType !== PAPER_PILOT_LIMITS.allowedOrderType) return deny("LIMIT_ORDERS_ONLY");
   if (![entryPrice, stopPrice, pilotCashUsd, pilotEquityUsd, deployedNotionalUsd,
-        openOrderNotionalUsd, openRiskUsd, dailyLossUsd, sectorExposureUsd,
+        openOrderNotionalUsd, openRiskUsd, dailyLossUsd, sessionStartEquityUsd, sectorExposureUsd,
         openPositions, quoteTimestamp, now, maxQuoteAgeMs].every(finite))
     return deny("MISSING_OR_INVALID_RISK_INPUT");
 
@@ -53,13 +53,13 @@ export function sizePaperPilotOrder({
   const dailyLoss=Number(dailyLossUsd), sector=Number(sectorExposureUsd);
   const age=Number(now)-Number(quoteTimestamp);
   if (entry<=0 || stop<=0 || stop>=entry || cash<0 || equity<=0 ||
-      equity>PAPER_PILOT_LIMITS.allocationUsd+0.000001 || deployed<0 || pending<0 ||
+      equity>PAPER_PILOT_LIMITS.allocationUsd+0.000001 || Number(sessionStartEquityUsd)<=0 || Number(sessionStartEquityUsd)>PAPER_PILOT_LIMITS.allocationUsd || deployed<0 || pending<0 ||
       openRisk<0 || dailyLoss<0 || sector<0 || Number(openPositions)<0 ||
       !Number.isInteger(Number(openPositions)) || Number(maxQuoteAgeMs)<=0 ||
       age<0 || age>Number(maxQuoteAgeMs))
     return deny("INVALID_STOP_CASH_OR_STALE_QUOTE");
 
-  const dailyLossLimit=equity*PAPER_PILOT_LIMITS.dailyLossLimitPct/100;
+  const dailyLossLimit=Number(sessionStartEquityUsd)*PAPER_PILOT_LIMITS.dailyLossLimitPct/100;
   if (dailyLoss>=dailyLossLimit) return deny("DAILY_LOSS_STOP_REACHED");
   if (Number(openPositions)>=PAPER_PILOT_LIMITS.maxConcurrentPositions)
     return deny("MAX_CONCURRENT_POSITIONS_REACHED");
