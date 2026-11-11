@@ -1,3 +1,4 @@
+// Cached candidates are research priorities, not an entry signal or a validated BUY.
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
@@ -242,61 +243,83 @@
     }finally{if(button)button.disabled=false;}
   }
 
+  let lastCandidateGeneratedAt = null;
+  const elapsedLabel = ms => {
+    if(!Number.isFinite(ms)||ms<0)return "time unavailable";
+    const minutes=Math.floor(ms/60000);
+    if(minutes<1)return "just now";
+    if(minutes<60)return minutes+" min ago";
+    const hours=Math.floor(minutes/60);
+    if(hours<24)return hours+"h "+(minutes%60)+"m ago";
+    return Math.floor(hours/24)+"d "+(hours%24)+"h ago";
+  };
   async function loadCandidates() {
-    const status = $("scanner-state");
-    const root = $("candidates");
-    try {
-      const response = await fetch("./data/top-stocks-cache.json", {cache:"no-store", headers:{Accept:"application/json"}});
-      if (!response.ok) throw new Error("Cached shortlist unavailable (HTTP " + response.status + ").");
-      const data = await response.json();
-      const generated = Date.parse(data.generatedAt || "");
-      const ageHours = Number.isFinite(generated) ? (Date.now() - generated) / 3600000 : Infinity;
-      const stale = ageHours < 0 || ageHours > 4 || data.status !== "success";
-      status.textContent = stale ? "Cached data stale / verify" : "Cached screen loaded · verify live";
+    const status=$("scanner-state"),root=$("candidates"),button=$("refresh-candidates");
+    if(button){button.disabled=true;button.textContent="Checking…";}
+    try{
+      const response=await fetch("/api/shortlist?check="+Date.now(),{cache:"no-store",headers:{Accept:"application/json"}});
+      if(!response.ok)throw new Error("Shortlist cache unavailable (HTTP "+response.status+").");
+      const data=await response.json();
+      if(data.ok!==true)throw new Error(data.error||"Published shortlist unavailable.");
+      const generated=Date.parse(data.completedAt||data.generatedAt||"");
+      if(!Number.isFinite(generated))throw new Error("The scan timestamp is missing; shortlist freshness cannot be verified.");
+      const ageMs=Date.now()-generated,ageHours=ageMs/3600000;
+      const interval=Number.isFinite(Number(data.refreshIntervalHours))&&Number(data.refreshIntervalHours)>0?Number(data.refreshIntervalHours):3;
+      const stale=ageMs<0||ageHours>interval+1||data.status!=="success";
+      const generatedIso=new Date(generated).toISOString();
+      const isNew=lastCandidateGeneratedAt!==null&&generatedIso!==lastCandidateGeneratedAt;
+      lastCandidateGeneratedAt=generatedIso;
+      status.textContent=stale?"SCAN OVERDUE · "+elapsedLabel(ageMs):"LAST SCAN · "+elapsedLabel(ageMs);
+      status.className="state "+(stale?"warn":"good");
       root.replaceChildren();
-      const rows = Array.isArray(data.stocks)
-        ? data.stocks.filter(stock => /^[A-Z][A-Z0-9.-]{0,11}$/.test(String(stock?.ticker || "").trim().toUpperCase())).slice(0,10)
-        : [];
-      if (!rows.length) throw new Error("No valid cached research candidates were returned.");
-      for (const stock of rows) {
-        const row = document.createElement("div");
-        row.className = "candidate";
-        const symbol = String(stock.ticker || "").trim().toUpperCase();
-        const openResearch = document.createElement("a");
-        openResearch.className = "candidate-link";
-        openResearch.href = "./research.html";
-        openResearch.setAttribute("aria-label", "Open full Northstar research for " + symbol);
-        openResearch.addEventListener("click", () => {
-          try { localStorage.setItem("northstar-last-ticker-v2", symbol); } catch {}
-        });
-        const ticker = document.createElement("span");
-        ticker.className = "ticker";
-        ticker.textContent = symbol;
-        const name = document.createElement("span");
-        name.className = "muted small";
-        name.textContent = String(stock.name || "Company name unavailable");
-        openResearch.append(ticker, name);
-        const score = document.createElement("div");
-        score.className = "score";
-        score.textContent = Number.isFinite(Number(stock.score)) && Number(stock.score) >= 0 && Number(stock.score) <= 100
-          ? Number(stock.score).toFixed(1) + "/100" : "—";
-        row.append(openResearch, score);
-        root.appendChild(row);
-      }
-      $("cache-note").textContent = (stale ? "WARNING: " : "") +
-        "Screen generated " + (Number.isFinite(generated) ? new Date(generated).toLocaleString() : "at an unknown time") +
-        ". This is a cached research-priority ranking, not an entry signal. " +
-        (stale ? "Do not rely on it for a current decision; run the full live analysis." : "Verify quote, valuation, earnings, news and risk in full analysis.");
-    } catch (error) {
-      status.textContent = "Scanner unavailable";
+      const rows=Array.isArray(data.stocks)?data.stocks.filter(stock=>/^[A-Z][A-Z0-9.-]{0,11}$/.test(String(stock?.ticker||"").trim().toUpperCase())).slice(0,10):[];
+      if(!rows.length)throw new Error("No valid candidates were returned by the last scan.");
+      rows.forEach((stock,index)=>{
+        const symbol=String(stock.ticker).trim().toUpperCase();
+        const card=document.createElement("article");card.className="candidate";
+        const link=document.createElement("a");link.className="candidate-link";link.href="./research.html";
+        link.setAttribute("aria-label","Open full Northstar research for "+symbol);
+        link.addEventListener("click",()=>{try{localStorage.setItem("northstar-last-ticker-v2",symbol);}catch{}});
+        const rank=document.createElement("span");rank.className="candidate-rank";rank.textContent=String(index+1).padStart(2,"0");
+        const ticker=document.createElement("span");ticker.className="ticker";ticker.textContent=symbol;
+        const name=document.createElement("span");name.className="candidate-name";name.textContent=String(stock.name||"Company name unavailable");
+        link.append(rank,ticker,name);
+        const score=document.createElement("div");score.className="candidate-score";
+        const scoreValue=document.createElement("strong");
+        scoreValue.textContent=Number.isFinite(Number(stock.score))&&Number(stock.score)>=0&&Number(stock.score)<=100?Number(stock.score).toFixed(1)+"/100":"—";
+        const scoreLabel=document.createElement("small");scoreLabel.textContent="Research score";
+        score.append(scoreValue,scoreLabel);
+        const meta=document.createElement("div");meta.className="candidate-meta";
+        const entry=document.createElement("span");entry.className="candidate-pill "+(stock.entryReady===true?"good":"warn");
+        entry.textContent=stock.entryReady===true?"Entry checks passed":"Not entry-ready";
+        meta.appendChild(entry);
+        if(stock.fundamentalFreshness){
+          const freshness=document.createElement("span");freshness.className="candidate-pill "+(String(stock.fundamentalFreshness).includes("STALE")?"warn":"");
+          freshness.textContent=String(stock.fundamentalFreshness).replaceAll("_"," ").toLowerCase();
+          meta.appendChild(freshness);
+        }
+        card.append(link,score,meta);
+        if(stock.entryReady!==true&&stock.entryStatus){
+          const note=document.createElement("p");note.className="candidate-status";
+          note.textContent=String(stock.entryStatus).slice(0,150)+(String(stock.entryStatus).length>150?"…":"");
+          card.appendChild(note);
+        }
+        root.appendChild(card);
+      });
+      const stamp=new Date(generated).toLocaleString();
+      const nextText="Scheduled refresh interval: every "+interval+" hours.";
+      const message=stale?"This cached scan is overdue or incomplete. Do not treat it as current. ":"";
+      const changed=isNew?" A newer scan has been published.": " No newer scan has been published since the previous check.";
+      $("cache-note").textContent=message+"Last completed scan: "+stamp+" ("+elapsedLabel(ageMs)+"). "+nextText+changed+" Scores are research-priority rankings, not live prices or BUY signals; they change only when a new scan completes and its inputs change. The shortlist is checked automatically every 5 minutes while this page is open.";
+    }catch(error){
+      status.textContent="SCAN UNAVAILABLE";status.className="state warn";
       root.replaceChildren();
-      const message = document.createElement("p");
-      message.className = "muted small";
-      message.textContent = error && error.message ? error.message : "Could not load cached candidates.";
+      const message=document.createElement("p");message.className="muted small";message.textContent=error?.message||"Could not load the shortlist.";
       root.appendChild(message);
-      $("cache-note").textContent = "No scanner data is available. No candidates have been inferred or fabricated.";
-    }
+      $("cache-note").textContent="No verified shortlist is available. No candidates or scores have been invented.";
+    }finally{if(button){button.disabled=false;button.textContent="Check for updates";}}
   }
+
 
   $("check-alpaca").addEventListener("click", async () => {
     const button = $("check-alpaca");
@@ -533,6 +556,8 @@
   loadPaperPerformance();
   loadDurablePerformance();
   loadCandidates();
+  $("refresh-candidates").addEventListener("click",loadCandidates);
+  window.setInterval(()=>{if(document.visibilityState==="visible")loadCandidates();},300000);
   loadLedgerReadiness();
   $("refresh-monitor").addEventListener("click",loadMonitor);
   loadMonitor();
