@@ -372,3 +372,11 @@ The PR #118 policy values of 0.5% per-trade risk and 2% daily loss at the $1,000
 ## 2026-11-12 — Ten-task continuation: verified Production checkpoint
 
 undefined
+
+### Follow-up — PR integration and test verification (2026-11-12)
+
+- PR #139 now contains the explicit FMP budget migration, runtime-DDL removal, missing-table fail-closed test, and the fair rotating Finnhub non-FMP shortlist fix ported from stale PR #132. The combined head is `dcbe72d43665f2aa749375a4f4f812147456b2e5`; Tests, Python tests, Validate, and full-history secret scan passed. GitHub reports the PR mergeable/clean. No merge, D1 migration, or deployment was performed.
+- PR #132's branch is 42 commits behind current main and remains non-mergeable; do not merge it independently. Its rotation work is consolidated into PR #139.
+- PR #118 collector integration fix: its portfolio snapshot now explicitly separates `equityUsd/virtualAllocationUsd = 1000` from actual Alpaca broker equity and sets `riskMetricBasis = actual_alpaca_paper_account_equity`, matching the strengthened nine-agent fact-adapter contract. Added a regression test; updated PR #118 head `0935baf5d471f3472fc63ecd9ab9703c411b90a7` passed Python tests, JavaScript tests, scanner syntax and lint. This remains code-level only; no collector call or Production write occurred.
+- PR #116 exact head `cb0c81635924bff7e1908ff1ec90933c4e4c72c2` continues to pass Tests, Python tests, validation and secret scan. Nine-role status, evidence IDs, missing-data handling and deterministic risk veto were reviewed. Independent formal review and PR integration remain outstanding.
+- Production seven-day baseline and latest-snapshot freshness remain unmet; do not invoke the collector. Execution remains disabled and kill switch engaged.
