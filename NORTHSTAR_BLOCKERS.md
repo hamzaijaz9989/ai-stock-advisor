@@ -999,3 +999,13 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Persisted quotes: AAPL $354.50 and TSLA $391.57, both source `Financial Modeling Prep`, provider quote time `2026-11-11T20:00:53Z`.
 - Six non-FMP shortlist symbols were supplied by Finnhub.
 - FMP Worker authentication is now verified after the update. Continue monitoring future runs for consistency. Paper execution remains disabled.
+
+
+## 2026-11-12 — Research pipeline acceptance audit (no production mutations)
+
+- Active phase: nine-agent Stock Brain integration/acceptance. The market scanner is not being rebuilt.
+- Reviewed Stock Brain specification, strategy-validation status/runbook, news policy, and market-data/recommendation policy.
+- Latest quote-monitor evidence remains run #566 (2026-11-11 20:10:53–20:11:02 UTC): 8 symbols, zero quote errors, zero FMP fallbacks; GOOGL and NVDA from FMP, six symbols from Finnhub; NVDA large-move warning +3.48%. This does not establish a full nine-agent research run.
+- Read-only Pages API smoke checks were attempted for monitor, research-council, research-status, stock-brain, health, and scan paths. All were blocked at the outbound network boundary with 403 `requests to ai-stock-advisor.pages.dev are not allowed`; these are inconclusive connectivity failures, not application HTTP responses.
+- No source code or production state changed; no DB writes, migrations, deployment, provider-secret changes, or broker actions. Paper execution remains disabled.
+- Next exact action: run existing tests and one full council request from an authorized preview/connected runtime; capture the exact commit, run ID, role statuses, missing resources, evidence references, scorecard, and durable trace. Keep validated BUY disabled.
