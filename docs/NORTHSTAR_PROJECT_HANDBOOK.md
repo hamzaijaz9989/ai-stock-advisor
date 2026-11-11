@@ -272,3 +272,18 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - PR #118 remains open, documentation-only in its actual diff, and behind current main. It is not paper execution implementation. Reconcile its contents and claims before merge.
 - Strategy validation remains NOT APPROVED; validated BUY and automatic paper execution remain disabled. No production D1 writes/migrations, broker actions, orders, secret reads/writes or production deployments occurred in this audit. Only the Preview D1 binding was changed.
 - Next exact action: reconcile PR #118, then implement and verify the nine-agent research dashboard path in isolated Preview before advancing to portfolio-history, strategy-validation and paper-lifecycle acceptance.
+
+
+## 2026-11-12 — Provider and deployment audit
+
+- Latest `main`: `2752b0c0930956c55d274ad1972fc4cf0eaf27d8` (Worker auto-deploy workflow path trigger).
+- Cloudflare Pages Production deployment `21fd21d5-1bc5-4569-8e76-cc41155a2bc6` succeeded from that exact commit.
+- Market-monitor Worker active deployment `55a32182-cda3-47b5-95ab-48e285e78cd7`, version `dd19998b-c4f3-4f1c-a0d1-c7338cd4e7cc`, 100% traffic.
+- Current Worker settings list `FINNHUB_API_KEY` and `NORTHSTAR_DB`, but not `FMP_API_KEY`; Cloudflare settings annotation says `Deleted Secret binding FMP_API_KEY`. Pages Production metadata separately lists both FMP and Finnhub secret binding names. These are separate environments.
+- Production monitor run #562 (2026-11-11 19:50:52–19:51:01 UTC) checked 8 symbols, zero quote errors, and recorded two FMP HTTP 401 fallbacks (BILI and SIRI) to Finnhub. Run #561 had one failure for TWTR after FMP 401, Finnhub provider error and Yahoo 429. Finnhub quote rows and event rows are persisted with provider timestamps; Finnhub is runtime-verified as an active source, with occasional symbol-level failures.
+- The separate FMP connector successfully returned AAPL quote, company profile, annual income statements and historical EOD prices. This does not verify the Cloudflare app's FMP secret.
+- User will update `FMP_API_KEY` in Cloudflare. Required: set it as a Worker Secret on `northstar-market-monitor` and ensure Pages Production has the current secret. Updating Pages alone does not configure the Worker. Never ask for or expose the value in chat.
+- The GitHub combined commit-status endpoint returned no status entries for the latest SHA; exact-head CI is not independently verified. Direct Pages API probes were blocked by the runtime's egress policy, so no direct public HTTP endpoint health claim is made.
+- D1 verification was SELECT-only (`rows_written=0`, `changed_db=false`). No secret values or production controls were changed. No broker actions or orders occurred. Paper execution remains disabled and the kill switch remains engaged.
+- Detailed evidence and acceptance checklist: [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md).
+- Next exact action: user updates the FMP secret in both separate Cloudflare Production surfaces; then verify a fresh market-open run has no FMP 401 and run the Pages FMP health diagnostic through an authorized runtime path. Continue keeping paper execution disabled.
