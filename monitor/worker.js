@@ -89,7 +89,7 @@ export function getFmpScanBatch(date = new Date()) {
   const start = ((bucket * FMP_REQUESTS_PER_SCAN) % FMP_FREE_SYMBOLS.length);
   return Array.from({length:FMP_REQUESTS_PER_SCAN},(_,i)=>FMP_FREE_SYMBOLS[(start+i)%FMP_FREE_SYMBOLS.length]);
 }
-async function reserveFmpRequest(db, now = new Date()) {
+export async function reserveFmpRequest(db, now = new Date()) {
   if (!db) throw new Error("FMP daily budget unavailable: NORTHSTAR_DB binding missing");
   const day = now.toISOString().slice(0,10);
   const row = await db.prepare("INSERT INTO fmp_request_budget(day,requests) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET requests=requests+1 WHERE requests < ? RETURNING requests")
