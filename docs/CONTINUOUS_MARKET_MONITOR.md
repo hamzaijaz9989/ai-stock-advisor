@@ -38,7 +38,7 @@ The Pages Functions environment and the Worker environment are separate. The Pag
 
 ## Current runtime audit — 2026-11-12
 
-See [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md). In brief: Finnhub is confirmed in use from production D1 quote/event rows. The current Worker settings did not list `FMP_API_KEY` and recorded its secret binding deletion; monitor runs also recorded FMP HTTP 401. The user must update the Worker Secret separately from the Pages Production secret. Do not call the FMP Worker path healthy until a fresh market-open run verifies it.
+See [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md). In brief: Finnhub is confirmed in use from production D1 quote/event rows. The user has now updated the FMP key, and a fresh Worker settings read confirms the `FMP_API_KEY` secret binding is present. The latest recorded run #563 still showed two FMP HTTP 401 fallbacks, but it occurred at/around the update and no later run was yet available. Verify a subsequent scheduled run before calling the FMP Worker path healthy.
 
 ## Safety
 
