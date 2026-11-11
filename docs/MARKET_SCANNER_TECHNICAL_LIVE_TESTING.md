@@ -69,3 +69,16 @@ Market Scanner calculates relative latest-session volume against the prior 19 se
 Technical Analyst calculates SMA(20), SMA(50), RSI(14), MACD(12,26,9) and the observed 20-session high/low range. Historical adjustment policy remains unverified, so the report carries that limitation and must not be treated as certified support/resistance.
 
 Synthetic tests cover malformed and out-of-order bars and indicator output. A live Preview request with a valid operator token is still required for live acceptance. No Production deployment is part of this change.
+
+
+## Verified production release — 2026-11-11 12:30 UTC
+
+- PR #117 (provider health and market-scanner authentication fix) was merged to `main` as `ac4f2508e9257eca6e88970a4eb24a4654aebebc`. Exact-head GitHub Actions checks passed: Tests, Validate AI Stock Advisor, and full-history secret scan.
+- Cloudflare Pages Production deployment `0da695c5` is active from the merge commit. Production retains its original D1 binding `528f3a23-1d1f-4d16-8463-f643d85f5deb` and the expected secret binding names for Alpaca Paper, FMP, Gemini and the operator token. Secret values were not read or changed.
+- The separate `northstar-market-monitor` Worker was uploaded from the merged `main/monitor/worker.js` source. New version `49a3e91f-4dfd-4bc4-8a28-7262367f51f4` is deployed at 100%. Existing `FMP_API_KEY` secret binding and Production D1 binding `528f3a23-1d1f-4d16-8463-f643d85f5deb` were preserved. Its existing `*/5 * * * *` cron schedule is unchanged.
+- Post-deployment Production D1 shows scheduled run #473 at `2026-11-11T12:25:52.802Z` completed as `market_closed`, with zero errors. This is expected outside the US regular session and confirms the updated Worker is being invoked by its schedule. It does not yet test live quote retrieval.
+- Production quote and event tables still contain zero rows. The published 253-stock cache was generated at `2026-11-11T10:47:23.072Z`: 201 ranked, 52 excluded, 10 enriched, scan status success. It was within the Worker four-hour cache limit at this checkpoint, but older than the application's stricter 30-minute cache-freshness acceptance threshold.
+- Production paper controls remain `mode=paper`, `enabled=0`, `kill_switch=1`, `max_portfolio_usd=1000`, `default_risk_fraction=0.005`, `max_risk_fraction=0.01`, `max_position_fraction=0.25`. No broker orders, fills, paper intents or positions exist. No production D1 migrations or direct writes were made by this release.
+- Research Council runs and decision traces remain zero. The nine-agent collection workflow is not production-accepted. PR #118 remains open/draft because lease recovery/concurrency, migration, durable run replay, historical validation and pilot-ledger gates are incomplete.
+
+**Acceptance remains incomplete.** The FMP Worker authentication defect is released and the scheduled Worker is invoking successfully, but live-session quote retrieval and D1 persistence must be proven during the next US regular session. The 30-minute cache gate, authenticated research run and strategy validation also remain open. Paper execution stays disabled.
