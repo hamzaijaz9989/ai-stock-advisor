@@ -41,6 +41,7 @@ Finnhub requests are serialized by the monitor's existing single-concurrency que
 - A normal 6.5-hour session has at most 78 scheduled runs, or 156 monitor FMP attempts.
 - Failed FMP attempts still consume budget and are counted.
 - The D1 budget ledger uses an atomic conditional upsert, so the monitor cannot reserve request 201 for the same UTC day.
+- The ledger schema is defined in `web/migrations/0007_fmp_request_budget.sql`; apply it through the reviewed D1 migration process before enabling FMP calls in the scheduled Worker. The Worker does not create or alter schema at runtime and fails closed if the migration is missing.
 - Once the monitor budget is exhausted, it stops calling FMP and may use the existing Yahoo fallback. Yahoo data still must pass timestamp and price validation.
 
 ## Universe rotation
