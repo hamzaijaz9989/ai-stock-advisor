@@ -98,16 +98,26 @@ export async function reserveFmpRequest(db, now = new Date()) {
   if (!row) throw new Error("FMP daily request budget exhausted");
   return Number(row.requests);
 }
+export function getNonFmpShortlistBatch(shortlist, date = new Date()) {
+  const valid = Array.isArray(shortlist)
+    ? shortlist.filter(stock => stock && /^[A-Z0-9.^=-]{1,12}$/.test(stock.ticker) && !FMP_FREE_SYMBOLS.includes(stock.ticker))
+    : [];
+  // Stable ordering plus a time-bucket cursor prevents the same first ten
+  // shortlist symbols from monopolizing Finnhub coverage on every scan.
+  const unique = [...new Map(valid.map(stock => [stock.ticker, stock])).values()];
+  if (!unique.length) return [];
+  const bucket = Math.floor(date.getTime() / (5 * 60 * 1000));
+  const start = ((bucket * MAX_NON_FMP_SHORTLIST_SYMBOLS) % unique.length);
+  const count = Math.min(MAX_NON_FMP_SHORTLIST_SYMBOLS, unique.length);
+  return Array.from({length: count}, (_, i) => unique[(start + i) % unique.length]);
+}
 export function getMonitorCandidates(shortlist, date = new Date()) {
   const valid = Array.isArray(shortlist)
     ? shortlist.filter(stock => stock && /^[A-Z0-9.^=-]{1,12}$/.test(stock.ticker))
     : [];
   const shortlistBySymbol = new Map(valid.map(stock => [stock.ticker, stock]));
   const fmpCandidates = getFmpScanBatch(date).map(ticker => shortlistBySymbol.get(ticker) || { ticker, entryStatus: "" });
-  const nonFmpCandidates = valid
-    .filter(stock => !FMP_FREE_SYMBOLS.includes(stock.ticker))
-    .slice(0, MAX_NON_FMP_SHORTLIST_SYMBOLS);
-  return [...fmpCandidates, ...nonFmpCandidates];
+  return [...fmpCandidates, ...getNonFmpShortlistBatch(valid, date)];
 }
 export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
   const url = new URL("https://financialmodelingprep.com/stable/quote");
