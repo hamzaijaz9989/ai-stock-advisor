@@ -287,3 +287,13 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - D1 verification was SELECT-only (`rows_written=0`, `changed_db=false`). No secret values or production controls were changed. No broker actions or orders occurred. Paper execution remains disabled and the kill switch remains engaged.
 - Detailed evidence and acceptance checklist: [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md).
 - Next exact action: user updates the FMP secret in both separate Cloudflare Production surfaces; then verify a fresh market-open run has no FMP 401 and run the Pages FMP health diagnostic through an authorized runtime path. Continue keeping paper execution disabled.
+
+
+## 2026-11-12 — FMP post-update runtime verification passed
+
+- After the user updated the Worker Secret, settings confirmed the `FMP_API_KEY` secret binding exists (value not read).
+- Scheduled monitor run #564 (2026-11-11 20:00:52–20:01:01 UTC) completed `success`: 8 symbols checked, zero errors, zero FMP fallbacks.
+- D1 persisted AAPL at $354.50 and TSLA at $391.57 with source `Financial Modeling Prep`; both provider quote timestamps were `2026-11-11T20:00:53Z`.
+- Six non-FMP shortlist symbols were successfully served by Finnhub.
+- Verdict: FMP Worker authentication and quote ingestion are now runtime-verified after the key update. Continue observing subsequent scheduled runs for stability. Finnhub remains operational.
+- No secret values were read or changed by this verification. No broker requests or orders were made. Paper execution remains disabled.
