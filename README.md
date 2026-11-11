@@ -46,7 +46,7 @@ To enable it, add `FMP_API_KEY` as a **Cloudflare Pages secret/environment varia
 
 FMP is an independent secondary data source. Northstar keeps its figures separate from SEC observations because fiscal periods, currencies, units, and later restatements may differ. Analyst estimates are explicitly forecasts. Missing endpoints are reported as partial coverage rather than silently filled. This integration does **not** enable BUY: the historical-validation gate remains closed until the actual strategy passes point-in-time walk-forward and untouched holdout testing with verified inputs and realistic costs.
 
-Official FMP docs: https://site.financialmodelingprep.com/developer/docs/quickstart and https://site.financialmodelingprep.com/developer/docs.
+Official FMP docs: https://site.financialmodelingprep.com/developer/docs/quickstart and https://site.financialmodelingprep.com/developer/docs.\n\nThe scheduled market monitor uses the account-provided FMP Free-plan symbol allowlist, rotates two symbols per five-minute market-open run, and enforces a 200-request-per-UTC-day monitor ceiling to preserve headroom. See [FMP Free-tier monitor policy](monitor/FMP_FREE_TIER.md).
 
 ## Alpaca Paper Trading connection (read-only)
 
