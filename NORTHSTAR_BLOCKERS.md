@@ -991,3 +991,5 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Maximum single-position notional is 25% of equity (USD 250 at current pilot size); sector exposure cap is 40% (USD 400); one concurrent position remains the initial pilot limit.
 - Policy sizes from stop distance and available risk budget. Example: USD 100 notional with a 5% stop risks USD 5; with a 2% stop it risks USD 2. No fixed-dollar risk cap is used.
 - Updated policy, tests, Trading Lab calculator/panel, risk specification and tracker. Exact-head CI and Preview acceptance are pending. Execution remains disabled; kill switch engaged; no orders submitted.
+
+- Follow-up: daily loss stop is anchored to explicit session-start equity, while trade and aggregate risk use current equity. Missing baseline is a hard rejection. Regression test added; latest exact-head CI/Preview acceptance pending.
