@@ -975,3 +975,12 @@ The additional review did not issue broker requests or modify any D1 row. These 
 - Preview D1 currently has zero Research Council runs. A successful dashboard deployment is not proof that all nine agents have completed a real research run.
 - Pages Preview environment currently contains only `NORTHSTAR_OPERATOR_TOKEN`; production additionally has `FMP_API_KEY`, `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` and `GEMINI_API_KEY`. Secret values were not read. A controlled Preview collection remains blocked until the four provider secret bindings are configured in the Pages **Preview** environment.
 - Production deployment and Production D1 were not modified. Keep execution disabled, kill switch engaged and BUY disabled.
+
+## 2026-11-11 — Research lease recovery safeguards added
+- Collector lease ownership helpers are now exported for direct tests. Leases expire after 30 minutes and are renewed at phase boundaries (after account sync, before/after provider collection, and after Council execution). Every renewal requires the same unexpired token; lease loss aborts the run safely.
+- Added `tests/research-run-lease.test.mjs` covering concurrent duplicate rejection, expired-lease reclaim, valid/invalid renewal, and owner-only release.
+- GitHub Tests passed on exact feature head `c094059f2c6e898fc0a048bed62a5797350d0e9b`: push run `43003828936`; PR test runs `43003833401`, `43003833403`, and history scan `43003833664` all succeeded.
+- Cloudflare Preview deployment `8e4983eb-4b59-433b-82a1-573329e18c37` succeeded for collector lease-renewal code commit `fe0f18a...`. No Production deployment was performed.
+- Migration `0013_research_council_run_leases.sql` remains applied only to Preview. Production database and execution controls are unchanged.
+- First real Preview research collection is still blocked because Pages Preview lacks FMP, Alpaca Paper key ID/secret and Gemini secrets. No research run has been fabricated or recorded.
+- Keep execution disabled, kill switch engaged, BUY disabled. Approved limits remain USD 1,000 allocation / USD 25 max planned risk / USD 50 daily loss.

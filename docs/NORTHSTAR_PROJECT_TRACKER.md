@@ -267,3 +267,10 @@ Additional rules:
 - Preview currently lacks `FMP_API_KEY`, `ALPACA_API_KEY_ID`, `ALPACA_API_SECRET_KEY` and `GEMINI_API_KEY`. Only `NORTHSTAR_OPERATOR_TOKEN` is configured there. Configure the four provider secrets in the Cloudflare Pages Preview environment before attempting the first real research-only collection. Never paste values into chat.
 - Remaining gates: controlled Preview collector run, durable trace and idempotent replay; lease concurrency/recovery tests; seven-day portfolio baseline; point-in-time strategy validation; complete virtual ledger and paper-order lifecycle.
 - Safety unchanged: USD 1,000 virtual allocation, USD 25 max planned risk per trade, USD 50 daily loss stop. Execution disabled, kill switch engaged, BUY disabled, no real money.
+
+## 2026-11-11 — Lease renewal and concurrency checkpoint
+- Research collector leases now have a 30-minute expiry and token-checked renewals at phase boundaries. Lost lease ownership aborts collection. Added targeted tests for concurrent duplicate prevention, expiry/reclaim, renewal and release ownership.
+- Exact-head CI passed on `c094059f2c6e898fc0a048bed62a5797350d0e9b`: push run `43003828936`, PR test runs `43003833401` and `43003833403`, history scan `43003833664`.
+- Preview deployment for the collector renewal code (`fe0f18a...`) succeeded. Migration `0013_research_council_run_leases.sql` is applied only to Preview D1.
+- Actual Research Council collection has not run. Preview provider secrets (FMP, Alpaca Paper key ID/secret, Gemini) must be added directly in Cloudflare Pages Preview. No secret values were read or copied.
+- Production remains untouched. Safety limits: USD 1,000 allocation, USD 25 max planned risk per trade, USD 50 daily loss stop; execution disabled, kill switch engaged, BUY disabled.

@@ -295,3 +295,10 @@ This section supersedes older runtime counts above where they conflict. Evidence
 - No Preview Council run has been recorded yet. Provider secret bindings required by the collector are absent from Pages Preview (FMP, Alpaca Paper key ID/secret, Gemini). Production secret values were not read or copied.
 - Next step: add the four provider secrets directly in Cloudflare Pages > ai-stock-advisor > Settings > Variables and Secrets > Preview, then run a controlled research-only collection and verify durable trace + idempotent replay. Never paste secret values into ChatGPT.
 - Production remains untouched; paper execution disabled, kill switch engaged and BUY disabled.
+
+## 2026-11-11 — Lease recovery and concurrency tests
+- Added 30-minute research-run leases with token-checked renewal at phase boundaries and safe abort if ownership is lost.
+- Added tests for duplicate-run exclusion, expired-lease recovery, renewal ownership and owner-only release. Exact-head GitHub Tests and PR workflows passed on `c094059f...`.
+- Preview Pages successfully deployed the collector lease changes. The additive lease migration remains applied to Preview D1 only.
+- A real research run remains pending because provider secret bindings are not configured in Pages Preview. Do not claim agent completion until a durable run is recorded.
+- No Production deployment, Production D1 mutation or broker action was performed. Execution remains disabled and kill switch engaged.
