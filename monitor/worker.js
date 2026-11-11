@@ -270,32 +270,80 @@ async function emitEvent(db,event) {
   await db.prepare("INSERT OR IGNORE INTO monitor_events(event_key,symbol,event_type,severity,message,price,change_pct,source,observed_at) VALUES(?,?,?,?,?,?,?,?,?)")
     .bind(event.key,event.symbol,event.type,event.severity,event.message,event.price??null,event.changePct??null,event.source,event.at).run();
 }
+function alpacaSyncErrorCategory(error) {
+  const message=String(error?.message||error||"").toLowerCase();
+  const status=message.match(/http (\d{3})/);
+  if(status) return "http_"+status[1];
+  if(message.includes("credential")||message.includes("binding")) return "configuration";
+  if(message.includes("blocked")||message.includes("disabled")||message.includes("kill-switched")) return "safety_gate";
+  if(message.includes("invalid")||message.includes("inactive")) return "invalid_account";
+  if(message.includes("d1")||message.includes("database")) return "database";
+  if(message.includes("timeout")||message.includes("abort")) return "timeout";
+  return "sync_error";
+}
+function logAlpacaSync(status, fields={}) {
+  // Never include credentials, request headers, or raw provider response bodies.
+  console.log(JSON.stringify({event:"alpaca_equity_sync",status,at:new Date().toISOString(),...fields}));
+}
+export async function getAlpacaEquityHealth(env, now=Date.now()) {
+  const db=env?.NORTHSTAR_DB;
+  const credentialsPresent=Boolean(env?.ALPACA_API_KEY_ID&&env?.ALPACA_API_SECRET_KEY);
+  if(!db) return {ok:false,d1Available:false,credentialsPresent,executionSafe:false,lastSnapshotAt:null,snapshotAgeMs:null,checkedAt:new Date(now).toISOString()};
+  try {
+    const [control,last]=await Promise.all([
+      db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first(),
+      db.prepare("SELECT captured_at FROM paper_equity_snapshots WHERE source='alpaca_paper_read_only_sync' ORDER BY captured_at DESC LIMIT 1").first()
+    ]);
+    const executionSafe=Boolean(control&&control.mode==="paper"&&Number(control.enabled)===0&&Number(control.kill_switch)===1);
+    const lastSnapshotAt=last?.captured_at||null, parsed=Date.parse(lastSnapshotAt||"");
+    const snapshotAgeMs=Number.isFinite(parsed)?Math.max(0,now-parsed):null;
+    return {ok:Boolean(credentialsPresent&&executionSafe),d1Available:true,credentialsPresent,executionSafe,lastSnapshotAt,snapshotAgeMs,checkedAt:new Date(now).toISOString()};
+  } catch {
+    return {ok:false,d1Available:true,credentialsPresent,executionSafe:false,lastSnapshotAt:null,snapshotAgeMs:null,checkedAt:new Date(now).toISOString(),error:"ledger_unavailable"};
+  }
+}
 export async function syncAlpacaEquitySnapshot(env, now = Date.now(), fetchImpl = fetch) {
-  const db=env?.NORTHSTAR_DB, key=env?.ALPACA_API_KEY_ID, secret=env?.ALPACA_API_SECRET_KEY;
-  if(!db||!key||!secret) throw new Error("Alpaca equity sync unavailable: D1 binding or Paper credentials missing");
-  const control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();
-  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1)
-    throw new Error("Alpaca equity sync blocked: execution must remain disabled and kill-switched");
-  const last=await db.prepare("SELECT captured_at FROM paper_equity_snapshots WHERE source='alpaca_paper_read_only_sync' ORDER BY captured_at DESC LIMIT 1").first();
-  const lastMs=Date.parse(last?.captured_at||"");
-  const interval=isUsMarketOpen(new Date(now))?4*60*1000:12*60*60*1000;
-  if(Number.isFinite(lastMs)&&now-lastMs<interval) return {status:"skipped_recent_snapshot",capturedAt:last.captured_at};
-  const response=await fetchImpl("https://paper-api.alpaca.markets/v2/account",{
-    headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,"Accept":"application/json"},
-    signal:AbortSignal.timeout(10000)
-  });
-  if(!response.ok) throw new Error("Alpaca Paper account HTTP "+response.status);
-  const account=await response.json();
-  if(account?.status!=="ACTIVE"||account?.trading_blocked||account?.account_blocked)
-    throw new Error("Alpaca Paper account inactive or blocked; snapshot not stored");
-  const equity=Number(account.equity),cash=Number(account.cash),buyingPower=Number(account.buying_power),lastEquity=Number(account.last_equity);
-  if(!Number.isFinite(equity)||equity<=0||!Number.isFinite(cash)||cash<0)
-    throw new Error("Alpaca returned invalid equity/cash; snapshot not stored");
-  const capturedAt=new Date(now).toISOString();
-  const dayPl=Number.isFinite(lastEquity)?Number((equity-lastEquity).toFixed(2)):null;
-  await db.prepare("INSERT INTO paper_equity_snapshots(captured_at,equity_usd,cash_usd,buying_power_usd,day_pl_usd,source) VALUES(?,?,?,?,?,?) ON CONFLICT(captured_at) DO NOTHING")
-    .bind(capturedAt,equity,cash,Number.isFinite(buyingPower)?buyingPower:null,dayPl,"alpaca_paper_read_only_sync").run();
-  return {status:"recorded",capturedAt,equityUsd:equity};
+  try {
+    const db=env?.NORTHSTAR_DB, key=env?.ALPACA_API_KEY_ID, secret=env?.ALPACA_API_SECRET_KEY;
+    if(!db||!key||!secret) {
+      logAlpacaSync("skipped",{reason:"configuration_missing"});
+      throw new Error("Alpaca equity sync unavailable: D1 binding or Paper credentials missing");
+    }
+    const control=await db.prepare("SELECT enabled,mode,kill_switch FROM execution_control WHERE id=1").first();
+    if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1) {
+      logAlpacaSync("skipped",{reason:"safety_gate"});
+      throw new Error("Alpaca equity sync blocked: execution must remain disabled and kill-switched");
+    }
+    const last=await db.prepare("SELECT captured_at FROM paper_equity_snapshots WHERE source='alpaca_paper_read_only_sync' ORDER BY captured_at DESC LIMIT 1").first();
+    const lastMs=Date.parse(last?.captured_at||"");
+    const interval=isUsMarketOpen(new Date(now))?4*60*1000:12*60*60*1000;
+    if(Number.isFinite(lastMs)&&now-lastMs<interval) {
+      const result={status:"skipped_recent_snapshot",capturedAt:last.captured_at};
+      logAlpacaSync("skipped",{reason:"recent_snapshot",capturedAt:last.captured_at});
+      return result;
+    }
+    const response=await fetchImpl("https://paper-api.alpaca.markets/v2/account",{
+      headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,"Accept":"application/json"},
+      signal:AbortSignal.timeout(10000)
+    });
+    if(!response.ok) throw new Error("Alpaca Paper account HTTP "+response.status);
+    const account=await response.json();
+    if(account?.status!=="ACTIVE"||account?.trading_blocked||account?.account_blocked)
+      throw new Error("Alpaca Paper account inactive or blocked; snapshot not stored");
+    const equity=Number(account.equity),cash=Number(account.cash),buyingPower=Number(account.buying_power),lastEquity=Number(account.last_equity);
+    if(!Number.isFinite(equity)||equity<=0||!Number.isFinite(cash)||cash<0)
+      throw new Error("Alpaca returned invalid equity/cash; snapshot not stored");
+    const capturedAt=new Date(now).toISOString();
+    const dayPl=Number.isFinite(lastEquity)?Number((equity-lastEquity).toFixed(2)):null;
+    await db.prepare("INSERT INTO paper_equity_snapshots(captured_at,equity_usd,cash_usd,buying_power_usd,day_pl_usd,source) VALUES(?,?,?,?,?,?) ON CONFLICT(captured_at) DO NOTHING")
+      .bind(capturedAt,equity,cash,Number.isFinite(buyingPower)?buyingPower:null,dayPl,"alpaca_paper_read_only_sync").run();
+    logAlpacaSync("recorded",{capturedAt,equityUsd:equity});
+    return {status:"recorded",capturedAt,equityUsd:equity};
+  } catch(error) {
+    const category=alpacaSyncErrorCategory(error);
+    if(category!=="safety_gate"&&category!=="configuration") logAlpacaSync("failed",{category});
+    throw error;
+  }
 }
 async function scan(env) {
   const db=env.NORTHSTAR_DB;
@@ -357,6 +405,10 @@ export default {
  async scheduled(_controller,env,ctx) { ctx.waitUntil(scan(env)); ctx.waitUntil(syncAlpacaEquitySnapshot(env).catch(error=>console.error('Alpaca read-only equity snapshot failed:',String(error?.message||error)))); },
  async fetch(request,env) {
    const url=new URL(request.url);
+   if(url.pathname==="/equity-health"&&request.method==="GET") {
+     const health=await getAlpacaEquityHealth(env);
+     return Response.json({service:"northstar-market-monitor",equitySync:health,execution:false,ordersEnabled:false},{status:health.d1Available?200:503,headers:HEADERS});
+   }
    if(url.pathname==="/health"&&request.method==="GET") {
      if(!env.NORTHSTAR_DB)return Response.json({ok:false,error:"D1 unavailable"},{status:503,headers:HEADERS});
      try {const run=await env.NORTHSTAR_DB.prepare("SELECT started_at,completed_at,status,symbols_checked,errors,detail FROM monitor_runs ORDER BY id DESC LIMIT 1").first();const count=await env.NORTHSTAR_DB.prepare("SELECT COUNT(*) AS total FROM monitor_events WHERE acknowledged_at IS NULL").first();return Response.json({ok:true,service:"northstar-market-monitor",cadence:"5 minutes during US regular session",marketOpen:isUsMarketOpen(),latestRun:run||null,unacknowledgedEvents:Number(count?.total||0),execution:false,checkedAt:new Date().toISOString()},{headers:HEADERS});}catch{return Response.json({ok:false,error:"Monitor ledger unavailable"},{status:503,headers:HEADERS});}
