@@ -371,7 +371,17 @@ The PR #118 policy values of 0.5% per-trade risk and 2% daily loss at the $1,000
 
 ## 2026-11-12 — Ten-task continuation: verified Production checkpoint
 
-undefined
+### Follow-up — 2026-11-12 continuation verification
+
+- Main is now `1a9384c15d1c7a54762c1a9d480f854e8844a411`. PR #139 head `dcbe72d43665f2aa749375a4f4f812147456b2e5` has three passing workflows (Tests, Validate, full-history secret scan). Its branch is 8 commits ahead and 4 behind main; GitHub currently reports mergeable. The four base-only commits are newer documentation updates, so recheck mergeability and CI after any rebase/update. No merge performed.
+- PR #118 is 61 commits ahead and 60 behind main; PR #116 is 103 ahead and 63 behind main. Both are diverged and GitHub reports non-mergeable. They need deliberate integration/rebase work, not a merge attempt. No independent formal reviews or inline review threads were present on #116, #118, or #139 at this checkpoint.
+- PR #132 is 28 commits ahead and 44 behind main, non-mergeable, and superseded by the Finnhub rotation now consolidated into #139. Do not merge #132.
+- Production Worker schedule remains `*/5 * * * *`, active version `60bc9eb2-b4c0-40b1-a33f-db2f18d8cd6f`. Latest monitor run is #579 at 2026-11-11 21:15:53 UTC (`market_closed`, 0 errors); latest market-open success remains #575 at 20:55:53 UTC (8 symbols, 0 errors). There is still no verified 2026-11-12 market-open scan.
+- Production D1 source summary: 24 FMP quotes and 25 Finnhub quotes; newest fetched times remain 2026-11-11 20:55:55.782Z and 20:56:01.713Z. FMP ledger shows 46 requests on 2026-11-11. Budget table exists, but migration registry still stops at 0006; explicit migration 0007 remains unapplied/unrecorded.
+- Production paper snapshots: six total, five trusted `alpaca_paper_read_only_sync` captures. Latest trusted capture remains 2026-11-11 14:15:12.866Z, with broker equity/cash of USD 100,000. This broker equity is separate from the USD 1,000 virtual research allocation. Collector freshness (15 minutes) and seven-day baseline remain unmet.
+- Safety recheck: `execution_control.enabled=0`, `mode=paper`, `kill_switch=1`; research council runs, decision traces, trade intents, paper orders and positions all remain zero. No D1 writes were made; no broker actions occurred.
+- Finnhub free-tier terms remain a commercial-use concern: obtain written permission before using it in a commercial/shared service. Do not treat technical availability as commercial licensing approval.
+- This checkpoint used GitHub reads and Cloudflare GET/SELECT only. No Preview, secrets, D1 writes/migrations, merge, deployment, or execution-control changes.
 
 ### Follow-up — PR integration and test verification (2026-11-12)
 
