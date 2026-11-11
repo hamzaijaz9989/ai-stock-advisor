@@ -176,10 +176,24 @@
   const councilTime = value => {const d=new Date(value||"");return Number.isFinite(d.getTime())?d.toLocaleString():"Not recorded";};
   function renderCouncilAgents(run){
     const statuses=new Map((Array.isArray(run?.agents)?run.agents:[]).map(agent=>[agent.role,agent.status]));
+    let complete=0,blocked=0;
     for(const [role,id] of COUNCIL_AGENTS){
       const node=$("council-agent-"+id);
-      if(node)node.textContent=run?(statuses.get(role)||"NOT RUN"):"NOT VERIFIED";
+      const value=run?(statuses.get(role)||"NOT RUN"):"NOT VERIFIED";
+      if(value==="COMPLETE")complete++;
+      if(value==="BLOCKED"||value==="UNAVAILABLE")blocked++;
+      if(node){
+        node.textContent=value.replaceAll("_"," ");
+        const tile=node.closest(".module");
+        if(tile)tile.dataset.state=value;
+      }
     }
+    const completeNode=$("council-complete-count"),pendingNode=$("council-pending-count");
+    const blockedNode=$("council-blocked-count"),bar=$("council-completion-bar");
+    if(completeNode)completeNode.textContent=complete+" / 9";
+    if(pendingNode)pendingNode.textContent=String(Math.max(0,9-complete-blocked));
+    if(blockedNode)blockedNode.textContent=String(blocked);
+    if(bar)bar.style.width=(complete/9*100)+"%";
   }
   function renderCouncilRuns(runs){
     const root=$("council-runs");root.replaceChildren();
