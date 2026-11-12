@@ -55,7 +55,7 @@ async function invoke(role, worker, payload, factIds) {
     const report = await worker(freezeDeep(structuredClone(payload)));
     const checked = validateReport(report, factIds, role);
     if (!checked.ok) return {role, status:"BLOCKED", reason:checked.reason};
-    return {role, status:report.status, report};
+    return {role, status:report.status, reason:report.status==="UNAVAILABLE"&&typeof report.reason==="string"?report.reason:null, report};
   } catch {
     return {role, status:"UNAVAILABLE", reason:role+" worker failed; details withheld from the public decision."};
   }
