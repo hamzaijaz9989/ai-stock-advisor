@@ -8,7 +8,7 @@
 - Production baseline: the latest recorded provider/deployment audit is in [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md). It verifies a finite window of FMP/Finnhub monitor data, not the Pages research endpoints or ongoing uptime.
 - Percentages estimate completed behavior against the product's stated acceptance requirements. Source code and deterministic tests count as implementation evidence. Live provider evidence counts only for the provider and time window actually observed. An unmerged PR, design document, synthetic fixture, or passing unit suite does not count as production acceptance or investment-strategy validation.
 
-## Overall completion: 69% (development-branch source and exact-head CI verified; production acceptance remains incomplete)
+## Overall completion: 70% (development-branch source and exact-head CI verified; production acceptance remains incomplete)
 
 | Workstream | Completion | Evidence and remaining gap |
 |---|---:|---|
@@ -34,7 +34,7 @@ This is a workstream estimate, not a claim that 66% of code is written or that t
 | Sentiment Analyst | 25% | Provider-neutral adapter validates ticker, timestamp, defined population, sample count, provider-normalized scale and methodology; the specialist reports observations separately and never pools unlike populations. | No approved timestamped sentiment/positioning provider or entitlement is connected. See [provider adapter requirements](SENTIMENT_PROVIDER_ADAPTER.md). |
 | Bull Researcher | 75% | Two rounds run before synthesis: preliminary thesis, then verbatim-claim challenge against Bear with cited council evidence. Invalid/missing challenge blocks all downstream stages; tests cover both. | Review semantic quality through accepted live runs; model outputs remain unverified research. |
 | Bear Researcher | 75% | Two rounds run before synthesis: preliminary downside thesis, then verbatim-claim challenge against Bull with cited council evidence. Invalid/missing challenge blocks all downstream stages; tests cover both. | Review semantic quality through accepted live runs; model outputs remain unverified research. |
-| Portfolio Analyst | 65% | Portfolio context and synthesis role, plus a manual-only diversified allocation planner and evidence-linked trade monitoring policy with deterministic tests. | Production portfolio history/context, strategy performance evidence and durable end-to-end collector acceptance remain incomplete. |
+| Portfolio Analyst | 66% | Portfolio context and synthesis role, plus a manual-only diversified allocation planner and evidence-linked trade monitoring policy with deterministic tests. | Production portfolio history/context, strategy performance evidence and durable end-to-end collector acceptance remain incomplete. |
 | Risk Committee | 85% | Deterministic fail-closed committee and paper risk guards are tested. | Keep independent validation and human-review gates closed until strategy evidence is approved. |
 
 The role percentages measure software behavior, not the quality of generated investment conclusions or predictive performance.
@@ -105,4 +105,4 @@ The role percentages measure software behavior, not the quality of generated inv
 - The browser-local plan calculator now reserves saved planned stop risk against a 1% aggregate ceiling, rejects duplicate symbols, and limits the local plan list to ten. This is not broker-position reconciliation and does not represent verified live holdings.
 - Aligned the standalone Python portfolio allocator defaults and hard ceilings to the existing Trading Lab policy: 0.5% per idea / 1% aggregate risk. Added regression checks. BUY activation, paper execution, and production deployment remain disabled.
 - FMP strategy-backtest history now routes through the shared persistent budget/cache. It fails closed when D1 or a verified account limit is absent; the existing Yahoo fallback remains explicitly labeled.
-- Exact-head CI is pending for this update. Exact-head CI for this follow-up is pending. These changes are not production accepted or deployed until Preview and production configuration/migration review are complete.
+- Exact-head CI is pending for this update. The exact-head Tests workflow on the code integration commit passed (100 Python tests, 324 JavaScript tests, scanner syntax, Ruff). Preview is verified on the code commit; production configuration and migration history still block release.

@@ -12,7 +12,8 @@ test("Trading Lab exposes the Stock Brain nine-agent workspace", () => {
   assert.match(html, /id="run-stock-brain"/);
   assert.match(html, /id="stock-brain-agents"/);
   assert.match(html, /id="stock-brain-scorecard"/);
-  assert.match(html, /id="stock-brain-handoff"/);
+  assert.match(html, /id="stock-brain-handoff" class="card" style=/);
+  assert.match(html, /id="use-council-ticker" class="secondary" type="button" disabled/);
   assert.match(html, /Use ticker in manual sizing console/);
   assert.match(html, /9-AGENT STOCK BRAIN/);
 });

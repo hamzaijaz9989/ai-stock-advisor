@@ -538,10 +538,14 @@
     const durable=payload.traceDurable===true&&result.traceDurable===true&&result.trace&&typeof result.trace.ticker==="string";
     const handoff=$("stock-brain-handoff");
     if(handoff){
-      handoff.hidden=!durable;
+      handoff.hidden=false;
+      $("use-council-ticker").disabled=!durable;
       if(durable){
         latestDurableCouncilTicker=result.trace.ticker.toUpperCase();
         $("stock-brain-handoff-summary").textContent="Durable Stock Brain review for "+latestDurableCouncilTicker+" · "+String(result.status||"NO_TRADE").replaceAll("_"," ")+" · "+councilTime(result.trace.asOf||payload.createdAt)+". This is research context, not an approved entry."; 
+      }else{
+        latestDurableCouncilTicker=null;
+        $("stock-brain-handoff-summary").textContent="No durable trace was confirmed. Ticker handoff stays disabled until a durable Stock Brain result is available.";
       }
     }
     const summary=$("stock-brain-summary");
@@ -725,7 +729,9 @@
     const requestId="stockbrain-"+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2));
     button.disabled=true;button.textContent="Researching…";
     latestDurableCouncilTicker=null;
-    $("stock-brain-handoff").hidden=true;
+    $("stock-brain-handoff").hidden=false;
+    $("use-council-ticker").disabled=true;
+    $("stock-brain-handoff-summary").textContent="Research is running. Ticker handoff stays disabled until the server confirms a durable trace.";
     status.textContent="Collecting server-side quote, history, fundamentals, filings, news, earnings and reconciled portfolio evidence. This may take a little while.";
     $("stock-brain-summary").hidden=true;
     $("stock-brain-agents").replaceChildren();
@@ -746,6 +752,9 @@
       renderCouncilResult(data);
       status.textContent=ticker+" · "+(data.result?.status||"NO_TRADE")+" · "+(data.traceDurable===true?"Durable trace confirmed":"Trace durability not confirmed")+" · "+new Date(data.createdAt||Date.now()).toLocaleString()+". No orders were submitted.";
     }catch(error){
+      $("stock-brain-handoff").hidden=false;
+      $("use-council-ticker").disabled=true;
+      $("stock-brain-handoff-summary").textContent="No durable trace was confirmed. Ticker handoff stays disabled.";
       status.textContent=(error?.message||"Stock Brain run unavailable.")+" No order action was attempted. If the blocker is seven-day equity history, continue the read-only snapshot schedule until the required baseline exists.";
     }finally{
       button.disabled=false;button.textContent="Run 9-agent research";
