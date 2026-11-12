@@ -152,7 +152,8 @@ function riskCommittee(payload) {
   const reasons=[];
   const fractions=[daily,weekly,drawdown];
   const required=[equity,openRisk,gross,daily,weekly,drawdown,sector,positions];
-  const invalid=required.some(v=>!Number.isFinite(v)) || equity<=0 || openRisk<0 || gross<0 ||
+  const missing=["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"].some(k=>p[k]===null||p[k]===undefined||p[k]==="");
+  const invalid=missing || required.some(v=>!Number.isFinite(v)) || equity<=0 || openRisk<0 || gross<0 ||
     fractions.some(v=>v<0||v>1) || !Number.isSafeInteger(positions) || positions<0 || positions>1000 || sector<0;
   if(invalid) {
     reasons.push("Core portfolio snapshot is incomplete or invalid: unsupported units or bounds.");
