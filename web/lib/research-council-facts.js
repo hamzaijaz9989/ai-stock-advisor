@@ -16,15 +16,13 @@ function validatePortfolio(portfolio, asOfMs) {
   }
   const capturedAt = dateMs(portfolio.asOf);
   if (capturedAt === null || capturedAt > asOfMs) throw new TypeError("Portfolio snapshot timestamp is missing or after the research as-of time.");
-  const required = ["equityUsd","grossExposureUsd","concurrentPositions"];
-  const optional = ["openRiskUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd"];
-  if (required.some(key => portfolio[key] === null || portfolio[key] === undefined || portfolio[key] === "")) throw new TypeError("Core portfolio snapshot is incomplete.");
-  const values = Object.fromEntries([...required,...optional].map(key => [key,
-    portfolio[key] === null || portfolio[key] === undefined || portfolio[key] === "" ? null : Number(portfolio[key])
-  ]));
+  const required = ["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"];
+  if (required.some(key => portfolio[key] === null || portfolio[key] === undefined || portfolio[key] === "")) throw new TypeError("Portfolio risk snapshot is missing numeric fields.");
+  const values = Object.fromEntries(required.map(key => [key, Number(portfolio[key])]));
   if (required.some(key => !Number.isFinite(values[key])) || values.equityUsd <= 0 ||
-      values.grossExposureUsd < 0 || !Number.isInteger(values.concurrentPositions) ||
-      optional.some(key => values[key] !== null && (!Number.isFinite(values[key]) || values[key] < 0))) {
+      values.openRiskUsd < 0 || values.grossExposureUsd < 0 || values.sectorExposureUsd < 0 ||
+      ["dailyLossFraction","weeklyLossFraction","drawdownFraction"].some(key => values[key] < 0 || values[key] > 1) ||
+      !Number.isInteger(values.concurrentPositions) || values.concurrentPositions < 0) {
     throw new TypeError("Portfolio risk snapshot contains invalid numeric fields.");
   }
   return {...values, asOf: new Date(capturedAt).toISOString(), source: portfolio.source, verified: true};
