@@ -38,7 +38,7 @@ export async function fetchFmpSeries(ticker, apiKey, {db, verifiedDailyLimit, fe
   const from = new Date(to.getTime() - HISTORY_DAYS*86400000);
   const query=new URLSearchParams({symbol:ticker,from:dateString(from),to:dateString(to)});
   const payload=await requestFmpJson({
-    db,service:"pages",path:"/historical-price-eod/full?"+query.toString(),apiKey,fetchImpl,now,verifiedDailyLimit,
+    db,service:"pages",path:"historical-price-eod/full?"+query.toString(),apiKey,fetchImpl,now,verifiedDailyLimit,
     cacheTtlMs:6*60*60*1000,timeoutMs:15000
   });
   return normalizeRows(payload,"FMP");
