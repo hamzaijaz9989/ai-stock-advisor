@@ -19,9 +19,9 @@ def simulate_cash_only_portfolio(
     signals: Iterable[TradeSignal],
     bars_by_symbol: Mapping[str, Iterable[DailyBar]],
     *,
-    initial_capital: float = 500.0,
-    risk_budget: float = 5.0,
-    max_notional: float = 500.0,
+    initial_capital: float = 1000.0,
+    risk_budget: float = 10.0,
+    max_notional: float = 1000.0,
     config: BacktestConfig | None = None,
 ) -> dict[str, Any]:
     """Simulate a cash-only account with one open position maximum.

@@ -3,7 +3,7 @@
 ## Investor profile
 - Market: US-listed common stocks on NYSE/Nasdaq.
 - Horizon: a few weeks to six months.
-- Capital: USD 500.
+- Capital: USD 1,000.
 - Risk tolerance: moderate.
 - Advice must be plain-language BUY / WAIT / AVOID with an entry zone, target zone, invalidation/exit level, time horizon, and evidence.
 - Research only; no broker integration or automatic order placement.
@@ -18,9 +18,9 @@ A candidate cannot receive BUY unless all required gates pass:
 6. **Portfolio fit:** size the position from the entry-to-invalidation distance and the risk budget; account for correlated holdings and available cash.
 7. **Validation:** do not label the signal validated until walk-forward and untouched holdout tests include point-in-time data, corporate actions, slippage, fees, and delisted securities where applicable. The UI may show a clearly labelled provisional BUY setup when all current gates pass, but it must never describe that setup as validated or guaranteed.
 
-## Risk sizing for $500
-- Default planned risk per position: 1% of capital = $5.
-- Hard planned-risk ceiling: 2% = $10, before gap risk, fees, and slippage.
+## Risk sizing for $1,000
+- Default planned risk per position: 1% of capital = $10.
+- Hard planned-risk ceiling: 2% = $20, before gap risk, fees, and slippage.
 - Formula: shares = floor(risk budget / (entry price - invalidation price)), adjusted for fractional-share availability. If no shares fit the budget or the minimum practical trade is too large, recommend WAIT.
 - No leverage, margin, short selling, or options in this version.
 - Never imply a stop price guarantees a fill. Overnight gaps can cause larger losses.

@@ -1,5 +1,5 @@
 -- Shared rolling FMP request ledger and provider-response cache.
--- Use 0008 to coexist with the existing open PR that proposes 0007_fmp_request_budget.sql.
+-- Use 0014 after reconciling the applied D1 migration history; production currently records migrations through 0013.
 CREATE TABLE IF NOT EXISTS fmp_request_budget (
   day TEXT PRIMARY KEY,
   requests INTEGER NOT NULL DEFAULT 0 CHECK (requests >= 0)

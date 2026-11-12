@@ -72,8 +72,8 @@ def _finite(value: Any) -> float | None:
     return result if math.isfinite(result) else None
 
 
-def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 5.0,
-                      max_notional: float = 500.0) -> dict[str, Any]:
+def evaluate_snapshot(snapshot: Mapping[str, Any], *, risk_budget: float = 10.0,
+                      max_notional: float = 1000.0) -> dict[str, Any]:
     """Apply a frozen, explicit version of the current provisional setup rules."""
     ticker = str(snapshot.get("ticker", "")).strip().upper()
     try:
