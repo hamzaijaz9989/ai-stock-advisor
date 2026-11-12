@@ -8,12 +8,12 @@
 - Production baseline: the latest recorded provider/deployment audit is in [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md). It verifies a finite window of FMP/Finnhub monitor data, not the Pages research endpoints or ongoing uptime.
 - Percentages estimate completed behavior against the product's stated acceptance requirements. Source code and deterministic tests count as implementation evidence. Live provider evidence counts only for the provider and time window actually observed. An unmerged PR, design document, synthetic fixture, or passing unit suite does not count as production acceptance or investment-strategy validation.
 
-## Overall completion: 67% (development-branch source and CI verified; production acceptance remains incomplete)
+## Overall completion: 68% (development-branch source and CI verified; production acceptance remains incomplete)
 
 | Workstream | Completion | Evidence and remaining gap |
 |---|---:|---|
 | Equity scanner and shortlist | 85% | Scanner, cached shortlist and validation workflow exist. User-confirmed scanner milestone is complete; cache freshness and provider coverage still need operational monitoring. |
-| Market data and provider integrations | 75% | FMP, Finnhub and Yahoo paths include source/timestamp checks and tested fallback behavior; production monitor has finite successful FMP/Finnhub observations. Pages secret/endpoint health is not freshly verified. |
+| Market data and provider integrations | 80% | Pages and Worker FMP call sites share a D1-backed rolling 24-hour reservation and response cache, with endpoint fan-out costs reserved atomically and no retries. Runtime calls fail closed without a verified plan-limit binding and migration 0008. |
 | SEC, financial analysis and history | 65% | SEC facts/filings, point-in-time ingestion, valuation and research-history tooling exist. Research price history uses an unofficial source and is explicitly not decision-eligible; data coverage and availability timestamps are incomplete. |
 | Research Council / Stock Brain | 75% | Selective #116 port consolidates the collector, nine-role council contracts, deterministic evaluation, dashboard and focused tests on the development branch. Exact-head CI passes; production Pages bindings and durable live Council traces remain unverified. #116 is a continuation of #108. |
 | Recommendations and strategy validation | 40% | WAIT/AVOID and risk calculations exist. BUY remains disabled; no complete point-in-time universe, frozen strategy, four-fold walk-forward, untouched holdout and independent approval package is evidenced. |
@@ -31,9 +31,9 @@ This is a workstream estimate, not a claim that 66% of code is written or that t
 | Technical Analyst | 80% | Deterministic trend, moving-average, RSI and volatility analysis from supplied history; synthetic tests. | Validate input coverage and corporate-action handling on licensed, point-in-time production history. |
 | Fundamental Analyst | 80% | SEC/FMP observation coverage, period/unit checks and missing cross-check flags; tests. | Establish broader issuer coverage, fiscal-period alignment and availability semantics. |
 | News Analyst | 65% | Timestamped discovery/source quality and freshness checks; tests. | Validate deduplication, issuer corroboration and provider entitlements in live use. |
-| Sentiment Analyst | 20% | Wired through the Stock Brain collector, council and dashboard; deterministic contract rejects missing, malformed, future-dated or undersourced observations and reports unavailable. | No approved timestamped sentiment/positioning feed or entitlement is connected; no crowd signal is inferred from headlines or price action. |
-| Bull Researcher | 70% | Specialist role and evidence-referenced output contract are implemented. | Verify the complete collector-to-dashboard path and semantic support through reviewed live runs. |
-| Bear Researcher | 70% | Specialist role and evidence-referenced downside analysis contract are implemented. | Verify the complete collector-to-dashboard path and semantic support through reviewed live runs. |
+| Sentiment Analyst | 25% | Provider-neutral adapter validates ticker, timestamp, defined population, sample count, provider-normalized scale and methodology; the specialist reports observations separately and never pools unlike populations. | No approved timestamped sentiment/positioning provider or entitlement is connected. See [provider adapter requirements](SENTIMENT_PROVIDER_ADAPTER.md). |
+| Bull Researcher | 75% | Two rounds run before synthesis: preliminary thesis, then verbatim-claim challenge against Bear with cited council evidence. Invalid/missing challenge blocks all downstream stages; tests cover both. | Review semantic quality through accepted live runs; model outputs remain unverified research. |
+| Bear Researcher | 75% | Two rounds run before synthesis: preliminary downside thesis, then verbatim-claim challenge against Bull with cited council evidence. Invalid/missing challenge blocks all downstream stages; tests cover both. | Review semantic quality through accepted live runs; model outputs remain unverified research. |
 | Portfolio Analyst | 60% | Portfolio context and synthesis role exist; missing context is gated in tests. | Production-quality portfolio history/context and durable end-to-end collector acceptance remain incomplete. |
 | Risk Committee | 85% | Deterministic fail-closed committee and paper risk guards are tested. | Keep independent validation and human-review gates closed until strategy evidence is approved. |
 
@@ -69,10 +69,20 @@ The role percentages measure software behavior, not the quality of generated inv
 
 - PR #116 is eight commits ahead of #108 with no commits behind; #116 includes #108. Consolidation ports the #116 work selectively onto the current development branch rather than merging either old-base PR.
 - Preserved newer Northstar changes from the development branch, including the quote validation fix and current monitor/dashboard behavior. Generated quote caches and stale PR documentation are excluded.
-- FMP history is fetched through the existing server-side route. Each uncached collection can request up to eight FMP endpoints; no request-budget counter is shared with the separate monitor Worker. Do not assume an account tier or production endpoint entitlement from code. Current provider plan and live Pages bindings remain unverified, so this is a documented integration constraint, not production acceptance.
+- FMP history uses the existing server-side route. This branch now centralizes Pages and monitor calls behind persistent D1 rolling-window budget reservations and response caching. FMP costs are reserved before network calls; failures stay charged, cache hits are free, retries are not automatic, and missing plan configuration fails closed. Runtime cutover still requires an operator-verified plan limit and applying migration 0008 to the shared production D1; the preview D1 also needs the migration.
 - Gemini remains a model-provider fallback for model-driven council roles; deterministic Northstar roles and risk gates remain authoritative. The separate Gemini research endpoint remains a fallback after native Northstar collection.
 - BUY remains disabled; collector outputs set execution false and automated order submission false. No PR was merged or deployment performed.
 
 - Exact-head CI at `353bc62c9a3ecebe2f76143a69f6c357be0398e6`: 94 Python tests, 309 JavaScript tests, JavaScript syntax checks, lint, and secret scan passed. Cloudflare Pages generated a branch Preview; Production was not deployed.
 - The initial CI run exposed two failures (durable-trace marker and dashboard label); both were fixed and the rerun passed with zero failures.
 - Next Sentiment Analyst work is provider approval/entitlement and sample methodology. Until a timestamped provider is selected, the correctly tested output remains `UNAVAILABLE`.
+
+
+## Shared FMP budget, sentiment contract, and adversarial review (2026-11-12)
+
+- Added a D1-backed shared rolling 24-hour FMP event ledger and persistent response cache for all audited Pages and monitor call sites. Fan-out requests reserve their complete uncached endpoint cost in one atomic statement before any upstream calls; provider failures remain charged, and there are no retries. The application caps total use at 200 calls per rolling 24 hours, retaining 50 calls of headroom against the documented 250-call free tier. Pages and monitor sub-caps are 40 and 160.
+- No account entitlement is assumed: `FMP_VERIFIED_DAILY_LIMIT` must be set to the actual account's verified daily quota. Absent or invalid value, missing D1 schema, or exhausted budget stops FMP requests. Apply migration 0008 before runtime cutover; prior Pages call counts were not recorded, so a cleanly coordinated cutover is still required.
+- Added a neutral sentiment provider adapter and strict contract. No approved source is configured, so the correct result remains unavailable; no sentiment observations or data are fabricated.
+- Bull and Bear now receive the opposing preliminary report in a second round, must challenge an exact opposing claim with supplied council fact IDs, and block portfolio/risk stages when that contract fails. Repeated model call timing/token usage is accumulated in telemetry.
+- Exact-head FMP code CI at `c409959ea4d2a43d1b25ccb90f7e329b5b2e6560` passed Tests and Validate workflows. This head predates the sentiment and debate additions; their final CI result is pending.
+- No migration was applied, no production deployment or PR merge occurred, and no BUY, paper-trading execution or kill-switch setting was changed.

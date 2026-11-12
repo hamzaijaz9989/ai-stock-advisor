@@ -107,11 +107,33 @@ export async function runResearchCouncil({requestId, context, workers}) {
   let downstreamBlockReason = "Upstream specialist stage did not complete; this role was not run.";
   if (analystReady) {
     const debatePayload={...base, analystReports:independent.map(x=>({role:x.role,report:x.report}))};
-    debate=await Promise.all(COUNCIL_ROLES.debate.map(role =>
+    const preliminary=await Promise.all(COUNCIL_ROLES.debate.map(role =>
       invoke(role,safeWorkers[role],debatePayload,factIds)));
-    if (debate.every(x=>x.status==="COMPLETE")) {
+    if (preliminary.every(x=>x.status==="COMPLETE")) {
+      debate=await Promise.all(COUNCIL_ROLES.debate.map(role=>{
+        const opponent=preliminary.find(x=>x.role!=="bull_researcher"&&role==="bull_researcher"||x.role==="bull_researcher"&&role==="bear_researcher");
+        const own=preliminary.find(x=>x.role===role);
+        const challengePayload={...debatePayload,debateChallenge:{
+          opponentRole:opponent.role,opponentReport:opponent.report,ownPreliminaryReport:own.report,
+          instruction:"Challenge one exact opponent claim using supplied evidence. Return challenge:{opposingClaim:<verbatim opponent claim>,response:<reasoned response>,factIds:[valid supplied evidence IDs]}. Do not invent facts."
+        }};
+        return invoke(role,safeWorkers[role],challengePayload,factIds);
+      }));
+      for(const challenged of debate) {
+        const challenge=challenged.report?.challenge;
+        const opponent=preliminary.find(x=>x.role!==challenged.role);
+        const opponentClaims=[...(opponent?.report?.findings||[]),...(opponent?.report?.risks||[])].map(x=>x.claim);
+        if(challenged.status==="COMPLETE"&&(!challenge||!opponentClaims.includes(challenge.opposingClaim)||
+          !validText(challenge.response)||!Array.isArray(challenge.factIds)||challenge.factIds.length===0||
+          challenge.factIds.length>10||challenge.factIds.some(id=>!factIds.has(id)))) {
+          Object.assign(challenged,blockedStage(challenged.role,"Bull/Bear challenge did not cite and respond to an exact opposing claim."));
+        }
+      }
+    } else debate=preliminary;
+    if (debate.length===2 && debate.every(x=>x.status==="COMPLETE")) {
+      const challengedPayload={...debatePayload,debateReports:debate.map(x=>({role:x.role,report:x.report}))};
       synthesis=await invoke("portfolio_analyst",safeWorkers.portfolio_analyst,
-        {...debatePayload,debateReports:debate.map(x=>({role:x.role,report:x.report}))},factIds);
+        challengedPayload,factIds);
       if (synthesis.status==="COMPLETE") {
         risk=await invoke("risk_committee",safeWorkers.risk_committee,
           {...base,analystReports:independent.map(x=>({role:x.role,report:x.report})),

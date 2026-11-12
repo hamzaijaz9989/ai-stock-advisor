@@ -145,7 +145,12 @@ function syntheticFetch({fundamentalsUnavailable=false}={}){
     const report={
      status:"COMPLETE",
      findings:[{claim:role+" has one evidence-linked synthetic observation for human review.",factIds:[selected.id]}],
-     risks:[{claim:"Independent source confirmation and human review remain necessary.",factIds:[selected.id]}]
+     risks:[{claim:"Independent source confirmation and human review remain necessary.",factIds:[selected.id]}],
+     ...(context.debateChallenge?{challenge:{
+       opposingClaim:(context.debateChallenge.opponentReport.findings[0]||context.debateChallenge.opponentReport.risks[0]).claim,
+       response:"The opposing claim is challenged against an independently cited observation.",
+       factIds:[selected.id]
+     }}:{})
     };
     return Response.json({candidates:[{content:{parts:[{text:JSON.stringify(report)}]}}],usageMetadata:{promptTokenCount:120,candidatesTokenCount:50,totalTokenCount:170}});
    }
