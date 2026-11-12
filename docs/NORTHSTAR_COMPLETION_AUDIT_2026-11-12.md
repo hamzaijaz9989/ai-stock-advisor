@@ -8,17 +8,17 @@
 - Production baseline: the latest recorded provider/deployment audit is in [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md). It verifies a finite window of FMP/Finnhub monitor data, not the Pages research endpoints or ongoing uptime.
 - Percentages estimate completed behavior against the product's stated acceptance requirements. Source code and deterministic tests count as implementation evidence. Live provider evidence counts only for the provider and time window actually observed. An unmerged PR, design document, synthetic fixture, or passing unit suite does not count as production acceptance or investment-strategy validation.
 
-## Overall completion: 67% (provisional; consolidation tests pending)
+## Overall completion: 67% (development-branch source and CI verified; production acceptance remains incomplete)
 
 | Workstream | Completion | Evidence and remaining gap |
 |---|---:|---|
 | Equity scanner and shortlist | 85% | Scanner, cached shortlist and validation workflow exist. User-confirmed scanner milestone is complete; cache freshness and provider coverage still need operational monitoring. |
 | Market data and provider integrations | 75% | FMP, Finnhub and Yahoo paths include source/timestamp checks and tested fallback behavior; production monitor has finite successful FMP/Finnhub observations. Pages secret/endpoint health is not freshly verified. |
 | SEC, financial analysis and history | 65% | SEC facts/filings, point-in-time ingestion, valuation and research-history tooling exist. Research price history uses an unofficial source and is explicitly not decision-eligible; data coverage and availability timestamps are incomplete. |
-| Research Council / Stock Brain | 72% (provisional) | Selective #116 port consolidates the collector, nine-role council contracts, deterministic evaluation, dashboard and focused tests on the development branch; exact-head CI and Pages integration acceptance remain pending. #116 is a continuation of #108. Durable production Council traces are not evidenced. |
+| Research Council / Stock Brain | 75% | Selective #116 port consolidates the collector, nine-role council contracts, deterministic evaluation, dashboard and focused tests on the development branch. Exact-head CI passes; production Pages bindings and durable live Council traces remain unverified. #116 is a continuation of #108. |
 | Recommendations and strategy validation | 40% | WAIT/AVOID and risk calculations exist. BUY remains disabled; no complete point-in-time universe, frozen strategy, four-fold walk-forward, untouched holdout and independent approval package is evidenced. |
 | Paper portfolio and lifecycle | 50% | Read-only Alpaca sync, paper controls, preflight, intents, reconciliation, fill handling and risk guards are implemented/tested. Production has no verified seven-day baseline or end-to-end order lifecycle; execution remains disabled and kill switch engaged. |
-| Dashboard and user workflows | 75% | Research, history, positions, watchlist and Trading Lab surfaces exist with endpoint/UI tests. Some Council presentation and live acceptance changes remain unmerged. |
+| Dashboard and user workflows | 78% | Research, history, positions, watchlist and Trading Lab surfaces include the Stock Brain council panel and pass endpoint/UI tests in the development branch. Live Pages integration acceptance remains outstanding. |
 | Cloudflare operations and release | 70% | Pages/Worker workflows, D1 schema, scheduled monitoring and secret-safe configuration exist. Migration 0007 is proposed in open PR #139 and is not applied; current branch governance and exact-head release acceptance remain incomplete. |
 
 This is a workstream estimate, not a claim that 66% of code is written or that the product is production-ready. Strategy validation and operational approval are hard gates regardless of this aggregate score.
@@ -73,3 +73,6 @@ The role percentages measure software behavior, not the quality of generated inv
 - Gemini remains a model-provider fallback for model-driven council roles; deterministic Northstar roles and risk gates remain authoritative. The separate Gemini research endpoint remains a fallback after native Northstar collection.
 - BUY remains disabled; collector outputs set execution false and automated order submission false. No PR was merged or deployment performed.
 
+- Exact-head CI at `353bc62c9a3ecebe2f76143a69f6c357be0398e6`: 94 Python tests, 309 JavaScript tests, JavaScript syntax checks, lint, and secret scan passed. Cloudflare Pages generated a branch Preview; Production was not deployed.
+- The initial CI run exposed two failures (durable-trace marker and dashboard label); both were fixed and the rerun passed with zero failures.
+- Next Sentiment Analyst work is provider approval/entitlement and sample methodology. Until a timestamped provider is selected, the correctly tested output remains `UNAVAILABLE`.
