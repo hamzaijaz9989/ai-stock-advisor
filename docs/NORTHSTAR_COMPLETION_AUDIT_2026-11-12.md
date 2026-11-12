@@ -114,3 +114,13 @@ The role percentages measure software behavior, not the quality of generated inv
 - Corrected the computed fallback for New Year's Day when Jan. 1 falls on Saturday: NYSE does not observe that holiday on the preceding Friday. Removed the prior-year spillover that could falsely mark Dec. 31 closed.
 - Added regression coverage for the 2027–2028 New Year boundary, 2026 observed Independence Day, and published Thanksgiving/Christmas/July early closes.
 - Evidence: official [NYSE Holidays & Trading Hours](https://www.nyse.com/trade/hours-calendars). Code/test commit is pending exact-head CI and Preview at time of this tracker update; Production is unchanged.
+
+
+## Live Preview/Production acceptance snapshot — 2026-11-12
+
+- Latest successful Pages Preview remains `https://1dbb9852.ai-stock-advisor.pages.dev`, deployed from application commit `7201a4783e430145f3a5222e7c8039f31153f0df`. The later `cd6c84ba05cd00395bd7fe8813ddacaeb0b74fce` changes monitor Worker code and docs outside the Pages build path, so Pages correctly skipped a new application deployment. Production remains on main `8211eb8b2d8394ceb5942d6d363d70570c92bef1`.
+- Browser acceptance on Preview confirmed the manual-only $1,000 planner and safety limits are visible. Preview lacks Alpaca and FMP API secrets; its D1 contains no monitor runs/quotes/events and no durable Council runs. Therefore Preview does not demonstrate provider-backed research or scheduled monitoring.
+- A single Preview AAPL Historical Lab request failed closed with `FMP_API_KEY2/FMP_API_KEY binding is unavailable` and `Yahoo fallback HTTP 429`. No historical return was presented. This verifies honest provider failure handling, not a successful strategy backtest.
+- Production Trading Lab read-only page showed Alpaca paper connectivity verified, the latest scheduled monitor run as `MARKET CLOSED` with zero symbols checked, seven unacknowledged review alerts, and previous-session quotes labeled stale. It showed no persisted Council run (0/9), which is not an executed research cycle.
+- Production does have provider bindings, but no operator token was accessed or used to invoke the protected collector. FMP account quota/endpoint entitlements and the split D1 migration histories remain unresolved. No migrations, orders, execution controls, or Production deployment were changed.
+- Overall and agent completion estimates above remain development estimates; these runtime observations do not upgrade production acceptance or strategy validation. BUY and paper execution remain disabled.
