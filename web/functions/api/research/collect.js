@@ -120,7 +120,7 @@ export async function onRequestPost({request,env}){
   const initial={version:"1.0.2",requestId,ticker,asOf:new Date().toISOString(),status:"NO_TRADE",execution:false,automatedOrderSubmission:false,agents:roles.map(role=>({role,status:"NOT_RUN",reason:"Research launch started; awaiting provider collection."})),vetoReasons:["Research collection is in progress."],traceDurable:true};
   await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?)").bind(requestId,attemptHash,ticker,"RUNNING",JSON.stringify(initial)).run();
   // Refresh the read-only broker snapshot before using portfolio values.
-  const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
+  const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:"Bearer "+String(env?.NORTHSTAR_OPERATOR_TOKEN||""), "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
   const portfolio=await portfolioSnapshot(env);
   // Record the collection start for date-bounded provider requests. The final as-of
