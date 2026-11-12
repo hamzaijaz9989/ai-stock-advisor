@@ -25,7 +25,7 @@ test("provider adapter has a fail-closed no-provider state and calls only an inj
 
 test("canonical Council facts retain normalized sentiment provenance and population",()=>{
  const normalized=normalizeSentimentProviderPayload({ticker:"NVDA",asOf:"2026-11-12T09:00:00Z",providerId:"approved-vendor",payload:good});
- const out=buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-12T09:00:00Z",portfolio:{},sentimentObservations:normalized.observations});
+ const out=buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-12T09:00:00Z",portfolio:{verified:true,source:"synthetic-paper-snapshot",asOf:"2026-11-12T09:00:00Z",equityUsd:1000,virtualAllocationUsd:1000,actualAccountEquityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0,riskMetricBasis:"actual_alpaca_paper_account_equity"},sentimentObservations:normalized.observations});
  const item=out.evidence.find(x=>x.type==="SENTIMENT_OBSERVATION");
  assert.equal(item.value.population,"retail");assert.equal(item.source,"approved-vendor");
  assert.equal(out.resourceCoverage.roles.sentiment_analyst.status,"PARTIAL");

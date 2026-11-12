@@ -150,14 +150,13 @@ export function runNewsAnalyst(context) {
 }
 
 const SENTIMENT_POPULATIONS=Object.freeze(["retail","institutional","short_interest","options_positioning","analyst_revisions","news_sentiment"]);
-const HAS_EXPLICIT_ZONE=/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/;
 export function runSentimentAnalyst(context) {
  const feeds=evidenceOf(context,"SENTIMENT_OBSERVATION").concat(evidenceOf(context,"ANALYST_SENTIMENT"),evidenceOf(context,"POSITIONING_SENTIMENT"));
  if(!feeds.length)return unavailable("No approved timestamped sentiment or positioning feed is connected.");
  const asOf=exactTimestampMs(context?.asOf);
  const valid=feeds.filter(x=>{
   const v=x.value||{},timestamp=exactTimestampMs(v.timestamp);
-  return v.timestampStatus==="PRESENT"&&HAS_EXPLICIT_ZONE.test(String(v.timestamp||""))&&asOf!==null&&timestamp!==null&&timestamp<=asOf&&
+  return v.timestampStatus==="PRESENT"&&asOf!==null&&timestamp!==null&&timestamp<=asOf&&
    typeof v.source==="string"&&v.source.trim()&&Number.isSafeInteger(v.sampleCount)&&v.sampleCount>0&&
    finite(v.score)&&v.score>=-1&&v.score<=1&&SENTIMENT_POPULATIONS.includes(v.population)&&
    typeof v.metric==="string"&&v.metric.trim()&&typeof v.methodology==="string"&&v.methodology.trim().length>=10&&

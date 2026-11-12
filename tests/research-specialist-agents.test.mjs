@@ -140,7 +140,7 @@ test("bull and bear role guidance remains distinct, evidence-only and falsifiabl
 
 test("sentiment analyst rejects future-dated and malformed observations and weights valid samples",()=>{
  const c={asOf:"2026-11-10T12:00:00Z",facts:[],evidence:[
-  {id:"s-old",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:00:00Z",source:"Feed A",sampleCount:100,score:0.2}},
+  {id:"s-old",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:00:00Z",source:"Feed A",sampleCount:100,score:0.2,population:"retail",metric:"survey sentiment",methodology:"Provider survey normalization",normalizedScale:"minus1_to_plus1"}},
   {id:"s-large",type:"ANALYST_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:30:00Z",source:"Feed B",sampleCount:300,score:0.6,population:"analyst_revisions",metric:"estimate revisions",methodology:"Provider revision normalization",normalizedScale:"minus1_to_plus1"}},
   {id:"s-future",type:"POSITIONING_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T13:00:00Z",source:"Feed C",sampleCount:500,score:-1}},
   {id:"s-date-only",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10",source:"Feed D",sampleCount:1000,score:1}},
