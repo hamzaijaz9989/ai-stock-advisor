@@ -93,9 +93,11 @@ export async function runResearchCouncil({requestId, context, workers}) {
     synthesis=await invoke("portfolio_analyst",safeWorkers.portfolio_analyst,
       {...debatePayload,debateReports:debate.map(x=>({role:x.role,report:x.report}))},factIds);
   }
-  const risk=await invoke("risk_committee",safeWorkers.risk_committee,
-    {...base,analystReports:usableReports,debateReports:debate.filter(x=>x.status==="COMPLETE").map(x=>({role:x.role,report:x.report})),portfolioReport:synthesis?.report||null},factIds);
-  const all=[...independent,...debate,...(synthesis?[synthesis]:[{role:"portfolio_analyst",status:"NOT_RUN",reason:"Debate did not produce two validated reports; portfolio synthesis skipped."}]),risk];
+  const risk=independent.every(x=>x.status==="COMPLETE")
+    ? await invoke("risk_committee",safeWorkers.risk_committee,
+      {...base,analystReports:usableReports,debateReports:debate.filter(x=>x.status==="COMPLETE").map(x=>({role:x.role,report:x.report})),portfolioReport:synthesis?.report||null},factIds)
+    : null;
+  const all=[...independent,...debate,...(synthesis?[synthesis]:[{role:"portfolio_analyst",status:"NOT_RUN",reason:"Debate did not produce two validated reports; portfolio synthesis skipped."}]),...(risk?[risk]:[])];
   const riskDecision = risk?.report?.decision;
   const analystReady = independent.every(x=>x.status==="COMPLETE");
   const approvedForReview = analystReady && debate.length===2 &&
