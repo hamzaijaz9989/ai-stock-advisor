@@ -51,9 +51,10 @@ test("rejects missing timestamps for portfolio and malformed tickers",()=>{
  assert.throws(()=>buildResearchCouncilContext({ticker:"",asOf:"2026-11-08T20:00:00Z",portfolio}),/ticker/);
 });
 
-test("rejects null portfolio risk fields instead of silently converting them to zero",()=>{
+test("preserves null portfolio risk fields so the deterministic committee can veto them",()=>{
  const incomplete={...portfolio,weeklyLossFraction:null};
- assert.throws(()=>buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio:incomplete}),/missing numeric fields/);
+ const result=buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio:incomplete});
+ assert.equal(result.portfolio.weeklyLossFraction,null);
 });
 
 

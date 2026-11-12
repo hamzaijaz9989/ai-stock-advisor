@@ -21,7 +21,8 @@ export async function onRequestGet({request,env}){
    history.push({
     symbol,runStatus:String(result?.status||"UNKNOWN"),createdAt:row.created_at||null,
     agent:{
-     role,status:String(agent.status||"UNKNOWN"),
+     role,status:String(agent.status||"UNKNOWN"),decision:typeof agent.decision==="string"?agent.decision:null,
+     vetoReasons:Array.isArray(agent.vetoReasons)?agent.vetoReasons.filter(x=>typeof x==="string").slice(0,20).map(x=>x.slice(0,500)):[],
      findings:cleanItems(agent.findings),risks:cleanItems(agent.risks),
      durationMs:Number.isFinite(Number(agent.durationMs))?Number(agent.durationMs):null,
      reason:typeof agent.reason==="string"?agent.reason.slice(0,500):null,

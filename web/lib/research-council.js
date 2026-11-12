@@ -55,7 +55,7 @@ async function invoke(role, worker, payload, factIds) {
     const report = await worker(freezeDeep(structuredClone(payload)));
     const checked = validateReport(report, factIds, role);
     if (!checked.ok) return {role, status:"BLOCKED", reason:checked.reason};
-    return {role, status:report.status, report};
+    return {role, status:report.status, reason:report.status==="UNAVAILABLE"&&typeof report.reason==="string"?report.reason:null, report};
   } catch {
     return {role, status:"UNAVAILABLE", reason:role+" worker failed; details withheld from the public decision."};
   }
@@ -93,9 +93,11 @@ export async function runResearchCouncil({requestId, context, workers}) {
     synthesis=await invoke("portfolio_analyst",safeWorkers.portfolio_analyst,
       {...debatePayload,debateReports:debate.map(x=>({role:x.role,report:x.report}))},factIds);
   }
-  const risk=await invoke("risk_committee",safeWorkers.risk_committee,
-    {...base,analystReports:usableReports,debateReports:debate.filter(x=>x.status==="COMPLETE").map(x=>({role:x.role,report:x.report})),portfolioReport:synthesis?.report||null},factIds);
-  const all=[...independent,...debate,...(synthesis?[synthesis]:[{role:"portfolio_analyst",status:"NOT_RUN",reason:"Debate did not produce two validated reports; portfolio synthesis skipped."}]),risk];
+  const risk=independent.every(x=>x.status==="COMPLETE")
+    ? await invoke("risk_committee",safeWorkers.risk_committee,
+      {...base,analystReports:usableReports,debateReports:debate.filter(x=>x.status==="COMPLETE").map(x=>({role:x.role,report:x.report})),portfolioReport:synthesis?.report||null},factIds)
+    : null;
+  const all=[...independent,...debate,...(synthesis?[synthesis]:[{role:"portfolio_analyst",status:"NOT_RUN",reason:"Debate did not produce two validated reports; portfolio synthesis skipped."}]),...(risk?[risk]:[])];
   const riskDecision = risk?.report?.decision;
   const analystReady = independent.every(x=>x.status==="COMPLETE");
   const approvedForReview = analystReady && debate.length===2 &&
@@ -107,7 +109,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
     status:approvedForReview?"RESEARCH_REVIEW_REQUIRED":"NO_TRADE",
     execution:false, automatedOrderSubmission:false,
     decisionAuthority:"Deterministic Northstar risk and validation gates remain authoritative; council output is advisory only.",
-    agents:all.map(x=>{const t=workers?.telemetry?.[x.role]||null;return {role:x.role,status:x.status,reason:x.reason||null,findings:x.report?.findings||[],risks:x.report?.risks||[],durationMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,telemetry:t ? {latencyMs:Number.isFinite(t.latencyMs)?t.latencyMs:null,provider:typeof t.provider==="string"?t.provider:null,model:typeof t.model==="string"?t.model:null,failed:t.failed===true,unavailable:t.unavailable===true,inputTokens:Number.isSafeInteger(t.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t.totalTokens)?t.totalTokens:null} : null}}),
+    agents:all.map(x=>{const t=workers?.telemetry?.[x.role]||null;return {role:x.role,status:x.status,reason:x.reason||null,findings:x.report?.findings||[],risks:x.report?.risks||[],decision:x.report?.decision||null,vetoReasons:Array.isArray(x.report?.vetoReasons)?x.report.vetoReasons.slice(0,20):[],durationMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,telemetry:t ? {latencyMs:Number.isFinite(t.latencyMs)?t.latencyMs:null,provider:typeof t.provider==="string"?t.provider:null,model:typeof t.model==="string"?t.model:null,failed:t.failed===true,unavailable:t.unavailable===true,inputTokens:Number.isSafeInteger(t.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t.totalTokens)?t.totalTokens:null} : null}}),
     reports:all.filter(x=>x.report).map(x=>({role:x.role,report:x.report})),
     vetoReasons:approvedForReview?[]:[
       ...all.filter(x=>x.status!=="COMPLETE").map(x=>x.reason||x.role+" did not complete."),
