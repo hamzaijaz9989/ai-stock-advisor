@@ -24,7 +24,7 @@ test("rolling budget expires old usage only after a full 24 hours",async()=>{
 test("FMP responses are persistently cached and cache hits consume no API budget",async()=>{
  const db=createFmpBudgetTestDb();let calls=0;
  const fetchImpl=async url=>{calls++;assert.equal(new URL(url).searchParams.get("apikey"),"never-log-this");return Response.json([{date:"2026-11-11",close:12}]);};
- const args={db,service:"pages",verifiedDailyLimit:250,path:"historical-price-eod/full?symbol=AAPL",apiKey:"never-log-this",fetchImpl,now:Date.parse("2026-11-12T12:00:00Z"),cacheTtlMs:60_000};
+ const args={db,service:"pages",verifiedDailyLimit:250,path:"historical-price-eod/full?symbol=AAPL",apiKey:"never-log-this",fetchImpl,now:Date.now(),cacheTtlMs:60_000};
  assert.deepEqual(await requestFmpJson(args),[{date:"2026-11-11",close:12}]);
  assert.deepEqual(await requestFmpJson(args),[{date:"2026-11-11",close:12}]);
  assert.equal(calls,1);assert.equal(db.events.reduce((n,x)=>n+x.cost,0),1);

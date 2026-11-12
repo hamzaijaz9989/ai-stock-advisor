@@ -83,7 +83,7 @@ async function fetchUncached({db,service,path,apiKey,fetchImpl,now,cacheTtlMs,ti
   let response;
   try{response=await fetchImpl(url.toString(),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(timeoutMs)});}
   catch{throw new FmpBudgetError("FMP_NETWORK_ERROR","FMP request failed; its budget reservation remains charged.",502);}
-  if(!response.ok)throw new FmpBudgetError("FMP_PROVIDER_HTTP_"+response.status,"FMP returned HTTP "+response.status+"; its budget reservation remains charged.",response.status===429?429:502);
+  if(!response.ok)throw new FmpBudgetError("FMP_PROVIDER_HTTP_"+response.status,"FMP returned HTTP "+response.status+"; its budget reservation remains charged.",response.status);
   let payload;try{payload=await response.json();}catch{throw new FmpBudgetError("FMP_INVALID_RESPONSE","FMP returned invalid JSON; its budget reservation remains charged.",502);}
   if(!Array.isArray(payload))throw new FmpBudgetError("FMP_INVALID_RESPONSE","FMP returned an unexpected response type; its budget reservation remains charged.",502);
   if(cacheTtlMs>0){
