@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { onRequestGet } from "../web/functions/api/fmp-fundamentals.js";
+import {createFmpBudgetTestDb} from "./helpers/fmp-budget-db.mjs";
 
 test("FMP fundamentals endpoint fails closed when the API key is absent", async () => {
   const request = new Request("https://northstar.test/api/fmp-fundamentals?ticker=AAPL");
@@ -12,7 +13,7 @@ test("FMP fundamentals endpoint fails closed when the API key is absent", async 
 
 test("FMP fundamentals endpoint validates ticker input", async () => {
   const request = new Request("https://northstar.test/api/fmp-fundamentals?ticker=bad%20ticker");
-  const response = await onRequestGet({ request, env: { FMP_API_KEY: "test" } });
+  const response = await onRequestGet({ request, env: { FMP_API_KEY: "test", FMP_VERIFIED_DAILY_LIMIT:"250", NORTHSTAR_DB:createFmpBudgetTestDb() } });
   assert.equal(response.status, 400);
 });
 
@@ -33,7 +34,8 @@ test("FMP fundamentals endpoint returns separate source datasets and derived FCF
   };
   try {
     const request = new Request("https://northstar.test/api/fmp-fundamentals?ticker=AAPL");
-    const response = await onRequestGet({ request, env: { FMP_API_KEY: "test" } });
+    const budget=createFmpBudgetTestDb();
+    const response = await onRequestGet({ request, env: { FMP_API_KEY: "test", FMP_VERIFIED_DAILY_LIMIT:"250", NORTHSTAR_DB:budget } });
     assert.equal(response.status, 200);
     const payload = await response.json();
     assert.equal(payload.available, true);
@@ -42,6 +44,7 @@ test("FMP fundamentals endpoint returns separate source datasets and derived FCF
     assert.equal(payload.latest.revenue, 1000);
     assert.equal(payload.latest.analystEpsAverage, 5);
     assert.equal(payload.provider, "Financial Modeling Prep");
+    assert.equal(budget.events.reduce((n,row)=>n+row.cost,0),6);
   } finally {
     globalThis.fetch = originalFetch;
   }

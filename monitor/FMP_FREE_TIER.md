@@ -31,17 +31,17 @@ The monitor continues rotating two symbols from the exact FMP allowlist per five
 
 Finnhub requests are serialized by the monitor's existing single-concurrency queue and request gap. The provider's free-tier rate limit must still be respected; the implementation does not assume historical-candle access or a guaranteed daily allowance.
 
-## Request-budget policy
+## Shared FMP request-budget policy
 
-- FMP Free-plan stated allowance: 250 API calls per day.
-- Monitor hard ceiling: 200 FMP quote attempts per UTC day.
-- Reserved headroom: 50 calls for other Northstar FMP features and unexpected usage.
-- Monitor batch size: 2 symbols per scheduled run.
-- Schedule: every 5 minutes during US regular market hours only.
-- A normal 6.5-hour session has at most 78 scheduled runs, or 156 monitor FMP attempts.
-- Failed FMP attempts still consume budget and are counted.
-- The D1 budget ledger uses an atomic conditional upsert, so the monitor cannot reserve request 201 for the same UTC day.
-- Once the monitor budget is exhausted, it stops calling FMP and may use the existing Yahoo fallback. Yahoo data still must pass timestamp and price validation.
+- FMP publishes a Free-plan allowance of 250 API calls per day. Northstar does not assume the connected account has access to every endpoint; verify the account tier and endpoint entitlements in FMP.
+- Pages and the market-monitor Worker bind the same production D1 database, `northstar-paper-ledger`. Preview Pages binds a separate database and therefore has an isolated ledger.
+- Northstar reserves at most **200 calls per rolling 24 hours** across all providers, leaving 50 below the published Free allowance for external use and reset-window uncertainty.
+- Within that total, the monitor may reserve 160 calls and Pages may reserve 40 calls. The monitor cap covers its normal 156-call regular-session maximum. Pages usage includes FMP health checks, fundamentals, and historical data.
+- Each FMP endpoint request costs one budget unit. The code checks persistent response cache first, then atomically reserves the exact cost of all cache misses before any fan-out. Historical collection can cost up to eight calls; fundamentals six; health three.
+- Calls that fail, time out, or are denied by FMP are not refunded. There are no automatic retries. Cache hits cost no provider calls. Simultaneous identical misses use a persistent lease; if the original request remains in flight, the duplicate caller fails retryably without making another provider call.
+- If D1 budget/cache storage is unavailable, Pages sends no FMP request. The monitor falls back to configured Finnhub/Yahoo providers; it never bypasses the shared guard.
+- The ledger is rolling 24 hours; it does not rely on an unverified UTC reset boundary. Migration 0008 conservatively imports recent monitor usage from the old UTC aggregate, timestamped at migration time because the old table had no request timestamps.
+- Production stays unprotected until the migration and matching Pages/Worker code are reviewed and applied together. Pre-cutover Pages traffic was not counted by the old monitor-only table, so verify account usage and use a controlled cutover.
 
 ## Universe rotation
 
@@ -54,8 +54,8 @@ The monitor rotates through the configured allowlist in two-symbol batches. This
 - The monitor does not interpret a quote as a BUY signal.
 - Provider errors and stale data remain fail-closed.
 - This change does not enable paper-order execution or live trading.
-- The request ledger counts monitor FMP attempts only. Other Northstar components using the same FMP account/key must preserve the 50-call headroom; they are not automatically charged against this monitor ledger.
-- The FMP daily reset timezone is not assumed. The ledger uses UTC dates; verify the provider's reset boundary before relying on exact end-of-day alignment.
+- Monitor and Pages share the new rolling ledger. If their secrets belong to different FMP accounts, the shared cap is conservative but may underuse the separate quotas.
+- The published plan allowance does not prove endpoint access; provider 401/403/429 responses remain authoritative.
 
 
 ## Runtime audit — 2026-11-12

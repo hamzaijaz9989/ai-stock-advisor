@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {onRequestPost} from "../web/functions/api/research/collect.js";
+import {createFmpBudgetTestDb} from "./helpers/fmp-budget-db.mjs";
 
 const DAY=24*60*60*1000;
 const TOKEN="synthetic-operator-token";
 
 function makeD1(){
+ const fmpDb=createFmpBudgetTestDb();
  const state={
   control:{enabled:0,mode:"paper",kill_switch:1,max_portfolio_usd:1000},
   snapshots:[{captured_at:new Date(Date.now()-8*DAY).toISOString(),equity_usd:100000,source:"alpaca_paper_read_only_sync"}],
@@ -13,6 +15,7 @@ function makeD1(){
  };
  const db={
   prepare(sql){
+   if(/fmp_request_events|fmp_response_cache/.test(sql))return fmpDb.prepare(sql);
    let args=[];
    const statement={
     sql,
@@ -43,6 +46,7 @@ function makeD1(){
    return statement;
   },
   async batch(statements){
+   if(statements.some(statement=>/fmp_request_events|fmp_response_cache/.test(statement.sql)))return fmpDb.batch(statements);
    for(const statement of statements){
     const args=statement.args||[];
     if(statement.sql.includes("INSERT INTO paper_equity_snapshots")){
@@ -172,7 +176,7 @@ test("synthetic collector records all nine role outcomes, fails closed on missin
   const env={
    NORTHSTAR_OPERATOR_TOKEN:TOKEN,NORTHSTAR_DB:db,
    ALPACA_API_KEY_ID:"synthetic-paper-key",ALPACA_API_SECRET_KEY:"synthetic-paper-secret",
-   FMP_API_KEY:"synthetic-fmp-key",GEMINI_API_KEY:"synthetic-gemini-key"
+   FMP_API_KEY:"synthetic-fmp-key",FMP_VERIFIED_DAILY_LIMIT:"250",GEMINI_API_KEY:"synthetic-gemini-key"
   };
   const first=await onRequestPost({request:collectorRequest("collector-e2e-0001"),env});
   const body=await first.json();
@@ -259,7 +263,7 @@ test("collector continues with SEC primary fundamentals when the optional FMP st
   const env={
    NORTHSTAR_OPERATOR_TOKEN:TOKEN,NORTHSTAR_DB:db,
    ALPACA_API_KEY_ID:"synthetic-paper-key",ALPACA_API_SECRET_KEY:"synthetic-paper-secret",
-   FMP_API_KEY:"synthetic-fmp-key",GEMINI_API_KEY:"synthetic-gemini-key"
+   FMP_API_KEY:"synthetic-fmp-key",FMP_VERIFIED_DAILY_LIMIT:"250",GEMINI_API_KEY:"synthetic-gemini-key"
   };
   const response=await onRequestPost({request:collectorRequest("collector-sec-only-0001"),env});
   const body=await response.json();

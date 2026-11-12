@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {onRequestGet} from "../web/functions/api/fmp-health.js";
+import {createFmpBudgetTestDb} from "./helpers/fmp-budget-db.mjs";
 
 test("FMP health accepts only the canonical FMP_API_KEY binding",async()=>{
  const request=new Request("https://northstar.test/api/fmp-health");
@@ -12,7 +13,7 @@ test("FMP health accepts only the canonical FMP_API_KEY binding",async()=>{
 });
 
 test("FMP health probes quote, history and fundamentals without exposing the key",async()=>{
- const original=globalThis.fetch;let count=0;
+ const original=globalThis.fetch;let count=0;const budget=createFmpBudgetTestDb();
  globalThis.fetch=async input=>{
   count++;const url=new URL(String(input));
   assert.equal(url.searchParams.get("apikey"),"secret-test");
@@ -20,12 +21,12 @@ test("FMP health probes quote, history and fundamentals without exposing the key
   return Response.json(body);
  };
  try{
-  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-health"),env:{FMP_API_KEY:"secret-test",ALPACA_API_KEY_ID:"a",GEMINI_API_KEY:"g"}});
+  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-health"),env:{FMP_API_KEY:"secret-test",FMP_VERIFIED_DAILY_LIMIT:"250",NORTHSTAR_DB:budget,ALPACA_API_KEY_ID:"a",GEMINI_API_KEY:"g"}});
   const payload=await response.json();
   assert.equal(response.status,200);assert.equal(payload.status,"FMP_PARTIALLY_OR_FULLY_REACHABLE");
   assert.equal(payload.checks.length,3);assert.equal(count,3);
   assert.equal(JSON.stringify(payload).includes("secret-test"),false);
-  assert.equal(payload.alpacaBindingPresent,true);assert.equal(payload.geminiBindingPresent,true);
+  assert.equal(payload.alpacaBindingPresent,true);assert.equal(payload.geminiBindingPresent,true);assert.equal(budget.events.reduce((n,row)=>n+row.cost,0),3);
  }finally{globalThis.fetch=original;}
 });
 
@@ -35,10 +36,19 @@ test("FMP health distinguishes invalid credentials from plan restrictions",async
   ?new Response(JSON.stringify({["Error Message"]:"Invalid API KEY"}),{status:401,headers:{"Content-Type":"application/json"}})
   :new Response(JSON.stringify({["Error Message"]:"Plan restricted"}),{status:403,headers:{"Content-Type":"application/json"}});
  try{
-  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-health"),env:{FMP_API_KEY:"test"}});
+  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-health"),env:{FMP_API_KEY:"test",FMP_VERIFIED_DAILY_LIMIT:"250",NORTHSTAR_DB:createFmpBudgetTestDb()}});
   const payload=await response.json();
   assert.equal(response.status,502);assert.equal(payload.status,"FMP_AUTHENTICATION_FAILED");
   assert.equal(payload.checks.find(x=>x.dataset==="quote").status,"AUTHENTICATION_FAILED");
   assert.equal(payload.checks.find(x=>x.dataset==="history").status,"PLAN_OR_PERMISSION_RESTRICTED");
+ }finally{globalThis.fetch=original;}
+});
+
+test("FMP health refuses calls until the connected account limit is explicitly verified",async()=>{
+ const original=globalThis.fetch;let count=0;globalThis.fetch=async()=>{count++;return Response.json([]);};
+ try{
+  const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-health"),env:{FMP_API_KEY:"test",NORTHSTAR_DB:createFmpBudgetTestDb()}});
+  const body=await response.json();
+  assert.equal(response.status,503);assert.equal(body.status,"FMP_PLAN_LIMIT_UNVERIFIED");assert.equal(count,0);
  }finally{globalThis.fetch=original;}
 });

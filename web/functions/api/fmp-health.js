@@ -1,3 +1,4 @@
+import {requestFmpJsonBatch} from "../../lib/fmp-budget.js";
 // Safe diagnostic for the canonical FMP Pages secret binding.
 // Never returns, logs, or echoes the API key.
 const HEADERS={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
@@ -28,19 +29,29 @@ export async function onRequestGet(context){
     ["history","historical-price-eod/full?symbol=NVDA&from="+from+"&to="+today],
     ["fundamentals","income-statement?symbol=NVDA&period=annual&limit=1"]
   ];
-  const results=await Promise.all(checks.map(async([name,path])=>{
-    try{
-      const url=new URL(path,"https://financialmodelingprep.com/stable/");
-      url.searchParams.set("apikey",key);
-      const response=await fetch(url.toString(),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
-      const body=await response.json().catch(()=>null);
-      const rows=Array.isArray(body)?body:[];
-      const providerMessage=!Array.isArray(body)?String(body?.["Error Message"]||body?.message||body?.error||"Unexpected provider response").slice(0,180):null;
-      return {dataset:name,httpStatus:response.status,status:classify(response.status),rowCount:rows.length,latestDate:rows.map(x=>x?.date).filter(Boolean).sort().at(-1)||null,providerMessage};
-    }catch(error){return {dataset:name,status:"NETWORK_ERROR",errorName:error?.name||"Error"};}
-  }));
-  const authFailed=results.some(x=>x.status==="AUTHENTICATION_FAILED");
+  let settled;
+  try{
+    settled=await requestFmpJsonBatch({db:env.NORTHSTAR_DB,service:"pages",apiKey:key,verifiedDailyLimit:env.FMP_VERIFIED_DAILY_LIMIT,
+      requests:checks.map(([,path])=>({path,cacheTtlMs:30_000,timeoutMs:12_000}))});
+  }catch(error){
+    const status=Number(error?.status)||0,code=error?.code;
+    const label=["FMP_DAILY_BUDGET_EXHAUSTED","FMP_PLAN_LIMIT_UNVERIFIED"].includes(code)?code:status?classify(status):code||"NETWORK_ERROR";
+    settled=checks.map(()=>({status:"rejected",reason:{status,code:label,name:error?.name||"Error"}}));
+  }
+  const results=settled.map((result,index)=>{
+    const name=checks[index][0];
+    if(result.status==="fulfilled"){
+      const rows=Array.isArray(result.value)?result.value:[];
+      return {dataset:name,status:"OK",httpStatus:200,rowCount:rows.length,latestDate:rows.map(x=>x?.date).filter(Boolean).sort().at(-1)||null,providerMessage:null};
+    }
+    const error=result.reason||{},status=Number(error.status)||0,code=error.code;
+    const label=["FMP_DAILY_BUDGET_EXHAUSTED","FMP_PLAN_LIMIT_UNVERIFIED"].includes(code)?code:status?classify(status):code||"NETWORK_ERROR";
+    return {dataset:name,status:label,httpStatus:status||null,errorName:error.name||"Error"};
+  });
+  const authFailed=results.some(x=>x.httpStatus===401);
+  const budgetExhausted=results.some(x=>x.status==="FMP_DAILY_BUDGET_EXHAUSTED");
+  const planLimitUnverified=results.some(x=>x.status==="FMP_PLAN_LIMIT_UNVERIFIED");
   const anyOk=results.some(x=>x.status==="OK");
-  const status=authFailed?"FMP_AUTHENTICATION_FAILED":anyOk?"FMP_PARTIALLY_OR_FULLY_REACHABLE":"FMP_ENDPOINTS_UNAVAILABLE";
-  return Response.json({...base,status,checks:results},{status:authFailed?502:anyOk?200:502,headers:HEADERS});
+  const status=planLimitUnverified?"FMP_PLAN_LIMIT_UNVERIFIED":budgetExhausted?"FMP_BUDGET_EXHAUSTED":authFailed?"FMP_AUTHENTICATION_FAILED":anyOk?"FMP_PARTIALLY_OR_FULLY_REACHABLE":"FMP_ENDPOINTS_UNAVAILABLE";
+  return Response.json({...base,status,checks:results},{status:planLimitUnverified?503:budgetExhausted?429:authFailed?502:anyOk?200:502,headers:HEADERS});
 }
