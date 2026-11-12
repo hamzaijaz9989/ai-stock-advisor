@@ -110,7 +110,14 @@ export async function onRequestPost({request,env}){
   const prior=await env.NORTHSTAR_DB.prepare("SELECT symbol,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(prior){
    if(String(prior.symbol||"").toUpperCase()!==ticker)return reply({ok:false,error:"requestId already belongs to a different ticker."},409);
-   return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(prior.result_json),createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
+   let priorResult=null;try{priorResult=JSON.parse(prior.result_json);}catch{}
+   const priorAgents=Array.isArray(priorResult?.agents)?priorResult.agents:[];
+   const hasAnyAgentOutput=priorAgents.some(agent=>["COMPLETE","UNAVAILABLE","BLOCKED"].includes(agent?.status));
+   // A durable placeholder/failure with zero specialist output is resumable.
+   // Only replay once at least one role has actually executed, or the trace is
+   // explicitly marked as a completed council result.
+   if(hasAnyAgentOutput || priorResult?.councilCompleted===true)
+    return reply({ok:true,replayed:true,traceDurable:true,result:priorResult,createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
   }
   if(!operatorAuthorized){
    const recent=await env.NORTHSTAR_DB.prepare("SELECT created_at FROM research_council_runs WHERE created_at >= datetime('now','-5 minutes') ORDER BY created_at DESC LIMIT 1").first();
@@ -119,7 +126,7 @@ export async function onRequestPost({request,env}){
   const attemptHash=await sha256("attempt:"+requestId);
   const roles=["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"];
   const initial={version:"1.0.2",requestId,ticker,asOf:new Date().toISOString(),status:"NO_TRADE",execution:false,automatedOrderSubmission:false,agents:roles.map(role=>({role,status:"NOT_RUN",reason:"Research launch started; awaiting provider collection."})),vetoReasons:["Research collection is in progress."],traceDurable:true};
-  await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?)").bind(requestId,attemptHash,ticker,"NO_TRADE",JSON.stringify(initial)).run();
+  await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?) ON CONFLICT(request_id) DO UPDATE SET input_sha256=excluded.input_sha256,status='NO_TRADE',result_json=excluded.result_json WHERE research_council_runs.symbol=excluded.symbol").bind(requestId,attemptHash,ticker,"NO_TRADE",JSON.stringify(initial)).run();
   // Refresh the read-only broker snapshot before using portfolio values.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:"Bearer "+String(env?.NORTHSTAR_OPERATOR_TOKEN||""), "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
@@ -158,7 +165,8 @@ export async function onRequestPost({request,env}){
   if(context.facts.length+context.evidence.length<3)throw new Error("Collected research evidence is insufficient.");
   const inputHash=await sha256(stable({ticker,asOf,context}));
   const existing=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
-  if(existing){if(existing.input_sha256!==inputHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(existing.result_json),createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});}
+  if(existing?.input_sha256===inputHash)return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(existing.result_json),createdAt:existing.created_at,execution:false,automatedOrderSubmission:false});
+  if(existing && existing.input_sha256!==attemptHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
   const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
