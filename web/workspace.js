@@ -1,6 +1,6 @@
 (()=>{"use strict";
 const $=id=>document.getElementById(id),fmtMoney=v=>Number.isFinite(Number(v))?new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(Number(v)):"—",fmtTime=v=>{const d=new Date(v||"");return Number.isFinite(d.getTime())?d.toLocaleString():"Not recorded";},safe=(v,fallback="Not recorded")=>v===null||v===undefined||v===""?fallback:String(v);
-async function get(url){const r=await fetch(url,{headers:{Accept:"application/json"},cache:"no-store"});const d=await r.json();if(!r.ok||d.ok===false)throw new Error(d.error||"Request unavailable");return d;}
+async function get(url){const r=await fetch(url,{headers:{Accept:"application/json"},cache:"no-store",signal:AbortSignal.timeout(12000)});const d=await r.json().catch(()=>({ok:false,error:"The server returned an unreadable response."}));if(!r.ok||d.ok===false)throw new Error(d.error||"Request unavailable (HTTP "+r.status+").");return d;}
 function node(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n;}
 const roles=[
 ["market_scanner","Market Scanner","Scans the configured stock universe and records screening results."],
