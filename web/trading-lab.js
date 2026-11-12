@@ -575,6 +575,22 @@
   $("refresh-monitor").addEventListener("click",loadMonitor);
   loadMonitor();
   $("refresh-council").addEventListener("click",loadResearchCouncil);
+  $("run-council").addEventListener("click",async()=>{
+    const button=$("run-council"),status=$("council-status");
+    button.disabled=true;button.textContent="Running specialists…";
+    if(status)status.textContent="Collecting NVDA evidence and running the nine-role research council…";
+    try{
+      const requestId="ui-"+crypto.randomUUID();
+      const response=await fetch("/api/research/collect",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({ticker:"NVDA",requestId})});
+      const data=await response.json();
+      if(!response.ok||data.ok!==true)throw new Error(data.error||"Research run failed.");
+      const agents=data.result?.agents||[];
+      const complete=agents.filter(x=>x.status==="COMPLETE").length;
+      if(status)status.textContent="NVDA run saved · "+complete+"/9 roles complete · "+String(data.result?.status||"NO_TRADE").replaceAll("_"," ");
+      await loadResearchCouncil();
+    }catch(error){if(status)status.textContent="NVDA research run failed · "+(error?.message||"unknown error");await loadResearchCouncil();}
+    finally{button.disabled=false;button.textContent="Run NVDA research";}
+  });
   loadResearchCouncil();
   window.setInterval(loadMonitor,60000);
   window.setInterval(loadResearchCouncil,60000);
