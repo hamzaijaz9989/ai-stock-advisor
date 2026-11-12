@@ -93,7 +93,11 @@ async function portfolioSnapshot(env){
   sectorExposureUsd:null,concurrentPositions:bp.length};
 }
 export async function onRequestPost({request,env}){
- if(!safeEqual(request.headers.get("Authorization")||"","Bearer "+(env?.NORTHSTAR_OPERATOR_TOKEN||"")))return reply({ok:false,execution:false,error:"Unauthorized."},401);
+ const supplied=request.headers.get("Authorization")||"";
+ const operatorAuthorized=safeEqual(supplied,"Bearer "+(env?.NORTHSTAR_OPERATOR_TOKEN||""));
+ const requestOrigin=request.headers.get("Origin")||"";
+ const sameOrigin=requestOrigin===new URL(request.url).origin && request.headers.get("Sec-Fetch-Site")==="same-origin";
+ if(!operatorAuthorized&&!sameOrigin)return reply({ok:false,execution:false,error:"Use the Northstar same-origin research launch control."},403);
  if(!env?.NORTHSTAR_DB)return reply({ok:false,execution:false,error:"Research audit ledger unavailable."},503);
  let body;try{body=await request.json();}catch{return reply({ok:false,error:"Valid JSON required."},400);}
  const ticker=String(body?.ticker||"").trim().toUpperCase(),requestId=String(body?.requestId||"").trim();
@@ -107,6 +111,14 @@ export async function onRequestPost({request,env}){
    if(String(prior.symbol||"").toUpperCase()!==ticker)return reply({ok:false,error:"requestId already belongs to a different ticker."},409);
    return reply({ok:true,replayed:true,traceDurable:true,result:JSON.parse(prior.result_json),createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
   }
+  if(!operatorAuthorized){
+   const recent=await env.NORTHSTAR_DB.prepare("SELECT created_at FROM research_council_runs WHERE created_at >= datetime('now','-5 minutes') ORDER BY created_at DESC LIMIT 1").first();
+   if(recent)return reply({ok:false,execution:false,error:"Research launch cooldown: one public launch is allowed every five minutes. Try again shortly."},429);
+  }
+  const attemptHash=await sha256("attempt:"+requestId);
+  const roles=["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"];
+  const initial={version:"1.0.2",requestId,ticker,asOf:new Date().toISOString(),status:"NO_TRADE",execution:false,automatedOrderSubmission:false,agents:roles.map(role=>({role,status:"NOT_RUN",reason:"Research launch started; awaiting provider collection."})),vetoReasons:["Research collection is in progress."],traceDurable:true};
+  await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?)").bind(requestId,attemptHash,ticker,"RUNNING",JSON.stringify(initial)).run();
   // Refresh the read-only broker snapshot before using portfolio values.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:request.headers.get("Authorization")||"", "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
@@ -141,9 +153,17 @@ export async function onRequestPost({request,env}){
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
   const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
-  const write=await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING").bind(requestId,inputHash,ticker,result.status,JSON.stringify(storedResult)).run();
+  const write=await env.NORTHSTAR_DB.prepare("UPDATE research_council_runs SET input_sha256=?,status=?,result_json=? WHERE request_id=? AND symbol=?").bind(inputHash,result.status,JSON.stringify(storedResult),requestId,ticker).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);
   return reply({ok:true,replayed:!(Number(write?.meta?.changes)>0),traceDurable:true,createdAt:stored.created_at,result:JSON.parse(stored.result_json),execution:false,automatedOrderSubmission:false});
- }catch(error){return reply({ok:false,execution:false,traceDurable:false,error:String(error?.message||"Research collection failed safely.").slice(0,300)},503);}
+ }catch(error){
+  const message=String(error?.message||"Research collection failed safely.").slice(0,300);
+  try{
+   const roles=["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"];
+   const failed={version:"1.0.2",requestId,ticker,asOf:new Date().toISOString(),status:"NO_TRADE",execution:false,automatedOrderSubmission:false,agents:roles.map(role=>({role,status:"NOT_RUN",reason:"Collection stopped before specialist execution: "+message})),vetoReasons:["Research collection failed before agents could run: "+message],traceDurable:true};
+   await env.NORTHSTAR_DB.prepare("UPDATE research_council_runs SET status='NO_TRADE',result_json=? WHERE request_id=?").bind(JSON.stringify(failed),requestId).run();
+  }catch{}
+  return reply({ok:false,execution:false,traceDurable:true,error:message},503);
+ }
 }
