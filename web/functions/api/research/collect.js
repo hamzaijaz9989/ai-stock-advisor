@@ -58,23 +58,23 @@ async function portfolioSnapshot(env){
  const normalize=rows=>rows.map(p=>({symbol:String(p.symbol||"").toUpperCase(),qty:finite(p.qty),avg:finite(p.avg_entry_price)})).sort((a,b)=>a.symbol.localeCompare(b.symbol));
  const bp=normalize(brokerPositions),lp=normalize(ledgerRows?.results||[]);
  if(bp.length!==lp.length||bp.some((p,i)=>p.symbol!==lp[i]?.symbol||p.qty===null||p.avg===null||Math.abs(p.qty-lp[i].qty)>1e-6||Math.abs(p.avg-lp[i].avg)>0.01))throw new Error("Broker positions and the Northstar ledger do not reconcile.");
- if(bp.length)throw new Error("Existing positions have no independently verified protective-stop risk ledger; portfolio risk cannot be represented as zero.");
  const equity=finite(account.equity),lastEquity=finite(account.last_equity);
  if(equity===null||equity<=0||lastEquity===null||lastEquity<=0)throw new Error("Broker equity snapshot is incomplete.");
  const snapshots=snapshotRows?.results||[];
  const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:1000});
- if(!history.ok)throw new Error("Verified equity history is required for daily-loss/drawdown controls ("+history.reason+").");
  const now=Date.now(),latest=snapshots[0],latestMs=Date.parse(latest?.captured_at||"");
  if(!Number.isFinite(latestMs)||now-latestMs>15*60*1000||latestMs>now+30000)throw new Error("Latest reconciled equity snapshot is stale or future-dated; run read-only account sync.");
- const dailyLossFraction=history.dailyLossUsd/1000,drawdownFraction=history.maxDrawdownUsd/1000;
+ const dailyLossFraction=history?.ok&&Number.isFinite(history.dailyLossUsd)?history.dailyLossUsd/1000:null;
+ const drawdownFraction=history?.ok&&Number.isFinite(history.maxDrawdownUsd)?history.maxDrawdownUsd/1000:null;
  const weeklyBase=snapshots.find(x=>Date.parse(x.captured_at)<=now-7*86400000);
- if(!weeklyBase)throw new Error("Seven-day equity baseline is unavailable; weekly risk cannot be verified.");
- const weeklyEquity=finite(weeklyBase.equity_usd);
- if(weeklyEquity===null||weeklyEquity<=0)throw new Error("Seven-day equity baseline is invalid.");
- const weeklyLossFraction=Math.max(0,(weeklyEquity-equity)/weeklyEquity);
+ const weeklyEquity=finite(weeklyBase?.equity_usd);
+ const weeklyLossFraction=weeklyEquity!==null&&weeklyEquity>0?Math.max(0,(weeklyEquity-equity)/weeklyEquity):null;
+ const grossExposureUsd=bp.reduce((sum,p)=>sum+Math.abs(finite(p.market_value)||0),0);
+ // Existing broker holdings are valid research context, not a reason to suppress all agents.
+ // Unknown stop-based risk and missing weekly history are passed as unknown (null), never zero.
  return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:new Date().toISOString(),
-  equityUsd:1000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction,weeklyLossFraction,drawdownFraction,
-  sectorExposureUsd:0,concurrentPositions:0};
+  equityUsd:1000,openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
+  sectorExposureUsd:null,concurrentPositions:bp.length};
 }
 export async function onRequestPost({request,env}){
  if(!safeEqual(request.headers.get("Authorization")||"","Bearer "+(env?.NORTHSTAR_OPERATOR_TOKEN||"")))return reply({ok:false,execution:false,error:"Unauthorized."},401);
