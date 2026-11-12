@@ -111,12 +111,12 @@ export async function onRequestPost({request,env}){
   if(prior){
    if(String(prior.symbol||"").toUpperCase()!==ticker)return reply({ok:false,error:"requestId already belongs to a different ticker."},409);
    let priorResult=null;try{priorResult=JSON.parse(prior.result_json);}catch{}
-   const priorAgents=Array.isArray(priorResult?.agents)?priorResult.agents:[];
-   const hasAnyAgentOutput=priorAgents.some(agent=>["COMPLETE","UNAVAILABLE","BLOCKED"].includes(agent?.status));
-   // A durable placeholder/failure with zero specialist output is resumable.
-   // Only replay once at least one role has actually executed, or the trace is
-   // explicitly marked as a completed council result.
-   if(hasAnyAgentOutput || priorResult?.councilCompleted===true)
+   const inProgress=Array.isArray(priorResult?.vetoReasons) &&
+    priorResult.vetoReasons.some(reason=>typeof reason==="string" && /collection is in progress|awaiting provider collection/i.test(reason));
+   // Replay durable terminal results, including a recorded NO_TRADE failure.
+   // Only the explicit placeholder inserted for the currently running request
+   // may proceed into collection.
+   if(priorResult && !inProgress)
     return reply({ok:true,replayed:true,traceDurable:true,result:priorResult,createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
   }
   if(!operatorAuthorized){
