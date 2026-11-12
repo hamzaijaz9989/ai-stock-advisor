@@ -67,6 +67,7 @@ test("all specialist stages receive the same immutable resource coverage invento
     assert.ok(payload.roleResourcePack.relevantIds.includes(portfolioFact.id));
    }
    assert.equal(Object.isFrozen(payload.resourceCoverage),true);
+   if(payload.debateChallenge){const opposing=payload.debateChallenge.opponentReport;const target=opposing.findings[0]||opposing.risks[0];return {...report(),challenge:{opposingClaim:target.claim,response:"Challenge grounded in supplied resource evidence.",factIds:[context.facts[0].id]}};}
    return report();
   };
  }

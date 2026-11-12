@@ -16,7 +16,7 @@ function context(){
   {id:"fmp1",type:"FMP_REPORTED_FUNDAMENTALS_CROSSCHECK",value:{metric:"Revenue"}}
  ],evidence:[
   {id:"n1",type:"NEWS_DISCOVERY",value:{title:"Test issuer announces earnings",timestampStatus:"PRESENT",sourceTier:"reported-source"}},
-  {id:"s1",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-08T14:00:00Z",source:"Test sentiment feed",sampleCount:100,score:0.2,population:"retail",metric:"survey sentiment",methodology:"Provider survey normalization",normalizedScale:"minus1_to_plus1"5,population:"retail",metric:"survey sentiment",methodology:"Provider survey normalization",normalizedScale:"minus1_to_plus1"}}
+  {id:"s1",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-08T14:00:00Z",source:"Test sentiment feed",sampleCount:100,score:0.25,population:"retail",metric:"survey sentiment",methodology:"Provider survey normalization",normalizedScale:"minus1_to_plus1"}}
  ]};
 }
 
