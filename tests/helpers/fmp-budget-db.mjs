@@ -6,9 +6,9 @@ export function createFmpBudgetTestDb(){
   let args=[];
   const handle=()=>{
    if(sql.startsWith("INSERT INTO fmp_request_events")){
-    const [event_id,requested_at_ms,service,cost,cutoff,totalCost,totalLimit,scope,scopeCost,scopeLimit]=args;
+    const [event_id,requested_at_ms,service,cost,cutoff,totalCost,totalLimit,scopeCutoff,scope,scopeCost,scopeLimit]=args;
     const total=events.filter(x=>x.requested_at_ms>cutoff).reduce((n,x)=>n+x.cost,0);
-    const scoped=events.filter(x=>x.requested_at_ms>cutoff&&x.service===scope).reduce((n,x)=>n+x.cost,0);
+    const scoped=events.filter(x=>x.requested_at_ms>scopeCutoff&&x.service===scope).reduce((n,x)=>n+x.cost,0);
     if(total+totalCost>totalLimit||scoped+scopeCost>scopeLimit)return null;
     const row={event_id,requested_at_ms,service,cost};events.push(row);return row;
    }

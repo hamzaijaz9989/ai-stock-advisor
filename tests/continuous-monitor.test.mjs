@@ -82,7 +82,7 @@ test("FMP rotation covers all 87 allowed symbols within 44 five-minute runs",()=
 test("monitor shares the rolling global FMP budget and its 160-call service cap",async()=>{
  const db=createFmpBudgetTestDb(),now=new Date("2026-11-11T12:00:00.000Z");
  for(let attempt=0;attempt<160;attempt++)await reserveFmpRequest(db,now,250);
- await assert.rejects(reserveFmpRequest(db,now),e=>e.code==="FMP_DAILY_BUDGET_EXHAUSTED");
+ await assert.rejects(reserveFmpRequest(db,now,250),e=>e.code==="FMP_DAILY_BUDGET_EXHAUSTED");
  assert.equal(db.events.reduce((n,row)=>n+row.cost,0),160);
 });
 
@@ -186,7 +186,7 @@ test("monitor fails closed to fallbacks when the shared FMP ledger binding is mi
   calls.push(new URL(String(input)).hostname);
   return jsonResponse(yahooQuotePayload(Math.floor((now-60_000)/1000)));
  },now);
- assert.equal(quote.source,"Yahoo Finance");
+ assert.equal(quote.source,"Yahoo Finance chart API");
  assert.ok(calls.length>0&&calls.every(host=>host!=="financialmodelingprep.com"));
 });
 

@@ -56,7 +56,7 @@ test("multi-endpoint fan-out reserves its full uncached cost before making any c
  await reserveFmpBudget(db,{service:"pages",cost:FMP_LIMITS.maximumPages-1,now,verifiedDailyLimit:250});
  const {requestFmpJsonBatch}=await import("../web/lib/fmp-budget.js");
  await assert.rejects(requestFmpJsonBatch({db,service:"pages",apiKey:"test",now,
-  requests:[{path:"income-statement?symbol=AAPL"},{path:"ratios?symbol=AAPL"}],
+  verifiedDailyLimit:250,requests:[{path:"income-statement?symbol=AAPL"},{path:"ratios?symbol=AAPL"}],
   fetchImpl:async()=>{calls++;return Response.json([]);}
  }),e=>e.code==="FMP_DAILY_BUDGET_EXHAUSTED");
  assert.equal(calls,0);
