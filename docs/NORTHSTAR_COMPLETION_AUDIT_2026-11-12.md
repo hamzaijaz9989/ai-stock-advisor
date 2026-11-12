@@ -57,12 +57,11 @@ The role percentages measure software behavior, not the quality of generated inv
 
 ## Remaining priorities
 
-1. Review and consolidate the non-draft Stock Brain PR #108 with the later integration proposal #116; resolve divergence and verify all nine outcomes, resource gaps, telemetry, durable traces and dashboard presentation on one exact head.
-2. Run complete exact-head CI, including Python tests and Ruff, and verify the matching Preview deployment and endpoints.
-3. Apply and verify migration 0007 only through the reviewed migration process; do not remove the runtime guard until schema parity is confirmed.
-4. Establish licensed, point-in-time historical inputs and complete frozen-strategy walk-forward/holdout validation with independent review. Keep BUY disabled until approval.
-5. Complete paper lifecycle recovery, seven-day equity history and failure-injection acceptance while preserving execution disabled and the kill switch engaged.
-6. Reconcile current production Pages/Worker evidence, including Pages provider health and subsequent scheduled monitor continuity, before any release decision.
+1. Confirm the actual FMP account daily quota and endpoint entitlements, apply migration 0008 to production and preview D1, then coordinate the fail-closed budget cutover.
+2. Select and approve a licensed timestamped sentiment/positioning source, define its sample/population methodology, and connect its fetch adapter without blending populations.
+3. Complete point-in-time strategy walk-forward and untouched holdout validation with independent approval before enabling BUY.
+4. Complete paper lifecycle recovery and failure-injection acceptance while execution remains disabled and the kill switch stays engaged.
+5. Verify production Pages/Worker bindings and post-migration operational monitoring before any release decision.
 
 
 ## Stock Brain consolidation milestone (2026-11-12)
@@ -84,5 +83,5 @@ The role percentages measure software behavior, not the quality of generated inv
 - No account entitlement is assumed: `FMP_VERIFIED_DAILY_LIMIT` must be set to the actual account's verified daily quota. Absent or invalid value, missing D1 schema, or exhausted budget stops FMP requests. Apply migration 0008 before runtime cutover; prior Pages call counts were not recorded, so a cleanly coordinated cutover is still required.
 - Added a neutral sentiment provider adapter and strict contract. No approved source is configured, so the correct result remains unavailable; no sentiment observations or data are fabricated.
 - Bull and Bear now receive the opposing preliminary report in a second round, must challenge an exact opposing claim with supplied council fact IDs, and block portfolio/risk stages when that contract fails. Repeated model call timing/token usage is accumulated in telemetry.
-- Exact-head FMP code CI at `c409959ea4d2a43d1b25ccb90f7e329b5b2e6560` passed Tests and Validate workflows. This head predates the sentiment and debate additions; their final CI result is pending.
+- Final exact-head CI at `95d7e5ad05e04814a44b75655b91273d6ed23eac`: 94 Python tests and 323 JavaScript tests passed; JavaScript syntax checks, validation workflow, Ruff, and full-history secret scan passed. No failures remained.
 - No migration was applied, no production deployment or PR merge occurred, and no BUY, paper-trading execution or kill-switch setting was changed.
