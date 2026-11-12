@@ -31,6 +31,10 @@ The monitor continues rotating two symbols from the exact FMP allowlist per five
 
 Finnhub requests are serialized by the monitor's existing single-concurrency queue and request gap. The provider's free-tier rate limit must still be respected; the implementation does not assume historical-candle access or a guaranteed daily allowance.
 
+## Secondary provider rotation
+
+The monitor also checks up to ten valid shortlist symbols outside the FMP Free allowlist through Finnhub (when configured), with Yahoo as the final fallback. This non-FMP batch rotates every five-minute scan using a deterministic time-bucket cursor; it does not repeatedly select only the first ten symbols. Finnhub free access is subject to personal-use terms. Obtain written permission before using it for a commercial or shared service.
+
 ## Request-budget policy
 
 - FMP Free-plan stated allowance: 250 API calls per day.
@@ -41,6 +45,7 @@ Finnhub requests are serialized by the monitor's existing single-concurrency que
 - A normal 6.5-hour session has at most 78 scheduled runs, or 156 monitor FMP attempts.
 - Failed FMP attempts still consume budget and are counted.
 - The D1 budget ledger uses an atomic conditional upsert, so the monitor cannot reserve request 201 for the same UTC day.
+- The ledger schema is defined in `web/migrations/0007_fmp_request_budget.sql`; apply it through the reviewed D1 migration process before enabling FMP calls in the scheduled Worker. The Worker does not create or alter schema at runtime and fails closed if the migration is missing.
 - Once the monitor budget is exhausted, it stops calling FMP and may use the existing Yahoo fallback. Yahoo data still must pass timestamp and price validation.
 
 ## Universe rotation

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getFinnhubQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, getMonitorCandidates, reserveFmpRequest } from "../monitor/worker.js";
+import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getFinnhubQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, getMonitorCandidates, getNonFmpShortlistBatch, reserveFmpRequest } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.deepEqual(parseWatchZone("NOT ENTRY-READY — Model entry watch zone: $34.01–$36.28; base-case reference"),{low:34.01,high:36.28});
@@ -249,4 +249,31 @@ test("FMP quote rejects a missing provider timestamp", async () => {
   }]), now),
   /timestamp missing, stale, or unexpectedly in the future/
  );
+});
+
+test("FMP budget reservation fails closed when the explicit migration has not been applied", async () => {
+ const db = {
+  prepare() {
+   return {
+    bind() {
+     return { first: async () => { throw new Error("no such table: fmp_request_budget"); } };
+    }
+   };
+  }
+ };
+ await assert.rejects(
+  reserveFmpRequest(db, new Date("2026-11-11T12:00:00.000Z")),
+  /no such table: fmp_request_budget/
+ );
+});
+
+test("non-FMP shortlist rotation reaches symbols beyond the first ten",()=>{
+ const shortlist=Array.from({length:23},(_,i)=>({ticker:"X"+String(i).padStart(2,"0"),entryStatus:"watch"}));
+ const first=getNonFmpShortlistBatch(shortlist,new Date("2026-11-10T15:00:00.000Z"));
+ const second=getNonFmpShortlistBatch(shortlist,new Date("2026-11-10T15:05:00.000Z"));
+ assert.equal(first.length,10); assert.equal(second.length,10);
+ assert.notDeepEqual(first.map(x=>x.ticker),second.map(x=>x.ticker));
+ const covered=new Set([...first,...second].map(x=>x.ticker));
+ assert.ok(covered.size>10);
+ assert.ok([...covered].every(ticker=>shortlist.some(stock=>stock.ticker===ticker)));
 });
