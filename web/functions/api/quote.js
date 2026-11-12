@@ -14,9 +14,11 @@ async function fetchQuote(host, ticker, range, interval) {
     if (typeof prices[i] === "number" && Number.isFinite(prices[i])) { lastIndex = i; break; }
   }
   const price = lastIndex >= 0 ? prices[lastIndex] : meta.regularMarketPrice ?? null;
-  if (typeof price !== "number") throw new Error("No usable price returned");
+  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) throw new Error("No usable positive price returned");
   const previousClose = meta.chartPreviousClose ?? meta.previousClose ?? null;
-  const quoteTime = lastIndex >= 0 && timestamps[lastIndex] ? timestamps[lastIndex] * 1000 : (meta.regularMarketTime ? meta.regularMarketTime * 1000 : null);
+  const quoteTimestamp = lastIndex >= 0 ? timestamps[lastIndex] : meta.regularMarketTime;
+  if (!Number.isFinite(quoteTimestamp) || quoteTimestamp <= 0) throw new Error("Quote timestamp is missing or invalid");
+  const quoteTime = new Date(quoteTimestamp * 1000).toISOString();
   return {
     ticker, companyName: meta.longName || meta.shortName || ticker,
     currency: meta.currency || "USD", exchange: meta.exchangeName || meta.fullExchangeName || "Unknown",
@@ -95,9 +97,10 @@ export async function onRequestGet({ request, env }) {
     const secondary = data?.secondaryData || {};
     const parseMoney = value => { if (typeof value !== "string") return null; const n = Number(value.replace(/[$,%+,]/g, "").trim()); return Number.isFinite(n) ? n : null; };
     const price = parseMoney(primary.lastSalePrice) ?? parseMoney(secondary.lastSalePrice);
-    if (!data?.symbol || price === null) throw new Error("Nasdaq returned no usable quote");
+    if (!data?.symbol || price === null || price <= 0) throw new Error("Nasdaq returned no usable positive quote");
     const quoteLabel = primary.lastTradeTimestamp || secondary.lastTradeTimestamp || null;
     const quoteTime = parseEasternQuoteLabel(quoteLabel);
+    if (!quoteTime) throw new Error("Nasdaq quote timestamp is missing or invalid");
     return Response.json({ticker, companyName:data.companyName || ticker, currency:primary.currency || "USD", exchange:data.exchange || "Unknown", price, previousClose:null, change:parseMoney(primary.netChange) ?? parseMoney(secondary.netChange), changePercent:parseMoney(primary.percentageChange) ?? parseMoney(secondary.percentageChange), quoteTime, quoteLabel, fetchedAt:new Date().toISOString(), marketState:data.marketStatus || "unknown", delayedOrRealtime:primary.isRealTime ? "Provider-labelled real-time; verify independently" : "Latest available quote; may be delayed", source:"Nasdaq quote API", interval:primary.isRealTime ? "provider-labelled real-time" : "latest available", warning:quoteTime ? "Quote timestamp interpreted from Nasdaq's Eastern Time label; verify price with your broker." : "Provider timestamp could not be normalized. Verify the price with your broker before acting."}, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
   } catch (error) { failures.push(String(error?.message || error)); }
   // Optional licensed providers: configure FINNHUB_API_KEY and/or FMP_API_KEY
