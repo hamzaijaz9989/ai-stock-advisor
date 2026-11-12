@@ -136,17 +136,11 @@ export async function onRequestPost({request,env}){
    endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+collectionStartedAt.slice(0,10),env),
    endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env)
   ]);
-  const [earningsResult,secResult]=await Promise.allSettled([
-   endpoint(getEarnings,origin,"/api/earnings?ticker="+encodeURIComponent(ticker),env),
-   secFacts(ticker,collectionStartedAt)
-  ]);
-  const earnings=earningsResult.status==="fulfilled"?earningsResult.value:{
-   ticker,provider:"earnings calendar unavailable",fetchedAt:new Date().toISOString(),
-   events:[],found:false,verified:false,warning:"Earnings calendar enrichment timed out or was unavailable; confirm dates with issuer investor relations."
-  };
-  const sec=secResult.status==="fulfilled"?secResult.value:{
-   cik:null,observations:[],warning:"SEC companyfacts enrichment timed out or was unavailable; FMP-reported data remains separately labelled."
-  };
+  // Defer slow SEC companyfacts and broad earnings-calendar enrichment.
+  // These sources are optional and must never hold the specialist run hostage.
+  const earnings={ticker,provider:"earnings calendar not queried",fetchedAt:new Date().toISOString(),
+   events:[],found:false,verified:false,warning:"Earnings calendar was not queried in this bounded research run; confirm dates with issuer investor relations."};
+  const sec={cik:null,observations:[],warning:"SEC companyfacts was not queried in this bounded research run; FMP-reported data remains separately labelled."};
   const asOf=new Date().toISOString();
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   if(!history?.available||!Array.isArray(history.prices)||history.prices.length<60)throw new Error("At least 60 valid daily price bars are required for research.");
