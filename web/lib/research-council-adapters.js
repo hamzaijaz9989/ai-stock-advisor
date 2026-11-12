@@ -150,21 +150,25 @@ function riskCommittee(payload) {
   const daily=Number(p.dailyLossFraction),weekly=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
   const sector=Number(p.sectorExposureUsd),positions=Number(p.concurrentPositions);
   const reasons=[];
-  if(![equity,openRisk,gross,daily,weekly,drawdown,sector,positions].every(Number.isFinite) ||
-     equity<=0 || openRisk<0 || gross<0 || sector<0 ||
-     daily<0 || daily>1 || weekly<0 || weekly>1 || drawdown<0 || drawdown>1 ||
+  const unknown=[];
+  if(p.openRiskUsd===null||p.openRiskUsd===undefined) unknown.push("Stop-based open risk is unknown because the existing holding has no verified protective-stop ledger.");
+  if(p.dailyLossFraction===null||p.dailyLossFraction===undefined) unknown.push("Daily loss history is incomplete.");
+  if(p.weeklyLossFraction===null||p.weeklyLossFraction===undefined) unknown.push("Seven-day baseline is not yet available.");
+  if(p.drawdownFraction===null||p.drawdownFraction===undefined) unknown.push("Maximum drawdown history is incomplete.");
+  if(p.sectorExposureUsd===null||p.sectorExposureUsd===undefined) unknown.push("Sector exposure classification is incomplete.");
+  if(![equity,gross,positions].every(Number.isFinite) || equity<=0 || gross<0 ||
      !Number.isSafeInteger(positions) || positions<0 || positions>1000) {
-    reasons.push("Portfolio risk state is incomplete or invalid (unsupported units or bounds); fail closed.");
+    reasons.push("Core portfolio snapshot is incomplete or invalid.");
+  } else {
+    if(Number.isFinite(openRisk)&&openRisk/equity>0.02) reasons.push("Aggregate open risk exceeds 2% of equity.");
+    if(gross/equity>1) reasons.push("Gross exposure exceeds 100% of the $1,000 planning allocation.");
+    if(Number.isFinite(daily)&&daily>=0.02) reasons.push("Daily loss stop of 2% has been reached.");
+    if(Number.isFinite(weekly)&&weekly>=0.04) reasons.push("Weekly loss stop of 4% has been reached.");
+    if(Number.isFinite(drawdown)&&drawdown>=0.08) reasons.push("Drawdown pause threshold of 8% has been reached.");
+    if(Number.isFinite(sector)&&sector/equity>0.40) reasons.push("Sector exposure exceeds 40% of equity.");
+    if(positions>=1) reasons.push("Existing paper holding occupies the initial one-position planning limit.");
   }
-  else {
-    if(openRisk/equity>0.02) reasons.push("Aggregate open risk exceeds 2% of equity.");
-    if(gross/equity>1) reasons.push("Gross exposure exceeds 100% of equity.");
-    if(daily>=0.02) reasons.push("Daily loss stop of 2% has been reached.");
-    if(weekly>=0.04) reasons.push("Weekly loss stop of 4% has been reached.");
-    if(drawdown>=0.08) reasons.push("Drawdown pause threshold of 8% has been reached.");
-    if(sector/equity>0.40) reasons.push("Sector exposure exceeds 40% of equity.");
-    if(positions>=1) reasons.push("The initial one-position policy is already occupied.");
-  }
+  reasons.push(...unknown);
   // Portfolio metrics are a separate typed input, not market fact IDs. Keep the deterministic
   // committee's numeric vetoes in vetoReasons instead of attaching unrelated market citations.
   return {
