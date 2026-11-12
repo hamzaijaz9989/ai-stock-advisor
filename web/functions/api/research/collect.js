@@ -18,7 +18,23 @@ const finite=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Numb
 function safeEqual(a,b){if(typeof a!=="string"||typeof b!=="string"||!a||!b)return false;let d=a.length^b.length;for(let i=0;i<Math.max(a.length,b.length);i++)d|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return d===0;}
 function stable(v){if(Array.isArray(v))return "["+v.map(stable).join(",")+"]";if(v&&typeof v==="object")return "{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+stable(v[k])).join(",")+"}";return JSON.stringify(v);}
 async function sha256(v){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");}
-async function endpoint(handler,origin,path,env){const r=await handler({request:new Request(origin+path),env});if(!r.ok)throw new Error(path.split("?")[0]+" unavailable (HTTP "+r.status+")");return r.json();}
+async function endpoint(handler,origin,path,env){
+ let lastError=null;
+ // Quote providers can transiently throttle Cloudflare-origin requests even when
+ // a direct browser quote succeeds. Retry only safe GET provider reads.
+ for(let attempt=0;attempt<3;attempt++){
+  try{
+   const r=await handler({request:new Request(origin+path,{headers:{Accept:"application/json","Cache-Control":"no-cache"}}),env});
+   const payload=await r.json().catch(()=>null);
+   if(r.ok)return payload;
+   const providerErrors=Array.isArray(payload?.providerErrors)?payload.providerErrors.slice(0,8).join("; "):null;
+   lastError=new Error(path.split("?")[0]+" unavailable (HTTP "+r.status+")"+(providerErrors?": "+providerErrors:"") );
+   if(r.status!==429&&r.status<500)break;
+  }catch(error){lastError=error;}
+  if(attempt<2)await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)));
+ }
+ throw lastError||new Error(path.split("?")[0]+" unavailable");
+}
 async function secFacts(ticker,collectionStartedAt){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
  const mapResponse=await fetch("https://www.sec.gov/files/company_tickers.json",{headers,signal:AbortSignal.timeout(8000)});
