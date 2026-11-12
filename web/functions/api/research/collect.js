@@ -98,7 +98,7 @@ export async function onRequestPost({request,env}){
  const operatorAuthorized=safeEqual(supplied,"Bearer "+(env?.NORTHSTAR_OPERATOR_TOKEN||""));
  const requestOrigin=request.headers.get("Origin")||"";
  const sameOrigin=requestOrigin===new URL(request.url).origin && request.headers.get("Sec-Fetch-Site")==="same-origin";
- if(!operatorAuthorized&&!sameOrigin)return reply({ok:false,execution:false,error:"Use the Northstar same-origin research launch control."},403);
+ if(!operatorAuthorized&&!sameOrigin)return reply({ok:false,execution:false,error:"Use the Northstar same-origin research launch control."},401);
  if(!env?.NORTHSTAR_DB)return reply({ok:false,execution:false,error:"Research audit ledger unavailable."},503);
  let body;try{body=await request.json();}catch{return reply({ok:false,error:"Valid JSON required."},400);}
  const ticker=String(body?.ticker||"").trim().toUpperCase(),requestId=String(body?.requestId||"").trim();
