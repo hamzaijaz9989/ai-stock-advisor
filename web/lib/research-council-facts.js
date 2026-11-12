@@ -404,10 +404,9 @@ export function buildResearchCouncilContext(input) {
   }
 
   const sentimentObservations=Array.isArray(input.sentimentObservations)?input.sentimentObservations:[];
-  const sentimentZone=/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/;
   for(const [index,observation] of sentimentObservations.slice(0,10).entries()){
-    const timestamp=observation?.timestamp,observed=dateMs(timestamp),score=observation?.score;
-    if(String(observation?.symbol||"").toUpperCase()!==ticker||observed===null||observed>asOfMs||!sentimentZone.test(String(timestamp||""))||
+    const timestamp=observation?.timestamp,observed=exactTimestampMs(timestamp),score=observation?.score;
+    if(String(observation?.symbol||"").toUpperCase()!==ticker||observed===null||observed>asOfMs||
       observation?.timestampStatus!=="PRESENT"||!SENTIMENT_POPULATIONS.includes(observation?.population)||
       typeof observation?.source!=="string"||!observation.source.trim()||!Number.isSafeInteger(observation.sampleCount)||observation.sampleCount<1||
       !finite(score)||score < -1||score > 1||observation.normalizedScale!=="minus1_to_plus1"||
