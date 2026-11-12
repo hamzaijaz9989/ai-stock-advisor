@@ -5,7 +5,8 @@ The Northstar market monitor is a separate Cloudflare Worker (`northstar-market-
 ## Schedule and scope
 
 - Cron cadence: every five minutes.
-- The Worker exits without quote requests outside the US regular session (09:30–16:00 America/New_York, weekdays, with exchange holiday and early-close handling).
+- Session boundaries use America/New_York and the official NYSE core-session holiday/early-close calendar published through 2028; the computed holiday fallback covers later years until NYSE publishes them. Full-session holidays are closed; early closes end at 1:00 p.m. ET.
+- Official schedule: [NYSE Holidays & Trading Hours](https://www.nyse.com/trade/hours-calendars). For calendar years outside the published schedule, the Worker uses a computed fallback; refresh the explicit calendar when NYSE publishes new dates.
 - It rotates two symbols per run from the exact 87-symbol FMP Free-plan allowlist.
 - It also checks up to ten valid symbols from the current research shortlist that are outside the FMP allowlist.
 - Requests are serialized (one concurrent provider request) with a 900 ms request gap.

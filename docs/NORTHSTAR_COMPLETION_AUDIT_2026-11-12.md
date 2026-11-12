@@ -106,3 +106,11 @@ The role percentages measure software behavior, not the quality of generated inv
 - Aligned the standalone Python portfolio allocator defaults and hard ceilings to the existing Trading Lab policy: 0.5% per idea / 1% aggregate risk. Added regression checks. BUY activation, paper execution, and production deployment remain disabled.
 - FMP strategy-backtest history now routes through the shared persistent budget/cache. It fails closed when D1 or a verified account limit is absent; the existing Yahoo fallback remains explicitly labeled.
 - Exact-head CI is pending for this update. The exact-head Tests workflow on the code integration commit passed (100 Python tests, 324 JavaScript tests, scanner syntax, Ruff). Preview is verified on the code commit; production configuration and migration history still block release.
+
+
+## NYSE session calendar correction — 2026-11-12
+
+- Replaced calendar assumptions for published years 2026–2028 with explicit NYSE full-session holidays and 1:00 p.m. ET early closes. Retained the computed calendar only for years beyond the currently published schedule.
+- Corrected the computed fallback for New Year's Day when Jan. 1 falls on Saturday: NYSE does not observe that holiday on the preceding Friday. Removed the prior-year spillover that could falsely mark Dec. 31 closed.
+- Added regression coverage for the 2027–2028 New Year boundary, 2026 observed Independence Day, and published Thanksgiving/Christmas/July early closes.
+- Evidence: official [NYSE Holidays & Trading Hours](https://www.nyse.com/trade/hours-calendars). Code/test commit is pending exact-head CI and Preview at time of this tracker update; Production is unchanged.

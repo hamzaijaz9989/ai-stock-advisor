@@ -23,6 +23,20 @@ test("market-hours gate uses New York time and excludes weekends, exchange holid
  assert.equal(isUsMarketOpen(new Date("2026-11-27T17:00:00Z")),true);
 });
 
+test("published NYSE calendar preserves New Year sessions and applies early closes",()=>{
+ // NYSE states no New Year's Day observance for Saturday, January 1, 2028.
+ assert.equal(isUsMarketOpen(new Date("2027-12-31T15:00:00Z")),true);
+ assert.equal(isUsMarketOpen(new Date("2028-01-03T15:00:00Z")),true);
+ // Published full-session holidays and 1 p.m. ET early closes.
+ assert.equal(isUsMarketOpen(new Date("2026-07-03T15:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2026-11-27T17:59:00Z")),true);
+ assert.equal(isUsMarketOpen(new Date("2026-11-27T18:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2026-12-24T18:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2027-11-26T18:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2028-07-03T18:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2028-11-24T18:00:00Z")),false);
+});
+
 test("quote freshness gate rejects missing, stale, and future timestamps",()=>{
  const now=Date.parse("2026-11-10T15:00:00.000Z");
  assert.equal(isQuoteFresh("2026-11-10T14:50:00.000Z",now),true);

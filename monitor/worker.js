@@ -36,18 +36,45 @@ function easterSunday(year) {
   return new Date(Date.UTC(year,month-1,day));
 }
 function usMarketCalendar(year) {
-  const holidays = new Set([
-    observedFixedHoliday(year,1,1), observedFixedHoliday(year,6,19),
+  // Official NYSE core-session calendar, published through 2028:
+  // https://www.nyse.com/trade/hours-calendars
+  // Retain the computed calendar for later years until NYSE publishes them.
+  const published = {
+    2026: {
+      holidays: ["2026-01-01","2026-01-19","2026-02-16","2026-04-03","2026-05-25","2026-06-19","2026-07-03","2026-09-07","2026-11-26","2026-12-25"],
+      earlyCloses: ["2026-11-27","2026-12-24"]
+    },
+    2027: {
+      holidays: ["2027-01-01","2027-01-18","2027-02-15","2027-03-26","2027-05-31","2027-06-18","2027-07-05","2027-09-06","2027-11-25","2027-12-24"],
+      earlyCloses: ["2027-11-26"]
+    },
+    2028: {
+      holidays: ["2028-01-17","2028-02-21","2028-04-14","2028-05-29","2028-06-19","2028-07-04","2028-09-04","2028-11-23","2028-12-25"],
+      earlyCloses: ["2028-07-03","2028-11-24"]
+    }
+  }[year];
+  if (published) return {
+    holidays: new Set(published.holidays),
+    earlyCloses: new Set(published.earlyCloses)
+  };
+
+  const newYears = new Date(Date.UTC(year,0,1));
+  const newYearsWeekday = newYears.getUTCDay();
+  const newYearsHoliday = newYearsWeekday === 0
+    ? new Date(Date.UTC(year,0,2)).toISOString().slice(0,10)
+    : newYearsWeekday === 6 ? null : newYears.toISOString().slice(0,10);
+  const holidayDates = [
+    newYearsHoliday, observedFixedHoliday(year,6,19),
     observedFixedHoliday(year,7,4), observedFixedHoliday(year,12,25),
     new Date(Date.UTC(year,0,nthWeekday(year,1,1,3))).toISOString().slice(0,10),
     new Date(Date.UTC(year,1,nthWeekday(year,2,1,3))).toISOString().slice(0,10),
     new Date(Date.UTC(year,4,lastWeekday(year,5,1))).toISOString().slice(0,10),
     new Date(Date.UTC(year,8,nthWeekday(year,9,1,1))).toISOString().slice(0,10),
     new Date(Date.UTC(year,10,nthWeekday(year,11,4,4))).toISOString().slice(0,10)
-  ]);
+  ].filter(Boolean);
+  const holidays = new Set(holidayDates);
   const easter=easterSunday(year); easter.setUTCDate(easter.getUTCDate()-2);
   holidays.add(easter.toISOString().slice(0,10));
-  holidays.add(observedFixedHoliday(year+1,1,1));
   const earlyCloses = new Set();
   const thanksgiving = new Date(Date.UTC(year,10,nthWeekday(year,11,4,4)));
   const fridayAfter = new Date(thanksgiving); fridayAfter.setUTCDate(fridayAfter.getUTCDate()+1);
