@@ -16,7 +16,7 @@ function context(){
   {id:"fmp1",type:"FMP_REPORTED_FUNDAMENTALS_CROSSCHECK",value:{metric:"Revenue"}}
  ],evidence:[
   {id:"n1",type:"NEWS_DISCOVERY",value:{title:"Test issuer announces earnings",timestampStatus:"PRESENT",sourceTier:"reported-source"}},
-  {id:"s1",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-08T14:00:00Z",source:"Test sentiment feed",sampleCount:100,score:0.25}}
+  {id:"s1",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-08T14:00:00Z",source:"Test sentiment feed",sampleCount:100,score:0.25,population:"retail",metric:"survey sentiment",methodology:"Provider survey normalization",normalizedScale:"minus1_to_plus1"}}
  ]};
 }
 
@@ -38,7 +38,7 @@ test("worker adapter records latency and provider usage for all nine roles",asyn
    const request=JSON.parse(init.body);
    const prompt=JSON.parse(request.contents[0].parts[0].text);
    const factId=prompt.context.facts[0].id;
-   const report={status:"COMPLETE",findings:[{claim:"Model-backed specialist provides an evidence-linked synthetic finding for review.",factIds:[factId]}],risks:[{claim:"Independent source confirmation and human review remain necessary.",factIds:[factId]}]};
+   const report={status:"COMPLETE",findings:[{claim:"Model-backed specialist provides an evidence-linked synthetic finding for review.",factIds:[factId]}],risks:[{claim:"Independent source confirmation and human review remain necessary.",factIds:[factId]}],...(prompt.context.debateChallenge?{challenge:{opposingClaim:(prompt.context.debateChallenge.opponentReport.findings[0]||prompt.context.debateChallenge.opponentReport.risks[0]).claim,response:"The opposing claim is challenged using supplied evidence.",factIds:[factId]}}:{})};
    return Response.json({candidates:[{content:{parts:[{text:JSON.stringify(report)}]}}],usageMetadata:{promptTokenCount:120,candidatesTokenCount:40,totalTokenCount:160}});
   }
   throw new Error("Unexpected telemetry test fetch: "+url);
@@ -55,10 +55,10 @@ test("worker adapter records latency and provider usage for all nine roles",asyn
   assert.match(workers.telemetry[role].model,/^northstar-/);
  }
  for(const role of [...COUNCIL_ROLES.debate,...COUNCIL_ROLES.synthesis]){
-  assert.equal(workers.telemetry[role].provider,"gemini",role);
-  assert.equal(workers.telemetry[role].inputTokens,120,role);
-  assert.equal(workers.telemetry[role].outputTokens,40,role);
-  assert.equal(workers.telemetry[role].totalTokens,160,role);
+  assert.equal(workers.telemetry[role].provider,"gemini",role);assert.equal(workers.telemetry[role].calls,role==="portfolio_analyst"?1:2,role);
+  assert.equal(workers.telemetry[role].inputTokens,role==="portfolio_analyst"?120:240,role);
+  assert.equal(workers.telemetry[role].outputTokens,role==="portfolio_analyst"?40:80,role);
+  assert.equal(workers.telemetry[role].totalTokens,role==="portfolio_analyst"?160:320,role);
  }
  assert.equal(workers.telemetry.risk_committee.provider,"deterministic");
  assert.equal(workers.providerMetadata.defaultProvider,"gemini");
@@ -140,14 +140,14 @@ test("bull and bear role guidance remains distinct, evidence-only and falsifiabl
 
 test("sentiment analyst rejects future-dated and malformed observations and weights valid samples",()=>{
  const c={asOf:"2026-11-10T12:00:00Z",facts:[],evidence:[
-  {id:"s-old",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:00:00Z",source:"Feed A",sampleCount:100,score:0.2}},
-  {id:"s-large",type:"ANALYST_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:30:00Z",source:"Feed B",sampleCount:300,score:0.6}},
+  {id:"s-old",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:00:00Z",source:"Feed A",sampleCount:100,score:0.2,population:"retail",metric:"survey sentiment",methodology:"Provider survey normalization",normalizedScale:"minus1_to_plus1"}},
+  {id:"s-large",type:"ANALYST_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:30:00Z",source:"Feed B",sampleCount:300,score:0.6,population:"analyst_revisions",metric:"estimate revisions",methodology:"Provider revision normalization",normalizedScale:"minus1_to_plus1"}},
   {id:"s-future",type:"POSITIONING_SENTIMENT",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T13:00:00Z",source:"Feed C",sampleCount:500,score:-1}},
   {id:"s-date-only",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10",source:"Feed D",sampleCount:1000,score:1}},
   {id:"s-nozone",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",timestamp:"2026-11-10T11:00:00",source:"Feed E",sampleCount:1000,score:-1}}
  ]};
  const out=runSentimentAnalyst(c);assert.equal(out.status,"COMPLETE");
- assert.match(out.findings[0].claim,/0.500/);assert.ok(out.risks.some(x=>x.claim.includes("excluded")));
+ assert.equal(out.findings.length,2);assert.ok(out.findings.some(x=>x.claim.includes("0.200")));assert.ok(out.findings.some(x=>x.claim.includes("0.600")));assert.ok(out.risks.some(x=>x.claim.includes("not pooled")));assert.ok(out.risks.some(x=>x.claim.includes("excluded")));
 });
 test("sentiment analyst requires actual timestamp, not only timestampStatus",()=>{
  const c={facts:[],evidence:[{id:"s",type:"SENTIMENT_OBSERVATION",value:{timestampStatus:"PRESENT",source:"Feed",sampleCount:10,score:0.2}}]};
@@ -179,4 +179,14 @@ test("deterministic risk committee accepts only a fully populated portfolio belo
  const workers=await createResearchCouncilWorkers({});
  const out=await workers.risk_committee({portfolio:{equityUsd:10000,openRiskUsd:100,grossExposureUsd:9000,dailyLossFraction:0.01,weeklyLossFraction:0.02,drawdownFraction:0.03,sectorExposureUsd:3000,concurrentPositions:0}});
  assert.equal(out.decision,"ACCEPT_FOR_REVIEW");assert.deepEqual(out.vetoReasons,[]);
+});
+
+
+test("fundamental analyst can report from SEC primary facts without the optional FMP cross-check",()=>{
+ const c=context();
+ c.facts=c.facts.filter(item=>!item.type.startsWith("FMP_"));
+ const out=runFundamentalAnalyst(c);
+ assert.equal(out.status,"COMPLETE");
+ assert.ok(out.findings.some(item=>item.claim.includes("SEC fact observation")));
+ assert.ok(out.risks.some(item=>item.claim.includes("FMP statement/provider cross-check observations are absent")));
 });

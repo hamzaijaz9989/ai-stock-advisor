@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluate, evaluateWalkForward } from "../web/functions/api/strategy-backtest.js";
+import { evaluate, evaluateWalkForward, fetchFmpSeries } from "../web/functions/api/strategy-backtest.js";
+import { createFmpBudgetTestDb } from "./helpers/fmp-budget-db.mjs";
 
 test("daily strategy equity reconciles to next-open trade ledger including costs",()=>{
   const rows=[];
@@ -45,4 +46,18 @@ test("walk-forward folds use next-open entry and exit accounting",()=>{
   assert.ok(report.folds.every(fold=>Number.isFinite(fold.returnPercent)));
   assert.ok(report.folds.some(fold=>fold.entries>0));
   assert.match(report.methodology,/execution at current adjusted open/);
+});
+
+test("historical FMP fetch shares the verified daily budget and persistent cache",async()=>{
+  const db=createFmpBudgetTestDb();let calls=0;
+  const now=Date.UTC(2026,10,12,15);
+  const rows=Array.from({length:400},(_,i)=>{const d=new Date(Date.UTC(2025,0,1+i)).toISOString().slice(0,10);return {date:d,open:100,high:101,low:99,close:100,adjClose:100};});
+  const fetchImpl=async url=>{calls++;assert.equal(new URL(url).pathname,"/stable/historical-price-eod/full");return new Response(JSON.stringify(rows),{status:200,headers:{"Content-Type":"application/json"}});};
+  await assert.rejects(()=>fetchFmpSeries("AAPL","test-key",{db,now,fetchImpl}),/FMP_VERIFIED_DAILY_LIMIT/);
+  assert.equal(calls,0,"unverified account limits must prevent provider calls");
+  const first=await fetchFmpSeries("AAPL","test-key",{db,verifiedDailyLimit:250,now,fetchImpl});
+  assert.equal(first.length,400);assert.equal(calls,1);
+  const second=await fetchFmpSeries("AAPL","test-key",{db,verifiedDailyLimit:250,now,fetchImpl});
+  assert.equal(second.length,400);assert.equal(calls,1,"cached history must not consume another upstream request");
+  assert.equal(db.events.reduce((sum,event)=>sum+event.cost,0),1);
 });

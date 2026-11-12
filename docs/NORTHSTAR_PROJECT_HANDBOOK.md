@@ -1,5 +1,7 @@
 # Operating Status Addendum — 2026-11-12
 
+The repository completion estimate and per-agent evidence snapshot for this session are recorded in [Northstar Completion Audit](NORTHSTAR_COMPLETION_AUDIT_2026-11-12.md). The audit was based on `main` at `5be851ea1bb976dd24d7ef9cfc94c34abff3ba29`; its working changes are on `codex/northstar-completion-2026-11-12` and have not been deployed.
+
 Read this before using the historical roadmap below. The latest production and PR evidence is maintained in the root `NORTHSTAR_BLOCKERS.md` addendum dated 2026-11-12.
 
 - Production monitor cron remains every five minutes. Latest deployment is Worker version `60bc9eb2-b4c0-40b1-a33f-db2f18d8cd6f`.

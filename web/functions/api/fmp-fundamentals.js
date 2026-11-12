@@ -1,5 +1,5 @@
+import {requestFmpJsonBatch} from "../../lib/fmp-budget.js";
 const TICKER_RE = /^[A-Z][A-Z0-9.-]{0,11}$/;
-const BASE = "https://financialmodelingprep.com/stable/";
 
 function finite(value) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -18,19 +18,6 @@ function compactRows(rows, fields) {
     }
     return result;
   });
-}
-async function getFmp(path, ticker, key) {
-  const url = new URL(path, BASE);
-  url.searchParams.set("symbol", ticker);
-  url.searchParams.set("apikey", key);
-  const response = await fetch(url.toString(), {
-    headers: { "Accept": "application/json" },
-    signal: AbortSignal.timeout(9000)
-  });
-  if (!response.ok) throw new Error("FMP " + path + " returned HTTP " + response.status);
-  const payload = await response.json();
-  if (!Array.isArray(payload)) throw new Error("FMP " + path + " returned an unexpected response.");
-  return payload;
 }
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
@@ -52,7 +39,14 @@ export async function onRequestGet({ request, env }) {
     ["ratios", "ratios?period=annual&limit=5"],
     ["estimates", "analyst-estimates?period=annual&page=0&limit=5"]
   ];
-  const settled = await Promise.allSettled(requests.map(([, path]) => getFmp(path, ticker, fmpKey)));
+  let settled;
+  try {
+    settled=await requestFmpJsonBatch({db:env?.NORTHSTAR_DB,service:"pages",apiKey:fmpKey,verifiedDailyLimit:env?.FMP_VERIFIED_DAILY_LIMIT,
+      requests:requests.map(([,path])=>({path:path+"&symbol="+encodeURIComponent(ticker),cacheTtlMs:300_000,timeoutMs:9000}))});
+  } catch(error) {
+    return Response.json({available:false,configured:true,ticker,reason:error?.message||"Shared FMP budget unavailable."},
+      {status:Number(error?.status)||503,headers:{...headers,"Cache-Control":"no-store"}});
+  }
   const data = {};
   const errors = [];
   settled.forEach((result, index) => {

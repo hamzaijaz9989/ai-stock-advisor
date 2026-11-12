@@ -4,6 +4,7 @@
   const $ = id => document.getElementById(id);
   const CAPITAL = 1000;
   const RISK_PCT_MAX = 0.5;
+  const AGGREGATE_PLANNED_RISK_PCT_MAX = 1;
   const STORAGE_KEY = "northstar-trading-lab-plans-v1";
   const money = value => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD",maximumFractionDigits:2}).format(value);
   const safeReadPlans = () => {
@@ -17,6 +18,7 @@
     catch { return false; }
   };
   const plans = safeReadPlans();
+  let latestDurableCouncilTicker = null;
   $("capital").textContent = money(CAPITAL);
   $("risk-budget").textContent = money(CAPITAL * 0.005);
   $("max-position").textContent = money(CAPITAL * 0.25);
@@ -26,7 +28,12 @@
     const entry = Number($("entry").value);
     const stop = Number($("stop").value);
     const riskPct = Number($("risk-pct").value);
-    const riskBudget = CAPITAL * Math.min(Math.max(riskPct, 0), RISK_PCT_MAX) / 100;
+    const committedPlanRisk = plans.reduce((total, plan) => {
+      const risk = Number(plan?.plannedLoss);
+      return total + (Number.isFinite(risk) && risk > 0 ? risk : 0);
+    }, 0);
+    const aggregateRiskRoom = Math.max(0, CAPITAL * AGGREGATE_PLANNED_RISK_PCT_MAX / 100 - committedPlanRisk);
+    const riskBudget = Math.min(CAPITAL * Math.min(Math.max(riskPct, 0), RISK_PCT_MAX) / 100, aggregateRiskRoom);
     const valid = /^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) &&
       Number.isFinite(entry) && Number.isFinite(stop) && entry > stop && stop > 0 &&
       Number.isFinite(riskPct) && riskPct > 0 && riskPct <= RISK_PCT_MAX;
@@ -35,9 +42,9 @@
       $("risk-result").textContent = "Enter a ticker, planned entry and invalidation price to calculate position size.";
       return null;
     }
-    if (!valid) {
+    if (!valid || riskBudget <= 0) {
       $("quantity").textContent = "NO TRADE";
-      $("risk-result").textContent = "Check the ticker, ensure entry is above the stop, and keep risk between 0.1% and 0.5% of pilot equity.";
+      $("risk-result").textContent = riskBudget <= 0 ? "No aggregate planned-risk capacity remains under the 1% ceiling. Review or remove an existing plan before sizing another." : "Check the ticker, ensure entry is above the stop, and keep risk between 0.1% and 0.5% of pilot equity.";
       return null;
     }
     const perShareRisk = entry - stop;
@@ -49,7 +56,7 @@
     $("quantity").textContent = shares ? shares + (shares === 1 ? " share" : " shares") : "NO TRADE";
     $("risk-result").textContent = shares
       ? "Position value " + money(notional) + " · planned stop risk " + money(plannedLoss) +
-        " · risk budget " + money(riskBudget) + " (" + riskPct.toFixed(1) + "% of pilot equity). Whole-share sizing; gaps can cause larger losses."
+        " · risk budget " + money(riskBudget) + " (requested up to " + money(CAPITAL * riskPct / 100) + "; remaining aggregate room " + money(aggregateRiskRoom) + "). Whole-share sizing; gaps can cause larger losses."
       : "No whole share fits both the risk budget and 25% position cap. Do not force a trade.";
     return shares ? {symbol, entry, stop, shares, notional, plannedLoss, riskBudget, riskPct} : null;
   }
@@ -89,6 +96,7 @@
           return;
         }
         renderJournal();
+        calculate();
       });
       row.append(detail, remove);
       root.appendChild(row);
@@ -99,6 +107,14 @@
   $("save-plan").addEventListener("click", () => {
     const result = calculate();
     if (!result) return;
+    if (plans.some(item => item.symbol === result.symbol)) {
+      alert("A plan for this ticker already exists. Review or remove it before creating another.");
+      return;
+    }
+    if (plans.length >= 10) {
+      alert("The local plan list is limited to ten tickers.");
+      return;
+    }
     const plan = {...result, id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)), createdAt: new Date().toISOString(), status:"PLANNED_NOT_EXECUTED"};
     plans.push(plan);
     if (!savePlans(plans)) {
@@ -107,6 +123,7 @@
       return;
     }
     renderJournal();
+    calculate();
   });
   $("reset-calc").addEventListener("click", () => {
     $("symbol").value = "";
@@ -492,6 +509,258 @@
     const val=document.createElement("strong");val.textContent=value;
     row.append(left,val);root.appendChild(row);
   }
+  const COUNCIL_DISPLAY_ROLES = [
+    "market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst",
+    "bull_researcher","bear_researcher","portfolio_analyst","risk_committee"
+  ];
+  const roleTitle = role => String(role||"").replaceAll("_"," ").replace(/\b\w/g,letter=>letter.toUpperCase());
+  async function parseStockBrainResponse(response) {
+    let raw;
+    try {
+      raw = await response.text();
+    } catch {
+      throw new Error("Stock Brain response could not be read.");
+    }
+    let data;
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      const status = Number(response.status);
+      throw new Error("Stock Brain service returned a non-JSON response" + (Number.isFinite(status) && status > 0 ? " (HTTP " + status + ")" : "") + ".");
+    }
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("Stock Brain service returned an invalid response.");
+    }
+    return data;
+  }
+  function renderCouncilResult(payload) {
+    const result=payload.result||{};
+    const durable=payload.traceDurable===true&&result.traceDurable===true&&result.trace&&typeof result.trace.ticker==="string";
+    const handoff=$("stock-brain-handoff");
+    if(handoff){
+      handoff.hidden=false;
+      $("use-council-ticker").disabled=!durable;
+      if(durable){
+        latestDurableCouncilTicker=result.trace.ticker.toUpperCase();
+        $("stock-brain-handoff-summary").textContent="Durable Stock Brain review for "+latestDurableCouncilTicker+" · "+String(result.status||"NO_TRADE").replaceAll("_"," ")+" · "+councilTime(result.trace.asOf||payload.createdAt)+". This is research context, not an approved entry."; 
+      }else{
+        latestDurableCouncilTicker=null;
+        $("stock-brain-handoff-summary").textContent="No durable trace was confirmed. Ticker handoff stays disabled until a durable Stock Brain result is available.";
+      }
+    }
+    const summary=$("stock-brain-summary");
+    summary.hidden=false;
+    $("stock-brain-outcome").textContent=String(result.status||"NO_TRADE").replaceAll("_"," ");
+    $("stock-brain-agent-count").textContent=(Array.isArray(result.agents)?result.agents.length:0)+" / 9";
+    const collection=result.collection||{};
+    $("stock-brain-evidence-count").textContent=String(Number(collection.factCount||0)+Number(collection.evidenceCount||0));
+    $("stock-brain-trace").textContent=payload.traceDurable===true&&result.traceDurable===true?"CONFIRMED":"NOT CONFIRMED";
+
+    const resourceCoverage=result.resourceCoverage||{};
+    const coverage=resourceCoverage.roles||{};
+    const newsQuality=resourceCoverage.newsQuality||{};
+    const agentRoot=$("stock-brain-agents");
+    agentRoot.replaceChildren();
+    const byRole=new Map((Array.isArray(result.agents)?result.agents:[]).map(agent=>[agent.role,agent]));
+    for(const role of COUNCIL_DISPLAY_ROLES){
+      const agent=byRole.get(role)||{role,status:"BLOCKED",reason:"No status was returned for this role."};
+      const row=document.createElement("div");row.className="journal-row";
+      const left=document.createElement("div");
+      const title=document.createElement("strong");title.textContent=roleTitle(role);
+      const reason=document.createElement("div");reason.className="muted tiny";
+      const roleCoverage=coverage[role]||{};
+      const reasonParts=[
+        agent.reason||(agent.status==="COMPLETE"?"Specialist report completed.":"This role did not complete."),
+        roleCoverage.status?"Resources: "+roleCoverage.status:null,
+        ...(Array.isArray(roleCoverage.gaps)?roleCoverage.gaps.slice(0,2):[])
+      ].filter(Boolean);
+      reason.textContent=reasonParts.join(" · ");
+      left.append(title,reason);
+      const status=document.createElement("span");
+      status.className="state"+(agent.status==="COMPLETE"?" good":" bad");
+      status.textContent=String(agent.status||"UNKNOWN");
+      row.append(left,status);agentRoot.appendChild(row);
+    }
+
+    const vetoRoot=$("stock-brain-vetoes");vetoRoot.replaceChildren();
+    const vetoes=Array.isArray(result.vetoReasons)?result.vetoReasons:[];
+    if(vetoes.length){
+      const heading=document.createElement("strong");heading.textContent="Why this run is blocked";
+      vetoRoot.appendChild(heading);
+      for(const reason of vetoes.slice(0,30)){
+        const item=document.createElement("p");item.className="warning";item.textContent=String(reason);vetoRoot.appendChild(item);
+      }
+    }else{
+      const note=document.createElement("p");note.className="muted small";
+      note.textContent=result.status==="RESEARCH_REVIEW_REQUIRED"
+        ?"All council stages completed and the deterministic committee accepted the candidate for separate human review. This is not a trade approval."
+        :"No separate veto details were returned; the overall outcome remains "+String(result.status||"NO_TRADE")+".";
+      vetoRoot.appendChild(note);
+    }
+
+    const reportRoot=$("stock-brain-reports");reportRoot.replaceChildren();
+    const reports=Array.isArray(result.reports)?result.reports:[];
+    if(!reports.length){
+      const empty=document.createElement("p");empty.className="muted small";
+      empty.textContent="No specialist reports were produced. Review the role status and blocker reasons above.";
+      reportRoot.appendChild(empty);
+    }
+    for(const entry of reports){
+      const card=document.createElement("article");card.className="card";card.style.marginTop="10px";
+      const header=document.createElement("div");header.className="card-head";
+      const heading=document.createElement("h2");heading.textContent=roleTitle(entry.role);
+      const status=document.createElement("span");status.className="state good";status.textContent=String(entry.report?.status||"UNKNOWN");
+      header.append(heading,status);card.appendChild(header);
+      for(const [key,label] of [["findings","Findings"],["risks","Risks"]]){
+        const items=Array.isArray(entry.report?.[key])?entry.report[key]:[];
+        const group=document.createElement("div");
+        const groupTitle=document.createElement("strong");groupTitle.textContent=label+" ("+items.length+")";
+        group.appendChild(groupTitle);
+        if(!items.length){
+          const none=document.createElement("p");none.className="muted small";none.textContent="None reported.";group.appendChild(none);
+        }
+        for(const item of items.slice(0,30)){
+          const row=document.createElement("p");row.className="small";
+          row.textContent=String(item.claim||"Claim unavailable")+" · Evidence IDs: "+(Array.isArray(item.factIds)?item.factIds.join(", "):"not supplied");
+          group.appendChild(row);
+        }
+        card.appendChild(group);
+      }
+      reportRoot.appendChild(card);
+    }
+    renderCouncilEvaluation(result.evaluation,result.agents,coverage,newsQuality);
+  }
+  function renderCouncilEvaluation(evaluation,agents,coverage={},newsQuality={}) {
+    const summary=$("stock-brain-scorecard-summary");
+    const rolesRoot=$("stock-brain-scorecard-roles");
+    const limitations=$("stock-brain-scorecard-limitations");
+    const scorecard=$("stock-brain-scorecard");
+    scorecard.hidden=false;
+    summary.replaceChildren();
+    rolesRoot.replaceChildren();
+    if(!evaluation||evaluation.evaluationScope!=="REPORT_CONTRACT_AND_DECLARED_TELEMETRY_ONLY"){
+      const note=document.createElement("p");
+      note.className="muted small";
+      note.textContent="No deterministic scorecard was returned for this run. Research quality and provider telemetry are not verified.";
+      summary.appendChild(note);
+      limitations.textContent="A missing scorecard is not a zero score and does not imply approval.";
+      return;
+    }
+    const totals=evaluation.totals||{};
+    const percent=value=>typeof value==="number"&&Number.isFinite(value)?(value*100).toFixed(1)+"%":"Not available";
+    const metricText=value=>value===null||value===undefined?"Not reported":String(value);
+    const cards=[
+      ["Role reports",metricText(totals.roleReports)+" / 9"],
+      ["Claims",metricText(totals.claims)],
+      ["Claim citation coverage",percent(totals.claimCitationCoverage)],
+      ["Reference precision",percent(totals.citationPrecision)],
+      ["Invalid-reference claims",metricText(totals.invalidReferenceClaims)],
+      ["Measured roles",metricText(totals.telemetryRoles)+" / 9"],
+      ["Failed invocations",metricText(totals.failedInvocations)],
+      ["Summed role latency",totals.latencyMs===null||totals.latencyMs===undefined?"Incomplete":String(totals.latencyMs)+" ms"],
+      ["Provider tokens",metricText(totals.totalTokens)],
+      ["Provider cost",totals.costUsd===null||totals.costUsd===undefined?"Not measured":"$"+Number(totals.costUsd).toFixed(4)],
+      ["Unique timestamped news",metricText(newsQuality.uniqueEligibleCount)],
+      ["Company-specific news",metricText(newsQuality.companySpecificCount)],
+      ["Macro / sector context",String(Number(newsQuality.macroCount||0)+Number(newsQuality.sectorCount||0))],
+      ["Ambiguous-scope news",metricText(newsQuality.ambiguousCount)],
+      ["Duplicate / syndicated",metricText(newsQuality.duplicateCount)],
+      ["Unverified-source items",metricText(newsQuality.unverifiedSourceCount)]
+    ];
+    for(const [label,value] of cards){
+      const card=document.createElement("div");card.className="stat";
+      const name=document.createElement("label");name.textContent=label;
+      const result=document.createElement("strong");result.textContent=value;
+      card.append(name,result);summary.appendChild(card);
+    }
+    const roleMetrics=evaluation.roles||{};
+    const agentByRole=new Map((Array.isArray(agents)?agents:[]).map(agent=>[agent.role,agent]));
+    for(const role of COUNCIL_DISPLAY_ROLES){
+      const metric=roleMetrics[role]||{};
+      const agent=agentByRole.get(role)||{};
+      const resource=coverage[role]||{};
+      const status=String(metric.status||agent.status||"UNKNOWN");
+      const refs=Number(metric.validReferences||0)+"/"+Number(metric.totalReferences||0)+" valid references";
+      const latency=metric.latencyMs===null||metric.latencyMs===undefined?"latency not reported":String(metric.latencyMs)+" ms";
+      const provider=metric.provider?String(metric.provider)+(metric.model?" / "+String(metric.model):""):"provider not reported";
+      const tokens=metric.totalTokens===null||metric.totalTokens===undefined?"tokens not reported":String(metric.totalTokens)+" tokens";
+      const details=[
+        "Resources: "+String(metric.resourceStatus||resource.status||"NOT_REPORTED"),
+        String(metric.claimCount||0)+" claims",
+        refs,
+        latency,
+        provider,
+        tokens,
+        metric.failed===true?"invocation failed":null
+      ].filter(Boolean);
+      const row=document.createElement("div");row.className="journal-row";
+      const left=document.createElement("div");
+      const title=document.createElement("strong");title.textContent=roleTitle(role);
+      const detail=document.createElement("div");detail.className="muted tiny";detail.textContent=details.join(" · ");
+      left.append(title,detail);
+      const badge=document.createElement("span");badge.className="state"+(status==="COMPLETE"?" good":" bad");badge.textContent=status;
+      row.append(left,badge);rolesRoot.appendChild(row);
+    }
+    const scope=String(evaluation.evaluationScope||"UNKNOWN");
+    const notes=Array.isArray(evaluation.limitations)?evaluation.limitations.slice(0,5):[];
+    limitations.textContent="Scope: "+scope+". Valid references establish ID integrity, not factual truth or whether a source supports a claim. No investment performance, predictive accuracy or strategy approval is inferred. "+notes.join(" ");
+  }
+  $("use-council-ticker").addEventListener("click",()=>{
+    if(!latestDurableCouncilTicker||!/^[A-Z][A-Z0-9.-]{0,9}$/.test(latestDurableCouncilTicker))return;
+    $("symbol").value=latestDurableCouncilTicker;
+    $("entry").value="";
+    $("stop").value="";
+    $("risk-pct").value="0.5";
+    calculate();
+    $("risk-calculator").scrollIntoView({behavior:"smooth",block:"start"});
+    $("entry").focus({preventScroll:true});
+  });
+
+  $("run-stock-brain").addEventListener("click",async()=>{
+    const button=$("run-stock-brain");
+    const status=$("stock-brain-status");
+    const ticker=String($("stock-brain-ticker").value||"").trim().toUpperCase();
+    if(!/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker)){
+      status.textContent="Enter a valid US equity ticker.";
+      return;
+    }
+    const token=prompt("Enter the NORTHSTAR_OPERATOR_TOKEN configured in Cloudflare Pages. It is sent only in this request and is not saved in browser storage.");
+    if(!token)return;
+    const requestId="stockbrain-"+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2));
+    button.disabled=true;button.textContent="Researching…";
+    latestDurableCouncilTicker=null;
+    $("stock-brain-handoff").hidden=false;
+    $("use-council-ticker").disabled=true;
+    $("stock-brain-handoff-summary").textContent="Research is running. Ticker handoff stays disabled until the server confirms a durable trace.";
+    status.textContent="Collecting server-side quote, history, fundamentals, filings, news, earnings and reconciled portfolio evidence. This may take a little while.";
+    $("stock-brain-summary").hidden=true;
+    $("stock-brain-agents").replaceChildren();
+    $("stock-brain-vetoes").replaceChildren();
+    $("stock-brain-reports").replaceChildren();
+    $("stock-brain-scorecard").hidden=true;
+    $("stock-brain-scorecard-summary").replaceChildren();
+    $("stock-brain-scorecard-roles").replaceChildren();
+    $("stock-brain-scorecard-limitations").textContent="";
+    try{
+      const response=await fetch("/api/research/collect",{
+        method:"POST",
+        headers:{Authorization:"Bearer "+token,Accept:"application/json","Content-Type":"application/json"},
+        body:JSON.stringify({ticker,requestId})
+      });
+      const data=await parseStockBrainResponse(response);
+      if(!response.ok||data.ok!==true)throw new Error(typeof data.error==="string"&&data.error.trim()?data.error.trim().slice(0,300):"Stock Brain research run failed safely.");
+      renderCouncilResult(data);
+      status.textContent=ticker+" · "+(data.result?.status||"NO_TRADE")+" · "+(data.traceDurable===true?"Durable trace confirmed":"Trace durability not confirmed")+" · "+new Date(data.createdAt||Date.now()).toLocaleString()+". No orders were submitted.";
+    }catch(error){
+      $("stock-brain-handoff").hidden=false;
+      $("use-council-ticker").disabled=true;
+      $("stock-brain-handoff-summary").textContent="No durable trace was confirmed. Ticker handoff stays disabled.";
+      status.textContent=(error?.message||"Stock Brain run unavailable.")+" No order action was attempted. If the blocker is seven-day equity history, continue the read-only snapshot schedule until the required baseline exists.";
+    }finally{
+      button.disabled=false;button.textContent="Run 9-agent research";
+    }
+  });
+
   async function runTimeMachine() {
     const button=$("run-backtest"), status=$("backtest-status"), root=$("backtest-results");
     const ticker=String($("backtest-symbol").value||"").trim().toUpperCase();

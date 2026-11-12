@@ -149,26 +149,30 @@ export function runNewsAnalyst(context) {
   return report(findings,risks);
 }
 
+const SENTIMENT_POPULATIONS=Object.freeze(["retail","institutional","short_interest","options_positioning","analyst_revisions","news_sentiment"]);
 export function runSentimentAnalyst(context) {
-  const feeds=evidenceOf(context,"SENTIMENT_OBSERVATION").concat(evidenceOf(context,"ANALYST_SENTIMENT"),evidenceOf(context,"POSITIONING_SENTIMENT"));
-  if(!feeds.length) return unavailable("No dedicated timestamped sentiment or positioning feed is connected.");
-  const asOf=exactTimestampMs(context?.asOf);
-  const valid=feeds.filter(x=>{
-    const v=x.value||{}, observed=exactTimestampMs(v.timestamp);
-    return v.timestampStatus==="PRESENT" && asOf!==null && observed!==null && observed<=asOf &&
-      typeof v.source==="string" && v.source.trim() &&
-      finite(v.sampleCount) && v.sampleCount>0 &&
-      finite(v.score) && v.score>=-1 && v.score<=1;
-  });
-  if(!valid.length) return unavailable("Sentiment observations lack a parseable as-of-safe timestamp, source identity, positive sample count or bounded normalized score.");
-  const ids=valid.map(x=>x.id).slice(0,10), totalSamples=valid.reduce((s,x)=>s+x.value.sampleCount,0);
-  const weighted=valid.reduce((s,x)=>s+x.value.score*x.value.sampleCount,0)/totalSamples;
-  const sources=new Set(valid.map(x=>x.value.source.trim().toLowerCase())), risks=[];
-  if(sources.size<2) risks.push(claim("Sentiment relies on only one distinct source; source concentration and provider methodology require independent review.",ids));
-  else risks.push(claim("Sentiment scores use provider-normalized scales and sample-count weighting; cross-provider comparability is not independently verified.",ids));
-  const excluded=feeds.length-valid.length;
-  if(excluded>0) risks.push(claim(excluded+" sentiment observation(s) were excluded because timestamp, source, sample count or score validation failed.",feeds.map(x=>x.id).slice(0,10)));
-  return report([claim("Sample-count-weighted sentiment score across "+valid.length+" valid observation(s) and "+totalSamples+" samples is "+weighted.toFixed(3)+" on the provider-normalized -1 to +1 scale; this is descriptive context, not a standalone trading signal.",ids)],risks);
+ const feeds=evidenceOf(context,"SENTIMENT_OBSERVATION").concat(evidenceOf(context,"ANALYST_SENTIMENT"),evidenceOf(context,"POSITIONING_SENTIMENT"));
+ if(!feeds.length)return unavailable("No approved timestamped sentiment or positioning feed is connected.");
+ const asOf=exactTimestampMs(context?.asOf);
+ const valid=feeds.filter(x=>{
+  const v=x.value||{},timestamp=exactTimestampMs(v.timestamp);
+  return v.timestampStatus==="PRESENT"&&asOf!==null&&timestamp!==null&&timestamp<=asOf&&
+   typeof v.source==="string"&&v.source.trim()&&Number.isSafeInteger(v.sampleCount)&&v.sampleCount>0&&
+   finite(v.score)&&v.score>=-1&&v.score<=1&&SENTIMENT_POPULATIONS.includes(v.population)&&
+   typeof v.metric==="string"&&v.metric.trim()&&typeof v.methodology==="string"&&v.methodology.trim().length>=10&&
+   v.normalizedScale==="minus1_to_plus1";
+ });
+ if(!valid.length)return unavailable("Sentiment needs an approved source, explicit zoned timestamp, defined population/metric/methodology, sample count, and provider-normalized -1..+1 score.");
+ const selected=valid.slice(0,10),findings=selected.map(item=>{
+  const v=item.value;
+  return claim(v.population+" "+v.metric+" from "+v.source+" reports provider-normalized score "+Number(v.score).toFixed(3)+" on the -1 to +1 scale at "+v.timestamp+" using "+v.sampleCount+" samples.",[item.id]);
+ });
+ const risks=[claim("Sentiment observations are reported separately by population and source; their scores are not pooled across unlike populations or providers.",selected.map(x=>x.id))];
+ risks.push(claim("Provider source, sample definition, methodology, and normalization are self-reported and were not independently audited; sentiment is descriptive and not predictive.",selected.map(x=>x.id)));
+ const excluded=feeds.length-valid.length;
+ if(excluded)risks.push(claim(excluded+" sentiment observation(s) were excluded because source, timestamp, population, metric, methodology, sample count or normalized scale failed validation.",feeds.map(x=>x.id).slice(0,10)));
+ if(valid.length>selected.length)risks.push(claim((valid.length-selected.length)+" additional valid observations were omitted from this report's bounded output.",selected.map(x=>x.id)));
+ return {status:"COMPLETE",findings,risks};
 }
 
 export const SPECIALIST_AGENTS = Object.freeze({

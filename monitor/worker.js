@@ -1,10 +1,10 @@
+import {FMP_LIMITS,reserveFmpBudget,requestFmpJson} from "../web/lib/fmp-budget.js";
 const CACHE_URL = "https://ai-stock-advisor.pages.dev/data/top-stocks-cache.json";
 const QUOTE_HOSTS = ["query1.finance.yahoo.com","query2.finance.yahoo.com"];
 const MAX_CACHE_AGE_MS = 4 * 60 * 60 * 1000;
 const MAX_QUOTE_AGE_MS = 15 * 60 * 1000;
 const MAX_FUTURE_QUOTE_SKEW_MS = 2 * 60 * 1000;
 export const FMP_FREE_SYMBOLS = Object.freeze(["AAPL","TSLA","AMZN","MSFT","NVDA","GOOGL","META","NFLX","JPM","V","BAC","PYPL","DIS","T","PFE","COST","INTC","KO","TGT","NKE","SPY","BA","BABA","XOM","WMT","GE","CSCO","VZ","JNJ","CVX","PLTR","SQ","SHOP","SBUX","SOFI","HOOD","RBLX","SNAP","AMD","UBER","FDX","ABBV","ETSY","MRNA","LMT","GM","F","LCID","CCL","DAL","UAL","AAL","TSM","SONY","ET","MRO","COIN","RIVN","RIOT","CPRX","VWO","SPYG","NOK","ROKU","VIAC","ATVI","BIDU","DOCU","ZM","PINS","TLRY","WBA","MGM","NIO","C","GS","WFC","ADBE","PEP","UNH","CARR","HCA","TWTR","BILI","SIRI","FUBO","RKT"]);
-const FMP_DAILY_LIMIT = 200;
 const FMP_REQUESTS_PER_SCAN = 2;
 const MAX_NON_FMP_SHORTLIST_SYMBOLS = 10;
 const MAX_CONCURRENCY = 1;
@@ -36,18 +36,45 @@ function easterSunday(year) {
   return new Date(Date.UTC(year,month-1,day));
 }
 function usMarketCalendar(year) {
-  const holidays = new Set([
-    observedFixedHoliday(year,1,1), observedFixedHoliday(year,6,19),
+  // Official NYSE core-session calendar, published through 2028:
+  // https://www.nyse.com/trade/hours-calendars
+  // Retain the computed calendar for later years until NYSE publishes them.
+  const published = {
+    2026: {
+      holidays: ["2026-01-01","2026-01-19","2026-02-16","2026-04-03","2026-05-25","2026-06-19","2026-07-03","2026-09-07","2026-11-26","2026-12-25"],
+      earlyCloses: ["2026-11-27","2026-12-24"]
+    },
+    2027: {
+      holidays: ["2027-01-01","2027-01-18","2027-02-15","2027-03-26","2027-05-31","2027-06-18","2027-07-05","2027-09-06","2027-11-25","2027-12-24"],
+      earlyCloses: ["2027-11-26"]
+    },
+    2028: {
+      holidays: ["2028-01-17","2028-02-21","2028-04-14","2028-05-29","2028-06-19","2028-07-04","2028-09-04","2028-11-23","2028-12-25"],
+      earlyCloses: ["2028-07-03","2028-11-24"]
+    }
+  }[year];
+  if (published) return {
+    holidays: new Set(published.holidays),
+    earlyCloses: new Set(published.earlyCloses)
+  };
+
+  const newYears = new Date(Date.UTC(year,0,1));
+  const newYearsWeekday = newYears.getUTCDay();
+  const newYearsHoliday = newYearsWeekday === 0
+    ? new Date(Date.UTC(year,0,2)).toISOString().slice(0,10)
+    : newYearsWeekday === 6 ? null : newYears.toISOString().slice(0,10);
+  const holidayDates = [
+    newYearsHoliday, observedFixedHoliday(year,6,19),
     observedFixedHoliday(year,7,4), observedFixedHoliday(year,12,25),
     new Date(Date.UTC(year,0,nthWeekday(year,1,1,3))).toISOString().slice(0,10),
     new Date(Date.UTC(year,1,nthWeekday(year,2,1,3))).toISOString().slice(0,10),
     new Date(Date.UTC(year,4,lastWeekday(year,5,1))).toISOString().slice(0,10),
     new Date(Date.UTC(year,8,nthWeekday(year,9,1,1))).toISOString().slice(0,10),
     new Date(Date.UTC(year,10,nthWeekday(year,11,4,4))).toISOString().slice(0,10)
-  ]);
+  ].filter(Boolean);
+  const holidays = new Set(holidayDates);
   const easter=easterSunday(year); easter.setUTCDate(easter.getUTCDate()-2);
   holidays.add(easter.toISOString().slice(0,10));
-  holidays.add(observedFixedHoliday(year+1,1,1));
   const earlyCloses = new Set();
   const thanksgiving = new Date(Date.UTC(year,10,nthWeekday(year,11,4,4)));
   const fridayAfter = new Date(thanksgiving); fridayAfter.setUTCDate(fridayAfter.getUTCDate()+1);
@@ -90,13 +117,8 @@ export function getFmpScanBatch(date = new Date()) {
   const start = ((bucket * FMP_REQUESTS_PER_SCAN) % FMP_FREE_SYMBOLS.length);
   return Array.from({length:FMP_REQUESTS_PER_SCAN},(_,i)=>FMP_FREE_SYMBOLS[(start+i)%FMP_FREE_SYMBOLS.length]);
 }
-export async function reserveFmpRequest(db, now = new Date()) {
-  if (!db) throw new Error("FMP daily budget unavailable: NORTHSTAR_DB binding missing");
-  const day = now.toISOString().slice(0,10);
-  const row = await db.prepare("INSERT INTO fmp_request_budget(day,requests) VALUES(?,1) ON CONFLICT(day) DO UPDATE SET requests=requests+1 WHERE requests < ? RETURNING requests")
-    .bind(day,FMP_DAILY_LIMIT).first();
-  if (!row) throw new Error("FMP daily request budget exhausted");
-  return Number(row.requests);
+export async function reserveFmpRequest(db, now = new Date(), verifiedDailyLimit) {
+  return reserveFmpBudget(db,{service:"monitor",cost:1,now,verifiedDailyLimit});
 }
 export function getMonitorCandidates(shortlist, date = new Date()) {
   const valid = Array.isArray(shortlist)
@@ -109,19 +131,18 @@ export function getMonitorCandidates(shortlist, date = new Date()) {
     .slice(0, MAX_NON_FMP_SHORTLIST_SYMBOLS);
   return [...fmpCandidates, ...nonFmpCandidates];
 }
-export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now()) {
-  const url = new URL("https://financialmodelingprep.com/stable/quote");
-  url.searchParams.set("symbol", symbol);
-  // FMP's official quickstart documents the apikey query parameter. Use the
-  // same transport as the working Pages provider adapter; do not rely on an
-  // undocumented header that can fail closed across separate Worker bindings.
-  url.searchParams.set("apikey", apiKey);
-  const response = await fetchImpl(url.toString(), {
-    headers: { Accept: "application/json" },
-    signal: AbortSignal.timeout(7000)
-  });
-  if (!response.ok) throw new Error("FMP quote HTTP " + response.status);
-  const rows = await response.json();
+export async function getFmpQuote(symbol, apiKey, fetchImpl = fetch, now = Date.now(), budgetDb = null, enforceBudget = false, verifiedDailyLimit) {
+  // Production always passes the shared D1 ledger; direct parser tests may omit it.
+  let rows;
+  if(enforceBudget) rows=await requestFmpJson({db:budgetDb,service:"monitor",path:"quote?symbol="+encodeURIComponent(symbol),apiKey,fetchImpl,now,cacheTtlMs:30_000,timeoutMs:7_000,verifiedDailyLimit});
+  else {
+    const url = new URL("https://financialmodelingprep.com/stable/quote");
+    url.searchParams.set("symbol", symbol);
+    url.searchParams.set("apikey", apiKey);
+    const response = await fetchImpl(url.toString(), {headers:{Accept:"application/json"},signal:AbortSignal.timeout(7000)});
+    if (!response.ok) throw new Error("FMP quote HTTP " + response.status);
+    rows = await response.json();
+  }
   const row = Array.isArray(rows) ? rows.find(item => item?.symbol === symbol) : null;
   if (!row) throw new Error("FMP returned no quote for " + symbol);
   const price = Number(row.price);
@@ -212,8 +233,7 @@ export async function getQuote(symbol, env, fetchImpl = fetch, now = Date.now())
   const failures = [];
   if (env.FMP_API_KEY && FMP_FREE_SYMBOLS.includes(symbol)) {
     try {
-      await reserveFmpRequest(env.NORTHSTAR_DB, new Date(now));
-      return await getFmpQuote(symbol, env.FMP_API_KEY, fetchImpl, now);
+      return await getFmpQuote(symbol, env.FMP_API_KEY, fetchImpl, now, env.NORTHSTAR_DB, true, env.FMP_VERIFIED_DAILY_LIMIT);
     } catch (error) {
       failures.push("FMP failed (" + String(error?.message || error) + ")");
     }
@@ -361,7 +381,6 @@ async function scan(env) {
       await db.prepare("UPDATE monitor_runs SET completed_at=?,status='market_closed',detail=? WHERE id=?").bind(new Date().toISOString(),"US regular session closed; monitor intentionally idle.",runId).run();
       return {status:"market_closed",checked:0,errors:0};
     }
-    if (env.FMP_API_KEY) await db.prepare("CREATE TABLE IF NOT EXISTS fmp_request_budget (day TEXT PRIMARY KEY, requests INTEGER NOT NULL DEFAULT 0)").run();
     const response=await fetch(CACHE_URL,{headers:{Accept:"application/json"},cf:{cacheTtl:0},signal:AbortSignal.timeout(10000)});
     if(!response.ok) throw new Error("Shortlist cache HTTP "+response.status);
     const cache=await response.json();
@@ -393,7 +412,7 @@ async function scan(env) {
     const failureSymbols=quoteFailureDetails.length?" [failed symbols: "+quoteFailureDetails.join(", ").slice(0,240)+"]":"";
     const fallbackSummary=[...providerFallbackCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
     const fallbackSymbols=providerFallbackDetails.length?" [FMP fallback symbols: "+providerFallbackDetails.join(", ").slice(0,240)+"]":"";
-    const detail="Checked "+checked+" quotes: rotating FMP Free-universe symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" non-FMP shortlist symbols; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"")+failureSymbols+"; FMP fallbacks: "+providerFallbackDetails.length+(fallbackSummary?" ("+fallbackSummary+")":"")+fallbackSymbols;
+    const detail="Checked "+checked+" quotes: rotating FMP Free-universe symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" non-FMP shortlist symbols; shared FMP budget capped at "+FMP_LIMITS.maximumRolling24h+" calls/rolling 24h (monitor "+FMP_LIMITS.maximumMonitor+"); quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"")+failureSymbols+"; FMP fallbacks: "+providerFallbackDetails.length+(fallbackSummary?" ("+fallbackSummary+")":"")+fallbackSymbols;
     await db.prepare("UPDATE monitor_runs SET completed_at=?,status=?,symbols_checked=?,errors=?,detail=? WHERE id=?").bind(at,status,checked,errors,detail,runId).run();
     return {status,checked,errors,at};
   } catch(error) {

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {createFmpBudgetTestDb} from "./helpers/fmp-budget-db.mjs";
 import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getFinnhubQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, getMonitorCandidates, reserveFmpRequest } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
@@ -20,6 +21,20 @@ test("market-hours gate uses New York time and excludes weekends, exchange holid
  assert.equal(isUsMarketOpen(new Date("2026-12-25T15:00:00Z")),false);
  assert.equal(isUsMarketOpen(new Date("2026-11-27T18:30:00Z")),false);
  assert.equal(isUsMarketOpen(new Date("2026-11-27T17:00:00Z")),true);
+});
+
+test("published NYSE calendar preserves New Year sessions and applies early closes",()=>{
+ // NYSE states no New Year's Day observance for Saturday, January 1, 2028.
+ assert.equal(isUsMarketOpen(new Date("2027-12-31T15:00:00Z")),true);
+ assert.equal(isUsMarketOpen(new Date("2028-01-03T15:00:00Z")),true);
+ // Published full-session holidays and 1 p.m. ET early closes.
+ assert.equal(isUsMarketOpen(new Date("2026-07-03T15:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2026-11-27T17:59:00Z")),true);
+ assert.equal(isUsMarketOpen(new Date("2026-11-27T18:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2026-12-24T18:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2027-11-26T18:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2028-07-03T18:00:00Z")),false);
+ assert.equal(isUsMarketOpen(new Date("2028-11-24T18:00:00Z")),false);
 });
 
 test("quote freshness gate rejects missing, stale, and future timestamps",()=>{
@@ -46,16 +61,7 @@ function yahooQuotePayload(timestampSeconds, price = 210, previousClose = 200) {
  };
 }
 
-function fakeFmpBudgetDb() {
- return {
-  prepare(sql) {
-   return {
-    run: async () => ({ success: true }),
-    bind: (...args) => ({ first: async () => ({ requests: 1 }) })
-   };
-  }
- };
-}
+function fakeFmpBudgetDb() { return createFmpBudgetTestDb(); }
 
 test("FMP Free universe exactly matches the canonical 87-symbol account whitelist in order",()=>{
  const expected = ["AAPL","TSLA","AMZN","MSFT","NVDA","GOOGL","META","NFLX","JPM","V","BAC","PYPL","DIS","T","PFE","COST","INTC","KO","TGT","NKE","SPY","BA","BABA","XOM","WMT","GE","CSCO","VZ","JNJ","CVX","PLTR","SQ","SHOP","SBUX","SOFI","HOOD","RBLX","SNAP","AMD","UBER","FDX","ABBV","ETSY","MRNA","LMT","GM","F","LCID","CCL","DAL","UAL","AAL","TSM","SONY","ET","MRO","COIN","RIVN","RIOT","CPRX","VWO","SPYG","NOK","ROKU","VIAC","ATVI","BIDU","DOCU","ZM","PINS","TLRY","WBA","MGM","NIO","C","GS","WFC","ADBE","PEP","UNH","CARR","HCA","TWTR","BILI","SIRI","FUBO","RKT"];
@@ -87,32 +93,11 @@ test("FMP rotation covers all 87 allowed symbols within 44 five-minute runs",()=
  assert.ok(FMP_FREE_SYMBOLS.every(symbol=>covered.has(symbol)));
 });
 
-test("atomic FMP budget reservation allows 200 attempts and rejects attempt 201",async()=>{
- let requests=0;
- const db={
-  prepare(sql) {
-   assert.match(sql,/ON CONFLICT\(day\) DO UPDATE SET requests=requests\+1 WHERE requests < \?/);
-   return {
-    bind(day,limit) {
-     assert.equal(day,"2026-11-11");
-     assert.equal(limit,200);
-     return {first:async()=>{
-      if(requests>=limit) return null;
-      requests+=1;
-      return {requests};
-     }};
-    }
-   };
-  }
- };
- for(let attempt=1;attempt<=200;attempt++) {
-  assert.equal(await reserveFmpRequest(db,new Date("2026-11-11T12:00:00.000Z")),attempt);
- }
- await assert.rejects(
-  reserveFmpRequest(db,new Date("2026-11-11T12:00:00.000Z")),
-  /FMP daily request budget exhausted/
- );
- assert.equal(requests,200);
+test("monitor shares the rolling global FMP budget and its 160-call service cap",async()=>{
+ const db=createFmpBudgetTestDb(),now=new Date("2026-11-11T12:00:00.000Z");
+ for(let attempt=0;attempt<160;attempt++)await reserveFmpRequest(db,now,250);
+ await assert.rejects(reserveFmpRequest(db,now,250),e=>e.code==="FMP_DAILY_BUDGET_EXHAUSTED");
+ assert.equal(db.events.reduce((n,row)=>n+row.cost,0),160);
 });
 
 test("FMP quote uses the documented apikey query parameter and never sends a custom key header", async () => {
@@ -161,7 +146,7 @@ test("Finnhub quote uses the token header and validates the provider timestamp",
 test("symbols outside the FMP Free allowlist skip FMP and use Finnhub", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
- const quote = await getQuote("XYZ", { FMP_API_KEY: "test-only-fmp-key", FINNHUB_API_KEY: "test-only-finnhub-key" }, async (input, init) => {
+ const quote = await getQuote("XYZ", { FMP_API_KEY: "test-only-fmp-key", FMP_VERIFIED_DAILY_LIMIT:"250", FINNHUB_API_KEY: "test-only-finnhub-key" }, async (input, init) => {
   calls.push({ host: new URL(String(input)).hostname, headers: new Headers(init.headers) });
   return jsonResponse({ c: 42, pc: 40, dp: 5, t: Math.floor((now - 60_000) / 1000) });
  }, now);
@@ -175,7 +160,7 @@ test("FMP failure falls back to Finnhub before Yahoo", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
  const quote = await getQuote("AAPL", {
-  FMP_API_KEY: "test-only-fmp-key", FINNHUB_API_KEY: "test-only-finnhub-key", NORTHSTAR_DB: fakeFmpBudgetDb()
+  FMP_API_KEY: "test-only-fmp-key", FMP_VERIFIED_DAILY_LIMIT:"250", FINNHUB_API_KEY: "test-only-finnhub-key", NORTHSTAR_DB: fakeFmpBudgetDb()
  }, async (input) => {
   const url = new URL(String(input)); calls.push(url.hostname);
   if (url.hostname === "financialmodelingprep.com") return new Response("", { status: 401 });
@@ -189,7 +174,7 @@ test("FMP failure falls back to Finnhub before Yahoo", async () => {
 test("FMP stale quotes fall back to a fresh Yahoo quote without exposing the key", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
- const quote = await getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key", NORTHSTAR_DB: fakeFmpBudgetDb() }, async (input) => {
+ const quote = await getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key", FMP_VERIFIED_DAILY_LIMIT:"250", NORTHSTAR_DB: fakeFmpBudgetDb() }, async (input) => {
   const url = new URL(String(input));
   calls.push(url.hostname);
   if (url.hostname === "financialmodelingprep.com") {
@@ -209,6 +194,16 @@ test("FMP stale quotes fall back to a fresh Yahoo quote without exposing the key
  assert.equal(quote.fallbackReason.includes("test-only-fmp-key"), false);
 });
 
+test("monitor fails closed to fallbacks when the shared FMP ledger binding is missing",async()=>{
+ const now=Date.parse("2026-11-10T15:00:00.000Z"),calls=[];
+ const quote=await getQuote("AAPL",{FMP_API_KEY:"test-only-key",FMP_VERIFIED_DAILY_LIMIT:"250"},async input=>{
+  calls.push(new URL(String(input)).hostname);
+  return jsonResponse(yahooQuotePayload(Math.floor((now-60_000)/1000)));
+ },now);
+ assert.equal(quote.source,"Yahoo Finance chart API");
+ assert.ok(calls.length>0&&calls.every(host=>host!=="financialmodelingprep.com"));
+});
+
 test("missing FMP key uses Yahoo only and never attempts an FMP request", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
@@ -224,7 +219,7 @@ test("missing FMP key uses Yahoo only and never attempts an FMP request", async 
 test("FMP and Yahoo failures both fail closed instead of returning an unverified quote", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  await assert.rejects(
-  getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key", NORTHSTAR_DB: fakeFmpBudgetDb() }, async (input) => {
+  getQuote("AAPL", { FMP_API_KEY: "test-only-fmp-key", FMP_VERIFIED_DAILY_LIMIT:"250", NORTHSTAR_DB: fakeFmpBudgetDb() }, async (input) => {
    const host = new URL(String(input)).hostname;
    return new Response("", { status: host === "financialmodelingprep.com" ? 401 : 503 });
   }, now),
