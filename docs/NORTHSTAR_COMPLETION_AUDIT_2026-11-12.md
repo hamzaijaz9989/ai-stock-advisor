@@ -4,18 +4,18 @@
 
 - Repository: `hamzaijaz9989/ai-stock-advisor`.
 - Audited source: `main` at `5be851ea1bb976dd24d7ef9cfc94c34abff3ba29`.
-- Working branch: `codex/northstar-completion-2026-11-12`.
+- Working branch: `codex/stock-brain-consolidation-2026-11-12` (consolidation based on the prior development branch).
 - Production baseline: the latest recorded provider/deployment audit is in [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md). It verifies a finite window of FMP/Finnhub monitor data, not the Pages research endpoints or ongoing uptime.
 - Percentages estimate completed behavior against the product's stated acceptance requirements. Source code and deterministic tests count as implementation evidence. Live provider evidence counts only for the provider and time window actually observed. An unmerged PR, design document, synthetic fixture, or passing unit suite does not count as production acceptance or investment-strategy validation.
 
-## Overall completion: 66%
+## Overall completion: 67% (provisional; consolidation tests pending)
 
 | Workstream | Completion | Evidence and remaining gap |
 |---|---:|---|
 | Equity scanner and shortlist | 85% | Scanner, cached shortlist and validation workflow exist. User-confirmed scanner milestone is complete; cache freshness and provider coverage still need operational monitoring. |
 | Market data and provider integrations | 75% | FMP, Finnhub and Yahoo paths include source/timestamp checks and tested fallback behavior; production monitor has finite successful FMP/Finnhub observations. Pages secret/endpoint health is not freshly verified. |
 | SEC, financial analysis and history | 65% | SEC facts/filings, point-in-time ingestion, valuation and research-history tooling exist. Research price history uses an unofficial source and is explicitly not decision-eligible; data coverage and availability timestamps are incomplete. |
-| Research Council / Stock Brain | 65% | Nine logical roles, council orchestration, evidence IDs, deterministic risk gates and role tests exist in the repository. Full dashboard/collector acceptance work remains split across open PRs #108 and #116; production durable council traces are not evidenced. |
+| Research Council / Stock Brain | 72% (provisional) | Selective #116 port consolidates the collector, nine-role council contracts, deterministic evaluation, dashboard and focused tests on the development branch; exact-head CI and Pages integration acceptance remain pending. #116 is a continuation of #108. Durable production Council traces are not evidenced. |
 | Recommendations and strategy validation | 40% | WAIT/AVOID and risk calculations exist. BUY remains disabled; no complete point-in-time universe, frozen strategy, four-fold walk-forward, untouched holdout and independent approval package is evidenced. |
 | Paper portfolio and lifecycle | 50% | Read-only Alpaca sync, paper controls, preflight, intents, reconciliation, fill handling and risk guards are implemented/tested. Production has no verified seven-day baseline or end-to-end order lifecycle; execution remains disabled and kill switch engaged. |
 | Dashboard and user workflows | 75% | Research, history, positions, watchlist and Trading Lab surfaces exist with endpoint/UI tests. Some Council presentation and live acceptance changes remain unmerged. |
@@ -31,7 +31,7 @@ This is a workstream estimate, not a claim that 66% of code is written or that t
 | Technical Analyst | 80% | Deterministic trend, moving-average, RSI and volatility analysis from supplied history; synthetic tests. | Validate input coverage and corporate-action handling on licensed, point-in-time production history. |
 | Fundamental Analyst | 80% | SEC/FMP observation coverage, period/unit checks and missing cross-check flags; tests. | Establish broader issuer coverage, fiscal-period alignment and availability semantics. |
 | News Analyst | 65% | Timestamped discovery/source quality and freshness checks; tests. | Validate deduplication, issuer corroboration and provider entitlements in live use. |
-| Sentiment Analyst | 10% | Contract rejects missing/invalid observations and reports unavailable. | No approved timestamped sentiment/positioning provider is connected. |
+| Sentiment Analyst | 10% | Contract rejects missing, malformed, future-dated or insufficiently sourced observations and reports unavailable; the consolidated Stock Brain keeps that fail-closed behavior. | No approved timestamped sentiment/positioning provider or entitlement is connected; headlines and price action are not substitutes. |
 | Bull Researcher | 70% | Specialist role and evidence-referenced output contract are implemented. | Verify the complete collector-to-dashboard path and semantic support through reviewed live runs. |
 | Bear Researcher | 70% | Specialist role and evidence-referenced downside analysis contract are implemented. | Verify the complete collector-to-dashboard path and semantic support through reviewed live runs. |
 | Portfolio Analyst | 60% | Portfolio context and synthesis role exist; missing context is gated in tests. | Production-quality portfolio history/context and durable end-to-end collector acceptance remain incomplete. |
@@ -63,3 +63,13 @@ The role percentages measure software behavior, not the quality of generated inv
 4. Establish licensed, point-in-time historical inputs and complete frozen-strategy walk-forward/holdout validation with independent review. Keep BUY disabled until approval.
 5. Complete paper lifecycle recovery, seven-day equity history and failure-injection acceptance while preserving execution disabled and the kill switch engaged.
 6. Reconcile current production Pages/Worker evidence, including Pages provider health and subsequent scheduled monitor continuity, before any release decision.
+
+
+## Stock Brain consolidation milestone (2026-11-12)
+
+- PR #116 is eight commits ahead of #108 with no commits behind; #116 includes #108. Consolidation ports the #116 work selectively onto the current development branch rather than merging either old-base PR.
+- Preserved newer Northstar changes from the development branch, including the quote validation fix and current monitor/dashboard behavior. Generated quote caches and stale PR documentation are excluded.
+- FMP history is fetched through the existing server-side route. Each uncached collection can request up to eight FMP endpoints; no request-budget counter is shared with the separate monitor Worker. Do not assume an account tier or production endpoint entitlement from code. Current provider plan and live Pages bindings remain unverified, so this is a documented integration constraint, not production acceptance.
+- Gemini remains a model-provider fallback for model-driven council roles; deterministic Northstar roles and risk gates remain authoritative. The separate Gemini research endpoint remains a fallback after native Northstar collection.
+- BUY remains disabled; collector outputs set execution false and automated order submission false. No PR was merged or deployment performed.
+

@@ -39,3 +39,8 @@ python scripts/verify_sec_timestamps.py --input sec-source-bundle.json --output 
 ```
 
 The GitHub Actions workflow also uploads a separate `northstar-sec-verified-sample-<run-id>` artifact. It verifies up to 100 of the latest filings per company, records whether the raw submissions timestamp agrees with the independent header timestamp, and keeps public availability unverified; unverified and failed acceptance records stay blocked. This bounded sample is useful for pipeline testing but does not timestamp every historical observation, reconstruct the complete point-in-time signal set, or change `decision_eligible: false`. Review the verification summary and failure reasons before using any sample in research.
+
+
+## Same-day filing exclusion in Research Council contexts — 2026-11-10
+
+SEC companyfacts `filed` is a date, not an exact public-availability timestamp. The Research Council therefore excludes same-day facts by default; it accepts one only if a distinct exact `availableAt` timestamp is explicitly verified and no later than the context as-of timestamp. A prior-day filed date can be used conservatively but remains marked as lacking an exact public-availability timestamp. FMP statement rows are admitted only when their provider-reported accepted time is no later than as-of or, absent that time, the filing date is strictly before the as-of date. FMP accepted/filing timestamps are still not independently verified public availability. These rules reduce look-ahead risk but do not make the current source bundle decision-eligible or strategy-validated.
