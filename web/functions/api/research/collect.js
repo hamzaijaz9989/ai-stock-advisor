@@ -118,7 +118,7 @@ export async function onRequestPost({request,env}){
   const attemptHash=await sha256("attempt:"+requestId);
   const roles=["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"];
   const initial={version:"1.0.2",requestId,ticker,asOf:new Date().toISOString(),status:"NO_TRADE",execution:false,automatedOrderSubmission:false,agents:roles.map(role=>({role,status:"NOT_RUN",reason:"Research launch started; awaiting provider collection."})),vetoReasons:["Research collection is in progress."],traceDurable:true};
-  await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?)").bind(requestId,attemptHash,ticker,"RUNNING",JSON.stringify(initial)).run();
+  await env.NORTHSTAR_DB.prepare("INSERT INTO research_council_runs(request_id,input_sha256,symbol,status,result_json) VALUES(?,?,?,?,?)").bind(requestId,attemptHash,ticker,"NO_TRADE",JSON.stringify(initial)).run();
   // Refresh the read-only broker snapshot before using portfolio values.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:"Bearer "+String(env?.NORTHSTAR_OPERATOR_TOKEN||""), "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
