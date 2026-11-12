@@ -4,7 +4,7 @@
  * No LLM calls, data fetching, persistence, broker access, or order execution here.
  * Every factual claim must cite supplied fact IDs.
  */
-export const COUNCIL_VERSION = "1.0.1";
+export const COUNCIL_VERSION = "1.0.2";
 export const COUNCIL_ROLES = Object.freeze({
   independent: ["market_scanner", "technical_analyst", "fundamental_analyst", "news_analyst", "sentiment_analyst"],
   debate: ["bull_researcher", "bear_researcher"],
@@ -83,24 +83,21 @@ export async function runResearchCouncil({requestId, context, workers}) {
     evidence:context.evidence, portfolio:context.portfolio};
   const independent = await Promise.all(COUNCIL_ROLES.independent.map(role =>
     invoke(role, safeWorkers[role], base, factIds)));
-  const analystReady = independent.every(x=>x.status==="COMPLETE");
-  let debate=[], synthesis=null, risk=null;
-  if (analystReady) {
-    const debatePayload={...base, analystReports:independent.map(x=>({role:x.role,report:x.report}))};
-    debate=await Promise.all(COUNCIL_ROLES.debate.map(role =>
-      invoke(role,safeWorkers[role],debatePayload,factIds)));
-    if (debate.every(x=>x.status==="COMPLETE")) {
-      synthesis=await invoke("portfolio_analyst",safeWorkers.portfolio_analyst,
-        {...debatePayload,debateReports:debate.map(x=>({role:x.role,report:x.report}))},factIds);
-      if (synthesis.status==="COMPLETE") {
-        risk=await invoke("risk_committee",safeWorkers.risk_committee,
-          {...base,analystReports:independent.map(x=>({role:x.role,report:x.report})),
-            debateReports:debate.map(x=>({role:x.role,report:x.report})),portfolioReport:synthesis.report},factIds);
-      }
-    }
+  const usableReports=independent.filter(x=>x.status==="COMPLETE").map(x=>({role:x.role,report:x.report}));
+  const debatePayload={...base,analystReports:usableReports};
+  const debate=usableReports.length
+    ? await Promise.all(COUNCIL_ROLES.debate.map(role=>invoke(role,safeWorkers[role],debatePayload,factIds)))
+    : COUNCIL_ROLES.debate.map(role=>({role,status:"NOT_RUN",reason:"No independent specialist completed with usable evidence."}));
+  let synthesis=null;
+  if(debate.length===2&&debate.every(x=>x.status==="COMPLETE")){
+    synthesis=await invoke("portfolio_analyst",safeWorkers.portfolio_analyst,
+      {...debatePayload,debateReports:debate.map(x=>({role:x.role,report:x.report}))},factIds);
   }
-  const all = [...independent,...debate,...(synthesis?[synthesis]:[]),...(risk?[risk]:[])];
+  const risk=await invoke("risk_committee",safeWorkers.risk_committee,
+    {...base,analystReports:usableReports,debateReports:debate.filter(x=>x.status==="COMPLETE").map(x=>({role:x.role,report:x.report})),portfolioReport:synthesis?.report||null},factIds);
+  const all=[...independent,...debate,...(synthesis?[synthesis]:[{role:"portfolio_analyst",status:"NOT_RUN",reason:"Debate did not produce two validated reports; portfolio synthesis skipped."}]),risk];
   const riskDecision = risk?.report?.decision;
+  const analystReady = independent.every(x=>x.status==="COMPLETE");
   const approvedForReview = analystReady && debate.length===2 &&
     debate.every(x=>x.status==="COMPLETE") && synthesis?.status==="COMPLETE" &&
     risk?.status==="COMPLETE" && riskDecision==="ACCEPT_FOR_REVIEW" &&
