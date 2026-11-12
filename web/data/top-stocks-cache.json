@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-12T09:46:08.831Z",
+  "generatedAt": "2026-11-12T18:19:18.968Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -43,7 +43,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $21.65 (Nasdaq quote API; 11/12/2026, 9:01:00 AM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.17. Estimated reward/risk from entry midpoint: 10.42:1; illustrative model gap: 0.48×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $21.34 (Nasdaq quote API; 11/12/2026, 6:18:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.17. Estimated reward/risk from entry midpoint: 10.42:1; illustrative model gap: 0.47×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "TSM",
@@ -109,7 +109,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — market/model ratio outside 0.40×–2.50× review band; price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $197.60 (Nasdaq quote API; 11/12/2026, 9:45:00 AM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — market/model ratio outside 0.40×–2.50× review band; price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $204.60 (Nasdaq quote API; 11/12/2026, 6:18:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AAPL",
@@ -142,7 +142,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $355.34 (Nasdaq quote API; 11/12/2026, 9:45:00 AM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $144.03. Estimated reward/risk from entry midpoint: 2.47:1; illustrative model gap: 1.69×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $355.55 (Finnhub; 11/12/2026, 6:18:04 PM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $144.03. Estimated reward/risk from entry midpoint: 2.47:1; illustrative model gap: 1.69×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ADI",
@@ -175,7 +175,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable. Latest provider price: $404.00 (Nasdaq quote API; 11/12/2026, 9:38:00 AM). Model entry watch zone: $148.91–$158.84; base-case reference: $198.55; risk reference: $111.49. Estimated reward/risk from entry midpoint: 1.05:1; illustrative model gap: 2.03×. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable. Latest provider price: $408.63 (Finnhub; 11/12/2026, 6:17:59 PM). Model entry watch zone: $148.91–$158.84; base-case reference: $198.55; risk reference: $111.49. Estimated reward/risk from entry midpoint: 1.05:1; illustrative model gap: 2.06×. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "V",
@@ -208,7 +208,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified; potential material-risk headline needs review. Latest provider price: $427.49 (Nasdaq quote API; 11/12/2026, 9:43:00 AM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified; potential material-risk headline needs review. Latest provider price: $424.43 (Finnhub; 11/12/2026, 6:18:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "JNJ",
@@ -241,7 +241,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $282.96 (Nasdaq quote API; 11/12/2026, 9:45:00 AM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $81.92. Estimated reward/risk from entry midpoint: 1.93:1; illustrative model gap: 2.27×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $284.51 (Finnhub; 11/12/2026, 6:17:54 PM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $81.92. Estimated reward/risk from entry midpoint: 1.93:1; illustrative model gap: 2.29×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AMGN",
@@ -274,7 +274,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $471.72 (Nasdaq quote API; 11/12/2026, 9:40:00 AM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $188.69. Estimated reward/risk from entry midpoint: 2.40:1; illustrative model gap: 1.70×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $470.11 (Nasdaq quote API; 11/12/2026, 6:18:00 PM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $188.69. Estimated reward/risk from entry midpoint: 2.40:1; illustrative model gap: 1.70×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "BLK",
@@ -307,7 +307,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — market/model ratio outside 0.40×–2.50× review band; price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $1,236.01 (Nasdaq quote API; 11/12/2026, 9:07:00 AM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — market/model ratio outside 0.40×–2.50× review band; price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $1,230.01 (Finnhub; 11/12/2026, 6:17:35 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ACGL",
@@ -340,13 +340,13 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — market/model ratio outside 0.40×–2.50× review band; price outside model watch zone; upcoming earnings date not verified. Latest provider price: $109.59 (Nasdaq quote API; 11/12/2026, 9:01:00 AM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — market/model ratio outside 0.40×–2.50× review band; price outside model watch zone; upcoming earnings date not verified. Latest provider price: $109.83 (Nasdaq quote API; 11/12/2026, 6:19:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-12T09:46:08.831Z",
-  "workflowRunId": "43193896664",
-  "sourceCommit": "5be851ea1bb976dd24d7ef9cfc94c34abff3ba29",
-  "scanDurationSeconds": 170,
+  "completedAt": "2026-11-12T18:19:18.968Z",
+  "workflowRunId": "43277312623",
+  "sourceCommit": "8211eb8b2d8394ceb5942d6d363d70570c92bef1",
+  "scanDurationSeconds": 412,
   "enrichedCount": 10
 }
