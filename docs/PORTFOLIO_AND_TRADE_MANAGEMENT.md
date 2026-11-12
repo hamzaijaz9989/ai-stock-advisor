@@ -6,9 +6,9 @@ Northstar's goal profile is a diversified USD 1,000 US-stock portfolio combining
 
 ## Current planner behavior
 
-`stock_advisor.trade_management.build_portfolio_plan` accepts a verified, timestamped portfolio snapshot and validated candidate facts when called. It is a standalone Python library with deterministic tests; it is not yet wired to the Pages dashboard or live collection route. It does not fetch or invent market data. It checks portfolio reconciliation, freshness and provenance, recommendation gates, evidence IDs, price ordering, entry conditions, invalidation conditions and at least 2:1 reward/risk from the midpoint entry to the conservative target.
+`stock_advisor.trade_management.build_portfolio_plan` accepts a verified, timestamped portfolio snapshot and validated candidate facts when called. It is a standalone Python library with deterministic tests; it is not yet wired to the Pages dashboard or live collection route. It does not fetch or invent market data. The Trading Lab now transfers only the ticker from a durable Stock Brain trace into its manual sizing console; entry and stop remain user-supplied, and the standalone allocator is still not invoked by Pages. It checks portfolio reconciliation, freshness and provenance, recommendation gates, evidence IDs, price ordering, entry conditions, invalidation conditions and at least 2:1 reward/risk from the midpoint entry to the conservative target.
 
-Default planning policy is provisional and configurable: 60% long-term sleeve, 20% short-term sleeve, 20% cash reserve, 80% maximum gross exposure, 20% per-name cap, 30% per-sector cap, 1% maximum risk per new idea and 2% maximum aggregate planned stop risk. Existing holdings consume the same sleeve, name, sector, exposure and risk budgets. Sizing includes configured commission and slippage assumptions, supports whole shares by default, and does not treat stops as guaranteed fills. Candidates are allocated equally within their sleeve; the planner does not invent or use unvalidated expected returns to rank them.
+Default planning policy is provisional and configurable: 60% long-term sleeve, 20% short-term sleeve, 20% cash reserve, 80% maximum gross exposure, 20% per-name cap, 30% per-sector cap, 0.5% maximum risk per new idea and 1% maximum aggregate planned stop risk, aligned with the Trading Lab risk console. Existing holdings consume the same sleeve, name, sector, exposure and risk budgets. Sizing includes configured commission and slippage assumptions, supports whole shares by default, and does not treat stops as guaranteed fills. Candidates are allocated equally within their sleeve; the planner does not invent or use unvalidated expected returns to rank them.
 
 Outputs are conditional `BUY SETUP — UNVALIDATED` or WAIT/AVOID/INSUFFICIENT EVIDENCE research labels. BUY activation remains disabled. Every plan hardcodes paper eligibility, automated submission and live submission to false. A plan requires human review and refreshed evidence before a manual decision.
 
@@ -27,3 +27,8 @@ Acceptance work still required: build a point-in-time multi-asset portfolio repl
 - Confirm provider account entitlements and licensed historical-data rights before data collection or backtest use.
 - Current portfolio snapshots must be sourced from an authorized read-only portfolio source and verified/reconciled at decision time.
 - Trade signals consume only validated existing Northstar evidence. Missing/stale/conflicting inputs block sizing.
+
+
+## Trading Lab handoff
+
+A durable Stock Brain result exposes a ticker-only handoff to the manual risk console. The handoff deliberately clears entry and invalidation fields; research outputs do not currently provide strategy-validated execution levels. The console counts every locally saved plan against a 1% aggregate planned-risk cap, blocks duplicate symbols, and limits the local plan list to ten. This browser-local planning guard does not reconcile manually held live positions. The dashboard does not invoke the Python multi-sleeve allocator or claim that its outputs are a validated recommendation.

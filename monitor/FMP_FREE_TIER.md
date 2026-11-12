@@ -70,3 +70,8 @@ Finnhub is configured as a Worker Secret and is confirmed in recent production q
 ## Operational verification (2026-11-12)
 
 A read-only account configuration check confirmed the Production Pages and market-monitor Worker have FMP secret names, while Pages Preview has no FMP key. The account quota and endpoint entitlements remain unverified; no `FMP_VERIFIED_DAILY_LIMIT` binding exists, so the shared runtime guard stays fail-closed. Do not infer the actual key plan from the public 250-call Free-plan page. D1 Production has migration records through 0013 and Preview through 0006. Production has only the legacy budget table, not the new event/cache tables; Preview has neither. The proposed migration is now named `0014_shared_fmp_budget.sql`, but repository source migrations 0007–0013 are absent. Reconcile the migration history before applying any migration; none was applied in this milestone. See [operations configuration check](../docs/OPERATIONS_CONFIGURATION_AUDIT_2026-11-12.md).
+
+
+## Historical strategy endpoint budget integration — 2026-11-12
+
+The Pages historical strategy endpoint must use the shared `requestFmpJson` helper and `NORTHSTAR_DB` binding, with `FMP_VERIFIED_DAILY_LIMIT` taken only from the verified connected account entitlement. It caches identical five-year EOD history requests for six hours and charges an uncached FMP attempt before sending it. Missing D1 storage or an unverified quota prevents the FMP call; the existing Yahoo fallback remains separately labeled. This endpoint integration does not change subscription entitlements or apply migrations.

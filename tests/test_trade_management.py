@@ -42,6 +42,7 @@ def test_manual_plan_sizes_diversified_sleeves_and_never_enables_execution():
     )
     assert report["status"] == "MANUAL_REVIEW_REQUIRED"
     assert report["planned_allocation_usd"] > 0
+    assert sum(item["planned_risk_usd"] for item in report["positions"]) <= 10.0
     assert report["implied_monthly_return_target_pct"] == 15.0
     assert report["target_is_forecast"] is False
     assert {item["strategy"] for item in report["positions"]} == {"long_term", "short_term"}
@@ -51,6 +52,7 @@ def test_manual_plan_sizes_diversified_sleeves_and_never_enables_execution():
         assert item["automated_order_submission"] is False
         assert item["live_order_submission"] is False
         assert item["evidence_ids"]
+        assert item["planned_risk_usd"] <= 5.0
 
 
 def test_plan_fails_closed_on_unverified_portfolio_and_bad_reward_risk():
@@ -111,3 +113,9 @@ def test_monitor_surfaces_stop_target_stale_and_thesis_alerts():
     assert stale["status"] == "PRICE_DATA_REVIEW"
     invalidated = monitor_trade(position(thesis_invalidated=True), market(101.0), as_of=AS_OF)
     assert invalidated["status"] == "EXIT_REVIEW"
+
+
+def test_risk_policy_does_not_exceed_trading_lab_limits():
+    report = build_portfolio_plan(portfolio(), [candidate("AAA", "long_term", "Health")], as_of=AS_OF)
+    assert report["policy"]["max_per_trade_risk_fraction"] == 0.005
+    assert report["policy"]["max_total_open_risk_fraction"] == 0.01

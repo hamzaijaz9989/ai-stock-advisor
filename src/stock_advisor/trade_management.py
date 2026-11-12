@@ -116,8 +116,8 @@ def build_portfolio_plan(
     max_single_name_fraction: float = 0.20,
     max_sector_fraction: float = 0.30,
     max_gross_exposure_fraction: float = 0.80,
-    max_total_open_risk_fraction: float = 0.02,
-    max_per_trade_risk_fraction: float = 0.01,
+    max_total_open_risk_fraction: float = 0.01,
+    max_per_trade_risk_fraction: float = 0.005,
     commission_bps_per_side: float = 5.0,
     slippage_bps_per_side: float = 5.0,
 ) -> dict[str, Any]:
@@ -125,8 +125,8 @@ def build_portfolio_plan(
 
     Equal budget is assigned within each sleeve; no predicted-return ranking is
     used. Default policy reserves 20% cash, caps a name at 20%, a sector at 30%,
-    gross exposure at 80%, aggregate planned stop risk at 2%, and a single idea
-    at 1%. Caps are planning constraints, not an assertion that diversification
+    gross exposure at 80%, aggregate planned stop risk at 1%, and a single idea
+    at 0.5%. Caps are planning constraints, not an assertion that diversification
     removes market risk. Stop gaps can exceed planned risk.
     """
     plan_time = _timestamp(as_of)
@@ -158,7 +158,7 @@ def build_portfolio_plan(
         any(value <= 0 for key, value in numeric_policy.items() if not key.startswith("sleeve_") and "bps" not in key) or
         sum(fractions.values()) > max_gross_exposure_fraction or
         reserve_cash_fraction + max_gross_exposure_fraction > 1.000001 or
-        max_total_open_risk_fraction > 0.02 or max_per_trade_risk_fraction > 0.02 or
+        max_total_open_risk_fraction > 0.01 or max_per_trade_risk_fraction > 0.005 or
         commission_bps_per_side + slippage_bps_per_side >= 5000):
         raise ValueError("Portfolio allocation or risk policy is invalid or exceeds the 2% risk ceiling.")
     if set(fractions) != STRATEGIES:

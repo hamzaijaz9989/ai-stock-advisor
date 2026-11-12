@@ -1,11 +1,11 @@
 import {runBlockBootstrap} from "../../lib/time-machine.js";
+import {requestFmpJson} from "../../lib/fmp-budget.js";
 const ALLOWED = /^[A-Z0-9.^=-]{1,12}$/;
 const COST_PER_SIDE = 5; // basis points; assumed cost, not broker-specific quote
 const FAST = 50;
 const SLOW = 200;
 const MAX_BARS = 1400;
 
-const FMP_BASE = "https://financialmodelingprep.com/stable";
 const HISTORY_DAYS = 5 * 366;
 
 function dateString(date) {
@@ -32,25 +32,15 @@ function normalizeRows(raw, source) {
   return rows.length>MAX_BARS?rows.slice(-MAX_BARS):rows;
 }
 
-async function fetchFmpSeries(ticker, apiKey) {
+export async function fetchFmpSeries(ticker, apiKey, {db, verifiedDailyLimit, fetchImpl=fetch, now=Date.now()}={}) {
   if(typeof apiKey !== "string" || apiKey.trim().length === 0) throw new Error("FMP_API_KEY2/FMP_API_KEY binding is unavailable. Confirm the Production secret is saved, then redeploy.");
-  const to = new Date();
+  const to = new Date(now);
   const from = new Date(to.getTime() - HISTORY_DAYS*86400000);
-  const url = new URL(FMP_BASE + "/historical-price-eod/full");
-  url.searchParams.set("symbol",ticker);
-  url.searchParams.set("from",dateString(from));
-  url.searchParams.set("to",dateString(to));
-  url.searchParams.set("apikey",apiKey);
-  const response=await fetch(url.toString(),{headers:{"Accept":"application/json"},signal:AbortSignal.timeout(15000)});
-  if(!response.ok) {
-    const detail=(await response.text()).slice(0,240);
-    throw new Error("FMP historical endpoint HTTP "+response.status+(detail?" · "+detail:""));
-  }
-  const payload=await response.json();
-  if(payload && !Array.isArray(payload)) {
-    const message=payload["Error Message"]||payload.message||payload.error;
-    if(message) throw new Error("FMP: "+String(message).slice(0,240));
-  }
+  const query=new URLSearchParams({symbol:ticker,from:dateString(from),to:dateString(to)});
+  const payload=await requestFmpJson({
+    db,service:"pages",path:"/historical-price-eod/full?"+query.toString(),apiKey,fetchImpl,now,verifiedDailyLimit,
+    cacheTtlMs:6*60*60*1000,timeoutMs:15000
+  });
   return normalizeRows(payload,"FMP");
 }
 
@@ -78,7 +68,7 @@ async function fetchYahooSeries(ticker) {
 async function fetchSeries(ticker, env) {
   const errors=[];
   try {
-    const rows=await fetchFmpSeries(ticker,(env?.FMP_API_KEY2 || env?.FMP_API_KEY));
+    const rows=await fetchFmpSeries(ticker,(env?.FMP_API_KEY2 || env?.FMP_API_KEY),{db:env?.NORTHSTAR_DB,verifiedDailyLimit:Number(env?.FMP_VERIFIED_DAILY_LIMIT)});
     return {rows,source:"Financial Modeling Prep (FMP)",adjustment:"FMP adjClose when supplied; otherwise split-adjusted close"};
   } catch(error) {
     errors.push(String(error?.message||error));

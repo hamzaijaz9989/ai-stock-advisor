@@ -4,6 +4,7 @@
   const $ = id => document.getElementById(id);
   const CAPITAL = 1000;
   const RISK_PCT_MAX = 0.5;
+  const AGGREGATE_PLANNED_RISK_PCT_MAX = 1;
   const STORAGE_KEY = "northstar-trading-lab-plans-v1";
   const money = value => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD",maximumFractionDigits:2}).format(value);
   const safeReadPlans = () => {
@@ -17,6 +18,7 @@
     catch { return false; }
   };
   const plans = safeReadPlans();
+  let latestDurableCouncilTicker = null;
   $("capital").textContent = money(CAPITAL);
   $("risk-budget").textContent = money(CAPITAL * 0.005);
   $("max-position").textContent = money(CAPITAL * 0.25);
@@ -26,7 +28,12 @@
     const entry = Number($("entry").value);
     const stop = Number($("stop").value);
     const riskPct = Number($("risk-pct").value);
-    const riskBudget = CAPITAL * Math.min(Math.max(riskPct, 0), RISK_PCT_MAX) / 100;
+    const committedPlanRisk = plans.reduce((total, plan) => {
+      const risk = Number(plan?.plannedLoss);
+      return total + (Number.isFinite(risk) && risk > 0 ? risk : 0);
+    }, 0);
+    const aggregateRiskRoom = Math.max(0, CAPITAL * AGGREGATE_PLANNED_RISK_PCT_MAX / 100 - committedPlanRisk);
+    const riskBudget = Math.min(CAPITAL * Math.min(Math.max(riskPct, 0), RISK_PCT_MAX) / 100, aggregateRiskRoom);
     const valid = /^[A-Z][A-Z0-9.-]{0,9}$/.test(symbol) &&
       Number.isFinite(entry) && Number.isFinite(stop) && entry > stop && stop > 0 &&
       Number.isFinite(riskPct) && riskPct > 0 && riskPct <= RISK_PCT_MAX;
@@ -35,9 +42,9 @@
       $("risk-result").textContent = "Enter a ticker, planned entry and invalidation price to calculate position size.";
       return null;
     }
-    if (!valid) {
+    if (!valid || riskBudget <= 0) {
       $("quantity").textContent = "NO TRADE";
-      $("risk-result").textContent = "Check the ticker, ensure entry is above the stop, and keep risk between 0.1% and 0.5% of pilot equity.";
+      $("risk-result").textContent = riskBudget <= 0 ? "No aggregate planned-risk capacity remains under the 1% ceiling. Review or remove an existing plan before sizing another." : "Check the ticker, ensure entry is above the stop, and keep risk between 0.1% and 0.5% of pilot equity.";
       return null;
     }
     const perShareRisk = entry - stop;
@@ -49,7 +56,7 @@
     $("quantity").textContent = shares ? shares + (shares === 1 ? " share" : " shares") : "NO TRADE";
     $("risk-result").textContent = shares
       ? "Position value " + money(notional) + " · planned stop risk " + money(plannedLoss) +
-        " · risk budget " + money(riskBudget) + " (" + riskPct.toFixed(1) + "% of pilot equity). Whole-share sizing; gaps can cause larger losses."
+        " · risk budget " + money(riskBudget) + " (requested up to " + money(CAPITAL * riskPct / 100) + "; remaining aggregate room " + money(aggregateRiskRoom) + "). Whole-share sizing; gaps can cause larger losses."
       : "No whole share fits both the risk budget and 25% position cap. Do not force a trade.";
     return shares ? {symbol, entry, stop, shares, notional, plannedLoss, riskBudget, riskPct} : null;
   }
@@ -89,6 +96,7 @@
           return;
         }
         renderJournal();
+        calculate();
       });
       row.append(detail, remove);
       root.appendChild(row);
@@ -99,6 +107,14 @@
   $("save-plan").addEventListener("click", () => {
     const result = calculate();
     if (!result) return;
+    if (plans.some(item => item.symbol === result.symbol)) {
+      alert("A plan for this ticker already exists. Review or remove it before creating another.");
+      return;
+    }
+    if (plans.length >= 10) {
+      alert("The local plan list is limited to ten tickers.");
+      return;
+    }
     const plan = {...result, id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)), createdAt: new Date().toISOString(), status:"PLANNED_NOT_EXECUTED"};
     plans.push(plan);
     if (!savePlans(plans)) {
@@ -107,6 +123,7 @@
       return;
     }
     renderJournal();
+    calculate();
   });
   $("reset-calc").addEventListener("click", () => {
     $("symbol").value = "";
@@ -518,6 +535,15 @@
   }
   function renderCouncilResult(payload) {
     const result=payload.result||{};
+    const durable=payload.traceDurable===true&&result.traceDurable===true&&result.trace&&typeof result.trace.ticker==="string";
+    const handoff=$("stock-brain-handoff");
+    if(handoff){
+      handoff.hidden=!durable;
+      if(durable){
+        latestDurableCouncilTicker=result.trace.ticker.toUpperCase();
+        $("stock-brain-handoff-summary").textContent="Durable Stock Brain review for "+latestDurableCouncilTicker+" · "+String(result.status||"NO_TRADE").replaceAll("_"," ")+" · "+councilTime(result.trace.asOf||payload.createdAt)+". This is research context, not an approved entry."; 
+      }
+    }
     const summary=$("stock-brain-summary");
     summary.hidden=false;
     $("stock-brain-outcome").textContent=String(result.status||"NO_TRADE").replaceAll("_"," ");
@@ -675,6 +701,17 @@
     const notes=Array.isArray(evaluation.limitations)?evaluation.limitations.slice(0,5):[];
     limitations.textContent="Scope: "+scope+". Valid references establish ID integrity, not factual truth or whether a source supports a claim. No investment performance, predictive accuracy or strategy approval is inferred. "+notes.join(" ");
   }
+  $("use-council-ticker").addEventListener("click",()=>{
+    if(!latestDurableCouncilTicker||!/^[A-Z][A-Z0-9.-]{0,9}$/.test(latestDurableCouncilTicker))return;
+    $("symbol").value=latestDurableCouncilTicker;
+    $("entry").value="";
+    $("stop").value="";
+    $("risk-pct").value="0.5";
+    calculate();
+    $("risk-calculator").scrollIntoView({behavior:"smooth",block:"start"});
+    $("entry").focus({preventScroll:true});
+  });
+
   $("run-stock-brain").addEventListener("click",async()=>{
     const button=$("run-stock-brain");
     const status=$("stock-brain-status");
@@ -687,6 +724,8 @@
     if(!token)return;
     const requestId="stockbrain-"+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+"-"+Math.random().toString(36).slice(2));
     button.disabled=true;button.textContent="Researching…";
+    latestDurableCouncilTicker=null;
+    $("stock-brain-handoff").hidden=true;
     status.textContent="Collecting server-side quote, history, fundamentals, filings, news, earnings and reconciled portfolio evidence. This may take a little while.";
     $("stock-brain-summary").hidden=true;
     $("stock-brain-agents").replaceChildren();

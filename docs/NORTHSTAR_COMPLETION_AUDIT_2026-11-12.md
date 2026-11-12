@@ -8,7 +8,7 @@
 - Production baseline: the latest recorded provider/deployment audit is in [Provider Health Audit](PROVIDER_HEALTH_AUDIT_2026-11-12.md). It verifies a finite window of FMP/Finnhub monitor data, not the Pages research endpoints or ongoing uptime.
 - Percentages estimate completed behavior against the product's stated acceptance requirements. Source code and deterministic tests count as implementation evidence. Live provider evidence counts only for the provider and time window actually observed. An unmerged PR, design document, synthetic fixture, or passing unit suite does not count as production acceptance or investment-strategy validation.
 
-## Overall completion: 69% (development-branch source and CI verified; production acceptance remains incomplete)
+## Overall completion: 69% (development-branch source and exact-head CI verified; production acceptance remains incomplete)
 
 | Workstream | Completion | Evidence and remaining gap |
 |---|---:|---|
@@ -97,3 +97,12 @@ The role percentages measure software behavior, not the quality of generated inv
 - Finnhub social-sentiment access/license and actual FMP account quota/endpoint access remain unverified. No provider integration or quota-consuming call was made.
 - The existing historical simulator remains a single-position replay. This milestone does not implement or validate multi-asset walk-forward returns. Point-in-time multi-asset data, portfolio-level replay, realistic cost/fill modeling, untouched holdout and independent review remain required before BUY activation. Paper execution remains disabled.
 - Exact-head CI run `43198904022` passed on `19c2cd089bda2dec4458be48e8c234e2074e7fc3`: 99 Python tests, 323 JavaScript tests, scheduled scanner syntax check, and Ruff; zero failures. No production deployment or migration occurred.
+
+
+## Trading Lab planning integration — 2026-11-12
+
+- Added a ticker-only handoff from a durable nine-agent Stock Brain result into the manual position-sizing console. It transfers no price, stop, target, allocation, or order instruction; entry and invalidation remain manual pending validated strategy levels.
+- The browser-local plan calculator now reserves saved planned stop risk against a 1% aggregate ceiling, rejects duplicate symbols, and limits the local plan list to ten. This is not broker-position reconciliation and does not represent verified live holdings.
+- Aligned the standalone Python portfolio allocator defaults and hard ceilings to the existing Trading Lab policy: 0.5% per idea / 1% aggregate risk. Added regression checks. BUY activation, paper execution, and production deployment remain disabled.
+- FMP strategy-backtest history now routes through the shared persistent budget/cache. It fails closed when D1 or a verified account limit is absent; the existing Yahoo fallback remains explicitly labeled.
+- Exact-head CI is pending for this update. Exact-head CI for this follow-up is pending. These changes are not production accepted or deployed until Preview and production configuration/migration review are complete.

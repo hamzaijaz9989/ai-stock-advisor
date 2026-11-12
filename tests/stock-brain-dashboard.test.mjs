@@ -12,6 +12,8 @@ test("Trading Lab exposes the Stock Brain nine-agent workspace", () => {
   assert.match(html, /id="run-stock-brain"/);
   assert.match(html, /id="stock-brain-agents"/);
   assert.match(html, /id="stock-brain-scorecard"/);
+  assert.match(html, /id="stock-brain-handoff"/);
+  assert.match(html, /Use ticker in manual sizing console/);
   assert.match(html, /9-AGENT STOCK BRAIN/);
 });
 
@@ -21,6 +23,10 @@ test("Stock Brain client uses authenticated server-side collection without persi
   assert.match(client, /body:JSON\.stringify\(\{ticker,requestId\}\)/);
   assert.match(client, /COUNCIL_DISPLAY_ROLES/);
   assert.match(client, /stock-brain-trace/);
+  assert.match(client, /AGGREGATE_PLANNED_RISK_PCT_MAX = 1/);
+  assert.match(client, /aggregateRiskRoom/);
+  assert.match(client, /latestDurableCouncilTicker=result\.trace\.ticker\.toUpperCase\(\)/);
+  assert.match(client, /No aggregate planned-risk capacity remains/);
   assert.match(client, /payload\.traceDurable===true&&result\.traceDurable===true/);
   assert.match(client, /parseStockBrainResponse\(response\)/);
   assert.match(client, /renderCouncilEvaluation\(result\.evaluation,result\.agents,coverage,newsQuality\)/);
