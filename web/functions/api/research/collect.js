@@ -57,24 +57,27 @@ async function secFacts(ticker,collectionStartedAt){
  out.sort((a,b)=>b.filed.localeCompare(a.filed));
  return {cik,observations:out.slice(0,250)};
 }
-async function portfolioSnapshot(env){
+async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
- if(!db||!key||!secret)throw new Error("Paper ledger or Alpaca Paper credentials are unavailable.");
+ if(!db||!key||!secret||syncData?.ok!==true||syncData?.synced!==true||syncData?.execution!==false||!syncData?.broker)throw new Error("A successful read-only Alpaca Paper sync is required.");
  const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd FROM execution_control WHERE id=1").first();
  if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==1000)throw new Error("Paper execution controls are not in the required disabled/kill-switched $1,000 configuration.");
- const headers={"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,Accept:"application/json"};
- const get=async path=>{const r=await fetch("https://paper-api.alpaca.markets"+path,{headers,signal:AbortSignal.timeout(9000)});if(!r.ok)throw new Error("Alpaca Paper read failed (HTTP "+r.status+").");return r.json();};
- const [account,brokerPositions,brokerOrders,ledgerRows,snapshotRows]=await Promise.all([
-  get("/v2/account"),get("/v2/positions"),get("/v2/orders?status=open&limit=500&direction=desc"),
+ const broker=syncData.broker;
+ const ordersResponse=await fetch("https://paper-api.alpaca.markets/v2/orders?status=open&limit=500&direction=desc",{
+  headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,Accept:"application/json"},
+  signal:AbortSignal.timeout(7000)
+ });
+ if(!ordersResponse.ok)throw new Error("Alpaca Paper open-order read failed (HTTP "+ordersResponse.status+").");
+ const brokerOrders=await ordersResponse.json();
+ const [ledgerRows,snapshotRows]=await Promise.all([
   db.prepare("SELECT symbol,qty,avg_entry_price FROM paper_positions ORDER BY symbol").all(),
   db.prepare("SELECT captured_at,equity_usd FROM paper_equity_snapshots ORDER BY captured_at DESC LIMIT 1000").all()
  ]);
- if(account?.status!=="ACTIVE"||account.trading_blocked||account.account_blocked||!Array.isArray(brokerPositions)||!Array.isArray(brokerOrders))throw new Error("Alpaca Paper account is not active or returned incomplete positions/orders.");
- if(brokerOrders.length)throw new Error("Open broker orders exist; reconcile them before research sizing.");
+ if(broker.status!=="ACTIVE"||!Array.isArray(broker.positions)||!Array.isArray(brokerOrders)||brokerOrders.length)throw new Error("Alpaca Paper account is not active, has open orders, or returned incomplete broker data.");
  const normalize=rows=>rows.map(p=>({symbol:String(p.symbol||"").toUpperCase(),qty:finite(p.qty),avg:finite(p.avg_entry_price)})).sort((a,b)=>a.symbol.localeCompare(b.symbol));
- const bp=normalize(brokerPositions),lp=normalize(ledgerRows?.results||[]);
+ const bp=normalize(broker.positions),lp=normalize(ledgerRows?.results||[]);
  if(bp.length!==lp.length||bp.some((p,i)=>p.symbol!==lp[i]?.symbol||p.qty===null||p.avg===null||Math.abs(p.qty-lp[i].qty)>1e-6||Math.abs(p.avg-lp[i].avg)>0.01))throw new Error("Broker positions and the Northstar ledger do not reconcile.");
- const equity=finite(account.equity),lastEquity=finite(account.last_equity);
+ const equity=finite(broker.equity),lastEquity=finite(broker.lastEquity);
  if(equity===null||equity<=0||lastEquity===null||lastEquity<=0)throw new Error("Broker equity snapshot is incomplete.");
  const snapshots=snapshotRows?.results||[];
  const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:1000});
@@ -85,10 +88,8 @@ async function portfolioSnapshot(env){
  const weeklyBase=snapshots.find(x=>Date.parse(x.captured_at)<=now-7*86400000);
  const weeklyEquity=finite(weeklyBase?.equity_usd);
  const weeklyLossFraction=weeklyEquity!==null&&weeklyEquity>0?Math.max(0,(weeklyEquity-equity)/weeklyEquity):null;
- const grossExposureUsd=bp.reduce((sum,p)=>sum+Math.abs(finite(p.market_value)||0),0);
- // Existing broker holdings are valid research context, not a reason to suppress all agents.
- // Unknown stop-based risk and missing weekly history are passed as unknown (null), never zero.
- return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:new Date().toISOString(),
+ const grossExposureUsd=broker.positions.reduce((sum,p)=>sum+Math.abs(finite(p.market_value)||0),0);
+ return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:syncData.capturedAt||new Date().toISOString(),
   equityUsd:1000,openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
   sectorExposureUsd:null,concurrentPositions:bp.length};
 }
@@ -122,7 +123,9 @@ export async function onRequestPost({request,env}){
   // Refresh the read-only broker snapshot before using portfolio values.
   const syncResponse=await syncPaperAccount({request:new Request(origin+"/api/paper/sync",{method:"POST",headers:{Authorization:"Bearer "+String(env?.NORTHSTAR_OPERATOR_TOKEN||""), "X-Request-ID":requestId}}),env});
   if(!syncResponse.ok)throw new Error("Read-only Alpaca Paper sync failed; research collection is blocked.");
-  const portfolio=await portfolioSnapshot(env);
+  const syncData=await syncResponse.json();
+  if(syncData?.ok!==true||syncData?.synced!==true)throw new Error("Read-only Alpaca Paper sync returned an incomplete result.");
+  const portfolio=await portfolioSnapshot(env,syncData);
   // Record the collection start for date-bounded provider requests. The final as-of
   // timestamp is set after all providers return, so a fresh quote retrieved during
   // collection is not incorrectly marked as occurring after the research snapshot.
