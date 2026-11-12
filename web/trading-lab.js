@@ -588,7 +588,7 @@
       const complete=agents.filter(x=>x.status==="COMPLETE").length;
       if(status)status.textContent="NVDA run saved · "+complete+"/9 roles complete · "+String(data.result?.status||"NO_TRADE").replaceAll("_"," ");
       await loadResearchCouncil();
-    }catch(error){if(status)status.textContent="NVDA research run failed · "+(error?.message||"unknown error");await loadResearchCouncil();}
+    }catch(error){const message="NVDA research run failed · "+(error?.message||"unknown error");await loadResearchCouncil();if(status)status.textContent=message;}
     finally{button.disabled=false;button.textContent="Run NVDA research";}
   });
   loadResearchCouncil();
