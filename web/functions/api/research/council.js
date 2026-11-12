@@ -49,17 +49,18 @@ export async function onRequestPost({request,env}){
     const existing=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(body.requestId).first();
     if(existing){
       if(existing.input_sha256!==hash)return respond({ok:false,error:"requestId already used for a different context."},409);
-      return respond({ok:true,replayed:true,traceDurable:true,createdAt:existing.created_at,result:JSON.parse(existing.result_json),execution:false,automatedOrderSubmission:false});
+      return respond({ok:true,replayed:true,traceDurable:true,createdAt:existing.created_at,result:{...JSON.parse(existing.result_json),traceDurable:true},execution:false,automatedOrderSubmission:false});
     }
     const workers=await createResearchCouncilWorkers(env);
     const result=await runResearchCouncil({requestId:body.requestId,context,workers});
     const symbol=String(context.ticker||"UNKNOWN").trim().toUpperCase().slice(0,12);
+    const durableResult={...result,traceDurable:true};
     const write=await env.NORTHSTAR_DB.prepare(
       "INSERT INTO research_council_runs (request_id,input_sha256,symbol,status,result_json) VALUES (?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING"
-    ).bind(body.requestId,hash,symbol,result.status,JSON.stringify(result)).run();
+    ).bind(body.requestId,hash,symbol,result.status,JSON.stringify(durableResult)).run();
     const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(body.requestId).first();
     if(!stored)return respond({ok:false,error:"Council audit write could not be confirmed.",traceDurable:false,execution:false},503);
     if(stored.input_sha256!==hash)return respond({ok:false,error:"requestId was concurrently used for another context.",traceDurable:true},409);
-    return respond({ok:true,replayed:!(Number(write?.meta?.changes)>0),traceDurable:true,createdAt:stored.created_at,result:JSON.parse(stored.result_json),execution:false,automatedOrderSubmission:false});
+    return respond({ok:true,replayed:!(Number(write?.meta?.changes)>0),traceDurable:true,createdAt:stored.created_at,result:{...JSON.parse(stored.result_json),traceDurable:true},execution:false,automatedOrderSubmission:false});
   }catch{return respond({ok:false,error:"Council run failed safely; no order action was taken.",traceDurable:false,execution:false},503);}
 }
