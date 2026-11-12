@@ -124,6 +124,38 @@ export async function onRequestGet({ request, env }) {
       }, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
     } catch (error) { failures.push("Finnhub: " + String(error?.message || error)); }
   }
+  // Alpaca market-data fallback. The Paper Trading API credentials are also
+  // valid for the account's entitled market-data feed; request IEX explicitly
+  // so a free/basic subscription is not incorrectly assumed to include SIP.
+  if (typeof env !== "undefined" && env.ALPACA_API_KEY_ID && env.ALPACA_API_SECRET_KEY) {
+    const headers = {
+      "APCA-API-KEY-ID": env.ALPACA_API_KEY_ID,
+      "APCA-API-SECRET-KEY": env.ALPACA_API_SECRET_KEY,
+      "Accept": "application/json"
+    };
+    try {
+      const response = await fetch("https://data.alpaca.markets/v2/stocks/" + encodeURIComponent(ticker) + "/trades/latest?feed=iex", {
+        headers, signal: AbortSignal.timeout(7000)
+      });
+      if (!response.ok) throw new Error("Alpaca latest trade returned HTTP " + response.status);
+      const raw = await response.json();
+      const trade = raw?.trade;
+      const price = Number(trade?.p);
+      const timestamp = Date.parse(trade?.t || "");
+      if (!(Number.isFinite(price) && price > 0 && Number.isFinite(timestamp) && timestamp > 0)) {
+        throw new Error("Alpaca IEX returned no timestamped latest trade");
+      }
+      return Response.json({
+        ticker, companyName: ticker, currency: "USD", exchange: "US",
+        price, previousClose: null, change: null, changePercent: null,
+        quoteTime: new Date(timestamp).toISOString(), fetchedAt: new Date().toISOString(),
+        marketState: "unknown",
+        delayedOrRealtime: "Alpaca IEX latest trade; feed entitlement and delay are account-dependent",
+        source: "Alpaca IEX market data", interval: "latest trade",
+        warning: "Alpaca IEX trade timestamp supplied by provider. This is not a guaranteed consolidated SIP quote; verify price and feed entitlement with your broker."
+      }, {headers: {"Cache-Control": "public, max-age=10", "X-Content-Type-Options": "nosniff"}});
+    } catch (error) { failures.push("Alpaca IEX: " + String(error?.message || error)); }
+  }
   if (typeof env !== "undefined" && env.FMP_API_KEY) {
     try {
       const response = await fetch("https://financialmodelingprep.com/stable/quote?symbol=" + encodeURIComponent(ticker) + "&apikey=" + encodeURIComponent(env.FMP_API_KEY), {
