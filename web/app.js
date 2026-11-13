@@ -1177,7 +1177,7 @@ function renderEarnings(payload) {
     root.textContent=payload?.error||"Could not verify the upcoming earnings calendar. Treat the event date as unknown.";
     return;
   }
-  const now=new Date().toISOString().slice(0,25);
+  const now=new Date().toISOString().slice(0,10);
   const events=payload.events.filter(event=>event.reportDate>=now).sort((a,b)=>a.reportDate.localeCompare(b.reportDate));
   $("earnings-status").textContent=events.length?(payload.verified?"Event found":"Event found · coverage incomplete"):"Date unconfirmed";
   if(events.length) {
