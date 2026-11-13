@@ -11,21 +11,21 @@ function fixture(overrides = {}) {
   return {
     schemaVersion: 1, status: "success",
     generatedAt: new Date(now).toISOString(), completedAt: new Date(now).toISOString(),
-    universeSize: 253, rankedCount: 2, excludedCount: 251,
+    universeSize: 200, rankedCount: 2, excludedCount: 198,
     enrichedCount: 2, workflowRunId: "12345", sourceCommit: "a".repeat(40),
     scanDurationSeconds: 720, stocks,
     ...overrides
   };
 }
 
-test("accepts a complete fresh 253-symbol scan cache", () => {
+test("accepts a complete fresh 200-symbol scan cache", () => {
   const result = validateStockCache(fixture(), now);
   assert.equal(result.ok, true);
   assert.deepEqual(result.errors, []);
   assert.equal(result.summary.enrichedCount, 2);
 });
 
-test("rejects incomplete top-ten enrichment", () => {
+test("rejects incomplete top-25 enrichment", () => {
   const data = fixture();
   data.stocks[0].entryStatus = "Checking latest quote and valuation inputs…";
   const result = validateStockCache(data, now);
@@ -34,8 +34,8 @@ test("rejects incomplete top-ten enrichment", () => {
 });
 
 test("rejects incomplete universe accounting", () => {
-  const result = validateStockCache(fixture({ excludedCount: 250 }), now);
-  assert.ok(result.errors.some(error => error.includes("must equal 253")));
+  const result = validateStockCache(fixture({ excludedCount: 197 }), now);
+  assert.ok(result.errors.some(error => error.includes("must equal 200")));
 });
 
 test("rejects stale cache timestamps", () => {
