@@ -8,7 +8,7 @@ export function validateStockCache(data, nowMs = Date.now(), maxAgeMs = 30 * 60 
   const completed = Date.parse(data?.completedAt || "");
   if (data?.schemaVersion !== 1) errors.push("schemaVersion must equal 1");
   if (data?.status !== "success") errors.push("status must equal success");
-  if (data?.universeSize !== 253) errors.push("universeSize must equal 253");
+  if (data?.universeSize !== 200) errors.push("universeSize must equal 200");
   if (!Number.isFinite(generated)) errors.push("generatedAt must be a valid timestamp");
   else if (generated > nowMs + 5 * 60 * 1000 || nowMs - generated > maxAgeMs) errors.push("generatedAt is outside the allowed freshness window");
   if (!Number.isFinite(completed) || completed !== generated) errors.push("completedAt must match generatedAt");
@@ -20,7 +20,7 @@ export function validateStockCache(data, nowMs = Date.now(), maxAgeMs = 30 * 60 
   if (!Array.isArray(data?.stocks)) errors.push("stocks must be an array");
   const stocks = Array.isArray(data?.stocks) ? data.stocks : [];
   const expectedCount = Number.isInteger(data?.rankedCount) ? Math.min(10, data.rankedCount) : -1;
-  if (stocks.length !== expectedCount) errors.push("stocks length must equal min(10, rankedCount)");
+  if (stocks.length !== expectedCount) errors.push("stocks length must equal min(25, rankedCount)");
   if (data?.enrichedCount !== stocks.length) errors.push("enrichedCount must equal stocks length");
   if (typeof data?.workflowRunId !== "string" || !data.workflowRunId) errors.push("workflowRunId is required");
   if (typeof data?.sourceCommit !== "string" || !/^[a-f0-9]{40}$/i.test(data.sourceCommit)) errors.push("sourceCommit must be a Git commit SHA");
