@@ -11,7 +11,7 @@ on:
       - "web/research.html"
       - "monitor/worker.js"
   schedule:
-    - cron: "7 * * * *"
+    - cron: "7 */3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -37,7 +37,7 @@ jobs:
           npm init -y
           npm install --no-save playwright
           npx playwright install --with-deps chromium
-      - name: Scan the live 253-stock universe and save top ten
+      - name: Scan the live 200-stock universe and save top 25
         timeout-minutes: 15
         run: node .github/scripts/refresh-stock-cache.mjs
       - name: Validate scan completeness, enrichment and cache freshness
@@ -48,7 +48,7 @@ jobs:
           import fs from "node:fs";
           const data = JSON.parse(fs.readFileSync("web/data/top-stocks-cache.json", "utf8"));
           const lines = [
-            "# Northstar 253-stock research scan",
+            "# Northstar 200-stock research scan",
             "",
             "- Completed: " + data.completedAt,
             "- Workflow run: " + data.workflowRunId,
@@ -57,7 +57,7 @@ jobs:
             "- Universe: " + data.universeSize,
             "- Ranked: " + data.rankedCount,
             "- Excluded: " + data.excludedCount,
-            "- Top-ten enrichment completed: " + data.enrichedCount + "/" + data.stocks.length,
+            "- Top-25 enrichment completed: " + data.enrichedCount + "/" + data.stocks.length,
             "",
             "## Research shortlist",
             "",

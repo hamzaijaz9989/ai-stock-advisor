@@ -13,10 +13,10 @@ try {
   await page.locator("#run-live-screen").evaluate(button => button.click());
   await page.waitForFunction(() => {
     const status = document.querySelector("#screen-status")?.textContent || "";
-    const completed = /^(\d+) ranked · (\d+) excluded from 253$/.exec(status.trim());
+    const completed = /^(\d+) ranked · (\d+) excluded from 200$/.exec(status.trim());
     if (!completed) return false;
     const ranked = Number(completed[1]);
-    const expected = Math.min(10, ranked);
+    const expected = Math.min(25, ranked);
     const cards = [...document.querySelectorAll("#screen-results .screen-card:not(.screen-best-pick)")];
     const plans = cards.slice(0, expected).map(card => card.querySelector(".candidate-plan"));
     return ranked > 0 &&
@@ -29,14 +29,14 @@ try {
       );
   }, null, { timeout: 12 * 60 * 1000 });
   const scanStatus = await page.locator("#screen-status").textContent();
-  const completed = /^(\d+) ranked · (\d+) excluded from 253$/.exec((scanStatus || "").trim());
-  if (!completed) throw new Error("The 253-symbol scan did not finish cleanly; preserving the previous cache. Status: " + (scanStatus || "unavailable"));
+  const completed = /^(\d+) ranked · (\d+) excluded from 200$/.exec((scanStatus || "").trim());
+  if (!completed) throw new Error("The 200-symbol scan did not finish cleanly; preserving the previous cache. Status: " + (scanStatus || "unavailable"));
   const rankedCount = Number(completed[1]);
   const excludedCount = Number(completed[2]);
-  if (rankedCount + excludedCount !== 253) throw new Error("Universe accounting mismatch: " + rankedCount + " ranked + " + excludedCount + " excluded. Preserving previous cache.");
+  if (rankedCount + excludedCount !== 200) throw new Error("Universe accounting mismatch: " + rankedCount + " ranked + " + excludedCount + " excluded. Preserving previous cache.");
 
   const result = await page.evaluate(() => {
-    const cards = [...document.querySelectorAll("#screen-results .screen-card:not(.screen-best-pick)")].slice(0,10).map(card => {
+    const cards = [...document.querySelectorAll("#screen-results .screen-card:not(.screen-best-pick)")].slice(0,25).map(card => {
       const title = card.querySelector(".screen-card-header strong")?.textContent || "";
       const match = title.match(/^\d+\.\s+([A-Z0-9.^=-]+)\s+·\s+(.*)$/);
       const scoreText = card.querySelector(".screen-score")?.textContent || "";
@@ -70,9 +70,9 @@ try {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
       refreshIntervalHours: 3,
-      source: "Northstar AI scheduled live 253-stock screen",
+      source: "Northstar AI scheduled live 200-stock screen",
       fundamentalFreshnessPolicy: { maxAnnualPeriodAgeDays: 548, staleOrUnknownEntryBlocked: true },
-      universeSize: 253,
+      universeSize: 200,
       rankedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/^(\d+) ranked/)?.[1]) || cards.length,
       excludedCount: Number((document.querySelector("#screen-status")?.textContent || "").match(/· (\d+) excluded/)?.[1]) || null,
       status: cards.length ? "success" : "no_qualified_candidates",
@@ -82,8 +82,8 @@ try {
   });
   if (!result.stocks.length) throw new Error("Screen completed but no stock cards could be extracted; refusing to overwrite the previous cache.");
   if (result.rankedCount !== rankedCount || result.excludedCount !== excludedCount) throw new Error("Cached result counts do not match the completed scan status; refusing to overwrite the previous cache.");
-  if (result.stocks.length !== Math.min(10, rankedCount)) throw new Error("Expected " + Math.min(10, rankedCount) + " shortlist cards but extracted " + result.stocks.length + "; refusing to overwrite the previous cache.");
-  if (result.stocks.length > 10) throw new Error("Shortlist exceeded the ten-candidate cache limit; refusing to overwrite the previous cache.");
+  if (result.stocks.length !== Math.min(25, rankedCount)) throw new Error("Expected " + Math.min(25, rankedCount) + " shortlist cards but extracted " + result.stocks.length + "; refusing to overwrite the previous cache.");
+  if (result.stocks.length > 25) throw new Error("Shortlist exceeded the 25-candidate cache limit; refusing to overwrite the previous cache.");
   if (result.stocks.some(stock => typeof stock.entryReady !== "boolean" || !stock.entryStatus || /Checking latest quote and valuation inputs/i.test(stock.entryStatus))) {
     throw new Error("At least one cached candidate has incomplete enrichment; preserving the previous cache.");
   }
