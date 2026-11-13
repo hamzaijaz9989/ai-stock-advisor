@@ -18,7 +18,10 @@ function summarize(row){
   symbol:/^[A-Z][A-Z0-9.-]{0,11}$/.test(String(row.symbol||"").toUpperCase())?String(row.symbol).toUpperCase():"UNKNOWN",
   status:allowedRunStatus.has(result?.status)?result.status:"TRACE_UNAVAILABLE",
   createdAt:typeof row.created_at==="string"?row.created_at:null,
-  agents:AGENT_ROLES.map(role=>{const agent=(Array.isArray(result?.agents)?result.agents:[]).find(x=>x?.role===role);const t=agent?.telemetry&&typeof agent.telemetry==="object"?agent.telemetry:null;return {role,status:byRole.get(role)||"NOT_RUN",latencyMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,provider:typeof t?.provider==="string"?t.provider:null,model:typeof t?.model==="string"?t.model:null,failed:t?.failed===true,unavailable:t?.unavailable===true,inputTokens:Number.isSafeInteger(t?.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t?.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t?.totalTokens)?t.totalTokens:null}})
+  agents:AGENT_ROLES.map(role=>{const agent=(Array.isArray(result?.agents)?result.agents:[]).find(x=>x?.role===role);const t=agent?.telemetry&&typeof agent.telemetry==="object"?agent.telemetry:null;return {role,status:byRole.get(role)||"NOT_RUN",reason:typeof agent?.reason==="string"?agent.reason.slice(0,240):null,latencyMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,provider:typeof t?.provider==="string"?t.provider:null,model:typeof t?.model==="string"?t.model:null,failed:t?.failed===true,unavailable:t?.unavailable===true,inputTokens:Number.isSafeInteger(t?.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t?.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t?.totalTokens)?t.totalTokens:null}}),
+  failureReason:Array.isArray(result?.vetoReasons)?result.vetoReasons.find(x=>typeof x==="string")?.slice(0,240)||null:null,
+  vetoReasons:Array.isArray(result?.vetoReasons)?result.vetoReasons.filter(x=>typeof x==="string").slice(0,5).map(x=>x.slice(0,240)):[],
+  summary:result?.summary&&typeof result.summary==="object"?{complete:Number(result.summary.complete)||0,unavailable:Number(result.summary.unavailable)||0,blocked:Number(result.summary.blocked)||0,notRun:Number(result.summary.notRun)||0}:null)
  };
 }
 export async function onRequestGet({request,env}){
