@@ -769,7 +769,8 @@ function assessResearchQuoteEligibility(quote, nowMs=Date.now()) {
 
 async function enrichTopCandidates(results) {
   const candidates=[...results].sort((a,b)=>b.score-a.score).slice(0,25);
-  await Promise.all(candidates.map(async item=>{
+  for(let i=0;i<candidates.length;i+=3){
+   await Promise.all(candidates.slice(i,i+3).map(async item=>{
     const plan=[...document.querySelectorAll(".candidate-plan")].find(node=>node.dataset.ticker===item.ticker);
     if(!plan) return;
     const status=plan.querySelector("p");
@@ -842,7 +843,8 @@ async function enrichTopCandidates(results) {
       plan.dataset.reason="required live data check failed";
       status.textContent="NOT ENTRY-READY — could not verify all current inputs ("+(error?.message||"provider error")+"). Entry, target and risk levels withheld.";
     }
-  }));
+   }));
+  }
   const bestPick=document.getElementById("screen-best-pick");
   if(bestPick) {
     const readyPlans=[...document.querySelectorAll(".candidate-plan[data-ready='true']")]
