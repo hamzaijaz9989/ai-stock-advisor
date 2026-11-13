@@ -30,7 +30,7 @@ try {
   }, null, { timeout: 12 * 60 * 1000 });
   const scanStatus = await page.locator("#screen-status").textContent();
   const completed = /^(\d+) ranked · (\d+) excluded from 200$/.exec((scanStatus || "").trim());
-  if (!completed) throw new Error("The 253-symbol scan did not finish cleanly; preserving the previous cache. Status: " + (scanStatus || "unavailable"));
+  if (!completed) throw new Error("The 200-symbol scan did not finish cleanly; preserving the previous cache. Status: " + (scanStatus || "unavailable"));
   const rankedCount = Number(completed[1]);
   const excludedCount = Number(completed[2]);
   if (rankedCount + excludedCount !== 200) throw new Error("Universe accounting mismatch: " + rankedCount + " ranked + " + excludedCount + " excluded. Preserving previous cache.");
