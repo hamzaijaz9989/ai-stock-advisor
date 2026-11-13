@@ -2,6 +2,7 @@
 // This route deliberately bypasses portfolio sync, debate, risk committee and all broker APIs.
 import {onRequestGet as getQuote} from "../quote.js";
 import {runMarketScanner,runTechnicalAnalyst} from "../../../lib/research-specialist-agents.js";
+import {runNorthstarAgentGraph} from "../../../lib/research-agent-orchestrator.js";
 
 const ROLES=["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"];
 const H={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
@@ -72,25 +73,18 @@ export async function onRequestPost({request,env}){
    facts.push({id,type:"DAILY_OHLCV_HISTORY",source:h.source,observedAt:h.fetchedAt,asOf,value:{interval:"1d",currency:"USD",startDate:h.rows[0].date,endDate:h.rows.at(-1).date,observationCount:h.rows.length,dataQuality:h.dataQuality,rows:h.rows}});
   }
   const context={ticker,asOf,facts,evidence:[]};
-  const roles=[["market_scanner",runMarketScanner],["technical_analyst",runTechnicalAnalyst]];
-  const result={...initial,agents:initial.agents.map(x=>({...x}))};
-  await persist(result);
-  for(const [role,worker] of roles){
-   const started=Date.now();
-   try{
-    const report=validateReport(worker(context),ids);
-    const agent={role,status:report.status,reason:report.reason||null,findings:report.findings,risks:report.risks,durationMs:Date.now()-started,telemetry:{provider:"deterministic",model:"northstar-"+role+"-v1",failed:false,unavailable:report.status==="UNAVAILABLE"}};
-    result.agents=result.agents.map(x=>x.role===role?agent:x);
-    result.reports=result.reports.filter(x=>x.role!==role).concat([{role,report}]);
-   }catch(error){
-    result.agents=result.agents.map(x=>x.role===role?{role,status:"BLOCKED",reason:String(error?.message||"Agent validation failed.").slice(0,250),findings:[],risks:[],durationMs:Date.now()-started}:x);
-   }
-   await persist(result);
-  }
+  const graph=await runNorthstarAgentGraph({
+   handlers:{market_scanner:runMarketScanner,technical_analyst:runTechnicalAnalyst},
+   enabledRoles:["market_scanner","technical_analyst"],
+   context,
+   validate:report=>validateReport(report,ids)
+  });
+  result.agents=graph.agents;
+  result.reports=graph.reports;
   result.completedAt=new Date().toISOString();
   result.asOf=result.completedAt;
   result.collection={quote:quoteResult.status==="fulfilled"?{source:quoteResult.value.source||null,quoteTime:quoteResult.value.quoteTime||null}: {error:String(quoteResult.reason?.message||"Quote unavailable").slice(0,180)},history:historyResult.status==="fulfilled"?{source:historyResult.value.source,bars:historyResult.value.rows.length,from:historyResult.value.rows[0]?.date||null,to:historyResult.value.rows.at(-1)?.date||null}:{error:String(historyResult.reason?.message||"History unavailable").slice(0,180)}};
-  result.summary={completed:result.agents.filter(x=>["market_scanner","technical_analyst"].includes(x.role)&&x.status==="COMPLETE").length,unavailable:result.agents.filter(x=>["market_scanner","technical_analyst"].includes(x.role)&&x.status==="UNAVAILABLE").length,blocked:result.agents.filter(x=>["market_scanner","technical_analyst"].includes(x.role)&&x.status==="BLOCKED").length};
+  result.summary={completed:graph.summary.complete,unavailable:graph.summary.unavailable,blocked:graph.summary.blocked,notRun:graph.summary.notRun};
   result.warning="Partial research only; remaining seven agents were not run. No portfolio risk approval, BUY/SELL recommendation, order or trading permission is implied.";
   await persist(result);
   const stored=await db.prepare("SELECT result_json,created_at FROM research_council_runs WHERE request_id=? AND symbol=?").bind(requestId,ticker).first();
