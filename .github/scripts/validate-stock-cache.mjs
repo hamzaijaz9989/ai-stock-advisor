@@ -14,12 +14,12 @@ export function validateStockCache(data, nowMs = Date.now(), maxAgeMs = 30 * 60 
   if (!Number.isFinite(completed) || completed !== generated) errors.push("completedAt must match generatedAt");
   if (!Number.isInteger(data?.rankedCount) || data.rankedCount < 1) errors.push("rankedCount must be a positive integer");
   if (!Number.isInteger(data?.excludedCount) || data.excludedCount < 0) errors.push("excludedCount must be a non-negative integer");
-  if (Number.isInteger(data?.rankedCount) && Number.isInteger(data?.excludedCount) && data.rankedCount + data.excludedCount !== 253) {
+  if (Number.isInteger(data?.rankedCount) && Number.isInteger(data?.excludedCount) && data.rankedCount + data.excludedCount !== 200) {
     errors.push("rankedCount + excludedCount must equal 200");
   }
   if (!Array.isArray(data?.stocks)) errors.push("stocks must be an array");
   const stocks = Array.isArray(data?.stocks) ? data.stocks : [];
-  const expectedCount = Number.isInteger(data?.rankedCount) ? Math.min(10, data.rankedCount) : -1;
+  const expectedCount = Number.isInteger(data?.rankedCount) ? Math.min(25, data.rankedCount) : -1;
   if (stocks.length !== expectedCount) errors.push("stocks length must equal min(25, rankedCount)");
   if (data?.enrichedCount !== stocks.length) errors.push("enrichedCount must equal stocks length");
   if (typeof data?.workflowRunId !== "string" || !data.workflowRunId) errors.push("workflowRunId is required");
