@@ -61,7 +61,7 @@ async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
  if(!db||!key||!secret||syncData?.ok!==true||syncData?.synced!==true||syncData?.execution!==false||!syncData?.broker)throw new Error("A successful read-only Alpaca Paper sync is required.");
  const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd FROM execution_control WHERE id=1").first();
- if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==1000)throw new Error("Paper execution controls are not in the required disabled/kill-switched $1,000 configuration.");
+ if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==2500)throw new Error("Paper execution controls are not in the required disabled/kill-switched $2,500 configuration.");
  const broker=syncData.broker;
  const ordersResponse=await fetch("https://paper-api.alpaca.markets/v2/orders?status=open&limit=500&direction=desc",{
   headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,Accept:"application/json"},
@@ -80,18 +80,50 @@ async function portfolioSnapshot(env,syncData){
  const equity=finite(broker.equity),lastEquity=finite(broker.lastEquity);
  if(equity===null||equity<=0||lastEquity===null||lastEquity<=0)throw new Error("Broker equity snapshot is incomplete.");
  const snapshots=snapshotRows?.results||[];
- const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:1000});
+ const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:2500});
  const now=Date.now(),latest=snapshots[0],latestMs=Date.parse(latest?.captured_at||"");
  if(!Number.isFinite(latestMs)||now-latestMs>15*60*1000||latestMs>now+30000)throw new Error("Latest reconciled equity snapshot is stale or future-dated; run read-only account sync.");
- const dailyLossFraction=history?.ok&&Number.isFinite(history.dailyLossUsd)?history.dailyLossUsd/1000:null;
- const drawdownFraction=history?.ok&&Number.isFinite(history.maxDrawdownUsd)?history.maxDrawdownUsd/1000:null;
+ const dailyLossFraction=history?.ok&&Number.isFinite(history.dailyLossUsd)?history.dailyLossUsd/2500:null;
+ const drawdownFraction=history?.ok&&Number.isFinite(history.maxDrawdownUsd)?history.maxDrawdownUsd/2500:null;
  const weeklyBase=snapshots.find(x=>Date.parse(x.captured_at)<=now-7*86400000);
  const weeklyEquity=finite(weeklyBase?.equity_usd);
  const weeklyLossFraction=weeklyEquity!==null&&weeklyEquity>0?Math.max(0,(weeklyEquity-equity)/weeklyEquity):null;
  const grossExposureUsd=broker.positions.reduce((sum,p)=>sum+Math.abs(finite(p.market_value)||0),0);
  return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:syncData.capturedAt||new Date().toISOString(),
-  equityUsd:1000,openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
+  equityUsd:2500,openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
   sectorExposureUsd:null,concurrentPositions:bp.length};
+}
+async function loadDailyHistory(ticker,origin,env,asOfDate){
+ let fmp=null,fmpError=null;
+ try{
+  fmp=await endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+asOfDate,env);
+ }catch(error){fmpError=String(error?.message||"FMP history unavailable").slice(0,180);}
+ const valid=row=>row&&typeof row.date==="string"&&
+  ["open","high","low","close","volume"].every(k=>Number.isFinite(Number(row[k])))&&
+  Number(row.open)>0&&Number(row.low)>0&&Number(row.high)>=Math.max(Number(row.open),Number(row.close),Number(row.low))&&
+  Number(row.low)<=Math.min(Number(row.open),Number(row.close));
+ const fmpRows=Array.isArray(fmp?.prices)?fmp.prices.filter(valid):[];
+ if(fmpRows.length>=60)return {...fmp,prices:fmpRows,historySource:"FMP"};
+ let yahooError=null;
+ try{
+  const url="https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(ticker)+"?range=5y&interval=1d";
+  const response=await fetch(url,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(10000)});
+  if(!response.ok)throw new Error("Yahoo history HTTP "+response.status);
+  const raw=await response.json(),result=raw?.chart?.result?.[0];
+  if(!result)throw new Error("Yahoo returned no chart result");
+  const quote=result.indicators?.quote?.[0]||{},timestamps=result.timestamp||[];
+  const rows=[];
+  for(let i=0;i<timestamps.length;i++){
+   const row={date:new Date(timestamps[i]*1000).toISOString().slice(0,10),open:quote.open?.[i],high:quote.high?.[i],low:quote.low?.[i],close:quote.close?.[i],volume:quote.volume?.[i]};
+   if(valid(row))rows.push(row);
+  }
+  if(rows.length<60)throw new Error("Yahoo returned only "+rows.length+" valid daily bars");
+  return {...(fmp||{}),available:true,ticker,provider:"Yahoo Finance chart endpoint (daily OHLCV fallback)",retrievedAt:new Date().toISOString(),
+   coverage:{...(fmp?.coverage||{}),priceBars:rows.length,historyFallback:true,primaryProviderBars:fmpRows.length},
+   prices:rows,statements:fmp?.statements||{},historySource:"Yahoo fallback",
+   historyWarning:"Yahoo daily OHLCV fallback used because FMP supplied fewer than 60 valid bars. Corporate-action adjustment and historical revisions are not independently attested."};
+ }catch(error){yahooError=String(error?.message||"Yahoo history unavailable").slice(0,180);}
+ throw new Error("Daily history blocker: FMP returned "+fmpRows.length+" valid bars"+(fmpError?"; "+fmpError:"")+"; Yahoo fallback failed: "+(yahooError||"unknown error")+". At least 60 valid daily bars are required.");
 }
 export async function onRequestPost({request,env}){
  const supplied=request.headers.get("Authorization")||"";
@@ -143,7 +175,7 @@ export async function onRequestPost({request,env}){
   const [quote,fundamentals,history,news]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
    endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+collectionStartedAt.slice(0,10),env),
+   loadDailyHistory(ticker,origin,env,collectionStartedAt.slice(0,10)),
    endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env)
   ]);
   // Defer slow SEC companyfacts and broad earnings-calendar enrichment.
