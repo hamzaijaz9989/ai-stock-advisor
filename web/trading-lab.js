@@ -239,6 +239,12 @@
       }
       renderCouncilAgents(latest);
       renderCouncilRuns(data.runs);
+      const blocker=$("council-blocker-note");
+      if(blocker){
+        const message=latest?.failureReason||latest?.vetoReasons?.[0]||"No collection failure is recorded for the latest run.";
+        blocker.textContent=latest ? (latest.agents?.every(agent=>agent.status==="NOT_RUN") ? "COLLECTION BLOCKER · "+message : "RUN DIAGNOSTIC · "+message) : "No research run has been recorded yet.";
+        blocker.dataset.state=latest?.agents?.every(agent=>agent.status==="NOT_RUN")?"blocked":"info";
+      }
       if(status)status.textContent="Read-only ledger connected · "+data.agentCount+" specialist roles · checked "+councilTime(data.checkedAt);
     }catch(error){
       if(status)status.textContent="Research ledger unavailable · "+(error?.message||"request failed");
@@ -592,7 +598,8 @@
       if(!response.ok||data.ok!==true)throw new Error(data.error||"Research run failed safely.");
       const agents=data.result?.agents||[];
       const complete=agents.filter(x=>x.status==="COMPLETE").length;
-      if(status)status.textContent=ticker+" run saved · "+complete+"/9 roles complete · "+String(data.result?.status||"NO_TRADE").replaceAll("_"," ")+" · research only";
+      const failure=data.result?.vetoReasons?.[0]||data.error||"No decision produced.";
+      if(status)status.textContent=ticker+" run saved · "+complete+"/9 roles complete · "+String(data.result?.status||"NO_TRADE").replaceAll("_"," ")+" · "+failure+" · research only";
       await loadResearchCouncil();
     }catch(error){
       const message=ticker+" research run failed safely · "+(error?.message||"unknown error");
