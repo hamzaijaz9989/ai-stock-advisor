@@ -15,7 +15,7 @@ export function validateStockCache(data, nowMs = Date.now(), maxAgeMs = 30 * 60 
   if (!Number.isInteger(data?.rankedCount) || data.rankedCount < 1) errors.push("rankedCount must be a positive integer");
   if (!Number.isInteger(data?.excludedCount) || data.excludedCount < 0) errors.push("excludedCount must be a non-negative integer");
   if (Number.isInteger(data?.rankedCount) && Number.isInteger(data?.excludedCount) && data.rankedCount + data.excludedCount !== 253) {
-    errors.push("rankedCount + excludedCount must equal 253");
+    errors.push("rankedCount + excludedCount must equal 200");
   }
   if (!Array.isArray(data?.stocks)) errors.push("stocks must be an array");
   const stocks = Array.isArray(data?.stocks) ? data.stocks : [];
