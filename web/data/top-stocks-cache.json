@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T17:06:22.489Z",
+  "generatedAt": "2026-11-14T21:29:33.112Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -208,7 +208,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $425.76 (Yahoo Finance chart endpoint; 11/13/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; valuation unavailable; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "BLK",
@@ -344,9 +344,9 @@
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-14T17:06:22.489Z",
-  "workflowRunId": "43618616912",
-  "sourceCommit": "f52ba3e0d6da1fa998ba86c90539f9c8150f5fff",
-  "scanDurationSeconds": 370,
+  "completedAt": "2026-11-14T21:29:33.112Z",
+  "workflowRunId": "43642531078",
+  "sourceCommit": "d0c7e9ecf9a9cf62cf26ba444a432d8da5bbfa3f",
+  "scanDurationSeconds": 343,
   "enrichedCount": 10
 }
