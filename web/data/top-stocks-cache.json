@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T21:29:33.112Z",
+  "generatedAt": "2026-11-15T01:54:03.833Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -15,11 +15,11 @@
     {
       "ticker": "KEY",
       "name": "Keycorp /New/",
-      "score": 92.4,
+      "score": 93.9,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 318,
+      "fundamentalAgeDays": 319,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
         {
           "name": "Revenue growth",
@@ -35,7 +35,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+21.8%"
+          "display": "+25.4%"
         },
         {
           "name": "Maximum drawdown",
@@ -50,9 +50,9 @@
       "name": "Taiwan Semiconductor Manufacturing Co. Ltd.",
       "score": 91.3,
       "financialPeriod": "2024-12-31",
-      "fundamentalAgeDays": 683,
+      "fundamentalAgeDays": 684,
       "fundamentalFreshness": "STALE_OR_UNVERIFIED",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
         {
           "name": "Revenue growth",
@@ -68,7 +68,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+40.0%"
+          "display": "+41.4%"
         },
         {
           "name": "Maximum drawdown",
@@ -83,9 +83,9 @@
       "name": "Arista Networks, Inc.",
       "score": 90.8,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 318,
+      "fundamentalAgeDays": 319,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
         {
           "name": "Revenue growth",
@@ -101,7 +101,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+50.2%"
+          "display": "+55.0%"
         },
         {
           "name": "Maximum drawdown",
@@ -116,9 +116,9 @@
       "name": "Apple Inc.",
       "score": 88.8,
       "financialPeriod": "2026-09-26",
-      "fundamentalAgeDays": 49,
+      "fundamentalAgeDays": 50,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
         {
           "name": "Revenue growth",
@@ -134,7 +134,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+30.8%"
+          "display": "+33.2%"
         },
         {
           "name": "Maximum drawdown",
@@ -145,79 +145,13 @@
       "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
-      "ticker": "ADI",
-      "name": "Analog Devices Inc.",
-      "score": 86.5,
-      "financialPeriod": "2025-11-01",
-      "fundamentalAgeDays": 378,
-      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "16.9%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "20.6%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "38.8%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+69.4%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-20.7%"
-        }
-      ],
-      "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
-    },
-    {
-      "ticker": "V",
-      "name": "Visa Inc.",
-      "score": 86.4,
-      "financialPeriod": "2026-09-30",
-      "fundamentalAgeDays": 45,
-      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "14.8%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "51.2%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "48.1%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+29.0%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-17.4%"
-        }
-      ],
-      "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; valuation unavailable; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
-    },
-    {
       "ticker": "BLK",
       "name": "BlackRock, Inc.",
-      "score": 85.4,
+      "score": 86.9,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 318,
+      "fundamentalAgeDays": 319,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
         {
           "name": "Revenue growth",
@@ -233,7 +167,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+15.6%"
+          "display": "+19.4%"
         },
         {
           "name": "Maximum drawdown",
@@ -244,13 +178,79 @@
       "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
+      "ticker": "V",
+      "name": "Visa Inc.",
+      "score": 86.8,
+      "financialPeriod": "2026-09-30",
+      "fundamentalAgeDays": 46,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "14.8%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "51.2%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "48.1%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+30.7%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-17.4%"
+        }
+      ],
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; valuation unavailable; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+    },
+    {
+      "ticker": "ADI",
+      "name": "Analog Devices Inc.",
+      "score": 86.5,
+      "financialPeriod": "2025-11-01",
+      "fundamentalAgeDays": 379,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "16.9%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "20.6%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "38.8%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+73.1%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-20.7%"
+        }
+      ],
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — daily-only quote is not eligible for entry readiness. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
+    },
+    {
       "ticker": "JNJ",
       "name": "Johnson & Johnson",
       "score": 84.6,
       "financialPeriod": "2025-12-28",
-      "fundamentalAgeDays": 321,
+      "fundamentalAgeDays": 322,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
         {
           "name": "Revenue growth",
@@ -266,7 +266,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+45.8%"
+          "display": "+43.2%"
         },
         {
           "name": "Maximum drawdown",
@@ -277,13 +277,46 @@
       "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
+      "ticker": "MA",
+      "name": "Mastercard Inc",
+      "score": 84.4,
+      "financialPeriod": "2025-12-31",
+      "fundamentalAgeDays": 319,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "16.4%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "45.6%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "52.3%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+23.2%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-18.8%"
+        }
+      ],
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; valuation unavailable; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+    },
+    {
       "ticker": "AMGN",
       "name": "Amgen Inc.",
       "score": 84.2,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 318,
+      "fundamentalAgeDays": 319,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
+      "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
         {
           "name": "Revenue growth",
@@ -299,7 +332,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+38.3%"
+          "display": "+36.3%"
         },
         {
           "name": "Maximum drawdown",
@@ -308,45 +341,12 @@
       ],
       "entryReady": false,
       "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
-    },
-    {
-      "ticker": "MNST",
-      "name": "Monster Beverage Corp",
-      "score": 84.1,
-      "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 318,
-      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-14 to 2026-11-13",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "10.7%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "23.0%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "23.7%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+30.3%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-17.7%"
-        }
-      ],
-      "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-14T21:29:33.112Z",
-  "workflowRunId": "43642531078",
-  "sourceCommit": "d0c7e9ecf9a9cf62cf26ba444a432d8da5bbfa3f",
-  "scanDurationSeconds": 343,
+  "completedAt": "2026-11-15T01:54:03.833Z",
+  "workflowRunId": "43664725358",
+  "sourceCommit": "bd2034b88f318b64fa69474275d7d221a38f92ad",
+  "scanDurationSeconds": 359,
   "enrichedCount": 10
 }
