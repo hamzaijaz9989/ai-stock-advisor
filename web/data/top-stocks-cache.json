@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-15T01:54:03.833Z",
+  "generatedAt": "2026-11-15T09:19:56.040Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -241,7 +241,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — daily-only quote is not eligible for entry readiness. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "JNJ",
@@ -344,9 +344,9 @@
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-15T01:54:03.833Z",
-  "workflowRunId": "43664725358",
-  "sourceCommit": "bd2034b88f318b64fa69474275d7d221a38f92ad",
-  "scanDurationSeconds": 359,
+  "completedAt": "2026-11-15T09:19:56.040Z",
+  "workflowRunId": "43698222287",
+  "sourceCommit": "7683097086531b93d80b23474ab2810b5b4f702e",
+  "scanDurationSeconds": 342,
   "enrichedCount": 10
 }
