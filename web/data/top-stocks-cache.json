@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-15T17:06:50.154Z",
+  "generatedAt": "2026-11-15T21:48:39.616Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -344,9 +344,9 @@
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-15T17:06:50.154Z",
-  "workflowRunId": "43738547315",
-  "sourceCommit": "5884b05caaf85627b8632cf5c37d72fd93c8520a",
-  "scanDurationSeconds": 398,
+  "completedAt": "2026-11-15T21:48:39.616Z",
+  "workflowRunId": "43765095101",
+  "sourceCommit": "a724c408de2eca1cbfb4215f86a455fb3ae6b17e",
+  "scanDurationSeconds": 385,
   "enrichedCount": 10
 }
