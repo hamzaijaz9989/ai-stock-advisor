@@ -37,7 +37,7 @@ export async function onRequestGet({ env }) {
       Number(result.max_portfolio_usd) === 1000 &&
       Number(result.default_risk_fraction) === 0.025 &&
       Number(result.max_risk_fraction) === 0.025 &&
-      Number(result.max_position_fraction) === 0.25;
+      Number(result.max_position_fraction) === 0.065;
 
     return Response.json({
       configured: true,
@@ -50,7 +50,7 @@ export async function onRequestGet({ env }) {
         defaultRiskUsd: 25,
         maxRiskUsd: 25,
         dailyLossLimitUsd: 50,
-        maxPositionUsd: 250
+        maxPositionUsd: 65
       },
       message: safe
         ? "Ledger is configured. Order execution is deliberately disabled while authentication, risk enforcement, reconciliation and validation are incomplete."
