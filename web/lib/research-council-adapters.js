@@ -150,6 +150,10 @@ function riskCommittee(payload) {
   const daily=Number(p.dailyLossFraction),weekly=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
   const sector=Number(p.sectorExposureUsd),positions=Number(p.concurrentPositions);
   const reasons=[];
+  const roleStatuses=payload.requiredRoleStatuses&&typeof payload.requiredRoleStatuses==="object"?payload.requiredRoleStatuses:{};
+  for(const [role,status] of Object.entries(roleStatuses)){
+    if(status!=="COMPLETE") reasons.push("Required research role "+role+" is "+String(status||"UNKNOWN")+"; final review is vetoed.");
+  }
   const fractions=[daily,weekly,drawdown];
   const required=[equity,openRisk,gross,daily,weekly,drawdown,sector,positions];
   const missing=["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"].some(k=>p[k]===null||p[k]===undefined||p[k]==="");
