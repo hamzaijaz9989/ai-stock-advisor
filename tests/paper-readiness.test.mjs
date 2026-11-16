@@ -14,8 +14,8 @@ const policy = {
   mode: "paper",
   kill_switch: 1,
   max_portfolio_usd: 1000,
-  default_risk_fraction: 0.005,
-  max_risk_fraction: 0.01,
+  default_risk_fraction: 0.025,
+  max_risk_fraction: 0.025,
   max_position_fraction: 0.25
 };
 
