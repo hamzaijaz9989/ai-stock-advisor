@@ -74,7 +74,7 @@ export function runAgentPipeline(c) {
   const openRisk=Number(p.openRiskUsd),gross=Number(p.grossExposureUsd),dailyLoss=Number(p.dailyLossFraction),weeklyLoss=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
   const sectorExposure=Number(p.sectorExposureUsd),concurrent=Number(p.concurrentPositions),sector=String(c.sector||"").trim();
   if(![stop,equity,riskFraction,maxPositionFraction,openRisk,gross,dailyLoss,weeklyLoss,drawdown,sectorExposure,concurrent].every(Number.isFinite)||
-    !sector||stop<=0||stop>=price||equity<=0||riskFraction<=0||riskFraction>0.025||maxPositionFraction<=0||maxPositionFraction>0.25||
+    !sector||stop<=0||stop>=price||equity<=0||riskFraction<=0||riskFraction>0.025||maxPositionFraction<=0||maxPositionFraction>0.065||
     openRisk<0||openRisk>equity*0.025||gross<0||gross>equity||dailyLoss<0||dailyLoss>=0.05||weeklyLoss<0||weeklyLoss>=0.04||drawdown<0||drawdown>=0.08||sectorExposure<0||sectorExposure>equity*0.40||concurrent!==0){
     log("RISK_AUDITOR","BLOCKED","MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");return reject("RISK_AUDITOR","MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS",events);
   }
