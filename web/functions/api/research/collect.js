@@ -158,7 +158,7 @@ export async function onRequestPost({request,env}){
   const asOf=new Date().toISOString();
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   const validDailyBars=(Array.isArray(history?.prices)?history.prices:[]).filter(row=>{
-   if(!row||typeof row.date!=="string"||!/^\\d{4}-\\d{2}-\\d{2}$/.test(row.date)||row.date>collectionStartedAt.slice(0,10))return false;
+   if(!row||typeof row.date!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(row.date)||row.date>collectionStartedAt.slice(0,10))return false;
    const o=finite(row.open),h=finite(row.high),l=finite(row.low),cl=finite(row.close),v=finite(row.volume);
    return [o,h,l,cl,v].every(x=>x!==null)&&o>0&&h>0&&l>0&&cl>0&&v>=0&&h>=Math.max(o,cl,l)&&l<=Math.min(o,cl,h);
   }).map(row=>({date:row.date,open:finite(row.open),high:finite(row.high),low:finite(row.low),close:finite(row.close),volume:finite(row.volume)}))
