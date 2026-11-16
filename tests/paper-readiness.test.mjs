@@ -16,7 +16,7 @@ const policy = {
   max_portfolio_usd: 1000,
   default_risk_fraction: 0.025,
   max_risk_fraction: 0.025,
-  max_position_fraction: 0.25
+  max_position_fraction: 0.065
 };
 
 test("missing D1 binding fails closed and reports execution disabled", async () => {
@@ -40,6 +40,8 @@ test("valid ledger policy is reported but never enables execution", async () => 
   assert.equal(body.executionEnabled, false);
   assert.equal(body.killSwitchEngaged, true);
   assert.equal(body.limits.virtualCapitalUsd, 1000);
+  assert.equal(body.limits.defaultRiskUsd, 25);
+  assert.equal(body.limits.maxPositionUsd, 65);
 });
 
 test("policy drift fails closed", async () => {
