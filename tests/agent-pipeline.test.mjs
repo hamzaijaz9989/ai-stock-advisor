@@ -5,7 +5,7 @@ import {runAgentPipeline} from "../web/lib/agent-pipeline.js";
 const now="2026-11-08T15:00:00.000Z";
 const candidate=()=>({
   now,symbol:"NVDA",sector:"Technology",
-  quote:{price:180,bid:179.9,ask:180.1,timestamp:now,source:"Alpaca IEX"},
+  quote:{price:18,bid:17.9,ask:18,timestamp:now,source:"Alpaca IEX"},
   liquidity:{avgDollarVolumeUsd:25000000},
   thesis:"Revenue growth, operating leverage and product demand support further research, subject to valuation and execution risks.",
   evidence:[
@@ -13,8 +13,8 @@ const candidate=()=>({
     {type:"NEWS_REPORT",publisherId:"reuters.com",url:"https://www.reuters.com/markets/example",publishedAt:"2026-11-07T13:00:00Z",summary:"Independent reporting discusses demand trends, competitive pressures and the company outlook."}
   ],
   risks:["Valuation multiple remains elevated.","Semiconductor demand is cyclical."],
-  stopPrice:176,account:{equityUsd:1000},
-  limits:{riskFraction:0.025,maxPositionFraction:0.25,estimatedRoundTripCostBps:20},
+  stopPrice:14,account:{equityUsd:1000},
+  limits:{riskFraction:0.025,maxPositionFraction:0.065,estimatedRoundTripCostBps:20},
   portfolio:{openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
 });
 
