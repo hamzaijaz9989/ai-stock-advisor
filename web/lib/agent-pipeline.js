@@ -75,13 +75,13 @@ export function runAgentPipeline(c) {
   const sectorExposure=Number(p.sectorExposureUsd),concurrent=Number(p.concurrentPositions),sector=String(c.sector||"").trim();
   if(![stop,equity,riskFraction,maxPositionFraction,openRisk,gross,dailyLoss,weeklyLoss,drawdown,sectorExposure,concurrent].every(Number.isFinite)||
     !sector||stop<=0||stop>=price||equity<=0||riskFraction<=0||riskFraction>0.025||maxPositionFraction<=0||maxPositionFraction>0.065||
-    openRisk<0||openRisk>equity*0.025||gross<0||gross>equity||dailyLoss<0||dailyLoss>=0.05||weeklyLoss<0||weeklyLoss>=0.04||drawdown<0||drawdown>=0.08||sectorExposure<0||sectorExposure>equity*0.40||concurrent!==0){
+    openRisk<0||openRisk>equity*0.02||gross<0||gross>equity||dailyLoss<0||dailyLoss>=0.05||weeklyLoss<0||weeklyLoss>=0.04||drawdown<0||drawdown>=0.08||sectorExposure<0||sectorExposure>equity*0.40||concurrent!==0){
     log("RISK_AUDITOR","BLOCKED","MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");return reject("RISK_AUDITOR","MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS",events);
   }
   const costBps=Number(l.estimatedRoundTripCostBps);
   if(!Number.isFinite(costBps)||costBps<0||costBps>500){log("RISK_AUDITOR","BLOCKED","INVALID_OR_MISSING_TRANSACTION_COST_ASSUMPTION");return reject("RISK_AUDITOR","INVALID_OR_MISSING_TRANSACTION_COST_ASSUMPTION",events);}
   const riskPerShare=price-stop, effectiveRisk=riskPerShare+price*costBps/10000, riskBudget=equity*riskFraction;
-  const remainingAggregateRisk=Math.max(0,equity*0.025-openRisk),remainingGross=Math.max(0,equity-gross);
+  const remainingAggregateRisk=Math.max(0,equity*0.02-openRisk),remainingGross=Math.max(0,equity-gross);
   const maxPosition=equity*maxPositionFraction,remainingSector=Math.max(0,equity*0.40-sectorExposure);
   const shares=Math.min(Math.floor(riskBudget/effectiveRisk),Math.floor(remainingAggregateRisk/effectiveRisk),Math.floor(maxPosition/price),Math.floor(remainingGross/price),Math.floor(remainingSector/price));
   if(shares<1){log("SIZER","BLOCKED","NO_WHOLE_SHARE_FITS_COST_AND_PORTFOLIO_LIMITS");return reject("SIZER","NO_WHOLE_SHARE_FITS_COST_AND_PORTFOLIO_LIMITS",events);}
