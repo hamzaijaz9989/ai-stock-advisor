@@ -60,8 +60,8 @@ async function secFacts(ticker,collectionStartedAt){
 async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
  if(!db||!key||!secret||syncData?.ok!==true||syncData?.synced!==true||syncData?.execution!==false||!syncData?.broker)throw new Error("A successful read-only Alpaca Paper sync is required.");
- const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd FROM execution_control WHERE id=1").first();
- if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==1000)throw new Error("Paper execution controls are not in the required disabled/kill-switched $1,000 configuration.");
+ const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first();
+ if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==2500||Number(control.default_risk_fraction)!==0.01||Number(control.max_risk_fraction)!==0.01||Number(control.max_position_fraction)!==0.25)throw new Error("Paper execution controls are not in the required disabled/kill-switched $2,500 configuration with $25 per-trade risk.");
  const broker=syncData.broker;
  const ordersResponse=await fetch("https://paper-api.alpaca.markets/v2/orders?status=open&limit=500&direction=desc",{
   headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,Accept:"application/json"},
@@ -80,17 +80,17 @@ async function portfolioSnapshot(env,syncData){
  const equity=finite(broker.equity),lastEquity=finite(broker.lastEquity);
  if(equity===null||equity<=0||lastEquity===null||lastEquity<=0)throw new Error("Broker equity snapshot is incomplete.");
  const snapshots=snapshotRows?.results||[];
- const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:1000});
+ const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:Number(control.max_portfolio_usd)});
  const now=Date.now(),latest=snapshots[0],latestMs=Date.parse(latest?.captured_at||"");
  if(!Number.isFinite(latestMs)||now-latestMs>15*60*1000||latestMs>now+30000)throw new Error("Latest reconciled equity snapshot is stale or future-dated; run read-only account sync.");
- const dailyLossFraction=history?.ok&&Number.isFinite(history.dailyLossUsd)?history.dailyLossUsd/1000:null;
- const drawdownFraction=history?.ok&&Number.isFinite(history.maxDrawdownUsd)?history.maxDrawdownUsd/1000:null;
+ const dailyLossFraction=history?.ok&&Number.isFinite(history.dailyLossUsd)?history.dailyLossUsd/Number(control.max_portfolio_usd):null;
+ const drawdownFraction=history?.ok&&Number.isFinite(history.maxDrawdownUsd)?history.maxDrawdownUsd/Number(control.max_portfolio_usd):null;
  const weeklyBase=snapshots.find(x=>Date.parse(x.captured_at)<=now-7*86400000);
  const weeklyEquity=finite(weeklyBase?.equity_usd);
  const weeklyLossFraction=weeklyEquity!==null&&weeklyEquity>0?Math.max(0,(weeklyEquity-equity)/weeklyEquity):null;
  const grossExposureUsd=broker.positions.reduce((sum,p)=>sum+Math.abs(finite(p.market_value)||0),0);
  return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:syncData.capturedAt||new Date().toISOString(),
-  equityUsd:1000,openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
+  equityUsd:Number(control.max_portfolio_usd),openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
   sectorExposureUsd:null,concurrentPositions:bp.length};
 }
 export async function onRequestPost({request,env}){
