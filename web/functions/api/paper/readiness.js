@@ -34,9 +34,9 @@ export async function onRequestGet({ env }) {
     const safe = result.mode === "paper" &&
       Number(result.enabled) === 0 &&
       Number(result.kill_switch) === 1 &&
-      Number(result.max_portfolio_usd) === 2500 &&
-      Number(result.default_risk_fraction) === 0.01 &&
-      Number(result.max_risk_fraction) === 0.01 &&
+      Number(result.max_portfolio_usd) === 1000 &&
+      Number(result.default_risk_fraction) === 0.025 &&
+      Number(result.max_risk_fraction) === 0.025 &&
       Number(result.max_position_fraction) === 0.25;
 
     return Response.json({
@@ -46,15 +46,15 @@ export async function onRequestGet({ env }) {
       executionEnabled: false,
       killSwitchEngaged: true,
       limits: {
-        virtualCapitalUsd: 2500,
+        virtualCapitalUsd: 1000,
         defaultRiskUsd: 25,
         maxRiskUsd: 25,
         dailyLossLimitUsd: 50,
-        maxPositionUsd: 625
+        maxPositionUsd: 250
       },
       message: safe
         ? "Ledger is configured. Order execution is deliberately disabled while authentication, risk enforcement, reconciliation and validation are incomplete."
-        : "Ledger policy does not match the approved $2,500 / $25 per-trade / $50 daily-loss policy. Execution remains unavailable until the database migration is applied.",
+        : "Ledger policy does not match the approved $1,000 / $25 per-trade / $50 daily-loss policy. Execution remains unavailable until the database migration is applied.",
       checkedAt: new Date().toISOString()
     }, { status: safe ? 200 : 503, headers: HEADERS });
   } catch {
