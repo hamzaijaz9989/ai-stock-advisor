@@ -28,7 +28,7 @@ test("paper sizing preview calculates whole shares and never submits an order", 
   const { db, calls } = mockDb({
     enabled: 0, mode: "paper", kill_switch: 1,
     max_portfolio_usd: 1000, default_risk_fraction: 0.025,
-    max_risk_fraction: 0.025, max_position_fraction: 0.25
+    max_risk_fraction: 0.025, max_position_fraction: 0.065
   });
   const request = new Request("https://northstar.test/api/paper/preview", {
     method: "POST", headers: { "Content-Type": "application/json" },
@@ -63,8 +63,8 @@ test("paper sizing preview rejects risk above configured maximum", async () => {
   const { onRequestPost } = await loadFunction("../web/functions/api/paper/preview.js");
   const { db } = mockDb({
     enabled: 0, mode: "paper", kill_switch: 1,
-    max_portfolio_usd: 1000, default_risk_fraction: 0.005,
-    max_risk_fraction: 0.01, max_position_fraction: 0.25
+    max_portfolio_usd: 1000, default_risk_fraction: 0.025,
+    max_risk_fraction: 0.025, max_position_fraction: 0.065
   });
   const response = await onRequestPost({
     request: new Request("https://northstar.test/api/paper/preview", {
