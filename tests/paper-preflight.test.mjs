@@ -38,7 +38,7 @@ test("preflight sizes from fresh quote and reconciled paper ledger without submi
   const {onRequestPost}=await loadFunction();
   const oldFetch=globalThis.fetch; globalThis.fetch=fakeFetch();
   try {
-    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:15}),env:{NORTHSTAR_DB:mockDb(control),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
     const body=await response.json();
     assert.equal(response.status,200);
     assert.equal(body.status,"PREFLIGHT_PASSED_PREVIEW_ONLY_NOT_AN_ORDER");
@@ -52,11 +52,11 @@ test("preflight normalizes existing broker exposure to the virtual allocation be
   const oldFetch=globalThis.fetch;
   globalThis.fetch=fakeFetch({positions:[{symbol:"AAPL",qty:"1",avg_entry_price:"20",market_value:"4000"}]});
   try {
-    const ledger=[{symbol:"AAPL",qty:"1",avg_entry_price:"100",market_value:"4000"}];
-    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control,ledger),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+    const ledger=[{symbol:"AAPL",qty:"1",avg_entry_price:"20",market_value:"4000"}];
+    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:15}),env:{NORTHSTAR_DB:mockDb(control,ledger),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
     const body=await response.json();
     assert.equal(response.status,200);
-    assert.equal(body.shares,2);
+    assert.equal(body.shares,3);
     assert.equal(body.exposure.existingUsd,40);
     assert.equal(body.exposure.afterProposedUsd,100);
     assert.equal(body.exposure.maxPortfolioUsd,1000);
@@ -66,7 +66,7 @@ test("preflight rejects stale quotes",async()=>{
   const {onRequestPost}=await loadFunction();
   const oldFetch=globalThis.fetch; globalThis.fetch=fakeFetch({quoteTime:new Date(Date.now()-120000).toISOString()});
   try {
-    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:15}),env:{NORTHSTAR_DB:mockDb(control),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
     assert.equal(response.status,503);
     assert.match((await response.json()).error,/older than 60 seconds/);
   } finally { globalThis.fetch=oldFetch; }
@@ -75,7 +75,7 @@ test("preflight blocks broker-ledger position mismatch",async()=>{
   const {onRequestPost}=await loadFunction();
   const oldFetch=globalThis.fetch; globalThis.fetch=fakeFetch({positions:[{symbol:"AAPL",qty:"2",avg_entry_price:"100",market_value:"210"}]});
   try {
-    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:15}),env:{NORTHSTAR_DB:mockDb(control),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
     assert.equal(response.status,409);
     assert.match((await response.json()).error,/do not reconcile/);
   } finally { globalThis.fetch=oldFetch; }
@@ -84,7 +84,7 @@ test("preflight blocks excessive spread",async()=>{
   const {onRequestPost}=await loadFunction();
   const oldFetch=globalThis.fetch; globalThis.fetch=fakeFetch({bid:19,ask:20});
   try {
-    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
+    const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:15}),env:{NORTHSTAR_DB:mockDb(control),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
     assert.equal(response.status,409);
     assert.match((await response.json()).error,/spread exceeds/);
   } finally { globalThis.fetch=oldFetch; }
