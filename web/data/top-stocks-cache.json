@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-16T02:01:34.742Z",
+  "generatedAt": "2026-11-16T09:37:28.996Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -208,7 +208,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; valuation unavailable; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; valuation unavailable; upcoming earnings date not verified; potential material-risk headline needs review. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ADI",
@@ -241,7 +241,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; potential material-risk headline needs review. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "JNJ",
@@ -274,7 +274,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — no recent timestamped intraday quote; upcoming earnings date not verified. Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $288.89 (Nasdaq quote API; 11/16/2026, 9:33:00 AM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $82.16. Estimated reward/risk from entry midpoint: 1.96:1; illustrative model gap: 2.32×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "MA",
@@ -344,9 +344,9 @@
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-16T02:01:34.742Z",
-  "workflowRunId": "43789013356",
-  "sourceCommit": "40af94ca942b5c19844d902cc012a0354eed0df0",
-  "scanDurationSeconds": 366,
+  "completedAt": "2026-11-16T09:37:28.996Z",
+  "workflowRunId": "43840277460",
+  "sourceCommit": "20b2f987d0feda46b3eda7a03f9c9ce992690a71",
+  "scanDurationSeconds": 418,
   "enrichedCount": 10
 }
