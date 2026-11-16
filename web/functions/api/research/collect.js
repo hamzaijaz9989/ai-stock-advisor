@@ -60,8 +60,8 @@ async function secFacts(ticker,collectionStartedAt){
 async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
  if(!db||!key||!secret||syncData?.ok!==true||syncData?.synced!==true||syncData?.execution!==false||!syncData?.broker)throw new Error("A successful read-only Alpaca Paper sync is required.");
- const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd FROM execution_control WHERE id=1").first();
- if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==1000)throw new Error("Paper execution controls are not in the required disabled/kill-switched $1,000 configuration.");
+ const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first();
+ if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==2500||Number(control.default_risk_fraction)!==0.01||Number(control.max_risk_fraction)!==0.01||Number(control.max_position_fraction)!==0.25)throw new Error("Paper execution controls are not in the required disabled/kill-switched $2,500 configuration with $25 per-trade risk.");
  const broker=syncData.broker;
  const ordersResponse=await fetch("https://paper-api.alpaca.markets/v2/orders?status=open&limit=500&direction=desc",{
   headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,Accept:"application/json"},
@@ -80,17 +80,17 @@ async function portfolioSnapshot(env,syncData){
  const equity=finite(broker.equity),lastEquity=finite(broker.lastEquity);
  if(equity===null||equity<=0||lastEquity===null||lastEquity<=0)throw new Error("Broker equity snapshot is incomplete.");
  const snapshots=snapshotRows?.results||[];
- const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:1000});
+ const history=deriveSnapshotRiskMetrics({snapshots,currentEquity:equity,lastEquity,virtualAllocationUsd:Number(control.max_portfolio_usd)});
  const now=Date.now(),latest=snapshots[0],latestMs=Date.parse(latest?.captured_at||"");
  if(!Number.isFinite(latestMs)||now-latestMs>15*60*1000||latestMs>now+30000)throw new Error("Latest reconciled equity snapshot is stale or future-dated; run read-only account sync.");
- const dailyLossFraction=history?.ok&&Number.isFinite(history.dailyLossUsd)?history.dailyLossUsd/1000:null;
- const drawdownFraction=history?.ok&&Number.isFinite(history.maxDrawdownUsd)?history.maxDrawdownUsd/1000:null;
+ const dailyLossFraction=history?.ok&&Number.isFinite(history.dailyLossUsd)?history.dailyLossUsd/Number(control.max_portfolio_usd):null;
+ const drawdownFraction=history?.ok&&Number.isFinite(history.maxDrawdownUsd)?history.maxDrawdownUsd/Number(control.max_portfolio_usd):null;
  const weeklyBase=snapshots.find(x=>Date.parse(x.captured_at)<=now-7*86400000);
  const weeklyEquity=finite(weeklyBase?.equity_usd);
  const weeklyLossFraction=weeklyEquity!==null&&weeklyEquity>0?Math.max(0,(weeklyEquity-equity)/weeklyEquity):null;
  const grossExposureUsd=broker.positions.reduce((sum,p)=>sum+Math.abs(finite(p.market_value)||0),0);
  return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:syncData.capturedAt||new Date().toISOString(),
-  equityUsd:1000,openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
+  equityUsd:Number(control.max_portfolio_usd),openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
   sectorExposureUsd:null,concurrentPositions:bp.length};
 }
 export async function onRequestPost({request,env}){
@@ -140,12 +140,16 @@ export async function onRequestPost({request,env}){
   // Core market inputs are required. SEC companyfacts and the broad earnings
   // calendar are enrichment sources: either can exceed the Pages request budget.
   // Their failure must not prevent the evidence-first specialists from running.
-  const [quote,fundamentals,history,news]=await Promise.all([
+  const [quote,history,optional]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
    endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+collectionStartedAt.slice(0,10),env),
-   endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env)
+   Promise.allSettled([
+    endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
+    endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env)
+   ])
   ]);
+  const fundamentals=optional[0].status==="fulfilled"?optional[0].value:{available:false,provider:"FMP",warning:String(optional[0].reason?.message||"Fundamentals unavailable").slice(0,180)};
+  const news=optional[1].status==="fulfilled"?optional[1].value:{items:[],provider:"news discovery",warning:String(optional[1].reason?.message||"News unavailable").slice(0,180)};
   // Defer slow SEC companyfacts and broad earnings-calendar enrichment.
   // These sources are optional and must never hold the specialist run hostage.
   const earnings={ticker,provider:"earnings calendar not queried",fetchedAt:new Date().toISOString(),
@@ -153,13 +157,13 @@ export async function onRequestPost({request,env}){
   const sec={cik:null,observations:[],warning:"SEC companyfacts was not queried in this bounded research run; FMP-reported data remains separately labelled."};
   const asOf=new Date().toISOString();
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
-  if(!history?.available||!Array.isArray(history.prices)||history.prices.length<60)throw new Error("At least 60 valid daily price bars are required for research.");
-  if(!fundamentals?.available)throw new Error("Fundamental data provider did not return usable statements.");
+  if(!history?.available||!Array.isArray(history.prices)||history.prices.length<20)throw new Error("At least 20 valid daily price bars are required to start research; the Technical Analyst independently requires 60.");
+  const validFundamentals=fundamentals?.available===true;
   const fmpHistory={income:history.statements?.annualIncome||[],balance:history.statements?.annualBalance||[],cashflow:history.statements?.annualCashflow||[],metrics:[],ratios:[],estimates:[]};
   const context=buildResearchCouncilContext({ticker,asOf,quote:{ticker,price:Number(quote.price),currency:quote.currency,exchange:quote.exchange,previousClose:finite(quote.previousClose),change:finite(quote.change),changePercent:finite(quote.changePercent),quoteTime:quote.quoteTime,marketState:quote.marketState,delayedOrRealtime:quote.delayedOrRealtime,interval:quote.interval,source:quote.source},
    history:{data:history.prices,interval:"1d",currency:"USD",source:history.provider,fetchedAt:history.retrievedAt,dataQuality:history.coverage},
-   secObservations:sec.observations,fmpFundamentals:{available:true,provider:fundamentals.provider,retrievedAt:fundamentals.retrievedAt,latest:fundamentals.latest,history:fmpHistory},
-   news:{items:Array.isArray(news.items)?news.items:[]},
+   secObservations:sec.observations,fmpFundamentals:{available:validFundamentals,provider:fundamentals.provider||"Financial Modeling Prep",retrievedAt:fundamentals.retrievedAt||null,latest:validFundamentals?fundamentals.latest:null,history:validFundamentals?fmpHistory:{}},
+   news:{items:Array.isArray(news.items)?news.items:[],warning:news.warning||null},
    earnings:{events:Array.isArray(earnings.events)?earnings.events.map(e=>({...e,date:e.reportDate||e.date||null})):[],found:earnings.found===true,verified:earnings.verified===true,throughDate:earnings.throughDate||null,provider:earnings.provider,fetchedAt:earnings.fetchedAt||earnings.fetchedAt,warning:earnings.warning||null},
    portfolio});
   if(context.facts.length+context.evidence.length<3)throw new Error("Collected research evidence is insufficient.");
@@ -169,7 +173,7 @@ export async function onRequestPost({request,env}){
   if(existing && existing.input_sha256!==attemptHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
-  const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter","FMP fundamentals and daily history","SEC EDGAR companyfacts","news discovery","earnings calendar","Alpaca Paper account and reconciled ledger"],factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
+  const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter",history.provider||"Historical price provider",...(validFundamentals?["FMP fundamentals"]:[]),...(Array.isArray(news.items)&&news.items.length?["news discovery"]:[]),"Alpaca Paper account and reconciled ledger"],providerWarnings:[history.priceWarning,fundamentals.warning,news.warning].filter(Boolean),factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("UPDATE research_council_runs SET input_sha256=?,status=?,result_json=? WHERE request_id=? AND symbol=?").bind(inputHash,result.status,JSON.stringify(storedResult),requestId,ticker).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);
