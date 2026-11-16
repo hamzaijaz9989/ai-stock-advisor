@@ -14,7 +14,7 @@ const candidate=()=>({
   ],
   risks:["Valuation multiple remains elevated.","Semiconductor demand is cyclical."],
   stopPrice:176,account:{equityUsd:1000},
-  limits:{riskFraction:0.005,maxPositionFraction:0.25,estimatedRoundTripCostBps:20},
+  limits:{riskFraction:0.025,maxPositionFraction:0.25,estimatedRoundTripCostBps:20},
   portfolio:{openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
 });
 
@@ -46,9 +46,9 @@ test("rejects missing transaction-cost assumption and portfolio risk inputs",()=
  assert.equal(runAgentPipeline(p).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
 });
 test("rejects candidates when aggregate risk or daily loss gates are breached",()=>{
- const aggregate=candidate(); aggregate.portfolio.openRiskUsd=20.01;
+ const aggregate=candidate(); aggregate.portfolio.openRiskUsd=25.01;
  assert.equal(runAgentPipeline(aggregate).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
- const daily=candidate(); daily.portfolio.dailyLossFraction=0.02;
+ const daily=candidate(); daily.portfolio.dailyLossFraction=0.05;
  assert.equal(runAgentPipeline(daily).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
  const weekly=candidate(); weekly.portfolio.weeklyLossFraction=0.04;
  assert.equal(runAgentPipeline(weekly).reason,"MISSING_OR_BREACHED_PORTFOLIO_RISK_INPUTS");
