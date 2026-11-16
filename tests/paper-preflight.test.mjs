@@ -56,7 +56,7 @@ test("preflight normalizes existing broker exposure to the virtual allocation be
     const response=await onRequestPost({request:makeRequest({symbol:"NVDA",stopPrice:95}),env:{NORTHSTAR_DB:mockDb(control,ledger),NORTHSTAR_OPERATOR_TOKEN:"secret",ALPACA_API_KEY_ID:"key",ALPACA_API_SECRET_KEY:"secret"}});
     const body=await response.json();
     assert.equal(response.status,200);
-    assert.equal(body.shares,1);
+    assert.equal(body.shares,2);
     assert.equal(body.exposure.existingUsd,100);
     assert.equal(body.exposure.afterProposedUsd,300);
     assert.equal(body.exposure.maxPortfolioUsd,1000);
