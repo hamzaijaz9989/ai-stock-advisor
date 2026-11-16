@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-15T21:48:39.616Z",
+  "generatedAt": "2026-11-16T02:01:34.742Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -17,7 +17,7 @@
       "name": "Keycorp /New/",
       "score": 93.9,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 319,
+      "fundamentalAgeDays": 320,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -50,7 +50,7 @@
       "name": "Taiwan Semiconductor Manufacturing Co. Ltd.",
       "score": 91.3,
       "financialPeriod": "2024-12-31",
-      "fundamentalAgeDays": 684,
+      "fundamentalAgeDays": 685,
       "fundamentalFreshness": "STALE_OR_UNVERIFIED",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -83,7 +83,7 @@
       "name": "Arista Networks, Inc.",
       "score": 90.8,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 319,
+      "fundamentalAgeDays": 320,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -116,7 +116,7 @@
       "name": "Apple Inc.",
       "score": 88.8,
       "financialPeriod": "2026-09-26",
-      "fundamentalAgeDays": 50,
+      "fundamentalAgeDays": 51,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -149,7 +149,7 @@
       "name": "BlackRock, Inc.",
       "score": 86.9,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 319,
+      "fundamentalAgeDays": 320,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -182,7 +182,7 @@
       "name": "Visa Inc.",
       "score": 86.8,
       "financialPeriod": "2026-09-30",
-      "fundamentalAgeDays": 46,
+      "fundamentalAgeDays": 47,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -215,7 +215,7 @@
       "name": "Analog Devices Inc.",
       "score": 86.5,
       "financialPeriod": "2025-11-01",
-      "fundamentalAgeDays": 379,
+      "fundamentalAgeDays": 380,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -248,7 +248,7 @@
       "name": "Johnson & Johnson",
       "score": 84.6,
       "financialPeriod": "2025-12-28",
-      "fundamentalAgeDays": 322,
+      "fundamentalAgeDays": 323,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -281,7 +281,7 @@
       "name": "Mastercard Inc",
       "score": 84.4,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 319,
+      "fundamentalAgeDays": 320,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -314,7 +314,7 @@
       "name": "Amgen Inc.",
       "score": 84.2,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 319,
+      "fundamentalAgeDays": 320,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
       "historyPeriod": "2025-11-17 to 2026-11-13",
       "components": [
@@ -344,9 +344,9 @@
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-15T21:48:39.616Z",
-  "workflowRunId": "43765095101",
-  "sourceCommit": "a724c408de2eca1cbfb4215f86a455fb3ae6b17e",
-  "scanDurationSeconds": 385,
+  "completedAt": "2026-11-16T02:01:34.742Z",
+  "workflowRunId": "43789013356",
+  "sourceCommit": "40af94ca942b5c19844d902cc012a0354eed0df0",
+  "scanDurationSeconds": 366,
   "enrichedCount": 10
 }
