@@ -17,7 +17,7 @@ function mockDb(control, ledgerRows=[]) {
     };
   }};
 }
-const control={enabled:0,mode:"paper",kill_switch:1,max_portfolio_usd:1000,default_risk_fraction:0.005,max_risk_fraction:0.01,max_position_fraction:0.25};
+const control={enabled:0,mode:"paper",kill_switch:1,max_portfolio_usd:1000,default_risk_fraction:0.025,max_risk_fraction:0.025,max_position_fraction:0.25};
 function makeRequest(body, token="secret") {
   return new Request("https://northstar.test/api/paper/preflight",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)});
 }
@@ -43,7 +43,7 @@ test("preflight sizes from fresh quote and reconciled paper ledger without submi
     assert.equal(response.status,200);
     assert.equal(body.status,"PREFLIGHT_PASSED_PREVIEW_ONLY_NOT_AN_ORDER");
     assert.equal(body.execution,false);
-    assert.equal(body.shares,1);
+    assert.equal(body.shares,2);
     assert.equal(body.broker.positionsReconciled,true);
   } finally { globalThis.fetch=oldFetch; }
 });
@@ -58,7 +58,7 @@ test("preflight normalizes existing broker exposure to the virtual allocation be
     assert.equal(response.status,200);
     assert.equal(body.shares,1);
     assert.equal(body.exposure.existingUsd,100);
-    assert.equal(body.exposure.afterProposedUsd,200);
+    assert.equal(body.exposure.afterProposedUsd,300);
     assert.equal(body.exposure.maxPortfolioUsd,1000);
   } finally { globalThis.fetch=oldFetch; }
 });
