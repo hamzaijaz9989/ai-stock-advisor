@@ -158,9 +158,9 @@ function riskCommittee(payload) {
   if(invalid) {
     reasons.push("Core portfolio snapshot is incomplete or invalid: unsupported units or bounds.");
   } else {
-    if(openRisk/equity>0.01) reasons.push("Aggregate open risk exceeds 1% of equity.");
+    if(openRisk/equity>0.025) reasons.push("Aggregate open risk exceeds 2.5% of equity.");
     if(gross/equity>1) reasons.push("Gross exposure exceeds 100% of the configured planning allocation.");
-    if(daily>=0.02) reasons.push("Daily loss stop of 2% has been reached.");
+    if(daily>=0.05) reasons.push("Daily loss stop of 5% ($50 on $1,000 planning capital) has been reached.");
     if(weekly>=0.04) reasons.push("Weekly loss stop of 4% has been reached.");
     if(drawdown>=0.08) reasons.push("Drawdown pause threshold of 8% has been reached.");
     if(sector/equity>0.40) reasons.push("Sector exposure exceeds 40% of equity.");
