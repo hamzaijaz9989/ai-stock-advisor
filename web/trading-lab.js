@@ -19,7 +19,7 @@
   const plans = safeReadPlans();
   $("capital").textContent = money(CAPITAL);
   $("risk-budget").textContent = money(CAPITAL * 0.025);
-  $("max-position").textContent = money(CAPITAL * 0.25);
+  $("max-position").textContent = money(CAPITAL * 0.065);
 
   function calculate() {
     const symbol = String($("symbol").value || "").trim().toUpperCase();
@@ -50,7 +50,7 @@
     $("risk-result").textContent = shares
       ? "Position value " + money(notional) + " · planned stop risk " + money(plannedLoss) +
         " · risk budget " + money(riskBudget) + " (" + riskPct.toFixed(1) + "% of pilot equity). Whole-share sizing; gaps can cause larger losses."
-      : "No whole share fits both the risk budget and 25% position cap. Do not force a trade.";
+      : "No whole share fits both the risk budget and 6.5% ($65) position cap. Do not force a trade.";
     return shares ? {symbol, entry, stop, shares, notional, plannedLoss, riskBudget, riskPct} : null;
   }
 
