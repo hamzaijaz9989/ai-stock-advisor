@@ -67,18 +67,35 @@ async function resolveHistory(origin,ticker,collectionStartedAt,env){
  }
 }
 async function resolveNews(origin,ticker,env){
- let primaryError="Massive news unavailable";
- try{
-  const primary=await providerReadOnce(getMassiveNews,origin,"/api/massive-news?ticker="+encodeURIComponent(ticker),env);
-  if(primary?.available&&Array.isArray(primary.items))return {...primary,provider:"Massive"};
-  primaryError=primary?.warning||"Massive returned no usable news";
- }catch(error){primaryError=String(error?.message||primaryError).slice(0,180);}
- try{
-  const fallback=await endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env);
-  return {...fallback,provider:fallback.provider||"RSS/news discovery",fallbackReason:"Massive primary news unavailable: "+primaryError};
- }catch(error){
-  return {items:[],provider:"news discovery",warning:"Massive news unavailable ("+primaryError+"); secondary news unavailable ("+String(error?.message||"unknown").slice(0,140)+")."};
+ let primaryError="Massive news unavailable",primary=null,finnhub={articles:[],warning:"Finnhub company news unavailable"};
+ const [massiveResult,finnhubResult]=await Promise.allSettled([
+  providerReadOnce(getMassiveNews,origin,"/api/massive-news?ticker="+encodeURIComponent(ticker),env),
+  providerReadOnce(getFinnhubSentiment,origin,"/api/finnhub-sentiment?ticker="+encodeURIComponent(ticker),env)
+ ]);
+ if(massiveResult.status==="fulfilled"&&massiveResult.value?.available&&Array.isArray(massiveResult.value.items))primary=massiveResult.value;
+ else primaryError=massiveResult.status==="rejected"?String(massiveResult.reason?.message||primaryError).slice(0,180):(massiveResult.value?.warning||"Massive returned no usable news");
+ if(finnhubResult.status==="fulfilled"&&finnhubResult.value?.available===true&&Array.isArray(finnhubResult.value.articles))finnhub=finnhubResult.value;
+ else if(finnhubResult.status==="fulfilled")finnhub.warning=finnhubResult.value?.warning||finnhub.warning;
+ else finnhub.warning=String(finnhubResult.reason?.message||finnhub.warning).slice(0,180);
+ let base=primary?{...primary,provider:"Massive"}:null;
+ if(!base){
+  try{
+   const fallback=await endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env);
+   base={...fallback,provider:fallback.provider||"RSS/news discovery",fallbackReason:"Massive primary news unavailable: "+primaryError};
+  }catch(error){
+   base={items:[],provider:"news discovery",warning:"Massive news unavailable ("+primaryError+"); secondary news unavailable ("+String(error?.message||"unknown").slice(0,140)+")."};
+  }
  }
+ const combined=[...(Array.isArray(base.items)?base.items:[])];
+ const seen=new Set(combined.map(item=>String(item?.url||"").trim().toLowerCase().replace(/[?#].*$/,"")).filter(Boolean));
+ let added=0;
+ for(const article of finnhub.articles||[]){
+  const url=String(article.url||"").trim(),canonical=url.toLowerCase().replace(/[?#].*$/,"");
+  if(!canonical||seen.has(canonical))continue;
+  seen.add(canonical);added++;
+  combined.push({title:String(article.headline||"").trim(),description:String(article.summary||"").trim(),url,publishedAt:article.publishedAt||null,source:String(article.source||"Finnhub company news"),publisher:String(article.source||"Finnhub company news"),publisherVerified:Boolean(article.source),provider:"Finnhub company-news"});
+ }
+ return {...base,items:combined,newsSources:[...(Array.isArray(base.sources)?base.sources:[]),{name:"Finnhub company news",status:added?"ok":(finnhub.warning?"unavailable":"no new unique articles"),count:added}],finnhubNews:{status:added?"ok":"unavailable_or_duplicate",count:added,warning:finnhub.warning||null}};
 }
 async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
