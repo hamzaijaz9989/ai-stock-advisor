@@ -26,6 +26,23 @@ test("builds canonical quote, history, SEC, FMP, news and earnings context with 
  assert.equal(result.portfolio.verified,true);
 });
 
+test("converts Finnhub news sentiment snapshots into explicitly timestamped evidence",()=>{
+ const result=buildResearchCouncilContext({
+  ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio,
+  sentimentObservations:[{
+   timestamp:"2026-11-08T19:59:00Z",source:"Finnhub news-sentiment API",sampleCount:20,score:0.34,
+   window:"rolling_7d_news_aggregate",bullishPercent:62,bearishPercent:28,
+   note:"Retrieval timestamp for a rolling-week news aggregate."
+  }]
+ });
+ const item=result.evidence.find(x=>x.type==="SENTIMENT_OBSERVATION");
+ assert.ok(item);
+ assert.equal(item.value.timestampStatus,"PRESENT");
+ assert.equal(item.value.sampleCount,20);
+ assert.equal(item.value.score,0.34);
+ assert.equal(item.value.window,"rolling_7d_news_aggregate");
+});
+
 test("does not turn missing portfolio data into zero risk",()=>{
  assert.throws(()=>buildResearchCouncilContext({ticker:"NVDA",asOf:"2026-11-08T20:00:00Z",portfolio:null}),/verified portfolio snapshot/);
 });
