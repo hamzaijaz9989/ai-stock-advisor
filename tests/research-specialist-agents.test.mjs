@@ -6,7 +6,7 @@ import {COUNCIL_ROLES,runResearchCouncil} from "../web/lib/research-council.js";
 
 function context(){
  const rows=Array.from({length:80},(_,i)=>({date:new Date(Date.UTC(2025,0,1+i)).toISOString().slice(0,10),open:100+i,high:102+i,low:99+i,close:101+i,volume:1000+i*5}));
- return {ticker:"TEST",asOf:"2026-11-10T12:00:00Z",portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0},facts:[
+ return {ticker:"TEST",asOf:"2026-11-10T12:00:00Z",portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,maxPositionNotionalUsd:0,concurrentPositions:0},facts:[
   {id:"q1",type:"QUOTE",value:{price:180,changePercent:1.2,quoteFreshness:{status:"FRESH"}}},
   {id:"h1",type:"DAILY_OHLCV_HISTORY",value:{rows,observationCount:80,dataQuality:"verified-adjusted"}},
   {id:"sec1",type:"SEC_REPORTED_FACT",value:{metric:"Revenue",availabilityTimestampVerified:true}},
