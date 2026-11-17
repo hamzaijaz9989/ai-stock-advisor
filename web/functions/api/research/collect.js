@@ -10,6 +10,7 @@ import {onRequestGet as getFinnhubSentiment} from "../finnhub-sentiment.js";
 import {onRequestGet as getNews} from "../news.js";
 import {onRequestGet as getEarnings} from "../earnings.js";
 import {buildResearchCouncilContext} from "../../../lib/research-council-facts.js";
+import {mergeFinnhubCompanyNews} from "../../../lib/research-news-merge.js";
 import {consumesResearchLaunchCooldown} from "../../../lib/research-launch-cooldown.js";
 import {fetchSecCompanyFacts} from "../../../lib/sec-companyfacts.js";
 import {runResearchCouncil} from "../../../lib/research-council.js";
