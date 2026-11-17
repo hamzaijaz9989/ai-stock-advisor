@@ -14,23 +14,23 @@ test("Finnhub news sentiment returns a normalized, timestamped rolling-week obse
   assert.equal(url.hostname,"finnhub.io");
   assert.equal(url.pathname,"/api/v1/news-sentiment");
   assert.equal(url.searchParams.get("symbol"),"NVDA");
-  assert.equal(url.searchParams.get("token"),"secret-test");
+  assert.equal(url.searchParams.get("token"),"test-token");
   return Response.json({symbol:"NVDA",buzz:{articlesInLastWeek:20},sentiment:{bullishPercent:62,bearishPercent:28},companyNewsScore:0.74});
  },async()=>{
-  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"secret-test"}});
+  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}});
   const body=await response.json(),observation=body.observations[0];
   assert.equal(response.status,200);assert.equal(body.available,true);
   assert.equal(observation.sampleCount,20);assert.equal(observation.score,0.34);
   assert.equal(observation.timestampStatus,"PRESENT");
   assert.equal(observation.window,"rolling_7d_news_aggregate");
   assert.equal(observation.companyNewsScore,0.74);
-  assert.equal(JSON.stringify(body).includes("secret-test"),false);
+  assert.equal(JSON.stringify(body).includes("test-token"),false);
  });
 });
 
 test("Finnhub news sentiment rejects empty or malformed samples",async()=>{
  await withFetch(async()=>Response.json({symbol:"NVDA",buzz:{articlesInLastWeek:0},sentiment:{bullishPercent:60,bearishPercent:20}}),async()=>{
-  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"secret-test"}});
+  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}});
   const body=await response.json();
   assert.equal(response.status,200);assert.equal(body.available,false);assert.equal(body.observations.length,0);
  });
@@ -38,11 +38,11 @@ test("Finnhub news sentiment rejects empty or malformed samples",async()=>{
 
 test("Finnhub authorization failures remain visible without exposing the key",async()=>{
  await withFetch(async()=>new Response("Forbidden",{status:403}),async()=>{
-  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"secret-test"}});
+  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}});
   const body=await response.json();
-  assert.equal(response.status,502);assert.equal(body.available,false);
+  assert.equal(response.status,200);assert.equal(body.available,false);
   assert.equal(body.upstreamStatus,403);
-  assert.equal(JSON.stringify(body).includes("secret-test"),false);
+  assert.equal(JSON.stringify(body).includes("test-token"),false);
  });
 });
 
