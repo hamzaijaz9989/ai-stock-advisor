@@ -250,7 +250,7 @@ export async function createResearchCouncilWorkers(env, fetcher=fetch) {
   const modelWorker=async(role,payload)=>{
     const started=Date.now(),articles=role==="sentiment_analyst"?eligibleSentimentArticles(payload):null;
     if(role==="sentiment_analyst"&&articles.length<3){record(role,started,"none",null,{unavailable:true,failureCode:"insufficient_fresh_news"});return {status:"UNAVAILABLE",findings:[],risks:[],reason:"Fewer than three unique, timestamped company-news articles within 72 hours; AI-derived news sentiment unavailable. Social sentiment is not configured."};}
-    const attempts=initializationFailures.slice();
+    const attempts=initializationFailures.filter(failure=>failure.provider==="gemini").slice();
     for(const generator of [gemini,openai].filter(Boolean)){
       try{
         const report=await generator({role,payload});
