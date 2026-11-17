@@ -18,7 +18,7 @@ export async function onRequestGet({request,env}){
   const response=await fetch(api.toString(),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(10000)});
   if(!response.ok)return Response.json({available:false,configured:true,provider:"Massive",items:[],sentimentObservations:[],upstreamStatus:response.status,warning:"Massive news request failed (HTTP "+response.status+")."},{status:502,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
   const payload=await response.json(),rows=Array.isArray(payload?.results)?payload.results:[];
-  const items=rows.filter(row=>typeof row?.title==="string"&&typeof row?.article_url==="string"&&/^https?:\\/\\//i.test(row.article_url))
+  const items=rows.filter(row=>typeof row?.title==="string"&&typeof row?.article_url==="string"&&/^https?:\/\//i.test(row.article_url))
    .filter(row=>Array.isArray(row.tickers)&&row.tickers.some(symbol=>String(symbol).toUpperCase()===ticker))
    .map(row=>({title:row.title,description:typeof row.description==="string"?row.description:"",url:row.article_url,
     publishedAt:typeof row.published_utc==="string"?row.published_utc:null,
