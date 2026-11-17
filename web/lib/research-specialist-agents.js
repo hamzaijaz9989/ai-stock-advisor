@@ -23,6 +23,8 @@ export function runMarketScanner(context) {
   if(!quotes.length || !histories.length) return unavailable("Timestamped quote and OHLCV history are required.");
   const q=quotes[0], h=histories[0], price=q.value?.price, rows=h.value?.rows||[];
   if(!finite(price)||price<=0||rows.length<20) return unavailable("A valid quote and at least 20 daily bars are required.");
+  const quoteMs=exactTimestampMs(q.value.quoteTime), asOfMs=exactTimestampMs(context?.asOf);
+  if(quoteMs===null||asOfMs===null||quoteMs>asOfMs) return unavailable("Quote and research as-of timestamps must be timezone-explicit and the quote cannot be future-dated.");
   if(!rows.every((x,i)=>x && typeof x.date==="string" && finite(x.close)&&x.close>0 && finite(x.high)&&finite(x.low)&&finite(x.volume)&&x.high>=x.low&&x.volume>=0 && (!i || rows[i-1].date<x.date))) return unavailable("OHLCV rows must be valid, unique and chronologically ordered.");
   const prior=rows.slice(-20,-1), avgVol=prior.reduce((s,x)=>s+x.volume,0)/prior.length;
   const last=rows.at(-1), volumeRatio=avgVol>0?last.volume/avgVol:null;
@@ -42,6 +44,9 @@ export function runTechnicalAnalyst(context) {
   const histories=factsOf(context,"DAILY_OHLCV_HISTORY"), h=histories[0], rows=h?.value?.rows||[];
   if(!h || rows.length<60) return unavailable("At least 60 valid daily OHLCV observations are required.");
   if(!rows.every((x,i)=>x && typeof x.date==="string" && finite(x.close)&&x.close>0 && finite(x.high)&&finite(x.low)&&x.high>=x.low && (!i || rows[i-1].date<x.date))) return unavailable("OHLCV rows must be valid, unique and chronologically ordered.");
+  const asOfMs=exactTimestampMs(context?.asOf), latestDate=rows.at(-1)?.date;
+  if(asOfMs===null||!Number.isFinite(Date.parse((latestDate||"")+"T00:00:00Z"))||new Date(Date.parse(latestDate+"T00:00:00Z")).toISOString().slice(0,10)!==latestDate||latestDate>context.asOf.slice(0,10)) return unavailable("History date or timezone-explicit as-of timestamp is invalid or future-dated.");
+  const historyAgeDays=(asOfMs-Date.parse(latestDate+"T00:00:00Z"))/86400000;
   const closes=rows.map(x=>x.close);
   const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
   const sma20=mean(closes.slice(-20)), sma50=mean(closes.slice(-50));
@@ -58,10 +63,13 @@ export function runTechnicalAnalyst(context) {
     claim("The 20-session simple moving average is "+sma20.toFixed(4)+" and the 50-session simple moving average is "+sma50.toFixed(4)+".",[h.id]),
     claim("The 14-session RSI calculated from the supplied closes is "+rsi.toFixed(2)+".",[h.id]),
     claim("MACD (12,26) is "+macdLine.toFixed(4)+(signal===null?"; signal line unavailable because fewer than nine MACD observations exist.":" and its 9-period signal line is "+signal.toFixed(4)+".")+"",[h.id]),
-    claim("The latest close is "+closes.at(-1).toFixed(4)+"; 20-session observed support is "+support.toFixed(4)+" and resistance is "+resistance.toFixed(4)+".",[h.id]),
+    claim("The latest OHLCV observation is dated "+latestDate+"; its close is "+closes.at(-1).toFixed(4)+"; 20-session observed support is "+support.toFixed(4)+" and resistance is "+resistance.toFixed(4)+".",[h.id]),
     claim("Moving-average positioning is "+(sma20>sma50?"20-session above 50-session":sma20<sma50?"20-session below 50-session":"approximately aligned")+".",[h.id])
   ];
   const risks=[];
+  if(historyAgeDays>10) risks.push(claim("Latest historical price bar is more than 10 calendar days before the research as-of date; technical indicators are stale for current-session decisions.",ids));
+  const retrievedAtMs=exactTimestampMs(h.observedAt);
+  if(retrievedAtMs===null||retrievedAtMs>asOfMs) risks.push(claim("Historical provider retrieval timestamp is missing or after the research as-of time; source freshness cannot be verified.",ids));
   if(h.value?.dataQuality!=="verified-adjusted") risks.push(claim("Corporate-action adjustment and price-series continuity are not independently attested; technical levels may be distorted by splits or distributions.",ids));
   return report(findings,risks);
 }
@@ -93,7 +101,7 @@ export function runFundamentalAnalyst(context) {
   ];
   const coverage=groups.map(([label,re])=>({label,items:metricPairs.filter(x=>re.test(x.name))}));
   const covered=coverage.filter(x=>x.items.length).map(x=>x.label);
-  const findings=[claim("Fundamental review includes "+sec.length+" SEC fact observation(s) and "+fmp.length+" FMP statement, metric or estimate observation(s). Metric groups found: "+(covered.join(", ")||"none clearly labelled")+".",ids.slice(0,20))];
+  const findings=[claim("Fundamental review includes "+sec.length+" SEC fact observation(s) and "+fmp.length+" FMP statement, metric or estimate observation(s). Metric groups found: "+(covered.join(", ")||"none clearly labelled")+".",ids.slice(0,10))];
   for(const group of coverage){
     const series=group.items.filter(x=>x.period).sort((a,b)=>String(a.period).localeCompare(String(b.period)));
     if(series.length>=2){
@@ -105,16 +113,16 @@ export function runFundamentalAnalyst(context) {
     }
   }
   const risks=[];
-  if(!sec.length) risks.push(claim("SEC company-facts observations are absent; provider-only metrics require filing-level verification.",ids.slice(0,20)));
-  if(!fmp.length) risks.push(claim("FMP statement/provider cross-check observations are absent; SEC facts have no independent provider comparison.",ids.slice(0,20)));
+  if(!sec.length) risks.push(claim("SEC company-facts observations are absent; provider-only metrics require filing-level verification.",ids.slice(0,10)));
+  if(!fmp.length) risks.push(claim("FMP statement/provider cross-check observations are absent; SEC facts have no independent provider comparison.",ids.slice(0,10)));
   if(rows.some(x=>x.type==="SEC_REPORTED_FACT"&&x.value.availabilityTimestampVerified!==true))
-    risks.push(claim("SEC filed dates are not exact public-availability timestamps; historical point-in-time backtests must not treat these observations as proven available at the as-of time.",rows.filter(x=>x.type==="SEC_REPORTED_FACT").map(x=>x.id).slice(0,20)));
-  if(covered.length<6) risks.push(claim("Financial statement coverage is incomplete across revenue, profitability, cash flow, debt and liquidity; business quality cannot be fully assessed.",ids.slice(0,20)));
+    risks.push(claim("SEC filed dates are not exact public-availability timestamps; historical point-in-time backtests must not treat these observations as proven available at the as-of time.",rows.filter(x=>x.type==="SEC_REPORTED_FACT").map(x=>x.id).slice(0,10)));
+  if(covered.length<6) risks.push(claim("Financial statement coverage is incomplete across revenue, profitability, cash flow, debt and liquidity; business quality cannot be fully assessed.",ids.slice(0,10)));
   const periods=new Set(metricPairs.map(x=>x.period).filter(Boolean));
-  if(periods.size>1&&metricPairs.some(x=>!x.period)) risks.push(claim("Some reported metrics lack fiscal-period labels; mixed-period comparisons are unsafe.",ids.slice(0,20)));
+  if(periods.size>1&&metricPairs.some(x=>!x.period)) risks.push(claim("Some reported metrics lack fiscal-period labels; mixed-period comparisons are unsafe.",ids.slice(0,10)));
   const currencies=new Set(metricPairs.map(x=>x.currency).filter(Boolean));
-  if(currencies.size>1) risks.push(claim("Evidence contains multiple units or currencies; values must not be combined without normalization.",ids.slice(0,20)));
-  if(rows.some(x=>x.type==="FMP_ANALYST_ESTIMATE"||/estimate/i.test(x.type))) risks.push(claim("Analyst estimates are forecasts, not reported results; they must remain separate from historical financial performance.",rows.filter(x=>x.type==="FMP_ANALYST_ESTIMATE"||/estimate/i.test(x.type)).map(x=>x.id).slice(0,20)));
+  if(currencies.size>1) risks.push(claim("Evidence contains multiple units or currencies; values must not be combined without normalization.",ids.slice(0,10)));
+  if(rows.some(x=>x.type==="FMP_ANALYST_ESTIMATE"||/estimate/i.test(x.type))) risks.push(claim("Analyst estimates are forecasts, not reported results; they must remain separate from historical financial performance.",rows.filter(x=>x.type==="FMP_ANALYST_ESTIMATE"||/estimate/i.test(x.type)).map(x=>x.id).slice(0,10)));
   return report(findings,risks);
 }
 
@@ -137,15 +145,15 @@ export function runNewsAnalyst(context) {
   }
   const primary=usable.filter(x=>x.value?.sourceTier==="primary-source"||x.value?.publisherVerified===true&&/issuer|investor relations|sec\.gov/i.test(String(x.value?.publisher||""))).length;
   const reported=usable.filter(x=>x.value?.sourceTier==="reported-source").length;
-  const findings=[claim("News review received "+items.length+" discovery item(s), with "+usable.length+" unique, dated items at or before the research as-of time; "+primary+" primary-source and "+reported+" reported-source items are identified. Discovery headlines are not automatically verified issuer catalysts.",items.map(x=>x.id).slice(0,20))];
+  const findings=[claim("News review received "+items.length+" discovery item(s), with "+usable.length+" unique, dated items at or before the research as-of time; "+primary+" primary-source and "+reported+" reported-source items are identified. Discovery headlines are not automatically verified issuer catalysts.",items.map(x=>x.id).slice(0,10))];
   const risks=[];
-  if(!usable.length) risks.push(claim("No usable dated news item remains after chronology and URL checks; event chronology cannot be established.",items.map(x=>x.id).slice(0,20)));
-  if(undatedIds.length) risks.push(claim(undatedIds.length+" news item(s) have missing or invalid publication timestamps and cannot establish event chronology.",undatedIds.slice(0,20)));
-  if(missingLinkIds.length) risks.push(claim(missingLinkIds.length+" news item(s) lack a valid headline URL and were excluded from event chronology.",missingLinkIds.slice(0,20)));
-  if(futureIds.length) risks.push(claim(futureIds.length+" news item(s) are dated after the research as-of time and were excluded from historical catalyst assessment.",futureIds.slice(0,20)));
-  if(duplicateIds.length) risks.push(claim(duplicateIds.length+" duplicate news item(s) were excluded from unique-item counts.",duplicateIds.slice(0,20)));
-  if(unverifiedIds.length) risks.push(claim(unverifiedIds.length+" dated item(s) have unverified publisher attribution; corroborate material claims against issuer or regulator originals.",unverifiedIds.slice(0,20)));
-  if(primary===0) risks.push(claim("No issuer/regulator primary source is identified; material announcements remain uncorroborated.",items.map(x=>x.id).slice(0,20)));
+  if(!usable.length) risks.push(claim("No usable dated news item remains after chronology and URL checks; event chronology cannot be established.",items.map(x=>x.id).slice(0,10)));
+  if(undatedIds.length) risks.push(claim(undatedIds.length+" news item(s) have missing or invalid publication timestamps and cannot establish event chronology.",undatedIds.slice(0,10)));
+  if(missingLinkIds.length) risks.push(claim(missingLinkIds.length+" news item(s) lack a valid headline URL and were excluded from event chronology.",missingLinkIds.slice(0,10)));
+  if(futureIds.length) risks.push(claim(futureIds.length+" news item(s) are dated after the research as-of time and were excluded from historical catalyst assessment.",futureIds.slice(0,10)));
+  if(duplicateIds.length) risks.push(claim(duplicateIds.length+" duplicate news item(s) were excluded from unique-item counts.",duplicateIds.slice(0,10)));
+  if(unverifiedIds.length) risks.push(claim(unverifiedIds.length+" dated item(s) have unverified publisher attribution; corroborate material claims against issuer or regulator originals.",unverifiedIds.slice(0,10)));
+  if(primary===0) risks.push(claim("No issuer/regulator primary source is identified; material announcements remain uncorroborated.",items.map(x=>x.id).slice(0,10)));
   return report(findings,risks);
 }
 

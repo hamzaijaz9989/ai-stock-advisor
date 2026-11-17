@@ -89,15 +89,23 @@ export async function runResearchCouncil({requestId, context, workers}) {
     ? await Promise.all(COUNCIL_ROLES.debate.map(role=>invoke(role,safeWorkers[role],debatePayload,factIds)))
     : COUNCIL_ROLES.debate.map(role=>({role,status:"NOT_RUN",reason:"No independent specialist completed with usable evidence."}));
   let synthesis=null;
+  let synthesisSkippedReason=null;
   if(debate.length===2&&debate.every(x=>x.status==="COMPLETE")){
-    synthesis=await invoke("portfolio_analyst",safeWorkers.portfolio_analyst,
-      {...debatePayload,debateReports:debate.map(x=>({role:x.role,report:x.report}))},factIds);
-  }
-  const risk=independent.every(x=>x.status==="COMPLETE")
-    ? await invoke("risk_committee",safeWorkers.risk_committee,
-      {...base,analystReports:usableReports,debateReports:debate.filter(x=>x.status==="COMPLETE").map(x=>({role:x.role,report:x.report})),portfolioReport:synthesis?.report||null},factIds)
-    : null;
-  const all=[...independent,...debate,...(synthesis?[synthesis]:[{role:"portfolio_analyst",status:"NOT_RUN",reason:"Debate did not produce two validated reports; portfolio synthesis skipped."}]),...(risk?[risk]:[])];
+    if(context.portfolio.verified===true){
+      synthesis=await invoke("portfolio_analyst",safeWorkers.portfolio_analyst,
+        {...debatePayload,debateReports:debate.map(x=>({role:x.role,status:x.status,report:x.report}))},factIds);
+    }else synthesisSkippedReason="Verified portfolio snapshot is required for portfolio synthesis.";
+  }else synthesisSkippedReason="Debate did not produce two validated reports; portfolio synthesis skipped.";
+  const portfolioAgent=synthesis||{role:"portfolio_analyst",status:"NOT_RUN",reason:synthesisSkippedReason};
+  const allDebateReports=debate.map(x=>({role:x.role,status:x.status,reason:x.reason||null,report:x.report||null}));
+  // The Risk Committee always evaluates the available portfolio snapshot and every
+  // specialist status. Missing or invalid upstream reports become explicit vetoes;
+  // they no longer suppress the Committee's durable assessment.
+  const risk=await invoke("risk_committee",safeWorkers.risk_committee,
+    {...base,analystReports:independent.map(x=>({role:x.role,status:x.status,reason:x.reason||null,report:x.report||null})),
+      debateReports:allDebateReports,portfolioReport:{role:portfolioAgent.role,status:portfolioAgent.status,
+        reason:portfolioAgent.reason||null,report:portfolioAgent.report||null}},factIds);
+  const all=[...independent,...debate,portfolioAgent,risk];
   const riskDecision = risk?.report?.decision;
   const analystReady = independent.every(x=>x.status==="COMPLETE");
   const approvedForReview = analystReady && debate.length===2 &&
@@ -109,7 +117,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
     status:approvedForReview?"RESEARCH_REVIEW_REQUIRED":"NO_TRADE",
     execution:false, automatedOrderSubmission:false,
     decisionAuthority:"Deterministic Northstar risk and validation gates remain authoritative; council output is advisory only.",
-    agents:all.map(x=>{const t=workers?.telemetry?.[x.role]||null;return {role:x.role,status:x.status,reason:x.reason||null,findings:x.report?.findings||[],risks:x.report?.risks||[],decision:x.report?.decision||null,vetoReasons:Array.isArray(x.report?.vetoReasons)?x.report.vetoReasons.slice(0,20):[],durationMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,telemetry:t ? {latencyMs:Number.isFinite(t.latencyMs)?t.latencyMs:null,provider:typeof t.provider==="string"?t.provider:null,model:typeof t.model==="string"?t.model:null,failed:t.failed===true,unavailable:t.unavailable===true,inputTokens:Number.isSafeInteger(t.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t.totalTokens)?t.totalTokens:null} : null}}),
+    agents:all.map(x=>{const t=workers?.telemetry?.[x.role]||null;return {role:x.role,status:x.status,reason:x.reason||null,findings:x.report?.findings||[],risks:x.report?.risks||[],decision:x.report?.decision||null,vetoReasons:Array.isArray(x.report?.vetoReasons)?x.report.vetoReasons.slice(0,20):[],durationMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,telemetry:t ? {latencyMs:Number.isFinite(t.latencyMs)?t.latencyMs:null,provider:typeof t.provider==="string"?t.provider:null,model:typeof t.model==="string"?t.model:null,failed:t.failed===true,unavailable:t.unavailable===true,inputTokens:Number.isSafeInteger(t.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t.totalTokens)?t.totalTokens:null,failureCode:typeof t.failureCode==="string"?t.failureCode:null} : null}}),
     reports:all.filter(x=>x.report).map(x=>({role:x.role,report:x.report})),
     vetoReasons:approvedForReview?[]:[
       ...all.filter(x=>x.status!=="COMPLETE").map(x=>x.reason||x.role+" did not complete."),
