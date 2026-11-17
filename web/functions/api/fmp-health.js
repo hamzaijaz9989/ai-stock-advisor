@@ -28,7 +28,11 @@ export async function onRequestGet(context){
     ["history","historical-price-eod/full?symbol=NVDA&from="+from+"&to="+today],
     ["fundamentals","income-statement?symbol=NVDA&period=annual&limit=1"]
   ];
-  const results=await Promise.all(checks.map(async([name,path])=>{
+  const results=[];
+  // An HTTP 401 means the credential itself is invalid; probing more endpoints
+  // with the same rejected key only wastes requests and cannot reveal plan access.
+  for(const [name,path] of checks){
+    let result;
     try{
       const url=new URL(path,"https://financialmodelingprep.com/stable/");
       url.searchParams.set("apikey",key);
@@ -36,9 +40,11 @@ export async function onRequestGet(context){
       const body=await response.json().catch(()=>null);
       const rows=Array.isArray(body)?body:[];
       const providerMessage=!Array.isArray(body)?String(body?.["Error Message"]||body?.message||body?.error||"Unexpected provider response").slice(0,180):null;
-      return {dataset:name,httpStatus:response.status,status:classify(response.status),rowCount:rows.length,latestDate:rows.map(x=>x?.date).filter(Boolean).sort().at(-1)||null,providerMessage};
-    }catch(error){return {dataset:name,status:"NETWORK_ERROR",errorName:error?.name||"Error"};}
-  }));
+      result={dataset:name,httpStatus:response.status,status:classify(response.status),rowCount:rows.length,latestDate:rows.map(x=>x?.date).filter(Boolean).sort().at(-1)||null,providerMessage};
+    }catch(error){result={dataset:name,status:"NETWORK_ERROR",errorName:error?.name||"Error"};}
+    results.push(result);
+    if(result.status==="AUTHENTICATION_FAILED")break;
+  }
   const authFailed=results.some(x=>x.status==="AUTHENTICATION_FAILED");
   const anyOk=results.some(x=>x.status==="OK");
   const status=authFailed?"FMP_AUTHENTICATION_FAILED":anyOk?"FMP_PARTIALLY_OR_FULLY_REACHABLE":"FMP_ENDPOINTS_UNAVAILABLE";
