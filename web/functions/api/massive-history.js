@@ -1,5 +1,5 @@
 const TICKER_RE=/^[A-Z][A-Z0-9.-]{0,11}$/;
-const DAY=/^\\d{4}-\\d{2}-\\d{2}$/;
+const DAY=/^\d{4}-\d{2}-\d{2}$/;
 const HEADERS={"Cache-Control":"public, max-age=300","X-Content-Type-Options":"nosniff"};
 const BASIC_WINDOW_DAYS=730;
 function isoDay(value){return typeof value==="string"&&DAY.test(value)&&!Number.isNaN(Date.parse(value+"T00:00:00Z"));}
