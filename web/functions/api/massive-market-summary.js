@@ -1,4 +1,4 @@
-const DAY=/^\\d{4}-\\d{2}-\\d{2}$/;
+const DAY=/^\d{4}-\d{2}-\d{2}$/;
 const HEADERS={"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"};
 export async function onRequestGet({request,env}){
  const date=new URL(request.url).searchParams.get("date")||new Date(Date.now()-86400000).toISOString().slice(0,10);
