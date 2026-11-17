@@ -1,5 +1,5 @@
 import {onRequestGet as getQuote} from "../quote.js";
-import {onRequestGet as getHistory} from "../fmp-history.js";
+import {onRequestGet as getHistory} from "../history.js";
 import {runMarketScanner,runTechnicalAnalyst} from "../../../lib/research-specialist-agents.js";
 
 const headers={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"};
@@ -16,7 +16,7 @@ export async function onRequestPost({request,env}){
  try{
   const [quote,history]=await Promise.all([
    read(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
-   read(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker),env)
+   read(getHistory,origin,"/api/history?ticker="+encodeURIComponent(ticker),env)
   ]);
   if(String(quote?.ticker||"").toUpperCase()!==ticker||!finite(quote?.price)||quote.price<=0||!quote.quoteTime)return reply({ok:false,error:"Quote is missing, mismatched or undated.",execution:false},503);
   if(String(history?.ticker||"").toUpperCase()!==ticker||!history.available||!Array.isArray(history.prices))return reply({ok:false,error:"Historical price data is missing or mismatched.",execution:false,providerErrors:history?.errors||[]},503);
