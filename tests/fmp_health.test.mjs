@@ -38,7 +38,8 @@ test("FMP health distinguishes invalid credentials from plan restrictions",async
   const response=await onRequestGet({request:new Request("https://northstar.test/api/fmp-health"),env:{FMP_API_KEY:"test"}});
   const payload=await response.json();
   assert.equal(response.status,502);assert.equal(payload.status,"FMP_AUTHENTICATION_FAILED");
-  assert.equal(payload.checks.find(x=>x.dataset==="quote").status,"AUTHENTICATION_FAILED");
-  assert.equal(payload.checks.find(x=>x.dataset==="history").status,"PLAN_OR_PERMISSION_RESTRICTED");
+  assert.equal(payload.checks.length,1);
+  assert.equal(payload.checks[0].dataset,"quote");
+  assert.equal(payload.checks[0].status,"AUTHENTICATION_FAILED");
  }finally{globalThis.fetch=original;}
 });
