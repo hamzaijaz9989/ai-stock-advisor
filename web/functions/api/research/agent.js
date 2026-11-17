@@ -18,6 +18,7 @@ export async function onRequestGet({request,env}){
    let result=null;try{result=JSON.parse(row.result_json);}catch{}
    const agent=Array.isArray(result?.agents)?result.agents.find(x=>x?.role===role):null;
    if(!agent)continue;
+   const telemetry=agent.telemetry&&typeof agent.telemetry==="object"?agent.telemetry:null;
    history.push({
     symbol,runStatus:String(result?.status||"UNKNOWN"),createdAt:row.created_at||null,
     agent:{
@@ -25,6 +26,10 @@ export async function onRequestGet({request,env}){
      vetoReasons:Array.isArray(agent.vetoReasons)?agent.vetoReasons.filter(x=>typeof x==="string").slice(0,20).map(x=>x.slice(0,500)):[],
      findings:cleanItems(agent.findings),risks:cleanItems(agent.risks),
      durationMs:Number.isFinite(Number(agent.durationMs))?Number(agent.durationMs):null,
+     provider:typeof telemetry?.provider==="string"?telemetry.provider:null,
+     model:typeof telemetry?.model==="string"?telemetry.model:null,
+     inputTokens:Number.isSafeInteger(telemetry?.inputTokens)?telemetry.inputTokens:null,
+     outputTokens:Number.isSafeInteger(telemetry?.outputTokens)?telemetry.outputTokens:null,
      reason:typeof agent.reason==="string"?agent.reason.slice(0,500):null,
      unavailableReason:typeof agent.unavailableReason==="string"?agent.unavailableReason.slice(0,500):null,
      evidenceCount:Array.isArray(agent.findings)?agent.findings.reduce((n,x)=>n+(Array.isArray(x?.factIds)?x.factIds.length:0),0):0
