@@ -52,7 +52,22 @@ export async function onRequestGet({ request, env }) {
     ["ratios", "ratios?period=annual&limit=5"],
     ["estimates", "analyst-estimates?period=annual&page=0&limit=5"]
   ];
-  const settled = await Promise.allSettled(requests.map(([, path]) => getFmp(path, ticker, fmpKey)));
+  let firstIncome;
+  try {
+    firstIncome = await getFmp(requests[0][1], ticker, fmpKey);
+  } catch (error) {
+    const message = String(error?.message || "FMP request failed").slice(0, 180);
+    if (/HTTP 401/.test(message)) return Response.json({
+      available: false, configured: true, ticker, provider: "Financial Modeling Prep",
+      warning: "FMP rejected the configured API key (HTTP 401); remaining FMP fundamentals requests were skipped. SEC EDGAR evidence may still be available in Research Council.",
+      errors: [{ dataset: "income", error: message }]
+    }, { headers });
+    firstIncome = null;
+  }
+  const rest = await Promise.allSettled(requests.slice(1).map(([, path]) => getFmp(path, ticker, fmpKey)));
+  const settled = [firstIncome === null
+    ? { status: "rejected", reason: new Error("Initial income statement request failed.") }
+    : { status: "fulfilled", value: firstIncome }, ...rest];
   const data = {};
   const errors = [];
   settled.forEach((result, index) => {
