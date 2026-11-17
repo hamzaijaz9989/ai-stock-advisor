@@ -19,22 +19,23 @@ function freezeDeep(value) {
   return value;
 }
 function validateReport(report, validFactIds, role) {
+  const fail=(failureCode,reason)=>({ok:false,failureCode,reason:role+" "+reason});
   if (!report || !["COMPLETE", "UNAVAILABLE"].includes(report.status) ||
       !Array.isArray(report.findings) || !Array.isArray(report.risks) ||
       report.findings.length > 30 || report.risks.length > 30) {
-    return {ok:false, reason:role+" returned an invalid report contract."};
+    return fail("invalid_report_contract","returned an invalid report contract.");
   }
   if (report.status === "UNAVAILABLE") {
     const clean = report.findings.length === 0 && report.risks.length === 0 &&
       report.decision === undefined && report.vetoReasons === undefined;
-    return {ok:clean, reason:role+" is unavailable or returned data with an unavailable status."};
+    return clean ? {ok:true} : fail("invalid_unavailable_report","returned findings or decision fields with UNAVAILABLE status.");
   }
   for (const item of [...report.findings, ...report.risks]) {
-    if (!validText(item?.claim) || !Array.isArray(item.factIds) || item.factIds.length===0 ||
-        item.factIds.length > 10 ||
-        item.factIds.some(id => typeof id!=="string" || !validFactIds.has(id))) {
-      return {ok:false, reason:role+" emitted an unsupported claim or invalid fact reference."};
-    }
+    if (!validText(item?.claim)) return fail("invalid_claim_text","returned claim text outside the accepted length or type bounds.");
+    if (!Array.isArray(item.factIds) || item.factIds.length===0) return fail("missing_evidence_ids","returned a claim without evidence IDs.");
+    if (item.factIds.length > 10) return fail("too_many_evidence_ids","returned more than ten evidence IDs for one claim.");
+    if (item.factIds.some(id=>typeof id!=="string"||!id.trim())) return fail("invalid_evidence_id","returned a malformed evidence ID.");
+    if (item.factIds.some(id=>!validFactIds.has(id))) return fail("unknown_evidence_id","cited an evidence ID absent from the validated research context.");
   }
   if (role === "risk_committee") {
     if (!["ACCEPT_FOR_REVIEW", "REJECT"].includes(report.decision) ||
@@ -42,22 +43,22 @@ function validateReport(report, validFactIds, role) {
         report.vetoReasons.some(reason => typeof reason !== "string" || reason.trim().length < 5 || reason.length > 500) ||
         (report.decision === "ACCEPT_FOR_REVIEW" && report.vetoReasons.length !== 0) ||
         (report.decision === "REJECT" && report.vetoReasons.length === 0)) {
-      return {ok:false, reason:"risk_committee returned an invalid decision or veto-reason contract."};
+      return fail("invalid_risk_decision","returned an invalid decision or veto-reason contract.");
     }
   } else if (report.decision !== undefined || report.vetoReasons !== undefined) {
-    return {ok:false, reason:role+" attempted to emit risk-committee-only decision fields."};
+    return fail("unauthorized_risk_fields","attempted to emit Risk Committee-only decision fields.");
   }
   return {ok:true};
 }
 async function invoke(role, worker, payload, factIds) {
-  if (typeof worker !== "function") return {role, status:"UNAVAILABLE", reason:role+" worker not configured."};
+  if (typeof worker !== "function") return {role, status:"UNAVAILABLE", failureCode:"worker_not_configured", reason:role+" worker not configured."};
   try {
     const report = await worker(freezeDeep(structuredClone(payload)));
     const checked = validateReport(report, factIds, role);
-    if (!checked.ok) return {role, status:"BLOCKED", reason:checked.reason};
-    return {role, status:report.status, reason:report.status==="UNAVAILABLE"&&typeof report.reason==="string"?report.reason:null, report};
+    if (!checked.ok) return {role, status:"BLOCKED", failureCode:checked.failureCode, reason:checked.reason};
+    return {role, status:report.status, failureCode:report.status==="UNAVAILABLE"?"agent_unavailable":null, reason:report.status==="UNAVAILABLE"&&typeof report.reason==="string"?report.reason:null, report};
   } catch {
-    return {role, status:"UNAVAILABLE", reason:role+" worker failed; details withheld from the public decision."};
+    return {role, status:"UNAVAILABLE", failureCode:"worker_exception", reason:role+" worker failed; details withheld from the public decision."};
   }
 }
 export async function runResearchCouncil({requestId, context, workers}) {
@@ -117,7 +118,7 @@ export async function runResearchCouncil({requestId, context, workers}) {
     status:approvedForReview?"RESEARCH_REVIEW_REQUIRED":"NO_TRADE",
     execution:false, automatedOrderSubmission:false,
     decisionAuthority:"Deterministic Northstar risk and validation gates remain authoritative; council output is advisory only.",
-    agents:all.map(x=>{const t=workers?.telemetry?.[x.role]||null;return {role:x.role,status:x.status,reason:x.reason||null,findings:x.report?.findings||[],risks:x.report?.risks||[],decision:x.report?.decision||null,vetoReasons:Array.isArray(x.report?.vetoReasons)?x.report.vetoReasons.slice(0,20):[],durationMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,telemetry:t ? {latencyMs:Number.isFinite(t.latencyMs)?t.latencyMs:null,provider:typeof t.provider==="string"?t.provider:null,model:typeof t.model==="string"?t.model:null,failed:t.failed===true,unavailable:t.unavailable===true,inputTokens:Number.isSafeInteger(t.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t.totalTokens)?t.totalTokens:null,failureCode:typeof t.failureCode==="string"?t.failureCode:null} : null}}),
+    agents:all.map(x=>{const t=workers?.telemetry?.[x.role]||null;return {role:x.role,status:x.status,reason:x.reason||null,failureCode:x.failureCode||null,findings:x.report?.findings||[],risks:x.report?.risks||[],decision:x.report?.decision||null,vetoReasons:Array.isArray(x.report?.vetoReasons)?x.report.vetoReasons.slice(0,20):[],durationMs:Number.isFinite(t?.latencyMs)?t.latencyMs:null,telemetry:t ? {latencyMs:Number.isFinite(t.latencyMs)?t.latencyMs:null,provider:typeof t.provider==="string"?t.provider:null,model:typeof t.model==="string"?t.model:null,failed:t.failed===true,unavailable:t.unavailable===true,inputTokens:Number.isSafeInteger(t.inputTokens)?t.inputTokens:null,outputTokens:Number.isSafeInteger(t.outputTokens)?t.outputTokens:null,totalTokens:Number.isSafeInteger(t.totalTokens)?t.totalTokens:null,failureCode:typeof t.failureCode==="string"?t.failureCode:null} : null}}),
     reports:all.filter(x=>x.report).map(x=>({role:x.role,report:x.report})),
     vetoReasons:approvedForReview?[]:[
       ...all.filter(x=>x.status!=="COMPLETE").map(x=>x.reason||x.role+" did not complete."),
