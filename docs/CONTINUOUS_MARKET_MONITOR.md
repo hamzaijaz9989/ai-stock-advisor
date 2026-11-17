@@ -12,9 +12,9 @@ The Northstar market monitor is a separate Cloudflare Worker (`northstar-market-
 
 ## Provider routing
 
-1. **FMP first** for symbols in the exact account-specific Free-plan allowlist, subject to the atomic 200-attempt-per-UTC-day monitor ceiling.
-2. **Finnhub next** when FMP fails, or directly for non-FMP shortlist symbols. It uses the Worker secret `FINNHUB_API_KEY`.
-3. **Yahoo Finance last** when Finnhub is unavailable or fails.
+1. **Finnhub first** for symbols in the exact account-specific Free-plan allowlist, subject to the atomic 200-attempt-per-UTC-day monitor ceiling.
+2. **Alpaca IEX next** if Finnhub is unavailable. It uses the Worker secrets `ALPACA_API_KEY_ID` and `ALPACA_API_SECRET_KEY`.
+3. **FMP then Yahoo Finance** as the remaining fallback chain; FMP is limited to its legacy allowlist and budget.
 
 Every provider response must contain a positive price and a valid, fresh timestamp (maximum age 15 minutes; future skew at most two minutes). Missing, malformed, stale, or future-dated quotes fail closed. Finnhub's free quote endpoint is not a historical OHLC/candles replacement and remains subject to personal-use terms.
 
@@ -32,7 +32,7 @@ The Pages Functions environment and the Worker environment are separate. The Pag
 
 - FMP monitor ceiling: 200 quote attempts per UTC day, leaving 50 of the stated 250-call Free-plan allowance as headroom.
 - Two FMP-eligible symbols are selected per five-minute run.
-- Failed FMP attempts count against the monitor budget.
+- Failed FMP fallback attempts count against the monitor budget.
 - The ledger is an atomic conditional upsert; the monitor must not reserve attempt 201 for a UTC day.
 - Other Northstar components using the same FMP key are not automatically charged to this Worker ledger; preserve the reserved headroom.
 
