@@ -404,3 +404,24 @@ The PR #118 policy values of 0.5% per-trade risk and 2% daily loss at the $1,000
 - PR #118 collector integration fix: its portfolio snapshot now explicitly separates `equityUsd/virtualAllocationUsd = 1000` from actual Alpaca broker equity and sets `riskMetricBasis = actual_alpaca_paper_account_equity`, matching the strengthened nine-agent fact-adapter contract. Added a regression test; updated PR #118 head `0935baf5d471f3472fc63ecd9ab9703c411b90a7` passed Python tests, JavaScript tests, scanner syntax and lint. This remains code-level only; no collector call or Production write occurred.
 - PR #116 exact head `cb0c81635924bff7e1908ff1ec90933c4e4c72c2` continues to pass Tests, Python tests, validation and secret scan. Nine-role status, evidence IDs, missing-data handling and deterministic risk veto were reviewed. Independent formal review and PR integration remain outstanding.
 - Production seven-day baseline and latest-snapshot freshness remain unmet; do not invoke the collector. Execution remains disabled and kill switch engaged.
+
+
+# Nine-Agent Command Center Rebuild — 2026-11-17
+
+## Scope and status
+The Trading Lab Research Council section is being replaced with an evidence-first Command Center. This work changes the interface and read-only research observability contracts; it does not replace orchestration, agent roles, portfolio/risk logic, or historical D1 rows. Research remains advisory. Broker execution is disabled and the kill switch remains engaged.
+
+## UI and API behavior
+- The new command board presents exactly the canonical nine roles, persisted status, available provider/model and duration metadata, report viewer, Bull/Bear comparison, portfolio/risk panels, and a ten-run history table.
+- Run Research still POSTs to the existing same-origin `/api/research/collect` endpoint with ticker and idempotency request ID. The endpoint's same-origin/operator authorization, idempotency behavior, and five-minute server cooldown remain authoritative. Client button locking prevents accidental repeated clicks but is not an authorization bypass.
+- Refresh and history selection use read-only GET requests to `/api/research/status?limit=10` and `/api/research/agent`. A public run ID is the existing symbol plus durable creation timestamp; raw request IDs stay private. Historical agent lookup uses the selected durable run.
+- New run records store only source-reference metadata (fact/evidence ID, evidence type, provider/source, observed timestamp, bounded label) for IDs actually cited in the persisted agent reports. Raw provider payloads and portfolio values are not added to the public API. Older records without metadata show an explicit unavailable state.
+- The database schema and previous rows are unchanged. No migration is required. The status contract returns no synthetic progress: a persisted collection placeholder may be labelled RUNNING; agents remain NOT_RUN until actual results are persisted. Per-agent start/end timestamps are not available in existing records; duration and run creation time are shown only when present.
+
+## Agent operations and limitations
+The client reflects statuses and validation codes returned by persisted Council results. It does not upgrade BLOCKED, UNAVAILABLE, FAILED, or NOT_RUN. The portfolio panel preserves its dependency gate, and the Risk Committee panel displays recorded decision/vetoes. Sentiment remains unavailable if fewer than three unique fresh timestamped company-news items were collected. Bull/Bear reports are shown independently and only when persisted.
+
+## Verification record
+- Unit and contract tests cover the public run identifier, running/failed collection states, exact historical agent selection, source-reference mapping, missing metadata, accessible UI structure, nine-role coverage, safe endpoint usage, and responsive CSS.
+- Full GitHub Actions JavaScript/Python/security results: pending for this branch until CI completes.
+- Production live browser verification and post-deployment AAPL run: pending. No deployment or research launch is reported until completed and observed.

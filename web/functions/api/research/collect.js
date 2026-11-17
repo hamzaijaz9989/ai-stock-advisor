@@ -10,6 +10,7 @@ import {onRequestGet as getFinnhubSentiment} from "../finnhub-sentiment.js";
 import {onRequestGet as getNews} from "../news.js";
 import {onRequestGet as getEarnings} from "../earnings.js";
 import {buildResearchCouncilContext} from "../../../lib/research-council-facts.js";
+import {buildResearchEvidenceReferences} from "../../../lib/research-evidence-references.js";
 import {mergeFinnhubCompanyNews} from "../../../lib/research-news-merge.js";
 import {consumesResearchLaunchCooldown} from "../../../lib/research-launch-cooldown.js";
 import {fetchSecCompanyFacts} from "../../../lib/sec-companyfacts.js";
@@ -230,7 +231,8 @@ export async function onRequestPost({request,env}){
   if(existing && existing.input_sha256!==attemptHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
-  const storedResult={...result,collection:{sources:["Alpaca/Finnhub/Nasdaq timestamped quote adapter",history.provider||"Historical price provider",...(validFundamentals?["FMP secondary fundamentals fallback"]:[]),...(sec.observations.length?["SEC EDGAR companyfacts (primary fundamentals)"]:[]),...(sentiment.observations?.length?[(sentiment.provider||"Provider")+" news sentiment"]:[]),...(Array.isArray(news.items)&&news.items.length?[news.provider||"news discovery"]:[]),"Alpaca Paper account and reconciled ledger"],providerWarnings:[history.priceWarning,history.fallbackReason,fundamentals.warning,sec.warning,sentiment.warning,news.warning,news.fallbackReason].filter(Boolean),factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
+  const evidenceReferences=buildResearchEvidenceReferences(context,result);
+  const storedResult={...result,evidenceReferences,collection:{sources:["Alpaca/Finnhub/Nasdaq timestamped quote adapter",history.provider||"Historical price provider",...(validFundamentals?["FMP secondary fundamentals fallback"]:[]),...(sec.observations.length?["SEC EDGAR companyfacts (primary fundamentals)"]:[]),...(sentiment.observations?.length?[(sentiment.provider||"Provider")+" news sentiment"]:[]),...(Array.isArray(news.items)&&news.items.length?[news.provider||"news discovery"]:[]),"Alpaca Paper account and reconciled ledger"],providerWarnings:[history.priceWarning,history.fallbackReason,fundamentals.warning,sec.warning,sentiment.warning,news.warning,news.fallbackReason].filter(Boolean),factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("UPDATE research_council_runs SET input_sha256=?,status=?,result_json=? WHERE request_id=? AND symbol=?").bind(inputHash,result.status,JSON.stringify(storedResult),requestId,ticker).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);

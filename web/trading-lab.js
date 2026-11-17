@@ -172,82 +172,6 @@
       monitorMetric("monitor-symbols","—");monitorMetric("monitor-errors","—");monitorMetric("monitor-alert-count","—");
     }finally{if(button)button.disabled=false;}
   }
-  const COUNCIL_AGENTS = [
-    ["market_scanner","market-scanner"],["technical_analyst","technical-analyst"],
-    ["fundamental_analyst","fundamental-analyst"],["news_analyst","news-analyst"],
-    ["sentiment_analyst","sentiment-analyst"],["bull_researcher","bull-researcher"],
-    ["bear_researcher","bear-researcher"],["portfolio_analyst","portfolio-analyst"],
-    ["risk_committee","risk-committee"]
-  ];
-  const councilTime = value => {const d=new Date(value||"");return Number.isFinite(d.getTime())?d.toLocaleString():"Not recorded";};
-  function renderCouncilAgents(run){
-    const statuses=new Map((Array.isArray(run?.agents)?run.agents:[]).map(agent=>[agent.role,agent.status]));
-    let complete=0,blocked=0;
-    for(const [role,id] of COUNCIL_AGENTS){
-      const node=$("council-agent-"+id);
-      const value=run?(statuses.get(role)||"NOT RUN"):"NOT VERIFIED";
-      if(value==="COMPLETE")complete++;
-      if(value==="BLOCKED"||value==="UNAVAILABLE")blocked++;
-      if(node){
-        node.textContent=value.replaceAll("_"," ");
-        const tile=node.closest(".module");
-        if(tile)tile.dataset.state=value;
-      }
-    }
-    const completeNode=$("council-complete-count"),pendingNode=$("council-pending-count");
-    const blockedNode=$("council-blocked-count"),bar=$("council-completion-bar");
-    if(completeNode)completeNode.textContent=complete+" / 9";
-    if(pendingNode)pendingNode.textContent=String(Math.max(0,9-complete-blocked));
-    if(blockedNode)blockedNode.textContent=String(blocked);
-    if(bar)bar.style.width=(complete/9*100)+"%";
-  }
-  function renderCouncilRuns(runs){
-    const root=$("council-runs");root.replaceChildren();
-    if(!Array.isArray(runs)||!runs.length){
-      const p=document.createElement("p");p.className="muted small";
-      p.textContent="No durable Research Council runs have been recorded yet.";root.appendChild(p);return;
-    }
-    for(const run of runs){
-      const row=document.createElement("div");row.className="journal-row";
-      const left=document.createElement("div");
-      const title=document.createElement("strong");title.textContent=String(run.symbol||"UNKNOWN")+" · "+String(run.status||"UNKNOWN").replaceAll("_"," ");
-      const detail=document.createElement("div");detail.className="muted tiny";
-      const complete=(run.agents||[]).filter(agent=>agent.status==="COMPLETE").length;
-      detail.textContent=councilTime(run.createdAt)+" · "+complete+"/9 roles complete";
-      left.append(title,detail);
-      const state=document.createElement("span");state.className="state";state.textContent=String(run.status||"UNKNOWN").replaceAll("_"," ");
-      row.append(left,state);root.appendChild(row);
-    }
-  }
-  async function loadResearchCouncil(){
-    const status=$("council-status"),button=$("refresh-council");
-    if(status)status.textContent="Refreshing the read-only research ledger…";
-    if(button)button.disabled=true;
-    try{
-      const response=await fetch("/api/research/status?limit=5",{headers:{Accept:"application/json"},cache:"no-store"});
-      const data=await response.json();
-      if(!response.ok||data.ok!==true)throw new Error(data.error||"Research status unavailable");
-      const latest=data.latestRun;
-      if(latest){
-        $("council-latest-status").textContent=String(latest.status||"UNKNOWN").replaceAll("_"," ");
-        $("council-latest-symbol").textContent=String(latest.symbol||"UNKNOWN");
-        $("council-latest-time").textContent=councilTime(latest.createdAt);
-      }else{
-        $("council-latest-status").textContent="NO RUNS";
-        $("council-latest-symbol").textContent="—";
-        $("council-latest-time").textContent="No persisted run";
-      }
-      renderCouncilAgents(latest);
-      renderCouncilRuns(data.runs);
-      if(status)status.textContent="Read-only ledger connected · "+data.agentCount+" specialist roles · checked "+councilTime(data.checkedAt);
-    }catch(error){
-      if(status)status.textContent="Research ledger unavailable · "+(error?.message||"request failed");
-      $("council-latest-status").textContent="UNAVAILABLE";
-      $("council-latest-symbol").textContent="—";$("council-latest-time").textContent="Not verified";
-      renderCouncilAgents(null);renderCouncilRuns([]);
-    }finally{if(button)button.disabled=false;}
-  }
-
   let lastCandidateGeneratedAt = null;
   const elapsedLabel = ms => {
     if(!Number.isFinite(ms)||ms<0)return "time unavailable";
@@ -574,35 +498,5 @@
   loadLedgerReadiness();
   $("refresh-monitor").addEventListener("click",loadMonitor);
   loadMonitor();
-  $("refresh-council").addEventListener("click",loadResearchCouncil);
-  const launchResearch=async()=>{
-    const button=$("run-council"),status=$("council-status");
-    const ticker=String($("council-ticker")?.value||"").trim().toUpperCase();
-    if(!/^[A-Z][A-Z0-9.-]{0,11}$/.test(ticker)){
-      if(status)status.textContent="Enter a valid US ticker symbol before launching research.";
-      $("council-ticker")?.focus();
-      return;
-    }
-    button.disabled=true;button.textContent="Running research…";
-    if(status)status.textContent="Collecting timestamped evidence for "+ticker+" and running the configured Research Council. This does not place orders.";
-    try{
-      const requestId="ui-"+crypto.randomUUID();
-      const response=await fetch("/api/research/collect",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({ticker,requestId})});
-      const data=await response.json();
-      if(!response.ok||data.ok!==true)throw new Error(data.error||"Research run failed safely.");
-      const agents=data.result?.agents||[];
-      const complete=agents.filter(x=>x.status==="COMPLETE").length;
-      if(status)status.textContent=ticker+" run saved · "+complete+"/9 roles complete · "+String(data.result?.status||"NO_TRADE").replaceAll("_"," ")+" · research only";
-      await loadResearchCouncil();
-    }catch(error){
-      const message=ticker+" research run failed safely · "+(error?.message||"unknown error");
-      await loadResearchCouncil();
-      if(status)status.textContent=message;
-    }finally{button.disabled=false;button.textContent="Run research";}
-  };
-  $("run-council").addEventListener("click",launchResearch);
-  $("council-ticker")?.addEventListener("keydown",event=>{if(event.key==="Enter")launchResearch();});
-  loadResearchCouncil();
-  window.setInterval(loadMonitor,60000);
-  window.setInterval(loadResearchCouncil,60000);
+
 })();

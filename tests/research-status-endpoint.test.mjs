@@ -17,7 +17,7 @@ test("research status is read-only and returns all nine roles without exposing r
  const response=await onRequestGet({request:new Request("https://northstar.test/api/research/status?limit=3"),env:{NORTHSTAR_DB:dbWith([{symbol:"NVDA",status:"RESEARCH_REVIEW_REQUIRED",result_json:JSON.stringify(payload),created_at:"2026-11-11T10:00:00Z"}])}});
  const body=await response.json();
  assert.equal(response.status,200);assert.equal(body.ok,true);assert.equal(body.agentCount,9);
- assert.equal(body.latestRun.agents.length,9);assert.equal(body.latestRun.agents[2].status,"BLOCKED");assert.equal(body.latestRun.agents[2].failureCode,"unknown_evidence_id");
+ assert.equal(body.latestRun.agents.length,9);assert.equal(body.latestRun.runId,"NVDA|2026-11-11T10:00:00Z");assert.equal(body.latestRun.runState,"RESEARCH_REVIEW_REQUIRED");assert.equal(body.latestRun.updatedAt,null);assert.equal(body.latestRun.agents[2].status,"BLOCKED");assert.equal(body.latestRun.agents[2].failureCode,"unknown_evidence_id");
  assert.equal(body.latestRun.agents[4].status,"BLOCKED");
  assert.equal(body.latestRun.agents[8].status,"NOT_RUN");
  assert.equal(JSON.stringify(body).includes("private detail"),false);
@@ -38,4 +38,15 @@ test("requested history length is capped at ten",async()=>{
  const db={prepare(){return {bind(limit){captured=limit;return {all:async()=>({results:[]})};}};}};
  await onRequestGet({request:new Request("https://northstar.test/api/research/status?limit=1000"),env:{NORTHSTAR_DB:db}});
  assert.equal(captured,10);
+});
+
+test("status exposes persisted collection state without calling unexecuted agents complete",async()=>{
+ const payload={status:"NO_TRADE",traceDurable:true,vetoReasons:["Research collection is in progress."],agents:Array.from({length:9},(_,i)=>({role:["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"][i],status:"NOT_RUN",reason:"Research launch started; awaiting provider collection."}))};
+ const response=await onRequestGet({request:new Request("https://northstar.test/api/research/status"),env:{NORTHSTAR_DB:dbWith([{symbol:"AAPL",status:"NO_TRADE",result_json:JSON.stringify(payload),created_at:"2026-11-17T12:00:00.000Z"}])}});
+ const run=(await response.json()).latestRun;assert.equal(run.runState,"RUNNING");assert.equal(run.agents.every(a=>a.status==="NOT_RUN"),true);
+});
+test("collection failure is represented as failed rather than simulated agent activity",async()=>{
+ const payload={status:"NO_TRADE",traceDurable:true,vetoReasons:["Research collection failed before agents could run: quote unavailable."],agents:[{role:"market_scanner",status:"NOT_RUN",reason:"Collection stopped."}]};
+ const response=await onRequestGet({request:new Request("https://northstar.test/api/research/status"),env:{NORTHSTAR_DB:dbWith([{symbol:"AAPL",status:"NO_TRADE",result_json:JSON.stringify(payload),created_at:"2026-11-17T12:00:00.000Z"}])}});
+ const run=(await response.json()).latestRun;assert.equal(run.runState,"FAILED");assert.equal(run.agents[0].status,"NOT_RUN");
 });
