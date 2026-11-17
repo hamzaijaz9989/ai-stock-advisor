@@ -8,7 +8,7 @@ function dbWith(rows){
 test("research status is read-only and returns all nine roles without exposing reports or portfolio data",async()=>{
  const payload={status:"RESEARCH_REVIEW_REQUIRED",agents:[
   {role:"market_scanner",status:"COMPLETE"},{role:"technical_analyst",status:"COMPLETE"},
-  {role:"fundamental_analyst",status:"UNAVAILABLE"},{role:"news_analyst",status:"COMPLETE"},
+  {role:"fundamental_analyst",status:"BLOCKED",failureCode:"unknown_evidence_id"},{role:"news_analyst",status:"COMPLETE"},
   {role:"sentiment_analyst",status:"BLOCKED"},{role:"bull_researcher",status:"NOT_RUN"},
   {role:"bear_researcher",status:"NOT_RUN"},{role:"portfolio_analyst",status:"NOT_RUN"},
   {role:"risk_committee",status:"NOT_RUN"}],
@@ -17,13 +17,13 @@ test("research status is read-only and returns all nine roles without exposing r
  const response=await onRequestGet({request:new Request("https://northstar.test/api/research/status?limit=3"),env:{NORTHSTAR_DB:dbWith([{symbol:"NVDA",status:"RESEARCH_REVIEW_REQUIRED",result_json:JSON.stringify(payload),created_at:"2026-11-11T10:00:00Z"}])}});
  const body=await response.json();
  assert.equal(response.status,200);assert.equal(body.ok,true);assert.equal(body.agentCount,9);
- assert.equal(body.latestRun.agents.length,9);assert.equal(body.latestRun.agents[2].status,"UNAVAILABLE");
+ assert.equal(body.latestRun.agents.length,9);assert.equal(body.latestRun.agents[2].status,"BLOCKED");assert.equal(body.latestRun.agents[2].failureCode,"unknown_evidence_id");
  assert.equal(body.latestRun.agents[4].status,"BLOCKED");
  assert.equal(body.latestRun.agents[8].status,"NOT_RUN");
  assert.equal(JSON.stringify(body).includes("private detail"),false);
  assert.equal(JSON.stringify(body).includes("98765"),false);
  assert.equal(JSON.stringify(body).includes("reports"),false);
- assert.equal(JSON.stringify(body).includes("evidence"),false);
+ assert.equal(Object.hasOwn(body.latestRun.agents[2],"evidence"),false);
 });
 test("empty research ledger is represented honestly without invented agent activity",async()=>{
  const response=await onRequestGet({request:new Request("https://northstar.test/api/research/status"),env:{NORTHSTAR_DB:dbWith([])}});

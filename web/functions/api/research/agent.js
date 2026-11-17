@@ -30,7 +30,7 @@ export async function onRequestGet({request,env}){
      model:typeof telemetry?.model==="string"?telemetry.model:null,
      inputTokens:Number.isSafeInteger(telemetry?.inputTokens)?telemetry.inputTokens:null,
      outputTokens:Number.isSafeInteger(telemetry?.outputTokens)?telemetry.outputTokens:null,
-     failureCode:typeof telemetry?.failureCode==="string"?telemetry.failureCode:null,
+     failureCode:/^[a-z0-9_]{3,64}$/.test(String(agent.failureCode||telemetry?.failureCode||""))?(agent.failureCode||telemetry?.failureCode):null,
      reason:typeof agent.reason==="string"?agent.reason.slice(0,500):null,
      unavailableReason:typeof agent.unavailableReason==="string"?agent.unavailableReason.slice(0,500):null,
      evidenceCount:Array.isArray(agent.findings)?agent.findings.reduce((n,x)=>n+(Array.isArray(x?.factIds)?x.factIds.length:0),0):0

@@ -27,3 +27,12 @@ test("agent detail reports an empty history when the requested role never ran",a
  assert.equal(body.latest,null);
  assert.deepEqual(body.history,[]);
 });
+
+test("agent detail exposes only allowlisted failure-code strings",async()=>{
+ const result={status:"NO_TRADE",agents:[{role:"fundamental_analyst",status:"BLOCKED",failureCode:"unknown_evidence_id",reason:"Citation is outside validated context.",findings:[],risks:[]}]};
+ const response=await onRequestGet({request:new Request("https://northstar.test/api/research/agent?symbol=AAPL&role=fundamental_analyst"),env:environment(result)});
+ const body=await response.json();assert.equal(body.latest.agent.failureCode,"unknown_evidence_id");
+ const unsafe={status:"NO_TRADE",agents:[{role:"news_analyst",status:"BLOCKED",failureCode:"api_key=secret",findings:[],risks:[]}]};
+ const safe=await onRequestGet({request:new Request("https://northstar.test/api/research/agent?symbol=AAPL&role=news_analyst"),env:environment(unsafe)});
+ assert.equal((await safe.json()).latest.agent.failureCode,null);
+});

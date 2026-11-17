@@ -220,7 +220,8 @@ function validateAiSentiment(report,articles) {
     if(!claim.includes(article.title)||!claim.includes(article.publishedAt)||!claim.includes(article.source)||!pattern.test(claim))return false;
     used.add(article.id);
   }
-  return used.size>=3;
+  const limitations=report.risks.some(item=>/AI-derived/i.test(item?.claim||"")&&/headline-only/i.test(item?.claim||"")&&/provider-reported/i.test(item?.claim||"")&&/social sentiment/i.test(item?.claim||"")&&/not predictive/i.test(item?.claim||""));
+  return used.size>=3&&limitations;
 }
 export async function createResearchCouncilWorkers(env, fetcher=fetch) {
   let gemini=null,openai=null;const initializationFailures=[];

@@ -6,7 +6,7 @@ const report=()=>({status:"COMPLETE",findings:[{claim:"Verified observation base
 function workers(){const w={};for(const role of [...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"])w[role]=async()=>report();w.risk_committee=async()=>({...report(),decision:"ACCEPT_FOR_REVIEW",vetoReasons:[]});return w;}
 test("runs independent specialists, bull/bear debate, synthesis and risk veto",async()=>{const r=await runResearchCouncil({requestId:"request-0001",context,workers:workers()});assert.equal(r.status,"RESEARCH_REVIEW_REQUIRED");assert.equal(r.agents.length,9);assert.equal(r.execution,false);assert.equal(r.automatedOrderSubmission,false);assert.equal(r.traceDurable,false);});
 test("missing specialist defaults to NO_TRADE while Risk Committee records an assessment",async()=>{const w=workers();delete w.news_analyst;let reviewed=false;w.risk_committee=async payload=>{reviewed=payload.analystReports.some(x=>x.role==="news_analyst"&&x.status==="UNAVAILABLE");return {...report(),decision:"REJECT",vetoReasons:["News specialist report unavailable."]};};const r=await runResearchCouncil({requestId:"request-0002",context,workers:w});assert.equal(r.status,"NO_TRADE");assert.ok(r.vetoReasons.some(x=>x.includes("news_analyst")));assert.equal(r.agents.find(x=>x.role==="risk_committee").status,"COMPLETE");assert.equal(reviewed,true);});
-test("unverifiable agent claims are blocked",async()=>{const w=workers();w.technical_analyst=async()=>({status:"COMPLETE",findings:[{claim:"Unsubstantiated claim from the agent.",factIds:["made-up"]}],risks:[]});const r=await runResearchCouncil({requestId:"request-0003",context,workers:w});assert.equal(r.status,"NO_TRADE");assert.ok(r.agents.some(x=>x.role==="technical_analyst"&&x.status==="BLOCKED"));});
+test("unverifiable agent claims are blocked",async()=>{const w=workers();w.technical_analyst=async()=>({status:"COMPLETE",findings:[{claim:"Unsubstantiated claim from the agent.",factIds:["made-up"]}],risks:[]});const r=await runResearchCouncil({requestId:"request-0003",context,workers:w});assert.equal(r.status,"NO_TRADE");assert.ok(r.agents.some(x=>x.role==="technical_analyst"&&x.status==="BLOCKED"&&x.failureCode==="unknown_evidence_id"));});
 test("risk committee has final veto even when all analysts agree",async()=>{const w=workers();w.risk_committee=async()=>({...report(),decision:"REJECT",vetoReasons:["Portfolio concentration exceeds policy."]});const r=await runResearchCouncil({requestId:"request-0004",context,workers:w});assert.equal(r.status,"NO_TRADE");assert.ok(r.vetoReasons.some(x=>x.includes("Portfolio concentration")));});
 test("rejects missing stable IDs and missing portfolio state",async()=>{await assert.rejects(()=>runResearchCouncil({requestId:"short",context,workers:workers()}),/requestId/);await assert.rejects(()=>runResearchCouncil({requestId:"request-0005",context:{facts:[],evidence:[]},workers:workers()}),/portfolio/);});
 test("agents receive immutable copies of the context",async()=>{const w=workers();w.market_scanner=async input=>{assert.equal(Object.isFrozen(input.facts),true);return report();};const r=await runResearchCouncil({requestId:"request-0006",context,workers:w});assert.equal(r.status,"RESEARCH_REVIEW_REQUIRED");});
@@ -29,4 +29,18 @@ test("rejects overlong model claims and excessive fact references without trunca
  const tooManyRefs=await runResearchCouncil({requestId:"request-0014",context,workers:w2});
  assert.equal(tooManyRefs.status,"NO_TRADE");
  assert.ok(tooManyRefs.agents.some(x=>x.role==="technical_analyst"&&x.status==="BLOCKED"));
+});
+
+test("one invalid specialist report does not prevent valid siblings or the Risk Committee",async()=>{
+ const w=workers();let newsCalled=false,riskCalled=false;
+ w.fundamental_analyst=async()=>({status:"COMPLETE",findings:[{claim:"Unsupported reference remains blocked for review.",factIds:["not-in-context"]}],risks:[]});
+ w.news_analyst=async()=>{newsCalled=true;return report();};
+ w.risk_committee=async()=>{riskCalled=true;return {...report(),decision:"REJECT",vetoReasons:["Fundamental evidence validation failed."]};};
+ const r=await runResearchCouncil({requestId:"request-0015",context,workers:w});
+ assert.equal(r.status,"NO_TRADE");
+ assert.equal(newsCalled,true);assert.equal(riskCalled,true);
+ const fundamental=r.agents.find(x=>x.role==="fundamental_analyst");
+ assert.equal(fundamental.status,"BLOCKED");assert.equal(fundamental.failureCode,"unknown_evidence_id");
+ assert.equal(r.agents.find(x=>x.role==="news_analyst").status,"COMPLETE");
+ assert.equal(r.agents.find(x=>x.role==="risk_committee").status,"COMPLETE");
 });
