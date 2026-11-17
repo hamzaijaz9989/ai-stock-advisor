@@ -163,7 +163,7 @@ test("portfolio analyst guidance prohibits fabricated exposures and trade recomm
 
 test("deterministic risk committee fails closed on incomplete or invalid portfolio state",async()=>{
  const workers=await createResearchCouncilWorkers({});
- const base={portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}};
+ const base={portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,maxPositionNotionalUsd:0,concurrentPositions:0}};
  const missing=await workers.risk_committee({portfolio:{...base.portfolio,equityUsd:undefined}});
  assert.equal(missing.decision,"REJECT");assert.match(missing.vetoReasons[0],/incomplete/);
  const invalid=await workers.risk_committee({portfolio:{...base.portfolio,dailyLossFraction:1.2}});
@@ -171,12 +171,12 @@ test("deterministic risk committee fails closed on incomplete or invalid portfol
 });
 test("deterministic risk committee applies all configured hard limits at threshold",async()=>{
  const workers=await createResearchCouncilWorkers({});
- const p={equityUsd:10000,openRiskUsd:201,grossExposureUsd:10001,dailyLossFraction:0.02,weeklyLossFraction:0.04,drawdownFraction:0.08,sectorExposureUsd:4001,concurrentPositions:1};
+ const p={equityUsd:10000,openRiskUsd:201,grossExposureUsd:10001,dailyLossFraction:0.02,weeklyLossFraction:0.04,drawdownFraction:0.08,sectorExposureUsd:4001,maxPositionNotionalUsd:4001,concurrentPositions:1};
  const out=await workers.risk_committee({portfolio:p});
- assert.equal(out.decision,"REJECT");assert.equal(out.vetoReasons.length,7);
+ assert.equal(out.decision,"REJECT");assert.equal(out.vetoReasons.length,8);
 });
 test("deterministic risk committee accepts only a fully populated portfolio below every limit",async()=>{
  const workers=await createResearchCouncilWorkers({});
- const out=await workers.risk_committee({portfolio:{equityUsd:10000,openRiskUsd:100,grossExposureUsd:9000,dailyLossFraction:0.01,weeklyLossFraction:0.02,drawdownFraction:0.03,sectorExposureUsd:3000,concurrentPositions:0}});
+ const out=await workers.risk_committee({portfolio:{equityUsd:10000,openRiskUsd:100,grossExposureUsd:9000,dailyLossFraction:0.01,weeklyLossFraction:0.02,drawdownFraction:0.03,sectorExposureUsd:3000,maxPositionNotionalUsd:2000,concurrentPositions:0}});
  assert.equal(out.decision,"ACCEPT_FOR_REVIEW");assert.deepEqual(out.vetoReasons,[]);
 });
