@@ -1,42 +1,29 @@
 const TICKER_RE=/^[A-Z][A-Z0-9.-]{0,11}$/;
 const HEADERS={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
+const DAY=86400000;
 function unavailable(reason,status=200,extra={}){
- return Response.json({available:false,configured:true,provider:"Finnhub news sentiment",observations:[],warning:reason,...extra},{status,headers:HEADERS});
+ return Response.json({available:false,configured:true,provider:"Finnhub company-news feed",articles:[],warning:reason,...extra},{status,headers:HEADERS});
 }
 export async function onRequestGet({request,env}){
  const url=new URL(request.url),ticker=(url.searchParams.get("ticker")||"").trim().toUpperCase(),key=env?.FINNHUB_API_KEY;
  if(!TICKER_RE.test(ticker))return Response.json({error:"Enter a valid US stock ticker."},{status:400,headers:HEADERS});
- if(typeof key!=="string"||!key.trim())return Response.json({available:false,configured:false,provider:"Finnhub news sentiment",observations:[],warning:"FINNHUB_API_KEY is not configured."},{status:503,headers:HEADERS});
+ if(typeof key!=="string"||!key.trim())return Response.json({available:false,configured:false,provider:"Finnhub company-news feed",articles:[],warning:"FINNHUB_API_KEY is not configured."},{status:503,headers:HEADERS});
+ const now=Date.now(),to=new Date(now).toISOString().slice(0,10),from=new Date(now-7*DAY).toISOString().slice(0,10);
+ const endpoint=new URL("https://finnhub.io/api/v1/company-news");
+ endpoint.searchParams.set("symbol",ticker);endpoint.searchParams.set("from",from);endpoint.searchParams.set("to",to);endpoint.searchParams.set("token",key);
  try{
-  const endpoint=new URL("https://finnhub.io/api/v1/news-sentiment");
-  endpoint.searchParams.set("symbol",ticker);
-  endpoint.searchParams.set("token",key);
   const response=await fetch(endpoint.toString(),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(9000)});
-  if(!response.ok)return unavailable("Finnhub news-sentiment request failed (HTTP "+response.status+").",200,{upstreamStatus:response.status});
-  const payload=await response.json();
-  const symbol=String(payload?.symbol||ticker).toUpperCase();
-  const sampleCount=payload?.buzz?.articlesInLastWeek;
-  const bullishPercent=payload?.sentiment?.bullishPercent;
-  const bearishPercent=payload?.sentiment?.bearishPercent;
-  // Finnhub reports bullish/bearish percentages and the number of news articles
-  // in its rolling-week aggregate. Reject missing, empty or out-of-range samples.
-  if(symbol!==ticker||!Number.isSafeInteger(sampleCount)||sampleCount<=0||
-     !Number.isFinite(bullishPercent)||!Number.isFinite(bearishPercent)||
-     bullishPercent<0||bullishPercent>100||bearishPercent<0||bearishPercent>100){
-   return unavailable("Finnhub returned no usable rolling-week sentiment sample for this ticker.");
+  if(!response.ok)return unavailable(response.status===403?"Finnhub company-news access is unavailable for this key (HTTP 403); the restricted sentiment endpoint is not retried.":"Finnhub company-news request failed (HTTP "+response.status+").",200,{upstreamStatus:response.status});
+  const payload=await response.json();if(!Array.isArray(payload))return unavailable("Finnhub returned an invalid company-news response.");
+  const seen=new Set(),articles=[];
+  for(const row of payload){
+   const headline=typeof row?.headline==="string"?row.headline.trim():"",articleUrl=typeof row?.url==="string"?row.url.trim():"";
+   const timestamp=Number.isFinite(row?.datetime)?new Date(row.datetime*1000).toISOString():null,ms=timestamp?Date.parse(timestamp):NaN;
+   if(!headline||!(articleUrl.startsWith("https://")||articleUrl.startsWith("http://"))||!Number.isFinite(ms)||ms>now||now-ms>7*DAY||seen.has(articleUrl))continue;
+   seen.add(articleUrl);articles.push({headline,summary:typeof row.summary==="string"?row.summary.slice(0,1000):"",url:articleUrl,publishedAt:timestamp,source:typeof row.source==="string"&&row.source.trim()?row.source.trim():"Finnhub (publisher unavailable)",provider:"Finnhub company-news",providerReportedSentiment:false});
+   if(articles.length>=50)break;
   }
-  const retrievedAt=new Date().toISOString();
-  const score=(bullishPercent-bearishPercent)/100;
-  const observation={
-   timestamp:retrievedAt,timestampStatus:"PRESENT",source:"Finnhub news-sentiment API",
-   sampleCount,score,window:"rolling_7d_news_aggregate",
-   scoreMethod:"(bullishPercent - bearishPercent) / 100",
-   bullishPercent,bearishPercent,
-   companyNewsScore:typeof payload?.companyNewsScore==="number"&&Number.isFinite(payload.companyNewsScore)?payload.companyNewsScore:null,
-   note:"Timestamp is the retrieval time of Finnhub's rolling seven-day news aggregate, not an article publication timestamp. This is news sentiment, not social or options positioning."
-  };
-  return Response.json({available:true,configured:true,ticker,provider:"Finnhub news sentiment",retrievedAt,observations:[observation],warning:"One provider snapshot only; source concentration and provider methodology must be considered."},{headers:HEADERS});
- }catch(error){
-  return unavailable("Finnhub news-sentiment request could not be completed: "+String(error?.name||"Error").slice(0,60),200);
- }
+  articles.sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt));
+  return Response.json({available:articles.length>0,configured:true,ticker,provider:"Finnhub company-news feed",retrievedAt:new Date().toISOString(),articles,methodology:"Raw timestamped company-news articles only. Northstar may derive AI sentiment from qualifying headlines; Finnhub provider-reported sentiment is not requested.",warning:articles.length?null:"No unique, dated, non-stale company-news articles were returned."},{headers:HEADERS});
+ }catch(error){return unavailable("Finnhub company-news request could not be completed: "+String(error?.name||"Error").slice(0,60),200);}
 }

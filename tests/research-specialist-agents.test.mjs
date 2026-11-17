@@ -51,7 +51,7 @@ test("worker adapter records latency and provider usage for all nine roles",asyn
  assert.deepEqual(Object.keys(workers.telemetry).sort(),[...roles].sort());
  for(const role of roles)assert.ok(Number.isFinite(workers.telemetry[role].latencyMs),role);
  for(const role of Object.keys(SPECIALIST_AGENTS)){
-  assert.equal(workers.telemetry[role].provider,"deterministic",role);
+  assert.equal(workers.telemetry[role].provider,role==="sentiment_analyst"?"provider-observation":"deterministic",role);
   assert.match(workers.telemetry[role].model,/^northstar-/);
  }
  for(const role of [...COUNCIL_ROLES.debate,...COUNCIL_ROLES.synthesis]){
@@ -220,7 +220,9 @@ test("portfolio synthesis is skipped without a verified portfolio snapshot while
 test("Gemini HTTP failures are reduced to safe diagnostic categories",async()=>{
  const fetcher=async input=>{const url=new URL(input);if(url.pathname.endsWith("/models"))return Response.json({models:[{name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]}]});return new Response("provider error body must not be retained",{status:429});};
  const workers=await createResearchCouncilWorkers({GEMINI_API_KEY:"synthetic"},fetcher);
- await assert.rejects(()=>workers.bull_researcher({facts:[],evidence:[],ticker:"TEST",asOf:"2026-11-10T12:00:00Z"}));
+ const result=await workers.bull_researcher({facts:[],evidence:[],ticker:"TEST",asOf:"2026-11-10T12:00:00Z"} );
+ assert.equal(result.status,"UNAVAILABLE");
+ assert.match(result.reason,/quota or rate limit exhausted/);
  assert.equal(workers.telemetry.bull_researcher.failureCode,"provider_http_429");
  assert.equal(JSON.stringify(workers.telemetry.bull_researcher).includes("provider error body"),false);
 });

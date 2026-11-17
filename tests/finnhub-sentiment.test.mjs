@@ -1,55 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {onRequestGet} from "../web/functions/api/finnhub-sentiment.js";
-
 const request=new Request("https://northstar.test/api/finnhub-sentiment?ticker=NVDA");
-async function withFetch(fetcher,run){
- const original=globalThis.fetch;globalThis.fetch=fetcher;
- try{return await run();}finally{globalThis.fetch=original;}
-}
-
-test("Finnhub news sentiment returns a normalized, timestamped rolling-week observation",async()=>{
- await withFetch(async input=>{
-  const url=new URL(String(input));
-  assert.equal(url.hostname,"finnhub.io");
-  assert.equal(url.pathname,"/api/v1/news-sentiment");
-  assert.equal(url.searchParams.get("symbol"),"NVDA");
-  assert.equal(url.searchParams.get("token"),"test-token");
-  return Response.json({symbol:"NVDA",buzz:{articlesInLastWeek:20},sentiment:{bullishPercent:62,bearishPercent:28},companyNewsScore:0.74});
- },async()=>{
-  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}});
-  const body=await response.json(),observation=body.observations[0];
-  assert.equal(response.status,200);assert.equal(body.available,true);
-  assert.equal(observation.sampleCount,20);assert.equal(observation.score,0.34);
-  assert.equal(observation.timestampStatus,"PRESENT");
-  assert.equal(observation.window,"rolling_7d_news_aggregate");
-  assert.equal(observation.companyNewsScore,0.74);
-  assert.equal(JSON.stringify(body).includes("test-token"),false);
- });
-});
-
-test("Finnhub news sentiment rejects empty or malformed samples",async()=>{
- await withFetch(async()=>Response.json({symbol:"NVDA",buzz:{articlesInLastWeek:0},sentiment:{bullishPercent:60,bearishPercent:20}}),async()=>{
-  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}});
-  const body=await response.json();
-  assert.equal(response.status,200);assert.equal(body.available,false);assert.equal(body.observations.length,0);
- });
-});
-
-test("Finnhub authorization failures remain visible without exposing the key",async()=>{
- await withFetch(async()=>new Response("Forbidden",{status:403}),async()=>{
-  const response=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}});
-  const body=await response.json();
-  assert.equal(response.status,200);assert.equal(body.available,false);
-  assert.equal(body.upstreamStatus,403);
-  assert.equal(JSON.stringify(body).includes("test-token"),false);
- });
-});
-
-test("Finnhub sentiment reports a missing key without attempting a provider request",async()=>{
- await withFetch(async()=>{throw new Error("must not fetch");},async()=>{
-  const response=await onRequestGet({request,env:{}});
-  const body=await response.json();
-  assert.equal(response.status,503);assert.equal(body.configured,false);
- });
-});
+async function withFetch(fetcher,run){const original=globalThis.fetch;globalThis.fetch=fetcher;try{return await run();}finally{globalThis.fetch=original;}}
+const now=Math.floor(Date.now()/1000);
+const rows=[
+ {headline:"NVDA launches new product",url:"https://news.example/a",datetime:now-3600,source:"Example News",summary:"Company update"},
+ {headline:"Duplicate",url:"https://news.example/a",datetime:now-1800,source:"Example News"},
+ {headline:"Old article",url:"https://news.example/old",datetime:now-9*86400,source:"Example News"},
+ {headline:"Undated",url:"https://news.example/no-date",source:"Example News"},
+ {headline:"No URL",datetime:now-500,source:"Example News"}
+];
+test("Finnhub retrieves timestamped company news through company-news and rejects stale/duplicate rows",async()=>withFetch(async input=>{const u=new URL(String(input));assert.equal(u.pathname,"/api/v1/company-news");assert.equal(u.searchParams.get("symbol"),"NVDA");assert.ok(u.searchParams.get("from"));assert.ok(u.searchParams.get("to"));return Response.json(rows);},async()=>{const r=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}}),b=await r.json();assert.equal(r.status,200);assert.equal(b.available,true);assert.equal(b.articles.length,1);assert.equal(b.articles[0].headline,rows[0].headline);assert.equal(b.articles[0].providerReportedSentiment,false);assert.equal(JSON.stringify(b).includes("test-token"),false);}));
+test("Finnhub 403 is an entitlement blocker with one request and no paid endpoint retry",async()=>{let calls=0;await withFetch(async input=>{calls++;assert.equal(new URL(String(input)).pathname,"/api/v1/company-news");return new Response("Forbidden",{status:403});},async()=>{const r=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}}),b=await r.json();assert.equal(calls,1);assert.equal(b.available,false);assert.equal(b.upstreamStatus,403);assert.match(b.warning,/access is unavailable/);assert.equal(JSON.stringify(b).includes("test-token"),false);});});
+test("Finnhub reports missing news and missing credentials without fabricating observations",async()=>{await withFetch(async()=>Response.json([]),async()=>{const r=await onRequestGet({request,env:{FINNHUB_API_KEY:"test-token"}});assert.equal((await r.json()).available,false);});await withFetch(async()=>{throw Error("must not fetch");},async()=>{const r=await onRequestGet({request,env:{}});assert.equal(r.status,503);assert.equal((await r.json()).configured,false);});});

@@ -196,16 +196,9 @@ export async function onRequestPost({request,env}){
    try{fundamentals=await endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env);}
    catch(error){fundamentals={available:false,provider:"Financial Modeling Prep",warning:String(error?.message||"FMP fallback unavailable").slice(0,180)};}
   }
-  let sentiment={observations:[],warning:"No qualifying provider sentiment observations were returned."};
-  if(Array.isArray(news.sentimentObservations)&&news.sentimentObservations.length){
-   sentiment={observations:news.sentimentObservations,provider:news.provider||"Massive"};
-  }else{
-   try{
-    const fallbackSentiment=await endpoint(getFinnhubSentiment,origin,"/api/finnhub-sentiment?ticker="+encodeURIComponent(ticker),env);
-    if(fallbackSentiment?.available===true)sentiment=fallbackSentiment;
-    else sentiment={observations:[],warning:fallbackSentiment?.warning||"Finnhub sentiment unavailable"};
-   }catch(error){sentiment={observations:[],warning:String(error?.message||"Finnhub sentiment unavailable").slice(0,180)};}
-  }
+  // Sentiment is derived by the Council from the already collected timestamped news evidence.
+  // Avoid a second Finnhub request or treating retrieval time as sentiment observation time.
+  const sentiment={observations:[],warning:"Provider-reported or social sentiment is unavailable; AI-derived news sentiment requires three unique fresh headlines."};
   // Earnings calendar remains optional; SEC EDGAR is the primary fundamentals source.
   const earnings={ticker,provider:"earnings calendar not queried",fetchedAt:new Date().toISOString(),
    events:[],found:false,verified:false,warning:"Earnings calendar was not queried in this bounded research run; confirm dates with issuer investor relations."};
