@@ -1,6 +1,7 @@
 // Independent, research-only activation path for Market Scanner and Technical Analyst.
 // This route deliberately bypasses portfolio sync, debate, risk committee and all broker APIs.
 import {onRequestGet as getQuote} from "../quote.js";
+import {onRequestGet as getMarketHistory} from "../history.js";
 import {runMarketScanner,runTechnicalAnalyst} from "../../../lib/research-specialist-agents.js";
 import {runNorthstarAgentGraph} from "../../../lib/research-agent-orchestrator.js";
 
@@ -10,19 +11,14 @@ const reply=(body,status=200)=>Response.json(body,{status,headers:H});
 const validTicker=x=>/^[A-Z][A-Z0-9.-]{0,11}$/.test(x);
 const safeEqual=(a,b)=>{if(typeof a!=="string"||typeof b!=="string"||!a||!b)return false;let d=a.length^b.length;for(let i=0;i<Math.max(a.length,b.length);i++)d|=(a.charCodeAt(i)||0)^(b.charCodeAt(i)||0);return d===0;};
 const finite=x=>typeof x==="number"&&Number.isFinite(x);
-async function getHistory(ticker){
- const url="https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(ticker)+"?range=1y&interval=1d";
- const response=await fetch(url,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(9000)});
- if(!response.ok)throw new Error("Daily history provider returned HTTP "+response.status+".");
- const raw=await response.json(),result=raw?.chart?.result?.[0];
- if(!result)throw new Error("Daily OHLCV history unavailable.");
- const q=result.indicators?.quote?.[0]||{},ts=result.timestamp||[];
- const rows=[];
- for(let i=0;i<ts.length;i++){
-  const row={date:new Date(ts[i]*1000).toISOString().slice(0,10),open:q.open?.[i],high:q.high?.[i],low:q.low?.[i],close:q.close?.[i],volume:q.volume?.[i]};
-  if(["open","high","low","close","volume"].every(k=>finite(row[k]))&&row.open>0&&row.low>0&&row.high>=Math.max(row.open,row.close,row.low)&&row.low<=Math.min(row.open,row.close))rows.push(row);
- }
- return {rows,source:"Yahoo Finance chart endpoint",fetchedAt:new Date().toISOString(),dataQuality:"unverified-adjustment"};
+async function getHistory(ticker,request,env){
+ const response=await getMarketHistory({request:new Request(new URL("/api/history?ticker="+encodeURIComponent(ticker),request.url),{headers:{Accept:"application/json"}}),env});
+ const body=await response.json();
+ if(!response.ok)throw new Error(body?.error||"Daily history provider unavailable.");
+ const rows=Array.isArray(body.data)?body.data:[];
+ const clean=rows.filter(row=>["open","high","low","close","volume"].every(k=>finite(row[k]))&&row.open>0&&row.low>0&&row.high>=Math.max(row.open,row.close,row.low)&&row.low<=Math.min(row.open,row.close));
+ if(clean.length<60)throw new Error("At least 60 validated daily bars are required for Technical Analyst.");
+ return {rows:clean,source:body.source||"Historical price provider",fetchedAt:body.fetchedAt||new Date().toISOString(),dataQuality:body.warning||"Provider-validated daily history"};
 }
 function validateReport(report,ids){
  if(!report||!["COMPLETE","UNAVAILABLE"].includes(report.status)||!Array.isArray(report.findings)||!Array.isArray(report.risks))throw new Error("Agent report contract invalid.");
@@ -58,7 +54,7 @@ export async function onRequestPost({request,env}){
   };
   const [quoteResult,historyResult]=await Promise.allSettled([
    getQuote({request:new Request(new URL("/api/quote?ticker="+encodeURIComponent(ticker),request.url)),env}).then(async r=>{const v=await r.json();if(!r.ok)throw new Error(v?.error||"Timestamped quote unavailable.");return v;}),
-   getHistory(ticker)
+   getHistory(ticker,request,env)
   ]);
   const facts=[],ids=new Set();
   if(quoteResult.status==="fulfilled"){
