@@ -1,7 +1,7 @@
 # Northstar AI — Codex execution handoff (2026-11-13)
 
 ## Mission
-Finish the Agent Command Center and make the nine-role research pipeline truthful, observable, and safe. Work in this repository: `hamzaijaz9989/ai-stock-advisor`. Current working branch: `fix/research-readiness-codex-handoff`. Do not rebuild the app or create a parallel research pipeline.
+Finish the Agent Command Center and make the nine-role research pipeline truthful, observable, and safe. Work in this repository: `hamzaijaz9989/ai-stock-advisor`. Current working branch: `fix/restore-1000-capital-and-risk-council-gates`. Do not rebuild the app or create a parallel research pipeline.
 
 ## Verified current state
 - Production: https://ai-stock-advisor.pages.dev
@@ -13,9 +13,10 @@ Finish the Agent Command Center and make the nine-role research pipeline truthfu
 - `web/lib/research-council.js` is the authoritative orchestration. `web/lib/research-council-adapters.js` provides adapters. `web/lib/research-specialist-agents.js` contains five deterministic evidence-based specialist functions.
 - Current independent roles: market scanner, technical analyst, fundamental analyst, news analyst, sentiment analyst. Bull/Bear, Portfolio Analyst and Risk Committee need validated adapters/workers and full integration.
 - The current collection path defers SEC companyfacts and earnings enrichment; do not describe them as collected if not queried.
+- Collector accepts 20 valid unique OHLCV bars to start a partial run because Market Scanner supports 20; Technical Analyst still requires 60 and is marked UNAVAILABLE below 60. A run below 60 bars cannot be called a complete technical review or a 9/9 complete council.
 - Production execution control was read and confirmed: `enabled=0`, `mode=paper`, `kill_switch=1`, `max_portfolio_usd=1000`.
-- User-approved intended paper pilot limits: allocation ceiling $2,500, max risk/trade $25, daily loss $50. Existing production database currently has a CHECK constraint enforcing $1,000; a direct update to $2,500 was rejected. Locate and migrate the schema plus every dependent hard-coded $1,000 calculation together. Never disable the kill switch or enable order execution during this work.
-- Existing Alpaca NVDA 6-share position must not be modified. No live orders. No paper orders without a separate explicit user approval.
+- Current approved planning policy: $1,000 virtual capital; $25 max/default risk per trade (2.5%); $65 max single-position notional (6.5%); $20 aggregate open-risk ceiling (2%); $50 daily loss limit (5%). Existing production D1 was verified at $1,000 capital, 0.5% default risk, 1% max risk, 25% position cap, enabled=0 and kill_switch=1. Migration 0007 has NOT been applied in production. The working branch updates migration 0007 to the confirmed policy. Keep production migration unapplied until code deploy is verified; then apply and verify it with an audit row.
+- Existing Alpaca NVDA 6-share position must not be modified. Current collector passes `openRiskUsd:null` and `sectorExposureUsd:null` because existing positions lack verified stop-risk and sector metadata. Risk Committee must veto until these metrics have a trustworthy source; never replace null with zero. No live orders. No paper orders without a separate explicit user approval.
 
 ## Non-negotiable safety / evidence rules
 1. Research-only. Keep `execution=false`, automated order submission false, `execution_control.enabled=0`, `kill_switch=1`.
@@ -30,7 +31,7 @@ Finish the Agent Command Center and make the nine-role research pipeline truthfu
 ## Execute in this order
 
 ### P0 — Finish and test the data collector
-- Review the new Yahoo fallback in `web/functions/api/fmp-history.js`.
+- Review the new Yahoo fallback in `web/functions/api/fmp-history.js`. The fallback is a best-effort public endpoint and must be verified for real deployment access and provider terms.
 - Confirm date bounds, timezone handling, duplicate dates, null bars, split/dividend metadata, adjusted-close handling, chronological order and >=60-bar count.
 - Add unit tests for FMP >=60, FMP <60 + Yahoo success, Yahoo throttle/403/empty/malformed, <60 combined valid bars, bad dates and invalid OHLCV.
 - Update `collect.js` to accept only a validated history contract; propagate `priceProvider`, `priceWarning`, coverage, fetchedAt, and errors into the durable collection metadata and UI.
@@ -47,7 +48,7 @@ Finish the Agent Command Center and make the nine-role research pipeline truthfu
 
 ### P2 — Reconcile risk configuration safely
 - Find the actual D1 migration/schema that defines `execution_control` and its CHECK constraint; do not guess filenames.
-- Build a forward-only migration to raise the allocation ceiling to $2,500 and retain exact approved limits: max risk/trade $25, daily loss $50.
+- Build/verify forward migration 0007 for $1,000 capital, $25 per-trade risk, $65 position notional, $20 aggregate open risk and $50 daily loss. Do not raise capital to $2,500.
 - Audit all server guards, portfolio snapshots, risk fractions, readiness endpoints, UI labels and tests for hard-coded $1,000. Make one canonical configuration source.
 - Preserve `enabled=0`, `mode='paper'`, `kill_switch=1` through migration. Add migration verification and rollback/recovery notes.
 - Confirm the existing Alpaca position and D1 ledger reconcile read-only before and after. Do not write to broker positions.
@@ -70,12 +71,19 @@ Finish the Agent Command Center and make the nine-role research pipeline truthfu
 
 ## Acceptance criteria
 - Valid >=60-bar history is sourced from FMP or the labelled Yahoo fallback; source and caveats are visible and durable.
-- All nine roles are actually invoked or explicitly marked unavailable/not-run with a reason; no false completion.
+- All nine roles are actually invoked or explicitly marked unavailable/not-run with a reason; no false completion. Risk Committee must execute even when other roles are unavailable and must record the veto.
 - Risk Committee veto is authoritative; all missing/stale/unsafe inputs yield NO_TRADE.
-- Approved risk configuration is represented consistently as $2,500 allocation / $25 max risk per trade / $50 daily loss, while kill switch remains ON and execution disabled.
+- Approved risk configuration is represented consistently as $1,000 capital / $25 max risk per trade / $65 position cap / $20 aggregate open risk / $50 daily loss, while kill switch remains ON and execution disabled.
 - Existing broker position is unchanged.
 - No automated or manual orders are placed.
 - Production UI accurately reflects the persisted latest run and provider state.
+
+## Additional production blockers found in the Nov 17 audit
+- Sentiment Analyst has no dedicated timestamped sentiment/positioning source and should be UNAVAILABLE, not infer sentiment from price or news.
+- Bull Researcher, Bear Researcher and Portfolio Analyst are model-backed and require a verified Gemini or OpenAI credential and structured output; Codex must verify provider health without exposing secrets.
+- Portfolio Risk Committee currently cannot accept a complete portfolio because the collector does not know open stop-risk or sector classification for current Alpaca positions (`openRiskUsd:null`, `sectorExposureUsd:null`). Add verified stop metadata and sector classification, or explicitly keep NO_TRADE.
+- Market monitor showing zero checked symbols with `market_closed` is expected outside US regular trading hours; inspect in-session runs separately. The 35 unacknowledged alerts are a backlog requiring triage/deduplication, not proof of 35 current market conditions.
+- 200-symbol / three-hour scanning is not viable on a low daily FMP request budget without caching, batching and a separate quote/fundamental request budget. Prove the per-run API budget before enabling it.
 
 ## Suggested five Codex sessions (use remaining allowance carefully)
 1. **Collector + tests:** finish P0, add fixtures/tests, do not touch execution config.
