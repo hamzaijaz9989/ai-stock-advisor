@@ -148,13 +148,13 @@ function riskCommittee(payload) {
   const p=payload.portfolio||{};
   const equity=Number(p.equityUsd),openRisk=Number(p.openRiskUsd),gross=Number(p.grossExposureUsd);
   const daily=Number(p.dailyLossFraction),weekly=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
-  const sector=Number(p.sectorExposureUsd),positions=Number(p.concurrentPositions);
+  const sector=Number(p.sectorExposureUsd),maxPosition=Number(p.maxPositionNotionalUsd),positions=Number(p.concurrentPositions);
   const reasons=[];
   const fractions=[daily,weekly,drawdown];
-  const required=[equity,openRisk,gross,daily,weekly,drawdown,sector,positions];
-  const missing=["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"].some(k=>p[k]===null||p[k]===undefined||p[k]==="");
+  const required=[equity,openRisk,gross,daily,weekly,drawdown,sector,maxPosition,positions];
+  const missing=["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","maxPositionNotionalUsd","concurrentPositions"].some(k=>p[k]===null||p[k]===undefined||p[k]==="");
   const invalid=missing || required.some(v=>!Number.isFinite(v)) || equity<=0 || openRisk<0 || gross<0 ||
-    fractions.some(v=>v<0||v>1) || !Number.isSafeInteger(positions) || positions<0 || positions>1000 || sector<0;
+    fractions.some(v=>v<0||v>1) || !Number.isSafeInteger(positions) || positions<0 || positions>1000 || sector<0 || maxPosition<0;
   if(invalid) {
     reasons.push("Core portfolio snapshot is incomplete or invalid: unsupported units or bounds.");
   } else {
@@ -163,7 +163,8 @@ function riskCommittee(payload) {
     if(daily>=0.02) reasons.push("Daily loss stop of 2% has been reached.");
     if(weekly>=0.04) reasons.push("Weekly loss stop of 4% has been reached.");
     if(drawdown>=0.08) reasons.push("Drawdown pause threshold of 8% has been reached.");
-    if(sector/equity>0.40) reasons.push("Sector exposure exceeds 40% of equity.");
+    if(sector/equity>0.40) reasons.push("Conservative sector exposure exceeds 40% of equity.");
+    if(maxPosition/equity>0.25) reasons.push("Largest position exceeds the 25% position-notional cap.");
     if(positions>=1) reasons.push("Existing paper holding occupies the initial one-position planning limit.");
   }
   // Portfolio metrics are a separate typed input, not market fact IDs. Keep the deterministic
