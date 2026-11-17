@@ -61,7 +61,7 @@ async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
  if(!db||!key||!secret||syncData?.ok!==true||syncData?.synced!==true||syncData?.execution!==false||!syncData?.broker)throw new Error("A successful read-only Alpaca Paper sync is required.");
  const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first();
- if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==2500||Number(control.default_risk_fraction)!==0.01||Number(control.max_risk_fraction)!==0.01||Number(control.max_position_fraction)!==0.25)throw new Error("Paper execution controls are not in the required disabled/kill-switched $2,500 configuration with $25 per-trade risk.");
+ if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==1000||Number(control.default_risk_fraction)!==0.025||Number(control.max_risk_fraction)!==0.025||Number(control.max_position_fraction)!==0.065)throw new Error("Paper execution controls are not in the required disabled/kill-switched $1,000 configuration with $25 per-trade risk.");
  const broker=syncData.broker;
  const ordersResponse=await fetch("https://paper-api.alpaca.markets/v2/orders?status=open&limit=500&direction=desc",{
   headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,Accept:"application/json"},
@@ -157,11 +157,17 @@ export async function onRequestPost({request,env}){
   const sec={cik:null,observations:[],warning:"SEC companyfacts was not queried in this bounded research run; FMP-reported data remains separately labelled."};
   const asOf=new Date().toISOString();
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
-  if(!history?.available||!Array.isArray(history.prices)||history.prices.length<20)throw new Error("At least 20 valid daily price bars are required to start research; the Technical Analyst independently requires 60.");
+  const validDailyBars=(Array.isArray(history?.prices)?history.prices:[]).filter(row=>{
+   if(!row||typeof row.date!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(row.date)||row.date>collectionStartedAt.slice(0,10))return false;
+   const o=finite(row.open),h=finite(row.high),l=finite(row.low),cl=finite(row.close),v=finite(row.volume);
+   return [o,h,l,cl,v].every(x=>x!==null)&&o>0&&h>0&&l>0&&cl>0&&v>=0&&h>=Math.max(o,cl,l)&&l<=Math.min(o,cl,h);
+  }).map(row=>({date:row.date,open:finite(row.open),high:finite(row.high),low:finite(row.low),close:finite(row.close),volume:finite(row.volume)}))
+    .sort((a,b)=>a.date.localeCompare(b.date)).filter((row,i,all)=>i===0||all[i-1].date!==row.date);
+  if(!history?.available||validDailyBars.length<20)throw new Error("At least 20 valid unique daily OHLCV bars are required for partial research. The Technical Analyst requires 60 bars for completion.");
   const validFundamentals=fundamentals?.available===true;
   const fmpHistory={income:history.statements?.annualIncome||[],balance:history.statements?.annualBalance||[],cashflow:history.statements?.annualCashflow||[],metrics:[],ratios:[],estimates:[]};
   const context=buildResearchCouncilContext({ticker,asOf,quote:{ticker,price:Number(quote.price),currency:quote.currency,exchange:quote.exchange,previousClose:finite(quote.previousClose),change:finite(quote.change),changePercent:finite(quote.changePercent),quoteTime:quote.quoteTime,marketState:quote.marketState,delayedOrRealtime:quote.delayedOrRealtime,interval:quote.interval,source:quote.source},
-   history:{data:history.prices,interval:"1d",currency:"USD",source:history.provider,fetchedAt:history.retrievedAt,dataQuality:history.coverage},
+   history:{data:validDailyBars,interval:"1d",currency:"USD",source:history.provider,fetchedAt:history.retrievedAt,dataQuality:history.coverage,warning:history.priceWarning||null},
    secObservations:sec.observations,fmpFundamentals:{available:validFundamentals,provider:fundamentals.provider||"Financial Modeling Prep",retrievedAt:fundamentals.retrievedAt||null,latest:validFundamentals?fundamentals.latest:null,history:validFundamentals?fmpHistory:{}},
    news:{items:Array.isArray(news.items)?news.items:[],warning:news.warning||null},
    earnings:{events:Array.isArray(earnings.events)?earnings.events.map(e=>({...e,date:e.reportDate||e.date||null})):[],found:earnings.found===true,verified:earnings.verified===true,throughDate:earnings.throughDate||null,provider:earnings.provider,fetchedAt:earnings.fetchedAt||earnings.fetchedAt,warning:earnings.warning||null},

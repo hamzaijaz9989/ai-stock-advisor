@@ -2,8 +2,8 @@
 (() => {
   "use strict";
   const $ = id => document.getElementById(id);
-  const CAPITAL = 2500;
-  const RISK_PCT_MAX = 1;
+  const CAPITAL = 1000;
+  const RISK_PCT_MAX = 2.5;
   const STORAGE_KEY = "northstar-trading-lab-plans-v1";
   const money = value => new Intl.NumberFormat("en-US", {style:"currency",currency:"USD",maximumFractionDigits:2}).format(value);
   const safeReadPlans = () => {
@@ -18,8 +18,8 @@
   };
   const plans = safeReadPlans();
   $("capital").textContent = money(CAPITAL);
-  $("risk-budget").textContent = money(CAPITAL * 0.01);
-  $("max-position").textContent = money(CAPITAL * 0.25);
+  $("risk-budget").textContent = money(CAPITAL * 0.025);
+  $("max-position").textContent = money(CAPITAL * 0.065);
 
   function calculate() {
     const symbol = String($("symbol").value || "").trim().toUpperCase();
@@ -37,7 +37,7 @@
     }
     if (!valid) {
       $("quantity").textContent = "NO TRADE";
-      $("risk-result").textContent = "Check the ticker, ensure entry is above the stop, and keep risk between 0.1% and 1.0% of pilot equity.";
+      $("risk-result").textContent = "Check the ticker, ensure entry is above the stop, and keep risk between 0.1% and 2.5% of pilot equity.";
       return null;
     }
     const perShareRisk = entry - stop;
@@ -50,7 +50,7 @@
     $("risk-result").textContent = shares
       ? "Position value " + money(notional) + " · planned stop risk " + money(plannedLoss) +
         " · risk budget " + money(riskBudget) + " (" + riskPct.toFixed(1) + "% of pilot equity). Whole-share sizing; gaps can cause larger losses."
-      : "No whole share fits both the risk budget and 25% position cap. Do not force a trade.";
+      : "No whole share fits both the risk budget and 6.5% ($65) position cap. Do not force a trade.";
     return shares ? {symbol, entry, stop, shares, notional, plannedLoss, riskBudget, riskPct} : null;
   }
 
@@ -112,7 +112,7 @@
     $("symbol").value = "";
     $("entry").value = "";
     $("stop").value = "";
-    $("risk-pct").value = "1";
+    $("risk-pct").value = "2.5";
     calculate();
   });
 

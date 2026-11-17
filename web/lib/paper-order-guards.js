@@ -34,8 +34,8 @@ export function evaluatePortfolioRisk({account,positions,limits,dailyLossUsd,max
   if(!account||!Array.isArray(positions)||!limits) return block("MISSING_ACCOUNT_POSITIONS_OR_LIMITS");
   const equity=Number(account.equity), buyingPower=Number(account.buying_power);
   const cap=Number(limits.maxPortfolioUsd), maxPosition=Number(limits.maxPositionFraction), maxRisk=Number(limits.maxRiskFraction);
-  const maxDailyLoss=Number(limits.maxDailyLossFraction ?? 0.02), maxDrawdown=Number(limits.maxDrawdownFraction ?? 0.08);
-  if(![equity,buyingPower,cap,maxPosition,maxRisk,maxDailyLoss,maxDrawdown,Number(openOrderExposureUsd)].every(Number.isFinite)||equity<=0||buyingPower<0||cap<=0||maxPosition<=0||maxPosition>1||maxRisk<=0||maxRisk>0.01||maxDailyLoss<=0||maxDailyLoss>0.02||maxDrawdown<=0||maxDrawdown>0.08||openOrderExposureUsd<0) return block("INVALID_RISK_INPUTS");
+  const maxDailyLoss=Number(limits.maxDailyLossFraction ?? 0.05), maxDrawdown=Number(limits.maxDrawdownFraction ?? 0.08);
+  if(![equity,buyingPower,cap,maxPosition,maxRisk,maxDailyLoss,maxDrawdown,Number(openOrderExposureUsd)].every(Number.isFinite)||equity<=0||buyingPower<0||cap<=0||maxPosition<=0||maxPosition>1||maxRisk<=0||maxRisk>0.025||maxDailyLoss<=0||maxDailyLoss>0.05||maxDrawdown<=0||maxDrawdown>0.08||openOrderExposureUsd<0) return block("INVALID_RISK_INPUTS");
   if(dailyLossUsd===null||dailyLossUsd===undefined||dailyLossUsd===""||maxDrawdownUsd===null||maxDrawdownUsd===undefined||maxDrawdownUsd===""||!Number.isFinite(Number(dailyLossUsd))||!Number.isFinite(Number(maxDrawdownUsd))||Number(dailyLossUsd)<0||Number(maxDrawdownUsd)<0) return block("DAILY_LOSS_OR_DRAWDOWN_NOT_VERIFIED");
   if(positions.some(p=>!Number.isFinite(Number(p.market_value)))) return block("INVALID_POSITION_MARKS");
   const gross=positions.reduce((s,p)=>s+Math.abs(Number(p.market_value)),0)+Number(openOrderExposureUsd);
