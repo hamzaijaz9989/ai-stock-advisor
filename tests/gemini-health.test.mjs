@@ -57,3 +57,7 @@ test("Gemini health rejects a marker embedded in a longer truncated response",as
     assert.equal(payload.finishReason,"MAX_TOKENS");
   });
 });
+
+test("Gemini health reports distinct sanitized generation permission and quota failures",async()=>{for(const status of [400,403,404,429])await withFetch(async input=>String(input).includes("/models?pageSize=")?Response.json({models:[{name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]}]}):new Response("private provider response",{status}),async()=>{const response=await onRequestGet({request,env}),payload=await response.json();assert.equal(payload.failureCode,"provider_http_"+status);assert.equal(JSON.stringify(payload).includes("private provider response"),false);assert.match(payload.reason,/rejected|denied|unavailable|quota/);});});
+
+test("Gemini health labels a real generation timeout without exposing provider details",async()=>{await withFetch(async input=>String(input).includes("/models?pageSize=")?Response.json({models:[{name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]}]}):(()=>{const error=new Error("private timeout detail");error.name="TimeoutError";throw error;})(),async()=>{const response=await onRequestGet({request,env}),payload=await response.json();assert.equal(response.status,502);assert.equal(payload.configured,true);assert.equal(payload.generationTest,"failed");assert.equal(payload.failureCode,"request_timeout");assert.match(payload.reason,/timed out/);assert.equal(JSON.stringify(payload).includes("private timeout detail"),false);});});

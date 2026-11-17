@@ -10,6 +10,7 @@ import {onRequestGet as getFinnhubSentiment} from "../finnhub-sentiment.js";
 import {onRequestGet as getNews} from "../news.js";
 import {onRequestGet as getEarnings} from "../earnings.js";
 import {buildResearchCouncilContext} from "../../../lib/research-council-facts.js";
+import {mergeFinnhubCompanyNews} from "../../../lib/research-news-merge.js";
 import {consumesResearchLaunchCooldown} from "../../../lib/research-launch-cooldown.js";
 import {fetchSecCompanyFacts} from "../../../lib/sec-companyfacts.js";
 import {runResearchCouncil} from "../../../lib/research-council.js";
@@ -67,18 +68,28 @@ async function resolveHistory(origin,ticker,collectionStartedAt,env){
  }
 }
 async function resolveNews(origin,ticker,env){
- let primaryError="Massive news unavailable";
- try{
-  const primary=await providerReadOnce(getMassiveNews,origin,"/api/massive-news?ticker="+encodeURIComponent(ticker),env);
-  if(primary?.available&&Array.isArray(primary.items))return {...primary,provider:"Massive"};
-  primaryError=primary?.warning||"Massive returned no usable news";
- }catch(error){primaryError=String(error?.message||primaryError).slice(0,180);}
- try{
-  const fallback=await endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env);
-  return {...fallback,provider:fallback.provider||"RSS/news discovery",fallbackReason:"Massive primary news unavailable: "+primaryError};
- }catch(error){
-  return {items:[],provider:"news discovery",warning:"Massive news unavailable ("+primaryError+"); secondary news unavailable ("+String(error?.message||"unknown").slice(0,140)+")."};
+ let primaryError="Massive news unavailable",primary=null,finnhub={articles:[],warning:"Finnhub company news unavailable"};
+ const [massiveResult,finnhubResult]=await Promise.allSettled([
+  providerReadOnce(getMassiveNews,origin,"/api/massive-news?ticker="+encodeURIComponent(ticker),env),
+  providerReadOnce(getFinnhubSentiment,origin,"/api/finnhub-sentiment?ticker="+encodeURIComponent(ticker),env)
+ ]);
+ if(massiveResult.status==="fulfilled"&&massiveResult.value?.available&&Array.isArray(massiveResult.value.items))primary=massiveResult.value;
+ else primaryError=massiveResult.status==="rejected"?String(massiveResult.reason?.message||primaryError).slice(0,180):(massiveResult.value?.warning||"Massive returned no usable news");
+ if(finnhubResult.status==="fulfilled"&&finnhubResult.value?.available===true&&Array.isArray(finnhubResult.value.articles))finnhub=finnhubResult.value;
+ else if(finnhubResult.status==="fulfilled")finnhub.warning=finnhubResult.value?.warning||finnhub.warning;
+ else finnhub.warning=String(finnhubResult.reason?.message||finnhub.warning).slice(0,180);
+ let base=primary?{...primary,provider:"Massive"}:null;
+ if(!base){
+  try{
+   const fallback=await endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env);
+   base={...fallback,provider:fallback.provider||"RSS/news discovery",fallbackReason:"Massive primary news unavailable: "+primaryError};
+  }catch(error){
+   base={items:[],provider:"news discovery",warning:"Massive news unavailable ("+primaryError+"); secondary news unavailable ("+String(error?.message||"unknown").slice(0,140)+")."};
+  }
  }
+ const merged=mergeFinnhubCompanyNews(base.items,finnhub.articles||[]);
+ const added=merged.added;
+ return {...base,items:merged.items,newsSources:[...(Array.isArray(base.sources)?base.sources:[]),{name:"Finnhub company news",status:added?"ok":(finnhub.warning?"unavailable":"no new unique articles"),count:added}],finnhubNews:{status:added?"ok":"unavailable_or_duplicate",count:added,warning:finnhub.warning||null}};
 }
 async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
@@ -196,16 +207,9 @@ export async function onRequestPost({request,env}){
    try{fundamentals=await endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env);}
    catch(error){fundamentals={available:false,provider:"Financial Modeling Prep",warning:String(error?.message||"FMP fallback unavailable").slice(0,180)};}
   }
-  let sentiment={observations:[],warning:"No qualifying provider sentiment observations were returned."};
-  if(Array.isArray(news.sentimentObservations)&&news.sentimentObservations.length){
-   sentiment={observations:news.sentimentObservations,provider:news.provider||"Massive"};
-  }else{
-   try{
-    const fallbackSentiment=await endpoint(getFinnhubSentiment,origin,"/api/finnhub-sentiment?ticker="+encodeURIComponent(ticker),env);
-    if(fallbackSentiment?.available===true)sentiment=fallbackSentiment;
-    else sentiment={observations:[],warning:fallbackSentiment?.warning||"Finnhub sentiment unavailable"};
-   }catch(error){sentiment={observations:[],warning:String(error?.message||"Finnhub sentiment unavailable").slice(0,180)};}
-  }
+  // Sentiment is derived by the Council from the already collected timestamped news evidence.
+  // Avoid a second Finnhub request or treating retrieval time as sentiment observation time.
+  const sentiment={observations:[],warning:"Provider-reported or social sentiment is unavailable; AI-derived news sentiment requires three unique fresh headlines."};
   // Earnings calendar remains optional; SEC EDGAR is the primary fundamentals source.
   const earnings={ticker,provider:"earnings calendar not queried",fetchedAt:new Date().toISOString(),
    events:[],found:false,verified:false,warning:"Earnings calendar was not queried in this bounded research run; confirm dates with issuer investor relations."};

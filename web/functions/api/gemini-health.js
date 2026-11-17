@@ -1,3 +1,5 @@
+function diagnostic(status){return ({400:"request payload or generation configuration rejected",401:"API key rejected",403:"API key permission or model access denied",404:"generation model unavailable",429:"provider quota or rate limit exhausted"})[status]||"provider request failed";}
+function timeoutDiagnostic(error){return error?.name==="AbortError"||error?.name==="TimeoutError";}
 // Secure Gemini API health check: discovers models available to this key and performs
 // a minimal real text-generation request. Never returns or logs the API key or generated text.
 export async function onRequestGet({ env }) {
@@ -22,7 +24,8 @@ export async function onRequestGet({ env }) {
     if(!listResponse.ok) return Response.json({
       available:false,configured:true,authenticated:[429,503].includes(listResponse.status),
       generationTest:"not_run",provider:"Google Gemini",upstreamStatus:listResponse.status,
-      reason:"Gemini model discovery failed. Check API access, key restrictions or quota."
+      failureCode:"provider_http_"+listResponse.status,
+      reason:"Gemini model discovery failed: "+diagnostic(listResponse.status)+"."
     },{status:502,headers});
 
     const payload=await listResponse.json();
@@ -77,7 +80,8 @@ export async function onRequestGet({ env }) {
       available:false,configured:true,authenticated:true,generationTest:"failed",
       provider:"Google Gemini",attemptedModels:attempted,
       upstreamStatus:generationResponse?.status||502,
-      reason:"Gemini model discovery succeeded, but text generation failed on the available models."
+      failureCode:"provider_http_"+generationResponse?.status,
+      reason:"Gemini model discovery succeeded, but generation failed: "+diagnostic(generationResponse?.status)+"."
     },{status:502,headers});
 
     const generated=await generationResponse.json();
@@ -98,13 +102,15 @@ export async function onRequestGet({ env }) {
       responseTextLength:generatedText.length,
       modelsListed:models.length,generateContentModelsAvailable:supported.length,
       checkedAt:new Date().toISOString(),
-      reason:passed?undefined:"Gemini authenticated, but generation did not return the exact probe token with a normal STOP finish. Inspect finishReason and promptBlockReason."
+      failureCode:passed?undefined:"response_validation",
+      reason:passed?undefined:"Gemini authenticated, but generation response validation failed (expected exact probe token and STOP finish)."
     },{status:passed?200:502,headers});
   }catch(error){
     return Response.json({
       available:false,configured:true,provider:"Google Gemini",generationTest:"failed",
-      stage, errorName:String(error?.name||"Error").slice(0,60), errorDetail:String(error?.message||error||"Unknown error").slice(0,180),
-      reason:"Could not complete Gemini discovery and generation. Check network availability and retry."
+      stage, errorName:String(error?.name||"Error").slice(0,60),
+      failureCode:timeoutDiagnostic(error)?"request_timeout":error?.name==="SyntaxError"?"response_validation":"provider_request_failed",
+      reason:timeoutDiagnostic(error)?"Gemini "+stage+" timed out.":error?.name==="SyntaxError"?"Gemini returned malformed JSON during "+stage+".":"Gemini "+stage+" could not be completed; provider details were withheld."
     },{status:502,headers});
   }
 }
