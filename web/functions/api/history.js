@@ -1,3 +1,4 @@
+import {onRequestGet as getMassiveHistory} from "./massive-history.js";
 const ALLOWED = /^[A-Z0-9.^=-]{1,12}$/;
 function scanOutliers(rows) {
   const moves=[]; const gaps=[]; const badTicks=[];
@@ -63,11 +64,36 @@ async function fetchHistory(host, ticker) {
     warning:"Historical price series may be incomplete or revised by the provider. Adjusted closes are used for return and drawdown calculations; these are historical descriptions, not forecasts."
   };
 }
-export async function onRequestGet({request}) {
+export async function onRequestGet({request,env}) {
   const url=new URL(request.url);
-  const ticker=(url.searchParams.get("ticker")||"").trim().toUpperCase().replace(/\s+/g,"");
+  const ticker=(url.searchParams.get("ticker")||"").trim().toUpperCase().replace(/\\s+/g,"");
   if(!ALLOWED.test(ticker)) return Response.json({error:"Enter a valid ticker."},{status:400});
   const failures=[];
+  // Massive Basic is the primary end-of-day history source; Yahoo and Nasdaq
+  // remain secondary fallbacks. Intraday quotes are served by a separate adapter.
+  try{
+    const to=new Date(),from=new Date(to);from.setUTCFullYear(from.getUTCFullYear()-1);
+    const primary=await getMassiveHistory({request:new Request(new URL("/api/massive-history?ticker="+encodeURIComponent(ticker)+"&from="+from.toISOString().slice(0,10)+"&to="+to.toISOString().slice(0,10),url.origin)),env});
+    const body=await primary.json();
+    if(primary.ok&&body?.available&&Array.isArray(body.prices)&&body.prices.length>=30){
+      const rows=body.prices.map(row=>({date:row.date,close:Number(row.close.toFixed(4)),adjustedClose:Number(row.close.toFixed(4)),open:Number(row.open.toFixed(4)),high:Number(row.high.toFixed(4)),low:Number(row.low.toFixed(4)),volume:row.volume}));
+      const first=rows[0],last=rows[rows.length-1],returns=[];
+      for(let i=1;i<rows.length;i++)returns.push(rows[i].adjustedClose/rows[i-1].adjustedClose-1);
+      const mean=returns.reduce((a,b)=>a+b,0)/returns.length,variance=returns.reduce((sum,r)=>sum+(r-mean)**2,0)/(returns.length-1||1);
+      let peak=rows[0].adjustedClose,maxDrawdown=0;
+      for(const row of rows){peak=Math.max(peak,row.adjustedClose);maxDrawdown=Math.min(maxDrawdown,row.adjustedClose/peak-1);}
+      const totalReturn=(last.adjustedClose/first.adjustedClose-1)*100,volatility=Math.sqrt(variance)*Math.sqrt(252)*100;
+      return Response.json({
+        ticker,companyName:ticker,source:"Massive",interval:"daily",fetchedAt:body.retrievedAt||new Date().toISOString(),
+        currency:"USD",exchange:"US",startDate:first.date,endDate:last.date,observations:rows.length,
+        totalReturnPercent:Number(totalReturn.toFixed(2)),annualizedVolatilityPercent:Number(volatility.toFixed(2)),
+        maxDrawdownPercent:Number((maxDrawdown*100).toFixed(2)),latestClose:last.close,latestAdjustedClose:last.adjustedClose,
+        data:rows,dataQuality:scanOutliers(rows),
+        warning:"Massive Basic end-of-day daily bars are split-adjusted but not dividend-adjusted. They are not intraday quotes; current prices are sourced separately."
+      },{headers:{"Cache-Control":"public, max-age=900","X-Content-Type-Options":"nosniff"}});
+    }
+    failures.push(body?.error||"Massive returned insufficient daily bars");
+  }catch(error){failures.push("Massive: "+String(error?.message||error));}
   for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]) {
     try {
       const result=await fetchHistory(host,ticker);
