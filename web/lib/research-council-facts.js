@@ -17,7 +17,7 @@ function validatePortfolio(portfolio, asOfMs) {
   const capturedAt = dateMs(portfolio.asOf);
   if (capturedAt === null || capturedAt > asOfMs) throw new TypeError("Portfolio snapshot timestamp is missing or after the research as-of time.");
   const required = ["equityUsd","grossExposureUsd","concurrentPositions"];
-  const optional = ["openRiskUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd"];
+  const optional = ["openRiskUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","maxPositionNotionalUsd"];
   if (required.some(key => portfolio[key] === null || portfolio[key] === undefined || portfolio[key] === "")) throw new TypeError("Core portfolio snapshot is incomplete.");
   const values = Object.fromEntries([...required,...optional].map(key => [key,
     portfolio[key] === null || portfolio[key] === undefined || portfolio[key] === "" ? null : Number(portfolio[key])
@@ -27,7 +27,8 @@ function validatePortfolio(portfolio, asOfMs) {
       optional.some(key => values[key] !== null && (!Number.isFinite(values[key]) || values[key] < 0))) {
     throw new TypeError("Portfolio risk snapshot contains invalid numeric fields.");
   }
-  return {...values, asOf: new Date(capturedAt).toISOString(), source: portfolio.source, verified: true};
+  return {...values, asOf: new Date(capturedAt).toISOString(), source: portfolio.source, verified: true,
+    sectorExposureMethod: portfolio.sectorExposureMethod || null, openRiskMethod: portfolio.openRiskMethod || null};
 }
 
 export function buildResearchCouncilContext(input) {

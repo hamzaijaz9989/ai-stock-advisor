@@ -89,10 +89,26 @@ async function portfolioSnapshot(env,syncData){
  const weeklyBase=snapshots.find(x=>Date.parse(x.captured_at)<=now-7*86400000);
  const weeklyEquity=finite(weeklyBase?.equity_usd);
  const weeklyLossFraction=weeklyEquity!==null&&weeklyEquity>0?Math.max(0,(weeklyEquity-equity)/weeklyEquity):null;
- const grossExposureUsd=broker.positions.reduce((sum,p)=>sum+Math.abs(finite(p.market_value)||0),0);
+ const positionNotionals=broker.positions.map(p=>{
+  const marketValue=finite(p.market_value),qty=finite(p.qty),avg=finite(p.avg_entry_price);
+  return marketValue!==null?Math.abs(marketValue):qty!==null&&avg!==null?Math.abs(qty*avg):null;
+ });
+ const grossExposureUsd=positionNotionals.every(Number.isFinite)?positionNotionals.reduce((sum,value)=>sum+value,0):null;
+ const maxPositionNotionalUsd=positionNotionals.length&&positionNotionals.every(Number.isFinite)?Math.max(...positionNotionals):0;
+ // Without a verified stop order, the full long-position cost basis is the
+ // conservative maximum loss to zero. A short or incomplete position stays unknown.
+ const openRiskValues=broker.positions.map(p=>{
+  const qty=finite(p.qty),avg=finite(p.avg_entry_price);
+  if(qty===null||avg===null||qty<0||avg<=0)return null;
+  return qty*avg;
+ });
+ const openRiskUsd=openRiskValues.every(Number.isFinite)?openRiskValues.reduce((sum,value)=>sum+value,0):null;
+ // Sector metadata is not yet a required provider input. Treating all holdings
+ // as one sector is a conservative upper bound, not a claim about actual sectors.
+ const sectorExposureUsd=grossExposureUsd;
  return {verified:true,source:"alpaca_paper_account+reconciled_D1_positions+equity_history",asOf:syncData.capturedAt||new Date().toISOString(),
-  equityUsd:Number(control.max_portfolio_usd),openRiskUsd:null,grossExposureUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
-  sectorExposureUsd:null,concurrentPositions:bp.length};
+  equityUsd:Number(control.max_portfolio_usd),openRiskUsd,grossExposureUsd,maxPositionNotionalUsd,dailyLossFraction,weeklyLossFraction,drawdownFraction,
+  sectorExposureUsd,sectorExposureMethod:"worst_case_all_positions_one_sector",openRiskMethod:"full_long_cost_basis_without_verified_stop",concurrentPositions:bp.length};
 }
 export async function onRequestPost({request,env}){
  const supplied=request.headers.get("Authorization")||"";
