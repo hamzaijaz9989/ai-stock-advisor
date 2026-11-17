@@ -165,6 +165,21 @@ export async function getFinnhubQuote(symbol, apiKey, fetchImpl = fetch, now = D
   return { symbol, price, previousClose: Number.isFinite(previousClose) && previousClose > 0 ? previousClose : null,
     changePct, quoteTime, fetchedAt: new Date().toISOString(), source: "Finnhub" };
 }
+export async function getAlpacaQuote(symbol, apiKey, secretKey, fetchImpl = fetch, now = Date.now()) {
+  if (!apiKey || !secretKey) throw new Error("Alpaca market-data credentials are not configured");
+  const url="https://data.alpaca.markets/v2/stocks/"+encodeURIComponent(symbol)+"/trades/latest?feed=iex";
+  const response=await fetchImpl(url,{
+    headers:{"APCA-API-KEY-ID":apiKey,"APCA-API-SECRET-KEY":secretKey,Accept:"application/json"},
+    signal:AbortSignal.timeout(7000)
+  });
+  if(!response.ok)throw new Error("Alpaca IEX quote HTTP "+response.status);
+  const payload=await response.json(),trade=payload?.trade;
+  const price=Number(trade?.p),timestamp=Date.parse(trade?.t||"");
+  const quoteTime=Number.isFinite(timestamp)&&timestamp>0?new Date(timestamp).toISOString():null;
+  if(!Number.isFinite(price)||price<=0)throw new Error("Alpaca IEX returned no usable price");
+  if(!isQuoteFresh(quoteTime,now))throw new Error("Alpaca IEX quote timestamp missing, stale, or unexpectedly in the future");
+  return {symbol,price,previousClose:null,changePct:null,quoteTime,fetchedAt:new Date().toISOString(),source:"Alpaca IEX"};
+}
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 function retryDelay(response, attempt) {
   const raw=response?.headers?.get?.("retry-after");
@@ -210,23 +225,33 @@ export async function getYahooQuote(symbol, fetchImpl = fetch, now = Date.now())
 }
 export async function getQuote(symbol, env, fetchImpl = fetch, now = Date.now()) {
   const failures = [];
+  // Massive Basic is end-of-day only, so intraday monitor quotes use the connected
+  // Finnhub and Alpaca IEX feeds first. FMP remains a last-resort fallback.
+  if (env.FINNHUB_API_KEY) {
+    try {
+      return await getFinnhubQuote(symbol, env.FINNHUB_API_KEY, fetchImpl, now);
+    } catch (error) {
+      failures.push("Finnhub failed (" + String(error?.message || error) + ")");
+    }
+  }
+  if (env.ALPACA_API_KEY_ID && env.ALPACA_API_SECRET_KEY) {
+    try {
+      const quote=await getAlpacaQuote(symbol,env.ALPACA_API_KEY_ID,env.ALPACA_API_SECRET_KEY,fetchImpl,now);
+      return failures.length?{...quote,fallbackReason:failures.join("; ").slice(0,240)}:quote;
+    } catch(error) {
+      failures.push("Alpaca failed ("+String(error?.message||error)+")");
+    }
+  }
   if (env.FMP_API_KEY && FMP_FREE_SYMBOLS.includes(symbol)) {
     try {
       await reserveFmpRequest(env.NORTHSTAR_DB, new Date(now));
-      return await getFmpQuote(symbol, env.FMP_API_KEY, fetchImpl, now);
+      const quote=await getFmpQuote(symbol, env.FMP_API_KEY, fetchImpl, now);
+      return failures.length?{...quote,fallbackReason:failures.join("; ").slice(0,240)}:quote;
     } catch (error) {
       failures.push("FMP failed (" + String(error?.message || error) + ")");
     }
   } else if (env.FMP_API_KEY) {
     failures.push("FMP skipped (symbol is outside the Free-plan allowlist)");
-  }
-  if (env.FINNHUB_API_KEY) {
-    try {
-      const quote = await getFinnhubQuote(symbol, env.FINNHUB_API_KEY, fetchImpl, now);
-      return failures.length ? { ...quote, fallbackReason: failures.join("; ").slice(0, 240) } : quote;
-    } catch (error) {
-      failures.push("Finnhub failed (" + String(error?.message || error) + ")");
-    }
   }
   try {
     const quote = await getYahooQuote(symbol, fetchImpl, now);
