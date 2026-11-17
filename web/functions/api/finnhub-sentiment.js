@@ -15,9 +15,9 @@ export async function onRequestGet({request,env}){
   if(!response.ok)return unavailable("Finnhub news-sentiment request failed (HTTP "+response.status+").",502,{upstreamStatus:response.status});
   const payload=await response.json();
   const symbol=String(payload?.symbol||ticker).toUpperCase();
-  const sampleCount=Number(payload?.buzz?.articlesInLastWeek);
-  const bullishPercent=Number(payload?.sentiment?.bullishPercent);
-  const bearishPercent=Number(payload?.sentiment?.bearishPercent);
+  const sampleCount=payload?.buzz?.articlesInLastWeek;
+  const bullishPercent=payload?.sentiment?.bullishPercent;
+  const bearishPercent=payload?.sentiment?.bearishPercent;
   // Finnhub reports bullish/bearish percentages and the number of news articles
   // in its rolling-week aggregate. Reject missing, empty or out-of-range samples.
   if(symbol!==ticker||!Number.isSafeInteger(sampleCount)||sampleCount<=0||
@@ -32,7 +32,7 @@ export async function onRequestGet({request,env}){
    sampleCount,score,window:"rolling_7d_news_aggregate",
    scoreMethod:"(bullishPercent - bearishPercent) / 100",
    bullishPercent,bearishPercent,
-   companyNewsScore:Number.isFinite(Number(payload?.companyNewsScore))?Number(payload.companyNewsScore):null,
+   companyNewsScore:typeof payload?.companyNewsScore==="number"&&Number.isFinite(payload.companyNewsScore)?payload.companyNewsScore:null,
    note:"Timestamp is the retrieval time of Finnhub's rolling seven-day news aggregate, not an article publication timestamp. This is news sentiment, not social or options positioning."
   };
   return Response.json({available:true,configured:true,ticker,provider:"Finnhub news sentiment",retrievedAt,observations:[observation],warning:"One provider snapshot only; source concentration and provider methodology must be considered."},{headers:HEADERS});
