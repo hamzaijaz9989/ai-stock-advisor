@@ -71,42 +71,13 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const ticker = (url.searchParams.get("ticker") || "").trim().toUpperCase();
   if (!ALLOWED.test(ticker)) return Response.json({ error: "Enter a valid ticker." }, { status: 400 });
-  const attempts = [
-    ["query1.finance.yahoo.com", "1d", "1m"],
-    ["query2.finance.yahoo.com", "1d", "1m"],
-    ["query1.finance.yahoo.com", "5d", "1d"],
-    ["query2.finance.yahoo.com", "5d", "1d"]
-  ];
-  const failures = [];
-  for (const [host, range, interval] of attempts) {
-    try {
-      const quote = await fetchQuote(host, ticker, range, interval);
-      return Response.json({ ...quote, warning: interval === "1m" ? "Indicative quote; provider may delay or restrict access. Verify with your broker." : "Intraday quote unavailable; showing latest available daily observation. This is not live pricing. Verify with your broker." }, {
-        headers: { "Cache-Control": "public, max-age=15", "X-Content-Type-Options": "nosniff" }
-      });
-    } catch (error) { failures.push(String(error?.message || error)); }
-  }
-  try {
-    const response = await fetch("https://api.nasdaq.com/api/quote/" + encodeURIComponent(ticker) + "/info?assetclass=stocks", {headers: {"Accept":"application/json, text/plain, */*", "User-Agent":"Mozilla/5.0 (compatible; AIStockAdvisor/1.0)", "Origin":"https://www.nasdaq.com", "Referer":"https://www.nasdaq.com/"}});
-    if (!response.ok) throw new Error("Nasdaq quote provider returned HTTP " + response.status);
-    const raw = await response.json();
-    const data = raw?.data;
-    const primary = data?.primaryData || {};
-    const secondary = data?.secondaryData || {};
-    const parseMoney = value => { if (typeof value !== "string") return null; const n = Number(value.replace(/[$,%+,]/g, "").trim()); return Number.isFinite(n) ? n : null; };
-    const price = parseMoney(primary.lastSalePrice) ?? parseMoney(secondary.lastSalePrice);
-    if (!data?.symbol || price === null) throw new Error("Nasdaq returned no usable quote");
-    const quoteLabel = primary.lastTradeTimestamp || secondary.lastTradeTimestamp || null;
-    const quoteTime = parseEasternQuoteLabel(quoteLabel);
-    return Response.json({ticker, companyName:data.companyName || ticker, currency:primary.currency || "USD", exchange:data.exchange || "Unknown", price, previousClose:null, change:parseMoney(primary.netChange) ?? parseMoney(secondary.netChange), changePercent:parseMoney(primary.percentageChange) ?? parseMoney(secondary.percentageChange), quoteTime, quoteLabel, fetchedAt:new Date().toISOString(), marketState:data.marketStatus || "unknown", delayedOrRealtime:primary.isRealTime ? "Provider-labelled real-time; verify independently" : "Latest available quote; may be delayed", source:"Nasdaq quote API", interval:primary.isRealTime ? "provider-labelled real-time" : "latest available", warning:quoteTime ? "Quote timestamp interpreted from Nasdaq's Eastern Time label; verify price with your broker." : "Provider timestamp could not be normalized. Verify the price with your broker before acting."}, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
-  } catch (error) { failures.push(String(error?.message || error)); }
   // Optional licensed providers: configure FINNHUB_API_KEY and/or FMP_API_KEY
   // as Cloudflare Pages secrets. Never claim real-time unless the provider contract
   // and response explicitly support it; timestamps are required for decision gating.
   if (typeof env !== "undefined" && env.FINNHUB_API_KEY) {
     try {
       const response = await fetch("https://finnhub.io/api/v1/quote?symbol=" + encodeURIComponent(ticker) + "&token=" + encodeURIComponent(env.FINNHUB_API_KEY), {
-        headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(7000)
+        headers: {"Accept":"application/json","X-Finnhub-Token":env.FINNHUB_API_KEY}, signal: AbortSignal.timeout(7000)
       });
       if (!response.ok) throw new Error("Finnhub returned HTTP " + response.status);
       const raw = await response.json();
@@ -156,27 +127,46 @@ export async function onRequestGet({ request, env }) {
       }, {headers: {"Cache-Control": "public, max-age=10", "X-Content-Type-Options": "nosniff"}});
     } catch (error) { failures.push("Alpaca IEX: " + String(error?.message || error)); }
   }
+  // FMP remains a tertiary quote fallback, never the primary source.
   if (typeof env !== "undefined" && env.FMP_API_KEY) {
     try {
-      const response = await fetch("https://financialmodelingprep.com/stable/quote?symbol=" + encodeURIComponent(ticker) + "&apikey=" + encodeURIComponent(env.FMP_API_KEY), {
-        headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(7000)
-      });
+      const response = await fetch("https://financialmodelingprep.com/stable/quote?symbol=" + encodeURIComponent(ticker) + "&apikey=" + encodeURIComponent(env.FMP_API_KEY), {headers: {"Accept":"application/json"}, signal: AbortSignal.timeout(7000)});
       if (!response.ok) throw new Error("Financial Modeling Prep returned HTTP " + response.status);
-      const raw = await response.json();
-      const item = Array.isArray(raw) ? raw[0] : null;
+      const raw = await response.json(), item = Array.isArray(raw) ? raw[0] : null;
       if (!(typeof item?.price === "number" && item.price > 0 && Number.isFinite(item.timestamp) && item.timestamp > 0)) throw new Error("FMP returned no timestamped quote");
-      const quoteTime = new Date(item.timestamp * 1000).toISOString();
-      return Response.json({
-        ticker, companyName:item.name || ticker, currency:"USD", exchange:item.exchange || "Unknown",
-        price:item.price, previousClose:typeof item.previousClose === "number" ? item.previousClose : null,
-        change:typeof item.change === "number" ? item.change : null,
-        changePercent:typeof item.changePercentage === "number" ? item.changePercentage : null,
-        quoteTime, fetchedAt:new Date().toISOString(), marketState:"unknown",
-        delayedOrRealtime:"FMP provider quote; plan-dependent, verify independently",
-        source:"Financial Modeling Prep", interval:"provider quote",
-        warning:"FMP quote timestamp supplied by provider. Market-data freshness and display rights depend on your account plan; verify with your broker."
-      }, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
-    } catch (error) { failures.push("Financial Modeling Prep: " + String(error?.message || error)); }
+      return Response.json({ticker,companyName:item.name||ticker,currency:"USD",exchange:item.exchange||"Unknown",price:item.price,previousClose:typeof item.previousClose==="number"?item.previousClose:null,change:typeof item.change==="number"?item.change:null,changePercent:typeof item.changePercentage==="number"?item.changePercentage:null,quoteTime:new Date(item.timestamp*1000).toISOString(),fetchedAt:new Date().toISOString(),marketState:"unknown",delayedOrRealtime:"FMP provider quote; plan-dependent, verify independently",source:"Financial Modeling Prep",interval:"provider quote",warning:"FMP is a last-resort quote source. Verify account entitlement and quote freshness with your broker."},{headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
+    } catch(error) { failures.push("Financial Modeling Prep: "+String(error?.message||error)); }
   }
-  return Response.json({ticker, error:"Current quote unavailable from all configured providers. Do not rely on a cached or guessed price.", fetchedAt:new Date().toISOString(), source:"Yahoo Finance / Nasdaq / optional Finnhub / optional Financial Modeling Prep", providerErrors:failures}, {status:503, headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+
+  return Response.json({ticker, error:"Current quote unavailable from all configured providers. Do not rely on a cached or guessed price.", fetchedAt:new Date().toISOString(), source:"Finnhub / Alpaca IEX / FMP / Yahoo Finance / Nasdaq", providerErrors:failures}, {status:503, headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+  const attempts = [
+    ["query1.finance.yahoo.com", "1d", "1m"],
+    ["query2.finance.yahoo.com", "1d", "1m"],
+    ["query1.finance.yahoo.com", "5d", "1d"],
+    ["query2.finance.yahoo.com", "5d", "1d"]
+  ];
+  const failures = [];
+  for (const [host, range, interval] of attempts) {
+    try {
+      const quote = await fetchQuote(host, ticker, range, interval);
+      return Response.json({ ...quote, warning: interval === "1m" ? "Indicative quote; provider may delay or restrict access. Verify with your broker." : "Intraday quote unavailable; showing latest available daily observation. This is not live pricing. Verify with your broker." }, {
+        headers: { "Cache-Control": "public, max-age=15", "X-Content-Type-Options": "nosniff" }
+      });
+    } catch (error) { failures.push(String(error?.message || error)); }
+  }
+  try {
+    const response = await fetch("https://api.nasdaq.com/api/quote/" + encodeURIComponent(ticker) + "/info?assetclass=stocks", {headers: {"Accept":"application/json, text/plain, */*", "User-Agent":"Mozilla/5.0 (compatible; AIStockAdvisor/1.0)", "Origin":"https://www.nasdaq.com", "Referer":"https://www.nasdaq.com/"}});
+    if (!response.ok) throw new Error("Nasdaq quote provider returned HTTP " + response.status);
+    const raw = await response.json();
+    const data = raw?.data;
+    const primary = data?.primaryData || {};
+    const secondary = data?.secondaryData || {};
+    const parseMoney = value => { if (typeof value !== "string") return null; const n = Number(value.replace(/[$,%+,]/g, "").trim()); return Number.isFinite(n) ? n : null; };
+    const price = parseMoney(primary.lastSalePrice) ?? parseMoney(secondary.lastSalePrice);
+    if (!data?.symbol || price === null) throw new Error("Nasdaq returned no usable quote");
+    const quoteLabel = primary.lastTradeTimestamp || secondary.lastTradeTimestamp || null;
+    const quoteTime = parseEasternQuoteLabel(quoteLabel);
+    return Response.json({ticker, companyName:data.companyName || ticker, currency:primary.currency || "USD", exchange:data.exchange || "Unknown", price, previousClose:null, change:parseMoney(primary.netChange) ?? parseMoney(secondary.netChange), changePercent:parseMoney(primary.percentageChange) ?? parseMoney(secondary.percentageChange), quoteTime, quoteLabel, fetchedAt:new Date().toISOString(), marketState:data.marketStatus || "unknown", delayedOrRealtime:primary.isRealTime ? "Provider-labelled real-time; verify independently" : "Latest available quote; may be delayed", source:"Nasdaq quote API", interval:primary.isRealTime ? "provider-labelled real-time" : "latest available", warning:quoteTime ? "Quote timestamp interpreted from Nasdaq's Eastern Time label; verify price with your broker." : "Provider timestamp could not be normalized. Verify the price with your broker before acting."}, {headers:{"Cache-Control":"public, max-age=15","X-Content-Type-Options":"nosniff"}});
+  } catch (error) { failures.push(String(error?.message || error)); }
+
 }
