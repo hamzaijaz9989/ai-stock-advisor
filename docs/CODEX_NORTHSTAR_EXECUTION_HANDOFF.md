@@ -14,7 +14,7 @@ Finish the Agent Command Center and make the nine-role research pipeline truthfu
 - Current independent roles: market scanner, technical analyst, fundamental analyst, news analyst, sentiment analyst. Bull/Bear, Portfolio Analyst and Risk Committee need validated adapters/workers and full integration.
 - The current collection path defers SEC companyfacts and earnings enrichment; do not describe them as collected if not queried.
 - Production execution control was read and confirmed: `enabled=0`, `mode=paper`, `kill_switch=1`, `max_portfolio_usd=1000`.
-- User-approved allocation is $1,000. Preserve the earlier documented limits: 0.5% default risk ($5), 1% maximum/aggregate risk ($10), 2% daily loss stop ($20), and 25% position cap ($250). Existing production database currently has a CHECK constraint enforcing $1,000; a direct update to $2,500 was rejected. Locate and migrate the schema plus every dependent hard-coded $1,000 calculation together. Never disable the kill switch or enable order execution during this work.
+- User-approved allocation is $1,000. Preserve the earlier documented limits: 0.5% default risk ($5), 1% maximum/aggregate risk ($10), 2% daily loss stop ($20), and 25% position cap ($250). The migration file must preserve the $1,000 CHECK constraint and the $1,000 planning allocation. Do not apply any migration to production without separate approval and a read-only verification of the current migration state. Never disable the kill switch or enable order execution during this work.
 - Existing Alpaca NVDA 6-share position must not be modified. No live orders. No paper orders without a separate explicit user approval.
 
 ## Non-negotiable safety / evidence rules
