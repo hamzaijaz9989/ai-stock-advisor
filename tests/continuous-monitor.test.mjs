@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getFinnhubQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, getMonitorCandidates, reserveFmpRequest } from "../monitor/worker.js";
+import { isUsMarketOpen, isQuoteFresh, parseWatchZone, getFmpQuote, getFinnhubQuote, getAlpacaQuote, getQuote, classifyQuoteFailure, FMP_FREE_SYMBOLS, getFmpScanBatch, getMonitorCandidates, reserveFmpRequest } from "../monitor/worker.js";
 
 test("parses provisional entry watch zones and rejects malformed ranges",()=>{
  assert.deepEqual(parseWatchZone("NOT ENTRY-READY — Model entry watch zone: $34.01–$36.28; base-case reference"),{low:34.01,high:36.28});
@@ -158,6 +158,43 @@ test("Finnhub quote uses the token header and validates the provider timestamp",
  assert.equal(quote.changePct, 5);
 });
 
+test("Alpaca IEX quote authenticates with paper credentials and validates timestamped trade data",async()=>{
+ const now=Date.parse("2026-11-10T15:00:00.000Z"),calls=[];
+ const quote=await getAlpacaQuote("NVDA","test-alpaca-id","test-alpaca-secret",async(input,init)=>{
+  calls.push({url:String(input),headers:new Headers(init.headers)});
+  return jsonResponse({trade:{p:155.5,t:new Date(now-60_000).toISOString()}});
+ },now);
+ const url=new URL(calls[0].url);
+ assert.equal(url.hostname,"data.alpaca.markets");
+ assert.equal(url.pathname,"/v2/stocks/NVDA/trades/latest");
+ assert.equal(url.searchParams.get("feed"),"iex");
+ assert.equal(calls[0].headers.get("APCA-API-KEY-ID"),"test-alpaca-id");
+ assert.equal(calls[0].headers.get("APCA-API-SECRET-KEY"),"test-alpaca-secret");
+ assert.equal(quote.source,"Alpaca IEX");assert.equal(quote.price,155.5);
+ assert.equal(JSON.stringify(quote).includes("test-alpaca-secret"),false);
+});
+
+test("Alpaca IEX rejects missing, stale and invalid market trades",async()=>{
+ const now=Date.parse("2026-11-10T15:00:00.000Z");
+ await assert.rejects(getAlpacaQuote("NVDA","","",async()=>jsonResponse({}),now),/credentials are not configured/);
+ await assert.rejects(getAlpacaQuote("NVDA","id","secret",async()=>jsonResponse({trade:{p:10,t:new Date(now-20*60_000).toISOString()}}),now),/timestamp missing, stale/);
+ await assert.rejects(getAlpacaQuote("NVDA","id","secret",async()=>jsonResponse({trade:{p:0,t:new Date(now-60_000).toISOString()}}),now),/no usable price/);
+});
+
+test("Finnhub failure falls back to Alpaca IEX before trying FMP",async()=>{
+ const now=Date.parse("2026-11-10T15:00:00.000Z"),calls=[];
+ const quote=await getQuote("NVDA",{
+  FINNHUB_API_KEY:"finnhub-test",ALPACA_API_KEY_ID:"alpaca-id",ALPACA_API_SECRET_KEY:"alpaca-secret"
+ },async(input,init)=>{
+  const url=new URL(String(input));calls.push(url.hostname);
+  if(url.hostname==="finnhub.io")return new Response("",{status:403});
+  return jsonResponse({trade:{p:155.5,t:new Date(now-60_000).toISOString()}});
+ },now);
+ assert.deepEqual(calls,["finnhub.io","data.alpaca.markets"]);
+ assert.equal(quote.source,"Alpaca IEX");
+ assert.match(quote.fallbackReason,/Finnhub failed/);
+});
+
 test("symbols outside the FMP Free allowlist skip FMP and use Finnhub", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
@@ -168,22 +205,22 @@ test("symbols outside the FMP Free allowlist skip FMP and use Finnhub", async ()
  assert.deepEqual(calls.map(call=>call.host), ["finnhub.io"]);
  assert.equal(calls[0].headers.get("X-Finnhub-Token"), "test-only-finnhub-key");
  assert.equal(quote.source, "Finnhub");
- assert.match(quote.fallbackReason, /outside the Free-plan allowlist/);
+ assert.equal(quote.fallbackReason,undefined);
 });
 
-test("FMP failure falls back to Finnhub before Yahoo", async () => {
+test("Finnhub is tried first and FMP remains a last-resort quote fallback", async () => {
  const now = Date.parse("2026-11-10T15:00:00.000Z");
  const calls = [];
  const quote = await getQuote("AAPL", {
   FMP_API_KEY: "test-only-fmp-key", FINNHUB_API_KEY: "test-only-finnhub-key", NORTHSTAR_DB: fakeFmpBudgetDb()
  }, async (input) => {
   const url = new URL(String(input)); calls.push(url.hostname);
-  if (url.hostname === "financialmodelingprep.com") return new Response("", { status: 401 });
-  return jsonResponse({ c: 210, pc: 200, dp: 5, t: Math.floor((now - 60_000) / 1000) });
+  if (url.hostname === "finnhub.io") return new Response("", { status: 403 });
+  return jsonResponse([{symbol:"AAPL",price:210,previousClose:200,changePercentage:5,timestamp:Math.floor((now-60_000)/1000)}]);
  }, now);
- assert.deepEqual(calls, ["financialmodelingprep.com", "finnhub.io"]);
- assert.equal(quote.source, "Finnhub");
- assert.match(quote.fallbackReason, /FMP failed/);
+ assert.deepEqual(calls, ["finnhub.io","financialmodelingprep.com"]);
+ assert.equal(quote.source, "Financial Modeling Prep");
+ assert.match(quote.fallbackReason, /Finnhub failed/);
 });
 
 test("FMP stale quotes fall back to a fresh Yahoo quote without exposing the key", async () => {
