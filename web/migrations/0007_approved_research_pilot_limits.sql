@@ -29,7 +29,7 @@ VALUES(
   'northstar-migration-0007',
   'UPDATE_RESEARCH_PILOT_RISK_LIMITS',
   'APPLIED',
-  '{"allocationUsd":2500,"defaultRiskUsd":25,"maxRiskPerTradeUsd":25,"maxAggregateOpenRiskUsd":25,"dailyLossLimitUsd":50,"maxPositionNotionalUsd":625,"executionEnabled":false,"killSwitch":true}'
+  '{"allocationUsd":1000,"defaultRiskUsd":5,"maxRiskPerTradeUsd":10,"maxAggregateOpenRiskUsd":10,"dailyLossLimitUsd":20,"maxPositionNotionalUsd":250,"executionEnabled":false,"killSwitch":true}'
 );
 
 COMMIT;
