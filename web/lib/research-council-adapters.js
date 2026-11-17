@@ -150,6 +150,10 @@ function riskCommittee(payload) {
   const daily=Number(p.dailyLossFraction),weekly=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
   const sector=Number(p.sectorExposureUsd),positions=Number(p.concurrentPositions);
   const reasons=[];
+  const roleStatuses=payload.requiredRoleStatuses&&typeof payload.requiredRoleStatuses==="object"?payload.requiredRoleStatuses:{};
+  for(const [role,status] of Object.entries(roleStatuses)){
+    if(status!=="COMPLETE") reasons.push("Required research role "+role+" is "+String(status||"UNKNOWN")+"; final review is vetoed.");
+  }
   const fractions=[daily,weekly,drawdown];
   const required=[equity,openRisk,gross,daily,weekly,drawdown,sector,positions];
   const missing=["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","concurrentPositions"].some(k=>p[k]===null||p[k]===undefined||p[k]==="");
@@ -158,9 +162,9 @@ function riskCommittee(payload) {
   if(invalid) {
     reasons.push("Core portfolio snapshot is incomplete or invalid: unsupported units or bounds.");
   } else {
-    if(openRisk/equity>0.01) reasons.push("Aggregate open risk exceeds 1% of equity.");
+    if(openRisk/equity>0.02) reasons.push("Aggregate open risk exceeds 2% of equity ($20 on $1,000 planning capital).");
     if(gross/equity>1) reasons.push("Gross exposure exceeds 100% of the configured planning allocation.");
-    if(daily>=0.02) reasons.push("Daily loss stop of 2% has been reached.");
+    if(daily>=0.05) reasons.push("Daily loss stop of 5% ($50 on $1,000 planning capital) has been reached.");
     if(weekly>=0.04) reasons.push("Weekly loss stop of 4% has been reached.");
     if(drawdown>=0.08) reasons.push("Drawdown pause threshold of 8% has been reached.");
     if(sector/equity>0.40) reasons.push("Sector exposure exceeds 40% of equity.");
