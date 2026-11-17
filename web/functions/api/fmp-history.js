@@ -35,6 +35,26 @@ async function yahooDailyHistory(ticker,from,to){
  if(unique.length<60)throw new Error("Yahoo Finance returned only "+unique.length+" valid daily bars; 60 are required.");
  return unique;
 }
+async function finnhubDailyHistory(ticker,from,to,key){
+ const fromTs=Math.floor(Date.parse(from+"T00:00:00Z")/1000);
+ const toTs=Math.floor(Date.parse(to+"T23:59:59Z")/1000);
+ const url="https://finnhub.io/api/v1/stock/candle?symbol="+encodeURIComponent(ticker)+"&resolution=D&from="+fromTs+"&to="+toTs+"&token="+encodeURIComponent(key);
+ const response=await fetch(url,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
+ if(!response.ok)throw new Error("Finnhub history returned HTTP "+response.status);
+ const payload=await response.json();
+ if(payload?.s!=="ok"||!Array.isArray(payload.t))throw new Error("Finnhub returned no daily candle history"+(payload?.s?" ("+payload.s+")":""));
+ const rows=[];
+ for(let i=0;i<payload.t.length;i++){
+  const date=new Date(Number(payload.t[i])*1000).toISOString().slice(0,10);
+  const open=Number(payload.o?.[i]),high=Number(payload.h?.[i]),low=Number(payload.l?.[i]),close=Number(payload.c?.[i]),volume=Number(payload.v?.[i]);
+  if(date<from||date>to||![open,high,low,close,volume].every(Number.isFinite)||Math.min(open,high,low,close)<=0||volume<0||high<Math.max(open,close,low)||low>Math.min(open,close,high))continue;
+  rows.push({date,open,high,low,close,adjClose:null,volume});
+ }
+ rows.sort((a,b)=>a.date.localeCompare(b.date));
+ const unique=rows.filter((row,i)=>i===0||rows[i-1].date!==row.date);
+ if(unique.length<60)throw new Error("Finnhub returned only "+unique.length+" valid daily bars; 60 are required.");
+ return unique;
+}
 export async function onRequestGet({request,env}){
  const q=new URL(request.url).searchParams;
  const ticker=(q.get("ticker")||"").trim().toUpperCase();
@@ -55,14 +75,33 @@ export async function onRequestGet({request,env}){
   ["quarterCashflow",`cash-flow-statement?symbol=${ticker}&period=quarter&limit=5`],
   ["news",`news/stock?symbols=${ticker}&from=${from}&to=${to}&limit=5&page=0`]
  ];
- const settled=await Promise.allSettled(tasks.map(([,path])=>get(path,fmpKey)));
+ const firstPrice=await get(tasks[0][1],fmpKey).then(value=>({status:"fulfilled",value}),reason=>({status:"rejected",reason}));
+ let settled=[firstPrice];
+ const firstError=firstPrice.status==="rejected"?String(firstPrice.reason?.message||""):"";
+ if(!/HTTP 401/.test(firstError)){
+  settled=settled.concat(await Promise.allSettled(tasks.slice(1).map(([,path])=>get(path,fmpKey))));
+ }else{
+  settled=settled.concat(tasks.slice(1).map(()=>({status:"rejected",reason:new Error("Skipped remaining FMP datasets because the API key was rejected (HTTP 401).")})));
+ }
  const raw={},errors=[];
  settled.forEach((v,i)=>{const name=tasks[i][0];if(v.status==="fulfilled")raw[name]=v.value;else errors.push({dataset:name,error:String(v.reason?.message||"FMP request failed").slice(0,160)});});
  let prices=(raw.prices||[]).filter(x=>x.date>=from&&x.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
  let priceProvider="Financial Modeling Prep",priceWarning=null;
  if(prices.length<60){
-  try{prices=await yahooDailyHistory(ticker,from,to);priceProvider="Yahoo Finance chart API";priceWarning="FMP returned fewer than 60 usable daily bars; historical OHLCV was sourced from Yahoo Finance. Verify corporate-action adjustment and vendor coverage before relying on technical levels.";}
-  catch(error){priceWarning="FMP returned "+prices.length+" usable daily bars and Yahoo Finance fallback failed: "+String(error?.message||error).slice(0,180);}
+  const fmpBars=prices.length,fallbackErrors=[];
+  try{
+   prices=await yahooDailyHistory(ticker,from,to);
+   priceProvider="Yahoo Finance chart API";
+   priceWarning="FMP returned fewer than 60 usable daily bars; history was sourced from Yahoo Finance. Verify corporate-action adjustment and vendor coverage before relying on technical levels.";
+  }catch(error){fallbackErrors.push("Yahoo Finance: "+String(error?.message||error).slice(0,150));}
+  if(prices.length<60&&typeof env?.FINNHUB_API_KEY==="string"&&env.FINNHUB_API_KEY.trim()){
+   try{
+    prices=await finnhubDailyHistory(ticker,from,to,env.FINNHUB_API_KEY);
+    priceProvider="Finnhub";
+    priceWarning="FMP returned fewer than 60 usable daily bars and Yahoo Finance fallback failed; history was sourced from Finnhub. Verify feed entitlement, corporate-action adjustment and vendor coverage before relying on technical levels.";
+   }catch(error){fallbackErrors.push("Finnhub: "+String(error?.message||error).slice(0,150));}
+  }
+  if(prices.length<60)priceWarning="FMP returned "+fmpBars+" usable daily bars; historical fallbacks failed. "+fallbackErrors.join("; ");
  }
  const statements={};
  for(const [name,rows] of Object.entries(raw)){
@@ -79,6 +118,6 @@ export async function onRequestGet({request,env}){
   prices:prices.map(x=>({date:x.date,open:x.open,high:x.high,low:x.low,close:x.close,adjOpen:x.adjOpen,adjHigh:x.adjHigh,adjLow:x.adjLow,adjClose:x.adjClose,volume:x.volume})),
   statements,news,errors,priceWarning,
   pointInTimeRules:{financialAvailabilityField:"acceptedDate preferred; filingDate fallback only when acceptedDate absent",priceAvailabilityField:"daily bar date; close is available after that session",newsAvailabilityField:"publishedDate",warning:"Do not use a statement before its accepted/filing timestamp. If neither timestamp exists, exclude it from point-in-time snapshots. FMP's current historical response is not an immutable archive of every prior vendor revision."},
-  limitations:["Yahoo Finance fallback is an unlicensed public endpoint and may throttle, change or restrict access; fallback does not guarantee availability or redistribution rights.","Current ticker history does not establish historical index membership or include every delisted security.","News coverage and timestamps vary by symbol and may not be complete.","Historical prices may be adjusted; use a consistent adjustment policy and corporate-action audit before replay.","This endpoint retrieves source data; it does not approve BUY or certify a backtest."]
+  limitations:["Yahoo Finance is a public fallback and may throttle or restrict access; Finnhub fallback availability and redistribution rights depend on the configured account plan.","Current ticker history does not establish historical index membership or include every delisted security.","News coverage and timestamps vary by symbol and may not be complete.","Historical prices may be adjusted; use a consistent adjustment policy and corporate-action audit before replay.","This endpoint retrieves source data; it does not approve BUY or certify a backtest."]
  },{headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }
