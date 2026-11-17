@@ -417,8 +417,8 @@ async function scan(env) {
     const failureSummary=[...quoteFailureCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
     const failureSymbols=quoteFailureDetails.length?" [failed symbols: "+quoteFailureDetails.join(", ").slice(0,240)+"]":"";
     const fallbackSummary=[...providerFallbackCounts].sort(([a],[b])=>a.localeCompare(b)).map(([category,count])=>category+"="+count).join(", ");
-    const fallbackSymbols=providerFallbackDetails.length?" [FMP fallback symbols: "+providerFallbackDetails.join(", ").slice(0,240)+"]":"";
-    const detail="Checked "+checked+" quotes: rotating FMP Free-universe symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" non-FMP shortlist symbols; FMP budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"")+failureSymbols+"; FMP fallbacks: "+providerFallbackDetails.length+(fallbackSummary?" ("+fallbackSummary+")":"")+fallbackSymbols;
+    const fallbackSymbols=providerFallbackDetails.length?" [Provider fallback symbols: "+providerFallbackDetails.join(", ").slice(0,240)+"]":"";
+    const detail="Checked "+checked+" quotes: rotating fallback-eligible symbols plus up to "+MAX_NON_FMP_SHORTLIST_SYMBOLS+" additional shortlist symbols; FMP last-resort budget capped at "+FMP_DAILY_LIMIT+" requests/day; quote failures: "+errors+(failureSummary?" ("+failureSummary+")":"")+failureSymbols+"; FMP fallbacks: "+providerFallbackDetails.length+(fallbackSummary?" ("+fallbackSummary+")":"")+fallbackSymbols;
     await db.prepare("UPDATE monitor_runs SET completed_at=?,status=?,symbols_checked=?,errors=?,detail=? WHERE id=?").bind(at,status,checked,errors,detail,runId).run();
     return {status,checked,errors,at};
   } catch(error) {
