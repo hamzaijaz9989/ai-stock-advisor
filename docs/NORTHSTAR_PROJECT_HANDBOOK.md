@@ -425,3 +425,14 @@ The client reflects statuses and validation codes returned by persisted Council 
 - Unit and contract tests cover the public run identifier, running/failed collection states, exact historical agent selection, source-reference mapping, missing metadata, accessible UI structure, nine-role coverage, safe endpoint usage, and responsive CSS.
 - Full GitHub Actions JavaScript/Python/security results: pending for this branch until CI completes.
 - Production live browser verification and post-deployment AAPL run: pending. No deployment or research launch is reported until completed and observed.
+
+
+## 2026-11-17 — Production Command Center verification
+
+- PR #165 merged as `c846772cd98ad4de878449b5b2069bcc4ec18ffc`; Cloudflare Pages Production deployment `9d822c0c-022a-4898-9759-0e36669d8fe0` succeeded for `main`, was not skipped, and serves the same commit. No schema migration was applied.
+- Live desktop browser testing confirmed the rebuilt Trading Lab Command Center is served at https://ai-stock-advisor.pages.dev/trading-lab. The read-only research status endpoint returned persisted history and the UI displayed the latest AAPL run as 2/9 COMPLETE: Market Scanner and Technical Analyst complete; Fundamental Analyst and News Analyst blocked; Sentiment Analyst and Bull/Bear unavailable; Portfolio Analyst and Risk Committee not run. Historical runs were not represented as successes.
+- Report viewer inspection confirmed findings and fact IDs came from the persisted report. For this historical run, provider/source metadata was not persisted; the UI correctly reports source metadata unavailable rather than inventing it. A follow-up report-view change labels the first actual persisted finding as the executive summary.
+- PR #165 exact-head checks passed: JavaScript 306 passed / 0 failed; Python and validation workflows passed (pytest reported 94 passed, with the dedicated Python check also reporting 44/44); full-history secret scan passed. PR #166 adds the report-view regression test; its exact-head JavaScript, Python and secret-scan checks passed before merge.
+- Production release verification was desktop only at this checkpoint. Mobile viewport checks, a post-release AAPL research launch, and fresh nine-agent completion remain unverified. No new research write, broker call, order, migration, secret change, or execution-control change occurred in this checkpoint.
+- Production Pages build configuration uses `web` as the root and includes `web/*`, `web/**`, and workflow paths; the deployment metadata confirms the code change was not skipped. Preview was not used.
+- Safety remains unchanged: research-only, BUY disabled, paper execution disabled, kill switch engaged, and no live or paper orders submitted.
