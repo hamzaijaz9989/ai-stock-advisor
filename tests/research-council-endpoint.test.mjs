@@ -28,7 +28,7 @@ const context = {
   ticker:"NVDA", asOf:"2026-11-08T15:00:00Z",
   facts:[{id:"quote-1",type:"QUOTE",value:180},{id:"risk-1",type:"PORTFOLIO",value:"zero open risk"}],
   evidence:[{id:"filing-1",type:"SEC_FILING",url:"https://www.sec.gov/Archives/example",summary:"Official filing excerpt supplied by the upstream research collector."}],
-  portfolio:{verified:true,source:"test-reconciled-snapshot",asOf:"2026-11-08T15:00:00Z",equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}
+  portfolio:{verified:true,source:"test-reconciled-snapshot",asOf:"2026-11-08T15:00:00Z",equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,maxPositionNotionalUsd:0,concurrentPositions:0}
 };
 const env = db => ({NORTHSTAR_OPERATOR_TOKEN:"operator-secret",NORTHSTAR_DB:db});
 function request(body, token="operator-secret") {
@@ -100,7 +100,7 @@ test("model report normalization preserves UNAVAILABLE and rejects false complet
 
 test("deterministic risk committee rejects negative daily or weekly loss inputs", async () => {
   const workers=await createResearchCouncilWorkers({});
-  const base={facts:[{id:"portfolio-state-1"}],portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}};
+  const base={facts:[{id:"portfolio-state-1"}],portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,maxPositionNotionalUsd:0,concurrentPositions:0}};
   for (const field of ["dailyLossFraction","weeklyLossFraction"]) {
     const portfolio={...base.portfolio,[field]:-0.01};
     const result=await workers.risk_committee({...base,portfolio});
@@ -111,7 +111,7 @@ test("deterministic risk committee rejects negative daily or weekly loss inputs"
 
 test("risk committee does not attach unrelated market fact IDs to portfolio assertions", async () => {
   const workers=await createResearchCouncilWorkers({});
-  const result=await workers.risk_committee({facts:[{id:"quote-1",type:"QUOTE"}],portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,concurrentPositions:0}});
+  const result=await workers.risk_committee({facts:[{id:"quote-1",type:"QUOTE"}],portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,maxPositionNotionalUsd:0,concurrentPositions:0}});
   assert.equal(result.decision,"ACCEPT_FOR_REVIEW");
   assert.deepEqual(result.findings,[]);
   assert.deepEqual(result.risks,[]);
