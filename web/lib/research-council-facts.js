@@ -125,6 +125,24 @@ export function buildResearchCouncilContext(input) {
     }, item.source || "news discovery feed", item.publishedAt || null);
   }
 
+  const sentimentObservations = Array.isArray(input.sentimentObservations) ? input.sentimentObservations : [];
+  for (const row of sentimentObservations.slice(0, 20)) {
+    if (!row || typeof row.source !== "string" || !row.source.trim() ||
+        !finite(row.sampleCount) || row.sampleCount <= 0 ||
+        !finite(row.score) || row.score < -1 || row.score > 1) continue;
+    const timestamp = typeof row.timestamp === "string" ? row.timestamp : null;
+    const observedMs = dateMs(timestamp);
+    const timestampStatus = observedMs === null ? "MISSING" : observedMs > asOfMs ? "AFTER_AS_OF" : "PRESENT";
+    add(evidence, makeId("sentiment", ticker, row.source, timestamp || "untimestamped"), "SENTIMENT_OBSERVATION", {
+      timestamp, timestampStatus, source: row.source, sampleCount: row.sampleCount, score: row.score,
+      window: row.window || null, scoreMethod: row.scoreMethod || null,
+      bullishPercent: finite(row.bullishPercent) ? row.bullishPercent : null,
+      bearishPercent: finite(row.bearishPercent) ? row.bearishPercent : null,
+      companyNewsScore: finite(row.companyNewsScore) ? row.companyNewsScore : null,
+      note: row.note || "Provider snapshot; interpret only within its stated observation window."
+    }, row.source, timestamp);
+  }
+
   const earnings = input.earnings;
   if (Array.isArray(earnings?.events) && earnings.events.length) {
     for (const event of earnings.events.slice(0, 20)) add(evidence,
