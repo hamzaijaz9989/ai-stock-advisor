@@ -2,7 +2,7 @@ const TICKER_RE=/^[A-Z][A-Z0-9.-]{0,11}$/;
 const DAY=/^\d{4}-\d{2}-\d{2}$/;
 const HEADERS={"Cache-Control":"public, max-age=300","X-Content-Type-Options":"nosniff"};
 const BASIC_WINDOW_DAYS=730;
-function isoDay(value){return typeof value==="string"&&DAY.test(value)&&!Number.isNaN(Date.parse(value+"T00:00:00Z"));}
+function isoDay(value){if(typeof value!=="string"||!DAY.test(value))return false;const d=new Date(value+"T00:00:00Z");return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===value;}
 export async function onRequestGet({request,env}){
  const q=new URL(request.url).searchParams;
  const ticker=(q.get("ticker")||"").trim().toUpperCase();
@@ -19,7 +19,7 @@ export async function onRequestGet({request,env}){
  url.searchParams.set("adjusted","true");url.searchParams.set("sort","asc");url.searchParams.set("limit","50000");url.searchParams.set("apiKey",key);
  try{
   const response=await fetch(url.toString(),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(12000)});
-  if(!response.ok)return Response.json({available:false,configured:true,provider:"Massive",upstreamStatus:response.status,error:"Massive historical aggregates request failed (HTTP "+response.status+")."},{status:502,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+  if(!response.ok)return Response.json({available:false,configured:true,provider:"Massive",upstreamStatus:response.status,error:"Massive historical aggregates request failed (HTTP "+response.status+")."},{status:[401,403].includes(response.status)?response.status:502,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
   const payload=await response.json();
   if(payload?.status&&payload.status!=="OK"&&payload.status!=="DELAYED")
    return Response.json({available:false,configured:true,provider:"Massive",error:"Massive returned status "+String(payload.status).slice(0,60)+"."},{status:502,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
