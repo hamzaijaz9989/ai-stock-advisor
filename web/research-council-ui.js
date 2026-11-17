@@ -162,6 +162,7 @@ async function openReport(role){
   if(agent.decision){const d=document.createElement("p");d.textContent="Committee decision: "+agent.decision;summary.append(d);}
   if(agent.vetoReasons?.length){for(const v of agent.vetoReasons){const item=document.createElement("div");item.className="cc-failure";item.textContent=v;summary.append(item);}}
   body.append(summary);
+  reportBlock(body,"Executive summary · first persisted finding",agent.findings?.length?[agent.findings[0]]:[],entry.evidenceReferences);
   reportBlock(body,"Findings",agent.findings,entry.evidenceReferences);reportBlock(body,"Risks",agent.risks,entry.evidenceReferences);
  }catch(error){body.replaceChildren();const p=document.createElement("p");p.className="cc-failure";p.textContent="Agent report unavailable: "+error.message;body.append(p);}
 }

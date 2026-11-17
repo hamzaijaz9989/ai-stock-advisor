@@ -28,3 +28,7 @@ test("mobile layout and keyboard focus styles are present",()=>{
  assert.match(css,/overflow:auto/);
  assert.match(css,/focus-visible/);
 });
+
+test("agent report identifies the first persisted finding as its executive summary",()=>{
+ assert.ok(js.includes("Executive summary · first persisted finding"));
+});
