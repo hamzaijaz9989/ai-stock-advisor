@@ -27,9 +27,13 @@ export async function onRequestGet({ env }) {
 
     const payload=await listResponse.json();
     const models=Array.isArray(payload.models)?payload.models:[];
+    // Match the Research Council adapter: only Gemini Flash text models are eligible.
+    // Other model families (for example Gemma) can be listed by the same API but are
+    // not selected by createGeminiGenerator and must not create a false health result.
     const supported=models.filter(m=>typeof m?.name==="string"&&
       Array.isArray(m.supportedGenerationMethods)&&
       m.supportedGenerationMethods.includes("generateContent")&&
+      /flash/i.test(m.name)&&
       !/embedding|aqa|tts|image|audio|veo|live|transcri/i.test(m.name));
     const preferred=[
       env.GEMINI_RESEARCH_MODEL,
@@ -59,7 +63,7 @@ export async function onRequestGet({ env }) {
           headers:{"Content-Type":"application/json","x-goog-api-key":key},
           body:JSON.stringify({
             contents:[{role:"user",parts:[{text:"Return only this exact token, with no punctuation or explanation: "+expectedText}]}],
-            generationConfig:{temperature:0,maxOutputTokens:128}
+            generationConfig:{temperature:0,maxOutputTokens:32}
           }),
           signal:AbortSignal.timeout(20000)
         }

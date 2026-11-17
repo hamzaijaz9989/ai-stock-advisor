@@ -26,6 +26,32 @@ test("FMP historical ingestion returns dated prices, annual and quarterly statem
  }finally{globalThis.fetch=original;}
 });
 
+test("FMP authentication failure short-circuits and falls back to validated Finnhub daily candles",async()=>{
+ const original=globalThis.fetch;const urls=[];
+ const timestamps=Array.from({length:60},(_,i)=>Math.floor(Date.UTC(2025,0,1+i)/1000));
+ globalThis.fetch=async input=>{
+  const u=new URL(String(input));urls.push(u);
+  if(u.hostname==="financialmodelingprep.com")return new Response("Invalid API key",{status:401});
+  if(u.hostname==="query1.finance.yahoo.com")return new Response("Rate limited",{status:429});
+  if(u.hostname==="finnhub.io")return Response.json({
+   s:"ok",t:timestamps,o:timestamps.map((_,i)=>10+i/10),h:timestamps.map((_,i)=>11+i/10),
+   l:timestamps.map((_,i)=>9+i/10),c:timestamps.map((_,i)=>10.5+i/10),v:timestamps.map((_,i)=>100+i)
+  });
+  throw new Error("Unexpected provider "+u.hostname);
+ };
+ try{
+  const request=new Request("https://northstar.test/api/fmp-history?ticker=NVDA&from=2025-01-01&to=2025-06-01");
+  const response=await onRequestGet({request,env:{FMP_API_KEY:"invalid-test-key",FINNHUB_API_KEY:"finnhub-test-key"}});
+  const body=await response.json();
+  assert.equal(response.status,200);
+  assert.equal(body.priceProvider,"Finnhub");
+  assert.equal(body.coverage.priceBars,60);
+  assert.match(body.priceWarning,/Finnhub/);
+  assert.equal(urls.filter(u=>u.hostname==="financialmodelingprep.com").length,1);
+  assert.equal(urls.filter(u=>u.hostname==="finnhub.io").length,1);
+ }finally{globalThis.fetch=original;}
+});
+
 test("FMP historical ingestion rejects windows beyond ten years",async()=>{
  const request=new Request("https://northstar.test/api/fmp-history?ticker=MSFT&from=2000-01-01&to=2026-01-01");
  const response=await onRequestGet({request,env:{FMP_API_KEY:"test"}});

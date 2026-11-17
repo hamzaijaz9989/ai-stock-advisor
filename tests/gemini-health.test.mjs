@@ -11,12 +11,10 @@ async function withFetch(fetcher,run){
   try{return await run();}finally{globalThis.fetch=original;}
 }
 
-function mockFetch({text,finishReason="STOP"}){
+function mockFetch({text,finishReason="STOP",models=[{name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]}]}){
   return async input=>{
     const url=String(input);
-    if(url.includes("/models?pageSize="))return Response.json({models:[{
-      name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]
-    }]});
+    if(url.includes("/models?pageSize="))return Response.json({models});
     if(url.includes(":generateContent"))return Response.json({candidates:[{
       finishReason,content:{parts:[{text}]}
     }]});
@@ -33,6 +31,19 @@ test("Gemini health passes only an exact untruncated probe response",async()=>{
     assert.equal(payload.generationTest,"passed");
     assert.equal(payload.finishReason,"STOP");
     assert.equal(JSON.stringify(payload).includes("test-gemini-key"),false);
+  });
+});
+
+test("Gemini health ignores listed non-Flash models and selects the Research Council Flash model",async()=>{
+  const models=[
+    {name:"models/gemma-4-26b-a4b-it",supportedGenerationMethods:["generateContent"]},
+    {name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]}
+  ];
+  await withFetch(mockFetch({text:"NORTHSTAR_GEMINI_OK",models}),async()=>{
+    const response=await onRequestGet({request,env});
+    const payload=await response.json();
+    assert.equal(response.status,200);
+    assert.equal(payload.model,"gemini-2.5-flash");
   });
 });
 
