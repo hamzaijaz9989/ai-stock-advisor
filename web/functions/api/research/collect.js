@@ -4,6 +4,7 @@
 import {onRequestGet as getQuote} from "../quote.js";
 import {onRequestGet as getFundamentals} from "../fmp-fundamentals.js";
 import {onRequestGet as getHistory} from "../fmp-history.js";
+import {onRequestGet as getFinnhubSentiment} from "../finnhub-sentiment.js";
 import {onRequestGet as getNews} from "../news.js";
 import {onRequestGet as getEarnings} from "../earnings.js";
 import {buildResearchCouncilContext} from "../../../lib/research-council-facts.js";
@@ -146,12 +147,14 @@ export async function onRequestPost({request,env}){
    Promise.allSettled([
     endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
     endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env),
-    secFacts(ticker,collectionStartedAt)
+    secFacts(ticker,collectionStartedAt),
+    endpoint(getFinnhubSentiment,origin,"/api/finnhub-sentiment?ticker="+encodeURIComponent(ticker),env)
    ])
   ]);
   const fundamentals=optional[0].status==="fulfilled"?optional[0].value:{available:false,provider:"FMP",warning:String(optional[0].reason?.message||"Fundamentals unavailable").slice(0,180)};
   const news=optional[1].status==="fulfilled"?optional[1].value:{items:[],provider:"news discovery",warning:String(optional[1].reason?.message||"News unavailable").slice(0,180)};
   const sec=optional[2].status==="fulfilled"?optional[2].value:{cik:null,observations:[],warning:String(optional[2].reason?.message||"SEC companyfacts unavailable").slice(0,180)};
+  const sentiment=optional[3].status==="fulfilled"&&optional[3].value?.available===true?optional[3].value:{observations:[],warning:optional[3].status==="rejected"?String(optional[3].reason?.message||"Finnhub sentiment unavailable").slice(0,180):optional[3].value?.warning||"Finnhub sentiment unavailable"};
   // Earnings calendar remains optional; SEC companyfacts is queried independently
   // so a failed FMP key does not erase reported-filing evidence.
   const earnings={ticker,provider:"earnings calendar not queried",fetchedAt:new Date().toISOString(),
@@ -163,7 +166,7 @@ export async function onRequestPost({request,env}){
   const fmpHistory={income:history.statements?.annualIncome||[],balance:history.statements?.annualBalance||[],cashflow:history.statements?.annualCashflow||[],metrics:[],ratios:[],estimates:[]};
   const context=buildResearchCouncilContext({ticker,asOf,quote:{ticker,price:Number(quote.price),currency:quote.currency,exchange:quote.exchange,previousClose:finite(quote.previousClose),change:finite(quote.change),changePercent:finite(quote.changePercent),quoteTime:quote.quoteTime,marketState:quote.marketState,delayedOrRealtime:quote.delayedOrRealtime,interval:quote.interval,source:quote.source},
    history:{data:history.prices,interval:"1d",currency:"USD",source:history.provider,fetchedAt:history.retrievedAt,dataQuality:history.coverage},
-   secObservations:sec.observations,fmpFundamentals:{available:validFundamentals,provider:fundamentals.provider||"Financial Modeling Prep",retrievedAt:fundamentals.retrievedAt||null,latest:validFundamentals?fundamentals.latest:null,history:validFundamentals?fmpHistory:{}},
+   secObservations:sec.observations,sentimentObservations:sentiment.observations||[],fmpFundamentals:{available:validFundamentals,provider:fundamentals.provider||"Financial Modeling Prep",retrievedAt:fundamentals.retrievedAt||null,latest:validFundamentals?fundamentals.latest:null,history:validFundamentals?fmpHistory:{}},
    news:{items:Array.isArray(news.items)?news.items:[],warning:news.warning||null},
    earnings:{events:Array.isArray(earnings.events)?earnings.events.map(e=>({...e,date:e.reportDate||e.date||null})):[],found:earnings.found===true,verified:earnings.verified===true,throughDate:earnings.throughDate||null,provider:earnings.provider,fetchedAt:earnings.fetchedAt||earnings.fetchedAt,warning:earnings.warning||null},
    portfolio});
@@ -174,7 +177,7 @@ export async function onRequestPost({request,env}){
   if(existing && existing.input_sha256!==attemptHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
-  const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter",history.provider||"Historical price provider",...(validFundamentals?["FMP fundamentals"]:[]),...(sec.observations.length?["SEC EDGAR companyfacts"]:[]),...(Array.isArray(news.items)&&news.items.length?["news discovery"]:[]),"Alpaca Paper account and reconciled ledger"],providerWarnings:[history.priceWarning,fundamentals.warning,sec.warning,news.warning].filter(Boolean),factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
+  const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter",history.provider||"Historical price provider",...(validFundamentals?["FMP fundamentals"]:[]),...(sec.observations.length?["SEC EDGAR companyfacts"]:[]),...(sentiment.observations?.length?["Finnhub news sentiment"]:[]),...(Array.isArray(news.items)&&news.items.length?["news discovery"]:[]),"Alpaca Paper account and reconciled ledger"],providerWarnings:[history.priceWarning,fundamentals.warning,sec.warning,sentiment.warning,news.warning].filter(Boolean),factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("UPDATE research_council_runs SET input_sha256=?,status=?,result_json=? WHERE request_id=? AND symbol=?").bind(inputHash,result.status,JSON.stringify(storedResult),requestId,ticker).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);
