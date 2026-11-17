@@ -3,7 +3,7 @@
 ## Primary research providers
 
 - **Massive Stocks Basic** is the primary source for daily historical OHLCV, grouped US daily market summaries, ticker reference data, corporate actions, technical indicator endpoints and ticker news.
-- Massive Basic is end-of-day only, exposes a rolling two-year daily-bar window, allows five REST API calls per minute and provides ticker news updated hourly. The API key must remain a Cloudflare Pages secret named `MASSIVE_API_KEY`.
+- Massive Basic is end-of-day only, exposes a rolling two-year daily-bar window, allows five REST API calls per minute and provides ticker news updated hourly. The previous trading day's daily bars become available only after midnight US Eastern Time, not immediately after the closing bell. The API key must remain a Cloudflare Pages secret named `MASSIVE_API_KEY`.
 - **SEC EDGAR** is the primary source for reported financial statements and filings. Northstar uses company tickers/CIK mapping, submissions and XBRL companyfacts, with explicit filing-date limitations. It does not use FMP to overwrite SEC-reported facts.
 - Massive financial statements/ratios are not included in Stocks Basic. Northstar must not call those endpoints on the free plan; SEC data is used instead.
 
@@ -22,7 +22,7 @@ Every quote must have a positive price and timestamp within the 15-minute freshn
 
 ## Efficient daily 200-stock screening
 
-Use `GET /api/massive-market-summary?date=YYYY-MM-DD` after the US market close. Massive's grouped daily endpoint returns all US stock daily bars in one request. Filter and rank the requested 200-stock universe in Northstar locally; do not make 200 individual Massive requests.
+Use `GET /api/massive-market-summary?date=YYYY-MM-DD` after 12:00 AM US Eastern Time on the next calendar day. Stocks Basic does not expose the current trading day's bars before midnight ET; a same-day request after the 4:00 PM close can still return HTTP 403. Massive's grouped daily endpoint returns all US stock daily bars in one request. Filter and rank the requested 200-stock universe in Northstar locally; do not make 200 individual Massive requests.
 
 Use ticker-specific Massive news only for selected candidates. The Basic plan's hourly news feed is not a real-time alert stream. Queue requests to remain within five calls per minute, cache results and preserve published timestamps.
 
