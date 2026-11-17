@@ -6,6 +6,7 @@ const SLOW = 200;
 const MAX_BARS = 1400;
 
 const FMP_BASE = "https://financialmodelingprep.com/stable";
+const MASSIVE_BASE = "https://api.massive.com/v2/aggs/ticker/";
 const HISTORY_DAYS = 5 * 366;
 
 function dateString(date) {
@@ -30,6 +31,25 @@ function normalizeRows(raw, source) {
   const rows=[...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
   if(rows.length < SLOW + 100) throw new Error(source + " returned only " + rows.length + " valid daily observations; at least " + (SLOW+100) + " are required.");
   return rows.length>MAX_BARS?rows.slice(-MAX_BARS):rows;
+}
+
+async function fetchMassiveSeries(ticker, apiKey) {
+  if(typeof apiKey!=="string"||!apiKey.trim())throw new Error("MASSIVE_API_KEY binding is unavailable.");
+  const to=new Date(),from=new Date(to.getTime()-730*86400000);
+  const fromDate=dateString(from),toDate=dateString(to);
+  const url=new URL(MASSIVE_BASE+encodeURIComponent(ticker)+"/range/1/day/"+fromDate+"/"+toDate);
+  url.searchParams.set("adjusted","true");url.searchParams.set("sort","asc");url.searchParams.set("limit","50000");url.searchParams.set("apiKey",apiKey);
+  const response=await fetch(url.toString(),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(15000)});
+  if(!response.ok)throw new Error("Massive historical endpoint HTTP "+response.status);
+  const payload=await response.json();
+  if(payload?.status&&payload.status!=="OK"&&payload.status!=="DELAYED")throw new Error("Massive returned status "+String(payload.status).slice(0,60));
+  const bars=Array.isArray(payload?.results)?payload.results:[];
+  const raw=bars.map(bar=>({
+   date:Number.isFinite(Number(bar?.t))?new Date(Number(bar.t)).toISOString().slice(0,10):null,
+   open:bar?.o,high:bar?.h,low:bar?.l,close:bar?.c,adjClose:bar?.c
+  }));
+  const rows=normalizeRows(raw,"Massive Basic (split-adjusted EOD)");
+  return {rows,source:"Massive Basic (split-adjusted EOD)",adjustment:"Massive adjusted=true; split-adjusted closes; dividends not included",coverage:{from:rows[0].date,to:rows.at(-1).date,observations:rows.length,maximumHistoryDays:730}};
 }
 
 async function fetchFmpSeries(ticker, apiKey) {
@@ -78,18 +98,26 @@ async function fetchYahooSeries(ticker) {
 async function fetchSeries(ticker, env) {
   const errors=[];
   try {
-    const rows=await fetchFmpSeries(ticker,(env?.FMP_API_KEY2 || env?.FMP_API_KEY));
-    return {rows,source:"Financial Modeling Prep (FMP)",adjustment:"FMP adjClose when supplied; otherwise split-adjusted close"};
+    const rows=await fetchMassiveSeries(ticker,env?.MASSIVE_API_KEY);
+    return {rows,source:"Massive Basic (split-adjusted EOD)",adjustment:"Massive adjusted=true; split-adjusted closes; dividends not included"};
   } catch(error) {
-    errors.push(String(error?.message||error));
+    errors.push("Massive: "+String(error?.message||error));
+  }
+  // FMP is deliberately retained only as a historical fallback. Yahoo Finance
+  // remains the independent public fallback if FMP is unconfigured or rejects the key.
+  try {
+    const rows=await fetchFmpSeries(ticker,(env?.FMP_API_KEY2 || env?.FMP_API_KEY));
+    return {rows,source:"Financial Modeling Prep (FMP) fallback",adjustment:"FMP adjClose when supplied; otherwise split-adjusted close",fallbackReason:errors[0]};
+  } catch(error) {
+    errors.push("FMP fallback: "+String(error?.message||error));
   }
   try {
     const rows=await fetchYahooSeries(ticker);
-    return {rows,source:"Yahoo Finance fallback",adjustment:"Yahoo adjusted close",fallbackReason:errors[0]};
+    return {rows,source:"Yahoo Finance fallback",adjustment:"Yahoo adjusted close",fallbackReason:errors.join("; ")};
   } catch(error) {
-    errors.push(String(error?.message||error));
+    errors.push("Yahoo fallback: "+String(error?.message||error));
   }
-  throw new Error("Historical data unavailable. FMP: "+errors[0]+"; fallback: "+errors[1]);
+  throw new Error("Historical data unavailable. "+errors.join("; "));
 }
 
 function sma(rows, endIndex, period) {
@@ -276,7 +304,7 @@ export async function onRequestGet({request,env}) {
     const commonEnd=ticker==="SPY"?rows[rows.length-1].date:(rows[rows.length-1].date<spyRows[spyRows.length-1].date?rows[rows.length-1].date:spyRows[spyRows.length-1].date);
     const alignedSpy=spyRows.filter(row=>row.date>=commonStart&&row.date<=commonEnd);
     const benchmark=alignedSpy.length>1?statsFromReturns(alignedSpy.slice(1).map((r,i)=>r.adjustedClose/alignedSpy[i].adjustedClose-1)):null;
-    const fallbackUsed=primary.source!=="Financial Modeling Prep (FMP)"||(benchmarkData&&benchmarkData.source!=="Financial Modeling Prep (FMP)");
+    const fallbackUsed=!primary.source.startsWith("Massive")||(benchmarkData&& !benchmarkData.source.startsWith("Massive"));
     return Response.json({
       ticker,source:primary.source,benchmarkSource:ticker==="SPY"?primary.source:benchmarkData.source,
       sourceStatus:fallbackUsed?"FALLBACK_USED":"PRIMARY_PROVIDER",
@@ -296,6 +324,6 @@ export async function onRequestGet({request,env}) {
       warning:"EXPERIMENTAL TECHNICAL STRATEGY ONLY — not the live recommendation engine. Uses current provider history, not point-in-time fundamentals or a delisted-stock universe. Corporate actions and exact fills are not independently reconstructed. This is not an out-of-sample validated signal and must not enable BUY or execution."
     },{headers:{"Cache-Control":"public, max-age=900, s-maxage=900","X-Content-Type-Options":"nosniff"}});
   } catch(error) {
-    return Response.json({ticker,error:String(error?.message||"Backtest unavailable"),provider:"FMP primary with Yahoo fallback",warning:"No synthetic prices or performance results have been substituted."},{status:503,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+    return Response.json({ticker,error:String(error?.message||"Backtest unavailable"),provider:"Massive primary with FMP/Yahoo fallbacks",warning:"No synthetic prices or performance results have been substituted."},{status:503,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
   }
 }

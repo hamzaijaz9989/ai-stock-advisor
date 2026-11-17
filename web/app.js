@@ -1640,36 +1640,7 @@ function renderPriceGauge(decision, evidenceScore, evidenceConfidence, evidenceS
     " This is an evidence balance, not a probability or expected return. Historical validation is separate and must pass before BUY can be enabled.";
   gauge.dataset.tone=tone;
 }
-function reconcileFmpWithSec(fmpFundamentals, observations) {
-  const checks = [];
-  if (!fmpFundamentals?.available) return { status: "unavailable", checks, matched: 0, passed: 0, summary: "FMP data unavailable; SEC remains primary." };
-  const mappings = [
-    ["Revenue", "income", "revenue", "revenue"],
-    ["Net income", "income", "netIncome", "netIncome"],
-    ["Total assets", "balance", "totalAssets", "assets"],
-    ["Total liabilities", "balance", "totalLiabilities", "liabilities"],
-    ["Operating cash flow", "cashflow", "operatingCashFlow", "operatingCashFlow"]
-  ];
-  for (const [label, group, field, secKey] of mappings) {
-    const rows = fmpFundamentals.history?.[group] || [];
-    const fmp = rows.find(row => row?.date === fmpFundamentals.latest?.fiscalDate && Number.isFinite(row?.[field]));
-    if (!fmp) { checks.push({label, status:"not_comparable", detail:"No matching FMP value for the latest reported period."}); continue; }
-    if (fmp.reportedCurrency && fmp.reportedCurrency !== "USD") {
-      checks.push({label,status:"not_comparable",detail:"FMP reports "+fmp.reportedCurrency+"; currency conversion is not applied."}); continue;
-    }
-    const secRows = annualSeries(observations, secKey).filter(row => row.end === fmp.date && row.unit === "USD");
-    if (!secRows.length) { checks.push({label,status:"not_comparable",detail:"No SEC annual USD observation for fiscal year ending "+fmp.date+"."}); continue; }
-    const sec = secRows[secRows.length - 1];
-    const diff = Math.abs(fmp[field] - sec.value) / Math.max(Math.abs(sec.value), 1);
-    const passed = diff <= 0.02;
-    checks.push({label,status:passed?"match":"mismatch",differencePercent:diff*100,detail:passed?"FMP and SEC agree within 2% for "+fmp.date+".":"FMP and SEC differ by "+(diff*100).toFixed(2)+"% for "+fmp.date+"; review filing tags, period and accounting treatment."});
-  }
-  const matched = checks.filter(x => x.status === "match" || x.status === "mismatch").length;
-  const passed = checks.filter(x => x.status === "match").length;
-  const status = checks.some(x => x.status === "mismatch") ? "mismatch" : matched >= 3 && passed === matched ? "matched" : "partial";
-  return {status,checks,matched,passed,summary:passed+"/"+matched+" comparable SEC/FMP metrics agree within 2%; "+checks.filter(x=>x.status==="not_comparable").length+" are not comparable."};
-}
-function renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter,fmpFundamentals}) {
+function renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter}) {
   latestDecisionContext = null;
   const panel=$("recommendation-panel"); panel.classList.remove("hidden");
   const grid=$("decision-metrics"),checks=$("decision-checks");
@@ -1741,12 +1712,6 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     {label:"Price risk level",ok:invalidation!==null&&invalidation>0,detail:invalidation!==null&&invalidation>0?"Based on 14-day average true range: "+fmtUsd(invalidation):"ATR risk level unavailable from complete daily high/low data"},
     {label:"Historical validation",ok:false,detail:"Complete walk-forward and untouched holdout validation is not finished; any BUY shown remains provisional and unvalidated."}
   ];
-  const fmpReconciliation = reconcileFmpWithSec(fmpFundamentals, observations);
-  dataChecks.push({
-    label: "FMP vs SEC period-matched reconciliation",
-    ok: fmpReconciliation.status === "matched",
-    detail: fmpReconciliation.summary + " This is a data-quality cross-check only; it does not increase the BUY score or bypass historical validation."
-  });
   const latestAssets=latestRevenue?annualSeries(observations,"assets").find(item=>item.end===latestRevenue.end):null;
   const latestLiabilities=latestRevenue?annualSeries(observations,"liabilities").find(item=>item.end===latestRevenue.end):null;
   const liquidityAvailable=Boolean(latestAssets&&latestLiabilities&&Number.isFinite(latestAssets.value)&&Number.isFinite(latestLiabilities.value));
@@ -1955,7 +1920,6 @@ function renderDecision({ticker,company,observations,facts,quote,history,benchma
     valuationReady:valuationDecisionReady, valuationGapBlocked:Boolean(gapCheck.blocked), valuationGapRatio:gapCheck.ratio,
     invalidation, rewardRisk, explanation:reasons.join(" "),
     checks:dataChecks.map(check=>({label:check.label,passed:Boolean(check.ok),detail:check.detail})),
-    fmpSecReconciliation:fmpReconciliation,
     disclaimer:"Research only. BUY setup is provisional and not validated by full point-in-time walk-forward/holdout testing; not a guarantee or automatic trade instruction."
   };
   renderBeginnerOverview({ticker,company,quote,history,benchmarkHistory,observations,earnings,news,state,reasonRule,valuation,valuationDecisionReady,gapCheck,annualDataAvailable,annualFundamentalPass,annualRevenueGrowth,quarterlyDataAvailable,quarterlyPass,quarter,annualIncome:latestIncome,annualFcf:latestFcf,missingInputs,flaggedHeadlines,daysToEarnings});
@@ -2247,9 +2211,20 @@ async function loadNews(ticker, companyName="") {
   if (impactRoot) impactRoot.innerHTML="<p class=\"empty\">Loading company-specific news and reviewing possible impact…</p>";
   if (impactStatus) impactStatus.textContent="Loading news…";
   try {
-    const response=await fetch("/api/news?ticker="+encodeURIComponent(ticker)+"&company="+encodeURIComponent(companyName),{headers:{"Accept":"application/json"}});
-    if(!response.ok) throw new Error("News feeds unavailable");
-    const payload=await response.json();
+    let payload=null,primaryError=null;
+    try{
+      const primary=await fetch("/api/massive-news?ticker="+encodeURIComponent(ticker),{headers:{"Accept":"application/json"},cache:"no-store"});
+      const primaryBody=await primary.json();
+      if(primary.ok&&primaryBody?.available===true&&Array.isArray(primaryBody.items)){
+        payload={...primaryBody,source:"Massive"};
+      }else primaryError=primaryBody?.warning||"Massive news unavailable";
+    }catch(error){primaryError=error?.message||"Massive news unavailable";}
+    if(!payload){
+      const fallback=await fetch("/api/news?ticker="+encodeURIComponent(ticker)+"&company="+encodeURIComponent(companyName),{headers:{"Accept":"application/json"}});
+      if(!fallback.ok)throw new Error("Massive and secondary news providers unavailable: "+String(primaryError||"")+"; secondary HTTP "+fallback.status);
+      payload=await fallback.json();
+      payload.fallbackReason="Massive primary news unavailable: "+String(primaryError||"unknown");
+    }
     renderNews(payload);
     return payload;
   } catch(error) {
@@ -2259,56 +2234,6 @@ async function loadNews(ticker, companyName="") {
     if (impactStatus) impactStatus.textContent="News unavailable";
     if (impactRoot) impactRoot.textContent="Company-specific news could not be loaded right now. Try analyzing again later. No positive or negative conclusion has been inferred.";
     return null;
-  }
-}
-function renderFmpFundamentals(payload) {
-  const panel = $("fmp-fundamentals");
-  const status = $("fmp-fundamentals-status");
-  if (!panel || !status) return;
-  panel.innerHTML = "";
-  if (!payload?.available) {
-    status.textContent = payload?.configured === false ? "API key required" : "Unavailable";
-    const note = document.createElement("p"); note.className = "empty";
-    note.textContent = payload?.reason || "FMP fundamentals unavailable. Existing SEC analysis remains available.";
-    panel.append(note); return;
-  }
-  const latest = payload.latest || {};
-  const items = [
-    ["FMP revenue", latest.revenue, "latest annual reported period", "money"],
-    ["FMP net income", latest.netIncome, "latest annual reported period", "money"],
-    ["Approx. free cash flow", latest.approximateFreeCashFlow, "operating cash flow less absolute capex", "money"],
-    ["Current ratio", latest.currentRatio, "FMP reported ratio", "ratio"],
-    ["Quick ratio", latest.quickRatio, "FMP reported ratio", "ratio"],
-    ["P/E ratio", latest.peRatio, "FMP reported metric", "ratio"],
-    ["EV / EBITDA", latest.evToEBITDA, "FMP reported metric", "ratio"],
-    ["ROE", latest.returnOnEquity, "FMP reported ratio", "ratio"],
-    ["Net debt / EBITDA", latest.netDebtToEBITDA, "FMP reported metric", "ratio"],
-    ["Analyst EPS estimate", latest.analystEpsAverage, (latest.analystCountEps ?? "Unknown") + " analysts · forecast, not reported", "eps"]
-  ];
-  const money = value => new Intl.NumberFormat("en-US", { style: "currency", currency: latest.currency || "USD", maximumFractionDigits: 0 }).format(value);
-  for (const [label, value, meta, type] of items) {
-    if (typeof value !== "number" || !Number.isFinite(value)) continue;
-    const card = document.createElement("article"); card.className = "metric-card";
-    const name = document.createElement("div"); name.className = "metric-label"; name.textContent = label;
-    const val = document.createElement("div"); val.className = "metric-value";
-    val.textContent = type === "ratio" ? value.toFixed(2) + "x" : type === "eps" ? "$" + value.toFixed(2) : money(value);
-    const detail = document.createElement("div"); detail.className = "metric-date"; detail.textContent = meta;
-    card.append(name, val, detail); panel.append(card);
-  }
-  const note = document.createElement("p"); note.className = "table-note";
-  note.textContent = "Source: Financial Modeling Prep · latest period " + (latest.fiscalDate || "not supplied") + " · " + (payload.datasetCoverage?.available ?? 0) + "/5 core datasets available. " + (payload.errors?.length ? payload.errors.length + " dataset request(s) failed. " : "") + "Reconcile against SEC filings before relying on this cross-check.";
-  panel.append(note);
-  status.textContent = payload.datasetCoverage?.available >= 4 ? "Cross-check loaded" : "Partial data";
-}
-async function loadFmpFundamentals(ticker) {
-  try {
-    const response = await fetch("/api/fmp-fundamentals?ticker=" + encodeURIComponent(ticker), { headers: { "Accept": "application/json" }, cache: "no-store" });
-    const payload = await response.json();
-    if (!response.ok && response.status !== 503) throw new Error(payload.reason || payload.error || "FMP request failed");
-    renderFmpFundamentals(payload); return payload;
-  } catch (error) {
-    const payload = { available: false, reason: "FMP cross-check unavailable: " + (error?.message || "request failed") };
-    renderFmpFundamentals(payload); return payload;
   }
 }
 async function loadEarnings(ticker) {
@@ -2370,9 +2295,9 @@ async function analyze(ticker) {
     setActivityStage(1,"Company facts loaded. Fetching quote and historical prices…");
     setMessage("SEC facts loaded. Checking price, earnings, news and preliminary valuation…");
     analysisPhase="market data, history, news and earnings";
-    const [quote,history,news,earnings,benchmarkHistory,fmpFundamentals,regimeData]=await Promise.all([
+    const [quote,history,news,earnings,benchmarkHistory,regimeData]=await Promise.all([
       loadQuote(ticker),loadHistory(ticker),loadNews(ticker,company.name),loadEarnings(ticker),
-      loadBenchmarkHistory(),loadFmpFundamentals(ticker),
+      loadBenchmarkHistory(),
       Promise.all([loadMarketRegimeHistory("SPY"),loadMarketRegimeHistory("QQQ")])
         .then(([spy,qqq])=>({spy,qqq})).catch(error=>({error:error?.message||"SPY/QQQ history unavailable"})),
     ]);
@@ -2391,7 +2316,7 @@ async function analyze(ticker) {
     setActivityStage(3,"Checking any remaining research gaps against additional sources…");
     await loadAiResearchFallback({ticker,company,observations,quote,news,earnings:earningsResult,history,quarter,benchmarkHistory});
     setActivityStage(3,"Assessing financial health and valuation limits…");
-    renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter,fmpFundamentals});
+    renderDecision({ticker,company,observations,facts,quote,history,benchmarkHistory,news,earnings,quarter});
     renderNorthstarQualityAudit({ticker,quote,history,benchmarkHistory,observations,news,earnings,quarter});
     setActivityStage(4,"Preparing the decision explanation and next steps…");
     setMessage("Research checks complete for "+company.name+". Read the Bottom line for the decision and next step; model-based levels appear only when input and quote checks pass.","success");
