@@ -10,6 +10,7 @@ import {onRequestGet as getFinnhubSentiment} from "../finnhub-sentiment.js";
 import {onRequestGet as getNews} from "../news.js";
 import {onRequestGet as getEarnings} from "../earnings.js";
 import {buildResearchCouncilContext} from "../../../lib/research-council-facts.js";
+import {fetchSecCompanyFacts} from "../../../lib/sec-companyfacts.js";
 import {runResearchCouncil} from "../../../lib/research-council.js";
 import {createResearchCouncilWorkers} from "../../../lib/research-council-adapters.js";
 import {deriveSnapshotRiskMetrics} from "../../../lib/paper-order-guards.js";
@@ -77,28 +78,6 @@ async function resolveNews(origin,ticker,env){
  }catch(error){
   return {items:[],provider:"news discovery",warning:"Massive news unavailable ("+primaryError+"); secondary news unavailable ("+String(error?.message||"unknown").slice(0,140)+")."};
  }
-}
-async function secFacts(ticker,collectionStartedAt){
- const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
- const mapResponse=await fetch("https://www.sec.gov/files/company_tickers.json",{headers,signal:AbortSignal.timeout(8000)});
- if(!mapResponse.ok)throw new Error("SEC ticker directory unavailable (HTTP "+mapResponse.status+")");
- const directory=await mapResponse.json();
- const row=Object.values(directory||{}).find(x=>String(x?.ticker||"").toUpperCase()===ticker);
- if(!row||!Number.isFinite(Number(row.cik_str)))throw new Error("SEC CIK mapping unavailable for "+ticker);
- const cik=String(row.cik_str).padStart(10,"0");
- const response=await fetch("https://data.sec.gov/api/xbrl/companyfacts/CIK"+cik+".json",{headers,signal:AbortSignal.timeout(12000)});
- if(!response.ok)throw new Error("SEC company facts unavailable (HTTP "+response.status+")");
- const payload=await response.json(),cutoff=collectionStartedAt.slice(0,10),out=[];
- for(const [taxonomy,concepts] of Object.entries(payload.facts||{}))for(const [key,concept] of Object.entries(concepts||{})){
-  for(const [unit,rows] of Object.entries(concept.units||{})){
-   for(const fact of rows||[]){
-    if(!fact||typeof fact.filed!=="string"||typeof fact.end!=="string"||fact.filed>cutoff||fact.end>cutoff||!Number.isFinite(Number(fact.val)))continue;
-    out.push({key,metric:concept.label||key,taxonomy,tag:key,value:Number(fact.val),unit,start:fact.start||null,end:fact.end,filed:fact.filed,form:fact.form||null,accession:fact.accn||null,fy:fact.fy??null,fp:fact.fp||null});
-   }
-  }
- }
- out.sort((a,b)=>b.filed.localeCompare(a.filed));
- return {cik,observations:out.slice(0,250)};
 }
 async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
@@ -203,7 +182,7 @@ export async function onRequestPost({request,env}){
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
    resolveHistory(origin,ticker,collectionStartedAt,env),
    resolveNews(origin,ticker,env),
-   secFacts(ticker,collectionStartedAt).catch(error=>({cik:null,observations:[],warning:String(error?.message||"SEC companyfacts unavailable").slice(0,180)}))
+   fetchSecCompanyFacts(ticker,collectionStartedAt).catch(error=>({cik:null,observations:[],warning:String(error?.message||"SEC companyfacts unavailable").slice(0,180)}))
   ]);
   let fundamentals={available:false,provider:"SEC EDGAR",warning:"SEC companyfacts is the primary reported-fundamentals source; FMP is not queried unless SEC coverage is unavailable."};
   // FMP is now a dormant secondary fundamentals fallback. Do not spend requests
