@@ -10,6 +10,7 @@ import {onRequestGet as getFinnhubSentiment} from "../finnhub-sentiment.js";
 import {onRequestGet as getNews} from "../news.js";
 import {onRequestGet as getEarnings} from "../earnings.js";
 import {buildResearchCouncilContext} from "../../../lib/research-council-facts.js";
+import {consumesResearchLaunchCooldown} from "../../../lib/research-launch-cooldown.js";
 import {fetchSecCompanyFacts} from "../../../lib/sec-companyfacts.js";
 import {runResearchCouncil} from "../../../lib/research-council.js";
 import {createResearchCouncilWorkers} from "../../../lib/research-council-adapters.js";
@@ -158,8 +159,12 @@ export async function onRequestPost({request,env}){
     return reply({ok:true,replayed:true,traceDurable:true,result:priorResult,createdAt:prior.created_at,execution:false,automatedOrderSubmission:false});
   }
   if(!operatorAuthorized){
-   const recent=await env.NORTHSTAR_DB.prepare("SELECT created_at FROM research_council_runs WHERE created_at >= datetime('now','-5 minutes') ORDER BY created_at DESC LIMIT 1").first();
-   if(recent)return reply({ok:false,execution:false,error:"Research launch cooldown: one public launch is allowed every five minutes. Try again shortly."},429);
+    const recent=await env.NORTHSTAR_DB.prepare("SELECT result_json FROM research_council_runs WHERE created_at >= datetime('now','-5 minutes') ORDER BY created_at DESC LIMIT 25").all();
+    const launchInWindow=(recent?.results||[]).some(row=>{
+     try{return consumesResearchLaunchCooldown(JSON.parse(row.result_json));}
+     catch{return true;}
+    });
+    if(launchInWindow)return reply({ok:false,execution:false,error:"Research launch cooldown: an active or dispatched public launch occurred within the last five minutes. Try again shortly."},429);
   }
   const attemptHash=await sha256("attempt:"+requestId);
   const roles=["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst","risk_committee"];
@@ -208,7 +213,7 @@ export async function onRequestPost({request,env}){
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   if(!history?.available||!Array.isArray(history.prices)||history.prices.length<20)throw new Error("At least 20 valid daily price bars are required to start research; the Technical Analyst independently requires 60.");
   const validFundamentals=fundamentals?.available===true;
-  const context=buildResearchCouncilContext({ticker,asOf,quote:{ticker,price:Number(quote.price),currency:quote.currency,exchange:quote.exchange,previousClose:finite(quote.previousClose),change:finite(quote.change),changePercent:finite(quote.changePercent),quoteTime:quote.quoteTime,marketState:quote.marketState,delayedOrRealtime:quote.delayedOrRealtime,interval:quote.interval,source:quote.source},
+  const context=await buildResearchCouncilContext({ticker,asOf,quote:{ticker,price:Number(quote.price),currency:quote.currency,exchange:quote.exchange,previousClose:finite(quote.previousClose),change:finite(quote.change),changePercent:finite(quote.changePercent),quoteTime:quote.quoteTime,marketState:quote.marketState,delayedOrRealtime:quote.delayedOrRealtime,interval:quote.interval,source:quote.source},
    history:{data:history.prices,interval:"1d",currency:"USD",source:history.provider,fetchedAt:history.retrievedAt,dataQuality:history.coverage},
    secObservations:sec.observations,sentimentObservations:sentiment.observations||[],fmpFundamentals:{available:validFundamentals,provider:fundamentals.provider||"SEC EDGAR",retrievedAt:fundamentals.retrievedAt||null,latest:validFundamentals?fundamentals.latest:null,history:validFundamentals?fundamentals.history||{}:{}},
    news:{items:Array.isArray(news.items)?news.items:[],warning:news.warning||null},
