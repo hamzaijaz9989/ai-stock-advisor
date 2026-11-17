@@ -12,7 +12,7 @@ export async function onRequestGet({request,env}){
   endpoint.searchParams.set("symbol",ticker);
   endpoint.searchParams.set("token",key);
   const response=await fetch(endpoint.toString(),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(9000)});
-  if(!response.ok)return unavailable("Finnhub news-sentiment request failed (HTTP "+response.status+").",502,{upstreamStatus:response.status});
+  if(!response.ok)return unavailable("Finnhub news-sentiment request failed (HTTP "+response.status+").",200,{upstreamStatus:response.status});
   const payload=await response.json();
   const symbol=String(payload?.symbol||ticker).toUpperCase();
   const sampleCount=payload?.buzz?.articlesInLastWeek;
@@ -37,6 +37,6 @@ export async function onRequestGet({request,env}){
   };
   return Response.json({available:true,configured:true,ticker,provider:"Finnhub news sentiment",retrievedAt,observations:[observation],warning:"One provider snapshot only; source concentration and provider methodology must be considered."},{headers:HEADERS});
  }catch(error){
-  return unavailable("Finnhub news-sentiment request could not be completed: "+String(error?.name||"Error").slice(0,60),502);
+  return unavailable("Finnhub news-sentiment request could not be completed: "+String(error?.name||"Error").slice(0,60),200);
  }
 }
