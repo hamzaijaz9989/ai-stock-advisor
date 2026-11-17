@@ -6,8 +6,8 @@ import {COUNCIL_ROLES,runResearchCouncil} from "../web/lib/research-council.js";
 
 function context(){
  const rows=Array.from({length:80},(_,i)=>({date:new Date(Date.UTC(2025,0,1+i)).toISOString().slice(0,10),open:100+i,high:102+i,low:99+i,close:101+i,volume:1000+i*5}));
- return {ticker:"TEST",asOf:"2026-11-10T12:00:00Z",portfolio:{equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,maxPositionNotionalUsd:0,concurrentPositions:0},facts:[
-  {id:"q1",type:"QUOTE",value:{price:180,changePercent:1.2,quoteFreshness:{status:"FRESH"}}},
+ return {ticker:"TEST",asOf:"2026-11-10T12:00:00Z",portfolio:{verified:true,equityUsd:10000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,maxPositionNotionalUsd:0,concurrentPositions:0},facts:[
+  {id:"q1",type:"QUOTE",value:{price:180,changePercent:1.2,quoteTime:"2026-11-10T11:00:00Z",timestampStatus:"PRESENT",quoteFreshness:{status:"FRESH"}}},
   {id:"h1",type:"DAILY_OHLCV_HISTORY",value:{rows,observationCount:80,dataQuality:"verified-adjusted"}},
   {id:"sec1",type:"SEC_REPORTED_FACT",value:{metric:"Revenue",availabilityTimestampVerified:true}},
   {id:"sec2",type:"SEC_REPORTED_FACT",value:{metric:"Net income",availabilityTimestampVerified:true}},
@@ -179,4 +179,76 @@ test("deterministic risk committee accepts only a fully populated portfolio belo
  const workers=await createResearchCouncilWorkers({});
  const out=await workers.risk_committee({portfolio:{equityUsd:10000,openRiskUsd:100,grossExposureUsd:9000,dailyLossFraction:0.01,weeklyLossFraction:0.02,drawdownFraction:0.03,sectorExposureUsd:3000,maxPositionNotionalUsd:2000,concurrentPositions:0}});
  assert.equal(out.decision,"ACCEPT_FOR_REVIEW");assert.deepEqual(out.vetoReasons,[]);
+});
+
+test("fundamental and news citation batches obey the Council ten-ID evidence contract",async()=>{
+ const c=context();
+ for(let i=0;i<15;i++)c.facts.push({id:"sec-extra-"+i,type:"SEC_REPORTED_FACT",value:{metric:"Revenue",value:100+i,unit:"USD",end:"2025-12-31",availabilityTimestampVerified:false}});
+ for(let i=0;i<15;i++)c.evidence.push({id:"news-extra-"+i,type:"NEWS_DISCOVERY",value:{title:"Company report "+i,url:"https://example.com/story-"+i,publishedAt:"2026-11-10T10:00:00Z",publisher:"News source",publisherVerified:true,sourceTier:"reported-source"}});
+ const fundamental=runFundamentalAnalyst(c),news=runNewsAnalyst(c);
+ assert.equal(fundamental.status,"COMPLETE");assert.equal(news.status,"COMPLETE");
+ for(const item of [...fundamental.findings,...fundamental.risks,...news.findings,...news.risks])assert.ok(item.factIds.length<=10);
+ const w={};for(const role of [...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"])w[role]=async()=>({status:"COMPLETE",findings:[{claim:"Evidence-linked specialist output for contract validation.",factIds:["q1"]}],risks:[]});
+ w.fundamental_analyst=async()=>fundamental;w.news_analyst=async()=>news;
+ w.risk_committee=async()=>({status:"COMPLETE",findings:[],risks:[],decision:"ACCEPT_FOR_REVIEW",vetoReasons:[]});
+ const result=await runResearchCouncil({requestId:"citation-contract-001",context:c,workers:w});
+ assert.equal(result.agents.find(x=>x.role==="fundamental_analyst").status,"COMPLETE");
+ assert.equal(result.agents.find(x=>x.role==="news_analyst").status,"COMPLETE");
+});
+
+test("Risk Committee runs and reviews explicit upstream unavailable states",async()=>{
+ const c=context();let reviewed=null;
+ const w={};for(const role of [...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"])w[role]=async()=>({status:"COMPLETE",findings:[{claim:"Evidence-linked specialist output for contract validation.",factIds:["q1"]}],risks:[]});
+ w.sentiment_analyst=async()=>({status:"UNAVAILABLE",findings:[],risks:[],reason:"No dedicated timestamped feed."});
+ w.risk_committee=async payload=>{reviewed=payload;return {status:"COMPLETE",findings:[],risks:[],decision:"REJECT",vetoReasons:["Sentiment report unavailable for this cycle."]};};
+ const result=await runResearchCouncil({requestId:"risk-review-001",context:c,workers:w});
+ assert.equal(result.agents.length,9);assert.equal(result.agents.find(x=>x.role==="risk_committee").status,"COMPLETE");
+ assert.equal(reviewed.analystReports.find(x=>x.role==="sentiment_analyst").status,"UNAVAILABLE");
+ assert.equal(reviewed.debateReports.length,2);assert.equal(reviewed.portfolioReport.status,"COMPLETE");
+ assert.equal(result.status,"NO_TRADE");
+});
+
+test("portfolio synthesis is skipped without a verified portfolio snapshot while Risk Committee still runs",async()=>{
+ const c={...context(),portfolio:{...context().portfolio,verified:false}};let portfolioCalled=false,riskCalled=false;
+ const w={};for(const role of [...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"])w[role]=async()=>({status:"COMPLETE",findings:[{claim:"Evidence-linked specialist output for contract validation.",factIds:["q1"]}],risks:[]});
+ w.portfolio_analyst=async()=>{portfolioCalled=true;return {status:"COMPLETE",findings:[{claim:"Portfolio assessment has supporting evidence.",factIds:["q1"]}],risks:[]};};
+ w.risk_committee=async payload=>{riskCalled=true;assert.equal(payload.portfolioReport.status,"NOT_RUN");return {status:"COMPLETE",findings:[],risks:[],decision:"REJECT",vetoReasons:["Verified portfolio snapshot is absent."]};};
+ const result=await runResearchCouncil({requestId:"portfolio-gate-001",context:c,workers:w});
+ assert.equal(portfolioCalled,false);assert.equal(riskCalled,true);assert.equal(result.agents.find(x=>x.role==="portfolio_analyst").status,"NOT_RUN");
+});
+
+test("Gemini HTTP failures are reduced to safe diagnostic categories",async()=>{
+ const fetcher=async input=>{const url=new URL(input);if(url.pathname.endsWith("/models"))return Response.json({models:[{name:"models/gemini-2.5-flash",supportedGenerationMethods:["generateContent"]}]});return new Response("provider error body must not be retained",{status:429});};
+ const workers=await createResearchCouncilWorkers({GEMINI_API_KEY:"synthetic"},fetcher);
+ await assert.rejects(()=>workers.bull_researcher({facts:[],evidence:[],ticker:"TEST",asOf:"2026-11-10T12:00:00Z"}));
+ assert.equal(workers.telemetry.bull_researcher.failureCode,"provider_http_429");
+ assert.equal(JSON.stringify(workers.telemetry.bull_researcher).includes("provider error body"),false);
+});
+
+
+test("Risk Committee cites validated reports and retains their risk evidence",async()=>{
+ const workers=await createResearchCouncilWorkers({});const roles=[...COUNCIL_ROLES.independent,...COUNCIL_ROLES.debate,"portfolio_analyst"];
+ const reports=roles.map(role=>({role,status:"COMPLETE",report:{status:"COMPLETE",findings:[{claim:"Evidence-linked finding with a validated source.",factIds:["q1"]}],risks:[{claim:"Source recency requires confirmation before decisions.",factIds:["h1"]}]}}));
+ const out=await workers.risk_committee({portfolio:{equityUsd:1000,openRiskUsd:0,grossExposureUsd:0,dailyLossFraction:0,weeklyLossFraction:0,drawdownFraction:0,sectorExposureUsd:0,maxPositionNotionalUsd:0,concurrentPositions:0},analystReports:reports.slice(0,5),debateReports:reports.slice(5,7),portfolioReport:reports[7]});
+ assert.equal(out.decision,"ACCEPT_FOR_REVIEW");assert.match(out.findings[0].claim,/8 validated specialist reports/);
+ assert.ok(out.findings[0].factIds.every(id=>["q1","h1"].includes(id)));assert.equal(out.risks.length,8);assert.ok(out.risks.every(x=>x.factIds[0]==="h1"));
+});
+
+
+test("scanner volume ratio and technical indicators match independent calculations and respect as-of freshness",()=>{
+ const rows=Array.from({length:80},(_,i)=>({date:new Date(Date.UTC(2026,7,29+i)).toISOString().slice(0,10),open:i+1,high:i+2,low:i,close:i+1,volume:i===79?190:100}));
+ const c={ticker:"TEST",asOf:"2026-11-17T12:00:00Z",portfolio:{verified:true},facts:[
+  {id:"quote",type:"QUOTE",observedAt:"2026-11-17T11:55:00Z",value:{price:80,changePercent:1,quoteTime:"2026-11-17T11:55:00Z",timestampStatus:"PRESENT"}},
+  {id:"history",type:"DAILY_OHLCV_HISTORY",observedAt:"2026-11-17T11:56:00Z",value:{rows,dataQuality:"verified-adjusted"}}
+ ],evidence:[]};
+ const scanner=runMarketScanner(c),technical=runTechnicalAnalyst(c);
+ assert.equal(scanner.status,"COMPLETE");const volumeClaim=scanner.findings.find(x=>x.claim.startsWith("Latest recorded session volume is "));assert.ok(volumeClaim);const reportedVolumeRatio=Number(volumeClaim.claim.split(" is ")[1].split(" times")[0]);assert.equal(reportedVolumeRatio,1.90);
+ const closes=rows.map(x=>x.close),mean=a=>a.reduce((sum,value)=>sum+value,0)/a.length;
+ const expected20=mean(closes.slice(-20)),expected50=mean(closes.slice(-50));
+ assert.ok(technical.findings.some(x=>x.claim.includes(expected20.toFixed(4))&&x.claim.includes(expected50.toFixed(4))));
+ assert.ok(technical.findings.some(x=>x.claim.includes("100.00")));
+ const stale={...c,facts:c.facts.map(x=>x.id==="history"?{...x,value:{...x.value,rows:rows.map((row,i)=>({...row,date:new Date(Date.UTC(2026,5,1+i)).toISOString().slice(0,10)}))}}:x)};
+ assert.ok(runTechnicalAnalyst(stale).risks.some(x=>x.claim.includes("more than 10 calendar days")));
+ const futureQuote={...c,facts:c.facts.map(x=>x.id==="quote"?{...x,value:{...x.value,quoteTime:"2026-11-17T12:01:00Z"}}:x)};
+ assert.equal(runMarketScanner(futureQuote).status,"UNAVAILABLE");
 });

@@ -150,6 +150,13 @@ function riskCommittee(payload) {
   const daily=Number(p.dailyLossFraction),weekly=Number(p.weeklyLossFraction),drawdown=Number(p.drawdownFraction);
   const sector=Number(p.sectorExposureUsd),maxPosition=Number(p.maxPositionNotionalUsd),positions=Number(p.concurrentPositions);
   const reasons=[];
+  const hasCouncilReports=Array.isArray(payload.analystReports)||Array.isArray(payload.debateReports)||payload.portfolioReport!==undefined;
+  if(hasCouncilReports){
+    const reports=[...(payload.analystReports||[]),...(payload.debateReports||[]),payload.portfolioReport].filter(Boolean);
+    const required=["market_scanner","technical_analyst","fundamental_analyst","news_analyst","sentiment_analyst","bull_researcher","bear_researcher","portfolio_analyst"];
+    const incomplete=required.filter(role=>!reports.some(x=>x.role===role&&x.status==="COMPLETE"&&x.report?.status==="COMPLETE"));
+    if(incomplete.length) reasons.push("Required specialist reports unavailable or incomplete: "+incomplete.join(", ")+".");
+  }
   const fractions=[daily,weekly,drawdown];
   const required=[equity,openRisk,gross,daily,weekly,drawdown,sector,maxPosition,positions];
   const missing=["equityUsd","openRiskUsd","grossExposureUsd","dailyLossFraction","weeklyLossFraction","drawdownFraction","sectorExposureUsd","maxPositionNotionalUsd","concurrentPositions"].some(k=>p[k]===null||p[k]===undefined||p[k]==="");
@@ -167,10 +174,15 @@ function riskCommittee(payload) {
     if(maxPosition/equity>0.25) reasons.push("Largest position exceeds the 25% position-notional cap.");
     if(positions>=1) reasons.push("Existing paper holding occupies the initial one-position planning limit.");
   }
-  // Portfolio metrics are a separate typed input, not market fact IDs. Keep the deterministic
-  // committee's numeric vetoes in vetoReasons instead of attaching unrelated market citations.
+  // Portfolio metrics are a separate typed input. Council findings below cite only the
+  // source IDs already validated on specialist reports; numeric vetoes remain in vetoReasons.
+  const allReports=[...(payload.analystReports||[]),...(payload.debateReports||[]),payload.portfolioReport].filter(Boolean);
+  const completeReports=allReports.filter(x=>x.status==="COMPLETE"&&x.report?.status==="COMPLETE");
+  const evidenceIds=[...new Set(completeReports.flatMap(x=>[...(x.report.findings||[]),...(x.report.risks||[])].flatMap(item=>Array.isArray(item.factIds)?item.factIds:[])))];
+  const findings=evidenceIds.length?[{claim:"Risk Committee reviewed "+completeReports.length+" validated specialist reports and "+evidenceIds.length+" distinct evidence references.",factIds:evidenceIds.slice(0,10)}]:[];
+  const risks=completeReports.flatMap(x=>(x.report.risks||[]).map(item=>({claim:(x.role+" reported risk: "+item.claim).slice(0,2000),factIds:item.factIds}))).slice(0,30);
   return {
-    status:"COMPLETE",findings:[],risks:[],
+    status:"COMPLETE",findings,risks,
     decision:reasons.length?"REJECT":"ACCEPT_FOR_REVIEW",vetoReasons:reasons
   };
 }
@@ -189,6 +201,15 @@ export async function createResearchCouncilWorkers(env, fetcher=fetch) {
       latencyMs:Math.max(0,Date.now()-startedAt),provider,model,...extra
     };
   };
+  const failureCode=error=>{
+    const message=String(error?.message||"");
+    const statusText=message.includes("HTTP ")?message.slice(message.indexOf("HTTP ")+5):"";
+    const status=statusText.slice(0,3).length===3&&[...statusText.slice(0,3)].every(x=>x>="0"&&x<="9")?statusText.slice(0,3):null;
+    if(status)return "provider_http_"+status;
+    if(error?.name==="AbortError"||error?.name==="TimeoutError")return "request_timeout";
+    if(/JSON|invalid model report|contract is invalid|specialist request output/i.test(message))return "response_validation";
+    return "provider_request_failed";
+  };
   const timed=(role,provider,model,fn)=>async payload=>{
     const startedAt=Date.now();
     try {
@@ -197,7 +218,7 @@ export async function createResearchCouncilWorkers(env, fetcher=fetch) {
       record(role,startedAt,provider,model,usage);
       return result;
     } catch(error) {
-      record(role,startedAt,provider,model,{failed:true});
+      record(role,startedAt,provider,model,{failed:true,failureCode:failureCode(error)});
       throw error;
     }
   };
