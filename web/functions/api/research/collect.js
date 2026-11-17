@@ -61,7 +61,7 @@ async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
  if(!db||!key||!secret||syncData?.ok!==true||syncData?.synced!==true||syncData?.execution!==false||!syncData?.broker)throw new Error("A successful read-only Alpaca Paper sync is required.");
  const control=await db.prepare("SELECT enabled,mode,kill_switch,max_portfolio_usd,default_risk_fraction,max_risk_fraction,max_position_fraction FROM execution_control WHERE id=1").first();
- if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==2500||Number(control.default_risk_fraction)!==0.01||Number(control.max_risk_fraction)!==0.01||Number(control.max_position_fraction)!==0.25)throw new Error("Paper execution controls are not in the required disabled/kill-switched $2,500 configuration with $25 per-trade risk.");
+ if(!control||control.mode!=="paper"||Number(control.enabled)!==0||Number(control.kill_switch)!==1||Number(control.max_portfolio_usd)!==1000||Number(control.default_risk_fraction)!==0.005||Number(control.max_risk_fraction)!==0.01||Number(control.max_position_fraction)!==0.25)throw new Error("Paper execution controls are not in the required disabled/kill-switched $1,000 configuration with $5 default / $10 maximum per-trade risk.");
  const broker=syncData.broker;
  const ordersResponse=await fetch("https://paper-api.alpaca.markets/v2/orders?status=open&limit=500&direction=desc",{
   headers:{"APCA-API-KEY-ID":key,"APCA-API-SECRET-KEY":secret,Accept:"application/json"},

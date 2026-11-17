@@ -14,7 +14,7 @@ Finish the Agent Command Center and make the nine-role research pipeline truthfu
 - Current independent roles: market scanner, technical analyst, fundamental analyst, news analyst, sentiment analyst. Bull/Bear, Portfolio Analyst and Risk Committee need validated adapters/workers and full integration.
 - The current collection path defers SEC companyfacts and earnings enrichment; do not describe them as collected if not queried.
 - Production execution control was read and confirmed: `enabled=0`, `mode=paper`, `kill_switch=1`, `max_portfolio_usd=1000`.
-- User-approved intended paper pilot limits: allocation ceiling $2,500, max risk/trade $25, daily loss $50. Existing production database currently has a CHECK constraint enforcing $1,000; a direct update to $2,500 was rejected. Locate and migrate the schema plus every dependent hard-coded $1,000 calculation together. Never disable the kill switch or enable order execution during this work.
+- User-approved allocation is $1,000. Preserve the earlier documented limits: 0.5% default risk ($5), 1% maximum/aggregate risk ($10), 2% daily loss stop ($20), and 25% position cap ($250). The migration file must preserve the $1,000 CHECK constraint and the $1,000 planning allocation. Do not apply any migration to production without separate approval and a read-only verification of the current migration state. Never disable the kill switch or enable order execution during this work.
 - Existing Alpaca NVDA 6-share position must not be modified. No live orders. No paper orders without a separate explicit user approval.
 
 ## Non-negotiable safety / evidence rules
@@ -47,7 +47,7 @@ Finish the Agent Command Center and make the nine-role research pipeline truthfu
 
 ### P2 — Reconcile risk configuration safely
 - Find the actual D1 migration/schema that defines `execution_control` and its CHECK constraint; do not guess filenames.
-- Build a forward-only migration to raise the allocation ceiling to $2,500 and retain exact approved limits: max risk/trade $25, daily loss $50.
+- Keep the execution-control policy aligned to $1,000; do not introduce a $2,500 migration. Preserve 0.5% default risk, 1% max/aggregate risk, 2% daily loss and 25% position cap.
 - Audit all server guards, portfolio snapshots, risk fractions, readiness endpoints, UI labels and tests for hard-coded $1,000. Make one canonical configuration source.
 - Preserve `enabled=0`, `mode='paper'`, `kill_switch=1` through migration. Add migration verification and rollback/recovery notes.
 - Confirm the existing Alpaca position and D1 ledger reconcile read-only before and after. Do not write to broker positions.
@@ -72,7 +72,7 @@ Finish the Agent Command Center and make the nine-role research pipeline truthfu
 - Valid >=60-bar history is sourced from FMP or the labelled Yahoo fallback; source and caveats are visible and durable.
 - All nine roles are actually invoked or explicitly marked unavailable/not-run with a reason; no false completion.
 - Risk Committee veto is authoritative; all missing/stale/unsafe inputs yield NO_TRADE.
-- Approved risk configuration is represented consistently as $2,500 allocation / $25 max risk per trade / $50 daily loss, while kill switch remains ON and execution disabled.
+- Approved risk configuration is represented consistently as $1,000 allocation / $5 default risk / $10 max and aggregate risk / $20 daily loss / $250 position cap, while kill switch remains ON and execution disabled.
 - Existing broker position is unchanged.
 - No automated or manual orders are placed.
 - Production UI accurately reflects the persisted latest run and provider state.
