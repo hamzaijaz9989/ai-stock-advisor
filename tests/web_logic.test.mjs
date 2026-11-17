@@ -559,6 +559,7 @@ test("company name cleanup title-cases uppercase SEC names and removes duplicate
 
 test("history API falls back to Nasdaq after Yahoo HTTP 429 and returns an explicit quality scan", async () => {
   const historySource=readFileSync(new URL("../web/functions/api/history.js",import.meta.url),"utf8")
+    .replace('import {onRequestGet as getMassiveHistory} from "./massive-history.js";',"")
     .replace("export async function onRequestGet","async function onRequestGet")+"\nglobalThis.__historyHandler=onRequestGet;";
   const calls=[];
   const rows=Array.from({length:40},(_,i)=>{
@@ -567,6 +568,7 @@ test("history API falls back to Nasdaq after Yahoo HTTP 429 and returns an expli
       close:String(100+i),open:String(99.5+i),high:String(101+i),low:String(99+i),volume:"1000000"};
   });
   const context={URL,Response,Date,Math,Number,String,Array,Object,JSON,AbortSignal,
+    getMassiveHistory:async()=>new Response(JSON.stringify({available:false,error:"Massive not configured in isolated legacy-history test"}),{status:503,headers:{"Content-Type":"application/json"}}),
     fetch:async url=>{
       calls.push(String(url));
       if(String(url).includes("finance.yahoo.com")) return {ok:false,status:429,json:async()=>({})};
@@ -585,9 +587,11 @@ test("history API falls back to Nasdaq after Yahoo HTTP 429 and returns an expli
 
 test("history API rejects malformed tickers before calling providers", async () => {
   const historySource=readFileSync(new URL("../web/functions/api/history.js",import.meta.url),"utf8")
+    .replace('import {onRequestGet as getMassiveHistory} from "./massive-history.js";',"")
     .replace("export async function onRequestGet","async function onRequestGet")+"\nglobalThis.__historyHandler=onRequestGet;";
   let called=false;
   const context={URL,Response,Date,Math,Number,String,Array,Object,JSON,AbortSignal,
+    getMassiveHistory:async()=>{called=true;throw new Error("Provider must not be called");},
     fetch:async()=>{called=true;throw new Error("Provider must not be called");}};
   runInNewContext(historySource,context,{filename:"web/functions/api/history.js"});
   const response=await context.__historyHandler({request:new Request("https://example.test/api/history?ticker=!!!")});
