@@ -86,16 +86,9 @@ async function resolveNews(origin,ticker,env){
    base={items:[],provider:"news discovery",warning:"Massive news unavailable ("+primaryError+"); secondary news unavailable ("+String(error?.message||"unknown").slice(0,140)+")."};
   }
  }
- const combined=[...(Array.isArray(base.items)?base.items:[])];
- const seen=new Set(combined.map(item=>String(item?.url||"").trim().toLowerCase().replace(/[?#].*$/,"")).filter(Boolean));
- let added=0;
- for(const article of finnhub.articles||[]){
-  const url=String(article.url||"").trim(),canonical=url.toLowerCase().replace(/[?#].*$/,"");
-  if(!canonical||seen.has(canonical))continue;
-  seen.add(canonical);added++;
-  combined.push({title:String(article.headline||"").trim(),description:String(article.summary||"").trim(),url,publishedAt:article.publishedAt||null,source:String(article.source||"Finnhub company news"),publisher:String(article.source||"Finnhub company news"),publisherVerified:Boolean(article.source),provider:"Finnhub company-news"});
- }
- return {...base,items:combined,newsSources:[...(Array.isArray(base.sources)?base.sources:[]),{name:"Finnhub company news",status:added?"ok":(finnhub.warning?"unavailable":"no new unique articles"),count:added}],finnhubNews:{status:added?"ok":"unavailable_or_duplicate",count:added,warning:finnhub.warning||null}};
+ const merged=mergeFinnhubCompanyNews(base.items,finnhub.articles||[]);
+ const added=merged.added;
+ return {...base,items:merged.items,newsSources:[...(Array.isArray(base.sources)?base.sources:[]),{name:"Finnhub company news",status:added?"ok":(finnhub.warning?"unavailable":"no new unique articles"),count:added}],finnhubNews:{status:added?"ok":"unavailable_or_duplicate",count:added,warning:finnhub.warning||null}};
 }
 async function portfolioSnapshot(env,syncData){
  const db=env.NORTHSTAR_DB,key=env.ALPACA_API_KEY_ID,secret=env.ALPACA_API_SECRET_KEY;
