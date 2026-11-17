@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {buildResearchCouncilContext} from "../web/lib/research-council-facts.js";
 
-const portfolio={verified:true,source:"Alpaca Paper + Northstar ledger",asOf:"2026-11-08T19:00:00Z",equityUsd:10000,openRiskUsd:10,grossExposureUsd:500,dailyLossFraction:0.001,weeklyLossFraction:0.002,drawdownFraction:0.01,sectorExposureUsd:200,concurrentPositions:1};
+const portfolio={verified:true,source:"Alpaca Paper + Northstar ledger",asOf:"2026-11-08T19:00:00Z",equityUsd:10000,openRiskUsd:10,grossExposureUsd:500,dailyLossFraction:0.001,weeklyLossFraction:0.002,drawdownFraction:0.01,sectorExposureUsd:200,maxPositionNotionalUsd:180,concurrentPositions:1};
 
 test("builds canonical quote, history, SEC, FMP, news and earnings context with unique IDs",()=>{
  const result=buildResearchCouncilContext({
