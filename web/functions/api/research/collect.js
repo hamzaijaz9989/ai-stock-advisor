@@ -3,6 +3,8 @@
 // collected here from providers and the reconciled Alpaca Paper ledger.
 import {onRequestGet as getQuote} from "../quote.js";
 import {onRequestGet as getFundamentals} from "../fmp-fundamentals.js";
+import {onRequestGet as getMassiveHistory} from "../massive-history.js";
+import {onRequestGet as getMassiveNews} from "../massive-news.js";
 import {onRequestGet as getHistory} from "../fmp-history.js";
 import {onRequestGet as getFinnhubSentiment} from "../finnhub-sentiment.js";
 import {onRequestGet as getNews} from "../news.js";
@@ -35,6 +37,46 @@ async function endpoint(handler,origin,path,env){
   if(attempt<2)await new Promise(resolve=>setTimeout(resolve,350*(attempt+1)));
  }
  throw lastError||new Error(path.split("?")[0]+" unavailable");
+}
+async function providerReadOnce(handler,origin,path,env){
+ const response=await handler({request:new Request(origin+path,{headers:{Accept:"application/json","Cache-Control":"no-cache"}}),env});
+ const payload=await response.json().catch(()=>null);
+ if(!response.ok)throw new Error(path.split("?")[0]+" unavailable (HTTP "+response.status+")"+(payload?.error?": "+String(payload.error).slice(0,160):""));
+ return payload;
+}
+async function resolveHistory(origin,ticker,collectionStartedAt,env){
+ const path="/api/massive-history?ticker="+encodeURIComponent(ticker)+"&to="+collectionStartedAt.slice(0,10);
+ let primaryError="Massive history unavailable";
+ try{
+  const primary=await providerReadOnce(getMassiveHistory,origin,path,env);
+  if(primary?.available&&Array.isArray(primary.prices)&&primary.prices.length>=20)
+   return {...primary,provider:"Massive",priceProvider:"Massive"};
+  primaryError=primary?.error||"Massive returned fewer than 20 valid daily bars";
+ }catch(error){primaryError=String(error?.message||primaryError).slice(0,180);}
+ // FMP is retained only as a last-resort historical fallback. Its adapter itself
+ // validates provider data and can fall through to Finnhub/Yahoo when FMP is down.
+ try{
+  const fallback=await endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+collectionStartedAt.slice(0,10),env);
+  if(fallback?.available&&Array.isArray(fallback.prices)&&fallback.prices.length>=20)
+   return {...fallback,fallbackReason:"Massive primary history unavailable: "+primaryError,provider:fallback.provider||fallback.priceProvider||"Validated secondary history"};
+  throw new Error(fallback?.error||"Historical fallback returned insufficient bars");
+ }catch(error){
+  throw new Error("Massive primary history failed ("+primaryError+"); secondary history failed ("+String(error?.message||"unavailable").slice(0,180)+").");
+ }
+}
+async function resolveNews(origin,ticker,env){
+ let primaryError="Massive news unavailable";
+ try{
+  const primary=await providerReadOnce(getMassiveNews,origin,"/api/massive-news?ticker="+encodeURIComponent(ticker),env);
+  if(primary?.available&&Array.isArray(primary.items))return {...primary,provider:"Massive"};
+  primaryError=primary?.warning||"Massive returned no usable news";
+ }catch(error){primaryError=String(error?.message||primaryError).slice(0,180);}
+ try{
+  const fallback=await endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env);
+  return {...fallback,provider:fallback.provider||"RSS/news discovery",fallbackReason:"Massive primary news unavailable: "+primaryError};
+ }catch(error){
+  return {items:[],provider:"news discovery",warning:"Massive news unavailable ("+primaryError+"); secondary news unavailable ("+String(error?.message||"unknown").slice(0,140)+")."};
+ }
 }
 async function secFacts(ticker,collectionStartedAt){
  const headers={Accept:"application/json","User-Agent":"NorthstarAI/1.0 contact: ihamzaij681@gmail.com"};
@@ -157,32 +199,39 @@ export async function onRequestPost({request,env}){
   // Core market inputs are required. SEC companyfacts and the broad earnings
   // calendar are enrichment sources: either can exceed the Pages request budget.
   // Their failure must not prevent the evidence-first specialists from running.
-  const [quote,history,optional]=await Promise.all([
+  const [quote,history,news,sec]=await Promise.all([
    endpoint(getQuote,origin,"/api/quote?ticker="+encodeURIComponent(ticker),env),
-   endpoint(getHistory,origin,"/api/fmp-history?ticker="+encodeURIComponent(ticker)+"&to="+collectionStartedAt.slice(0,10),env),
-   Promise.allSettled([
-    endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env),
-    endpoint(getNews,origin,"/api/news?ticker="+encodeURIComponent(ticker),env),
-    secFacts(ticker,collectionStartedAt),
-    endpoint(getFinnhubSentiment,origin,"/api/finnhub-sentiment?ticker="+encodeURIComponent(ticker),env)
-   ])
+   resolveHistory(origin,ticker,collectionStartedAt,env),
+   resolveNews(origin,ticker,env),
+   secFacts(ticker,collectionStartedAt).catch(error=>({cik:null,observations:[],warning:String(error?.message||"SEC companyfacts unavailable").slice(0,180)}))
   ]);
-  const fundamentals=optional[0].status==="fulfilled"?optional[0].value:{available:false,provider:"FMP",warning:String(optional[0].reason?.message||"Fundamentals unavailable").slice(0,180)};
-  const news=optional[1].status==="fulfilled"?optional[1].value:{items:[],provider:"news discovery",warning:String(optional[1].reason?.message||"News unavailable").slice(0,180)};
-  const sec=optional[2].status==="fulfilled"?optional[2].value:{cik:null,observations:[],warning:String(optional[2].reason?.message||"SEC companyfacts unavailable").slice(0,180)};
-  const sentiment=optional[3].status==="fulfilled"&&optional[3].value?.available===true?optional[3].value:{observations:[],warning:optional[3].status==="rejected"?String(optional[3].reason?.message||"Finnhub sentiment unavailable").slice(0,180):optional[3].value?.warning||"Finnhub sentiment unavailable"};
-  // Earnings calendar remains optional; SEC companyfacts is queried independently
-  // so a failed FMP key does not erase reported-filing evidence.
+  let fundamentals={available:false,provider:"SEC EDGAR",warning:"SEC companyfacts is the primary reported-fundamentals source; FMP is not queried unless SEC coverage is unavailable."};
+  // FMP is now a dormant secondary fundamentals fallback. Do not spend requests
+  // when SEC already supplied evidence; do not block the Council if FMP fails.
+  if(!sec.observations.length&&env?.FMP_API_KEY){
+   try{fundamentals=await endpoint(getFundamentals,origin,"/api/fmp-fundamentals?ticker="+encodeURIComponent(ticker),env);}
+   catch(error){fundamentals={available:false,provider:"Financial Modeling Prep",warning:String(error?.message||"FMP fallback unavailable").slice(0,180)};}
+  }
+  let sentiment={observations:[],warning:"No qualifying provider sentiment observations were returned."};
+  if(Array.isArray(news.sentimentObservations)&&news.sentimentObservations.length){
+   sentiment={observations:news.sentimentObservations,provider:news.provider||"Massive"};
+  }else{
+   try{
+    const fallbackSentiment=await endpoint(getFinnhubSentiment,origin,"/api/finnhub-sentiment?ticker="+encodeURIComponent(ticker),env);
+    if(fallbackSentiment?.available===true)sentiment=fallbackSentiment;
+    else sentiment={observations:[],warning:fallbackSentiment?.warning||"Finnhub sentiment unavailable"};
+   }catch(error){sentiment={observations:[],warning:String(error?.message||"Finnhub sentiment unavailable").slice(0,180)};}
+  }
+  // Earnings calendar remains optional; SEC EDGAR is the primary fundamentals source.
   const earnings={ticker,provider:"earnings calendar not queried",fetchedAt:new Date().toISOString(),
    events:[],found:false,verified:false,warning:"Earnings calendar was not queried in this bounded research run; confirm dates with issuer investor relations."};
   const asOf=new Date().toISOString();
   if(!quote?.price||!quote?.quoteTime)throw new Error("A timestamped market quote is required; latest quote is missing or undated.");
   if(!history?.available||!Array.isArray(history.prices)||history.prices.length<20)throw new Error("At least 20 valid daily price bars are required to start research; the Technical Analyst independently requires 60.");
   const validFundamentals=fundamentals?.available===true;
-  const fmpHistory={income:history.statements?.annualIncome||[],balance:history.statements?.annualBalance||[],cashflow:history.statements?.annualCashflow||[],metrics:[],ratios:[],estimates:[]};
   const context=buildResearchCouncilContext({ticker,asOf,quote:{ticker,price:Number(quote.price),currency:quote.currency,exchange:quote.exchange,previousClose:finite(quote.previousClose),change:finite(quote.change),changePercent:finite(quote.changePercent),quoteTime:quote.quoteTime,marketState:quote.marketState,delayedOrRealtime:quote.delayedOrRealtime,interval:quote.interval,source:quote.source},
    history:{data:history.prices,interval:"1d",currency:"USD",source:history.provider,fetchedAt:history.retrievedAt,dataQuality:history.coverage},
-   secObservations:sec.observations,sentimentObservations:sentiment.observations||[],fmpFundamentals:{available:validFundamentals,provider:fundamentals.provider||"Financial Modeling Prep",retrievedAt:fundamentals.retrievedAt||null,latest:validFundamentals?fundamentals.latest:null,history:validFundamentals?fmpHistory:{}},
+   secObservations:sec.observations,sentimentObservations:sentiment.observations||[],fmpFundamentals:{available:validFundamentals,provider:fundamentals.provider||"SEC EDGAR",retrievedAt:fundamentals.retrievedAt||null,latest:validFundamentals?fundamentals.latest:null,history:validFundamentals?fundamentals.history||{}:{}},
    news:{items:Array.isArray(news.items)?news.items:[],warning:news.warning||null},
    earnings:{events:Array.isArray(earnings.events)?earnings.events.map(e=>({...e,date:e.reportDate||e.date||null})):[],found:earnings.found===true,verified:earnings.verified===true,throughDate:earnings.throughDate||null,provider:earnings.provider,fetchedAt:earnings.fetchedAt||earnings.fetchedAt,warning:earnings.warning||null},
    portfolio});
@@ -193,7 +242,7 @@ export async function onRequestPost({request,env}){
   if(existing && existing.input_sha256!==attemptHash)return reply({ok:false,error:"requestId already used for a different research snapshot."},409);
   const workers=await createResearchCouncilWorkers(env);
   const result=await runResearchCouncil({requestId,context,workers});
-  const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter",history.provider||"Historical price provider",...(validFundamentals?["FMP fundamentals"]:[]),...(sec.observations.length?["SEC EDGAR companyfacts"]:[]),...(sentiment.observations?.length?["Finnhub news sentiment"]:[]),...(Array.isArray(news.items)&&news.items.length?["news discovery"]:[]),"Alpaca Paper account and reconciled ledger"],providerWarnings:[history.priceWarning,fundamentals.warning,sec.warning,sentiment.warning,news.warning].filter(Boolean),factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
+  const storedResult={...result,collection:{sources:["Yahoo/Nasdaq quote adapter",history.provider||"Historical price provider",...(validFundamentals?["FMP secondary fundamentals fallback"]:[]),...(sec.observations.length?["SEC EDGAR companyfacts (primary fundamentals)"]:[]),...(sentiment.observations?.length?["Finnhub news sentiment"]:[]),...(Array.isArray(news.items)&&news.items.length?["news discovery"]:[]),"Alpaca Paper account and reconciled ledger"],providerWarnings:[history.priceWarning,history.fallbackReason,fundamentals.warning,sec.warning,sentiment.warning,news.warning,news.fallbackReason].filter(Boolean),factCount:context.facts.length,evidenceCount:context.evidence.length,portfolioSource:portfolio.source},execution:false,automatedOrderSubmission:false};
   const write=await env.NORTHSTAR_DB.prepare("UPDATE research_council_runs SET input_sha256=?,status=?,result_json=? WHERE request_id=? AND symbol=?").bind(inputHash,result.status,JSON.stringify(storedResult),requestId,ticker).run();
   const stored=await env.NORTHSTAR_DB.prepare("SELECT input_sha256,result_json,created_at FROM research_council_runs WHERE request_id=?").bind(requestId).first();
   if(!stored||stored.input_sha256!==inputHash)return reply({ok:false,error:"Durable Council write could not be confirmed."},503);
