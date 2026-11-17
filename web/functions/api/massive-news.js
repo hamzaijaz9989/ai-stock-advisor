@@ -16,7 +16,7 @@ export async function onRequestGet({request,env}){
  api.searchParams.set("ticker",ticker);api.searchParams.set("sort","published_utc");api.searchParams.set("order","desc");api.searchParams.set("limit","100");api.searchParams.set("apiKey",key);
  try{
   const response=await fetch(api.toString(),{headers:{Accept:"application/json"},signal:AbortSignal.timeout(10000)});
-  if(!response.ok)return Response.json({available:false,configured:true,provider:"Massive",items:[],sentimentObservations:[],upstreamStatus:response.status,warning:"Massive news request failed (HTTP "+response.status+")."},{status:502,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+  if(!response.ok)return Response.json({available:false,configured:true,provider:"Massive",items:[],sentimentObservations:[],upstreamStatus:response.status,warning:"Massive news request failed (HTTP "+response.status+")."},{status:[401,403].includes(response.status)?response.status:502,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
   const payload=await response.json(),rows=Array.isArray(payload?.results)?payload.results:[];
   const items=rows.filter(row=>typeof row?.title==="string"&&typeof row?.article_url==="string"&&/^https?:\/\//i.test(row.article_url))
    .filter(row=>Array.isArray(row.tickers)&&row.tickers.some(symbol=>String(symbol).toUpperCase()===ticker))
