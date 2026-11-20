@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-19T21:30:43.842Z",
+  "generatedAt": "2026-11-20T03:09:11.065Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -13,46 +13,13 @@
   "status": "success",
   "stocks": [
     {
-      "ticker": "KEY",
-      "name": "Keycorp /New/",
-      "score": 90.9,
-      "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 323,
-      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "62.7%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "24.3%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "28.0%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+18.0%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-18.6%"
-        }
-      ],
-      "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $20.03 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.12. Estimated reward/risk from entry midpoint: 9.98:1; illustrative model gap: 0.44×. Historical validation remains incomplete; no profit probability is claimed."
-    },
-    {
       "ticker": "ANET",
       "name": "Arista Networks, Inc.",
       "score": 90.8,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 323,
+      "fundamentalAgeDays": 324,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
       "components": [
         {
           "name": "Revenue growth",
@@ -68,7 +35,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+55.4%"
+          "display": "+58.5%"
         },
         {
           "name": "Maximum drawdown",
@@ -76,16 +43,49 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $189.59 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $57.54–$61.37; base-case reference: $76.72; risk reference: $31.47. Estimated reward/risk from entry midpoint: 0.62:1; illustrative model gap: 2.47×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $189.59 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $57.54–$61.37; base-case reference: $76.72; risk reference: $32.40. Estimated reward/risk from entry midpoint: 0.64:1; illustrative model gap: 2.47×. Historical validation remains incomplete; no profit probability is claimed."
+    },
+    {
+      "ticker": "KEY",
+      "name": "Keycorp /New/",
+      "score": 90.1,
+      "financialPeriod": "2025-12-31",
+      "fundamentalAgeDays": 324,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "62.7%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "24.3%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "28.0%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+15.9%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-18.6%"
+        }
+      ],
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $20.03 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.09. Estimated reward/risk from entry midpoint: 9.68:1; illustrative model gap: 0.44×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "TSM",
       "name": "Taiwan Semiconductor Manufacturing Co. Ltd.",
-      "score": 90.7,
+      "score": 90,
       "financialPeriod": "2024-12-31",
-      "fundamentalAgeDays": 688,
+      "fundamentalAgeDays": 689,
       "fundamentalFreshness": "STALE_OR_UNVERIFIED",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
       "components": [
         {
           "name": "Revenue growth",
@@ -101,11 +101,11 @@
         },
         {
           "name": "1-year price return",
-          "display": "+28.4%"
+          "display": "+26.9%"
         },
         {
           "name": "Maximum drawdown",
-          "display": "-27.3%"
+          "display": "-27.5%"
         }
       ],
       "entryReady": false,
@@ -116,9 +116,9 @@
       "name": "Apple Inc.",
       "score": 88.8,
       "financialPeriod": "2026-09-26",
-      "fundamentalAgeDays": 54,
+      "fundamentalAgeDays": 55,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
       "components": [
         {
           "name": "Revenue growth",
@@ -142,16 +142,16 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $349.21 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $144.31. Estimated reward/risk from entry midpoint: 2.51:1; illustrative model gap: 1.66×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $349.21 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $145.17. Estimated reward/risk from entry midpoint: 2.63:1; illustrative model gap: 1.66×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ADI",
       "name": "Analog Devices Inc.",
       "score": 86.5,
       "financialPeriod": "2025-11-01",
-      "fundamentalAgeDays": 383,
+      "fundamentalAgeDays": 384,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
       "components": [
         {
           "name": "Revenue growth",
@@ -167,7 +167,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+64.5%"
+          "display": "+67.6%"
         },
         {
           "name": "Maximum drawdown",
@@ -175,49 +175,16 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; earnings event within 7 days. Latest provider price: $377.44 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $148.91–$158.84; base-case reference: $198.55; risk reference: $109.57. Estimated reward/risk from entry midpoint: 1.01:1; illustrative model gap: 1.90×. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
-    },
-    {
-      "ticker": "V",
-      "name": "Visa Inc.",
-      "score": 86,
-      "financialPeriod": "2026-09-30",
-      "fundamentalAgeDays": 50,
-      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
-      "components": [
-        {
-          "name": "Revenue growth",
-          "display": "14.8%"
-        },
-        {
-          "name": "Net profit margin",
-          "display": "51.2%"
-        },
-        {
-          "name": "Approx. FCF margin",
-          "display": "48.1%"
-        },
-        {
-          "name": "1-year price return",
-          "display": "+28.1%"
-        },
-        {
-          "name": "Maximum drawdown",
-          "display": "-17.4%"
-        }
-      ],
-      "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $402.25 (Finnhub; 11/19/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; earnings event within 7 days. Latest provider price: $377.44 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $148.91–$158.84; base-case reference: $198.55; risk reference: $110.44. Estimated reward/risk from entry midpoint: 1.03:1; illustrative model gap: 1.90×. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "BLK",
       "name": "BlackRock, Inc.",
-      "score": 85.2,
+      "score": 84.9,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 323,
+      "fundamentalAgeDays": 324,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
       "components": [
         {
           "name": "Revenue growth",
@@ -233,7 +200,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+15.2%"
+          "display": "+14.4%"
         },
         {
           "name": "Maximum drawdown",
@@ -241,16 +208,16 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $1,135.81 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $350.72–$374.10; base-case reference: $467.63; risk reference: $293.33. Estimated reward/risk from entry midpoint: 1.52:1; illustrative model gap: 2.43×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $1,135.81 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $350.72–$374.10; base-case reference: $467.63; risk reference: $291.42. Estimated reward/risk from entry midpoint: 1.48:1; illustrative model gap: 2.43×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "JNJ",
       "name": "Johnson & Johnson",
       "score": 84.6,
       "financialPeriod": "2025-12-28",
-      "fundamentalAgeDays": 326,
+      "fundamentalAgeDays": 327,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
       "components": [
         {
           "name": "Revenue growth",
@@ -266,7 +233,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+34.7%"
+          "display": "+31.6%"
         },
         {
           "name": "Maximum drawdown",
@@ -274,16 +241,49 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $267.14 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $82.27. Estimated reward/risk from entry midpoint: 1.98:1; illustrative model gap: 2.15×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $267.14 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $82.40. Estimated reward/risk from entry midpoint: 2.00:1; illustrative model gap: 2.15×. Historical validation remains incomplete; no profit probability is claimed."
+    },
+    {
+      "ticker": "V",
+      "name": "Visa Inc.",
+      "score": 84.5,
+      "financialPeriod": "2026-09-30",
+      "fundamentalAgeDays": 51,
+      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
+      "components": [
+        {
+          "name": "Revenue growth",
+          "display": "14.8%"
+        },
+        {
+          "name": "Net profit margin",
+          "display": "51.2%"
+        },
+        {
+          "name": "Approx. FCF margin",
+          "display": "48.1%"
+        },
+        {
+          "name": "1-year price return",
+          "display": "+24.2%"
+        },
+        {
+          "name": "Maximum drawdown",
+          "display": "-17.4%"
+        }
+      ],
+      "entryReady": false,
+      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $402.25 (Finnhub; 11/19/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AMGN",
       "name": "Amgen Inc.",
-      "score": 84,
+      "score": 84.2,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 323,
+      "fundamentalAgeDays": 324,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
       "components": [
         {
           "name": "Revenue growth",
@@ -299,7 +299,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+29.6%"
+          "display": "+30.6%"
         },
         {
           "name": "Maximum drawdown",
@@ -307,46 +307,46 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $438.82 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $189.72. Estimated reward/risk from entry midpoint: 2.50:1; illustrative model gap: 1.58×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $438.82 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $190.56. Estimated reward/risk from entry midpoint: 2.59:1; illustrative model gap: 1.58×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
-      "ticker": "ACGL",
-      "name": "Arch Capital Group Ltd.",
-      "score": 83.8,
+      "ticker": "DXCM",
+      "name": "Dexcom Inc.",
+      "score": 83.5,
       "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 323,
+      "fundamentalAgeDays": 324,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-19 to 2026-11-18",
+      "historyPeriod": "2025-11-20 to 2026-11-19",
       "components": [
         {
           "name": "Revenue growth",
-          "display": "14.3%"
+          "display": "15.6%"
         },
         {
           "name": "Net profit margin",
-          "display": "22.1%"
+          "display": "17.9%"
         },
         {
           "name": "Approx. FCF margin",
-          "display": "30.7%"
+          "display": "23.1%"
         },
         {
           "name": "1-year price return",
-          "display": "+19.1%"
+          "display": "+37.3%"
         },
         {
           "name": "Maximum drawdown",
-          "display": "-14.1%"
+          "display": "-22.6%"
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — market/model ratio outside 0.40×–2.50× review band; price outside model watch zone; upcoming earnings date not verified. Latest provider price: $108.16 (Finnhub; 11/19/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $80.19 (Finnhub; 11/19/2026, 9:00:00 PM). Model entry watch zone: $49.37–$52.67; base-case reference: $65.83; risk reference: $44.59. Estimated reward/risk from entry midpoint: 2.30:1; illustrative model gap: 1.22×. Historical validation remains incomplete; no profit probability is claimed."
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-19T21:30:43.842Z",
-  "workflowRunId": "44618506958",
-  "sourceCommit": "9baeae6e678cb435b0f91c345a9e534a9a23973a",
-  "scanDurationSeconds": 325,
+  "completedAt": "2026-11-20T03:09:11.065Z",
+  "workflowRunId": "44664932101",
+  "sourceCommit": "7a4033f3bb11d1e9e3a1180aaea5c780872d78a4",
+  "scanDurationSeconds": 348,
   "enrichedCount": 10
 }
