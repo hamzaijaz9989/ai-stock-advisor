@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T12:47:17.477Z",
+  "generatedAt": "2026-11-25T22:32:31.123Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -43,7 +43,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $168.56 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $57.54–$61.37; base-case reference: $76.72; risk reference: $29.06. Estimated reward/risk from entry midpoint: 0.57:1; illustrative model gap: 2.20×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $163.99 (Finnhub; 11/25/2026, 9:00:00 PM). Model entry watch zone: $57.54–$61.37; base-case reference: $76.72; risk reference: $29.06. Estimated reward/risk from entry midpoint: 0.57:1; illustrative model gap: 2.14×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AAPL",
@@ -76,7 +76,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $354.07 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $146.90. Estimated reward/risk from entry midpoint: 2.91:1; illustrative model gap: 1.68×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $355.58 (Finnhub; 11/25/2026, 9:00:00 PM). Model entry watch zone: $157.93–$168.46; base-case reference: $210.57; risk reference: $146.90. Estimated reward/risk from entry midpoint: 2.91:1; illustrative model gap: 1.69×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "ADI",
@@ -109,7 +109,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $312.95 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $193.11–$205.99; base-case reference: $257.48; risk reference: $144.60. Estimated reward/risk from entry midpoint: 1.05:1; illustrative model gap: 1.22×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $333.11 (Finnhub; 11/25/2026, 9:00:00 PM). Model entry watch zone: $193.11–$205.99; base-case reference: $257.48; risk reference: $144.60. Estimated reward/risk from entry midpoint: 1.05:1; illustrative model gap: 1.29×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "KEY",
@@ -142,7 +142,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $19.97 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.05. Estimated reward/risk from entry midpoint: 9.32:1; illustrative model gap: 0.44×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified; potential material-risk headline needs review. Latest provider price: $20.22 (Finnhub; 11/25/2026, 9:00:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.05. Estimated reward/risk from entry midpoint: 9.32:1; illustrative model gap: 0.45×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "TSM",
@@ -208,7 +208,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $416.78 (Finnhub; 11/24/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $424.39 (Finnhub; 11/25/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "JNJ",
@@ -241,7 +241,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $276.46 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $82.90. Estimated reward/risk from entry midpoint: 2.07:1; illustrative model gap: 2.22×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $273.94 (Finnhub; 11/25/2026, 9:00:00 PM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $82.90. Estimated reward/risk from entry midpoint: 2.07:1; illustrative model gap: 2.20×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "VRTX",
@@ -274,7 +274,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $563.92 (Finnhub; 11/24/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $564.12 (Finnhub; 11/25/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "AMGN",
@@ -307,7 +307,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $473.94 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $188.16. Estimated reward/risk from entry midpoint: 2.35:1; illustrative model gap: 1.71×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $469.24 (Finnhub; 11/25/2026, 9:00:00 PM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $188.16. Estimated reward/risk from entry midpoint: 2.35:1; illustrative model gap: 1.69×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "BLK",
@@ -340,13 +340,13 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $1,146.03 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $350.72–$374.10; base-case reference: $467.63; risk reference: $289.33. Estimated reward/risk from entry midpoint: 1.44:1; illustrative model gap: 2.45×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $1,141.86 (Finnhub; 11/25/2026, 9:00:00 PM). Model entry watch zone: $350.72–$374.10; base-case reference: $467.63; risk reference: $289.33. Estimated reward/risk from entry midpoint: 1.44:1; illustrative model gap: 2.44×. Historical validation remains incomplete; no profit probability is claimed."
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-25T12:47:17.477Z",
-  "workflowRunId": "45616064260",
-  "sourceCommit": "02b5a92a80474255e16cc243ed07fb24366d460b",
+  "completedAt": "2026-11-25T22:32:31.123Z",
+  "workflowRunId": "45713222449",
+  "sourceCommit": "e34205694862f512a2bc56fe5a2afaea6eca2310",
   "scanDurationSeconds": 347,
   "enrichedCount": 10
 }
