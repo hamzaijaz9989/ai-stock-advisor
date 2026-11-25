@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-25T02:25:07.132Z",
+  "generatedAt": "2026-11-25T12:47:17.477Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -109,7 +109,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; earnings event within 7 days. Latest provider price: $312.95 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $193.11–$205.99; base-case reference: $257.48; risk reference: $144.60. Estimated reward/risk from entry midpoint: 1.05:1; illustrative model gap: 1.22×. Next provider-listed earnings: Nov 24, 2026; confirm with issuer investor relations. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; estimated reward/risk below 2:1 or unavailable; upcoming earnings date not verified. Latest provider price: $312.95 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $193.11–$205.99; base-case reference: $257.48; risk reference: $144.60. Estimated reward/risk from entry midpoint: 1.05:1; illustrative model gap: 1.22×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "KEY",
@@ -142,7 +142,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified; potential material-risk headline needs review. Latest provider price: $19.97 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.05. Estimated reward/risk from entry midpoint: 9.32:1; illustrative model gap: 0.44×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $19.97 (Finnhub; 11/24/2026, 9:00:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.05. Estimated reward/risk from entry midpoint: 9.32:1; illustrative model gap: 0.44×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "TSM",
@@ -344,9 +344,9 @@
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-25T02:25:07.132Z",
-  "workflowRunId": "45532045749",
-  "sourceCommit": "acb766fa005e6848ede967340bb442c1943fa3a4",
-  "scanDurationSeconds": 333,
+  "completedAt": "2026-11-25T12:47:17.477Z",
+  "workflowRunId": "45616064260",
+  "sourceCommit": "02b5a92a80474255e16cc243ed07fb24366d460b",
+  "scanDurationSeconds": 347,
   "enrichedCount": 10
 }
