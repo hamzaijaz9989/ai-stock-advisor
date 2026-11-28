@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-28T02:01:01.707Z",
+  "generatedAt": "2026-11-28T10:20:38.354Z",
   "refreshIntervalHours": 3,
   "source": "Northstar AI scheduled live 253-stock screen",
   "fundamentalFreshnessPolicy": {
@@ -114,11 +114,11 @@
     {
       "ticker": "KEY",
       "name": "Keycorp /New/",
-      "score": 88.2,
+      "score": 87.5,
       "financialPeriod": "2025-12-31",
       "fundamentalAgeDays": 332,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-28 to 2026-11-27",
+      "historyPeriod": "2025-11-28 to 2026-11-25",
       "components": [
         {
           "name": "Revenue growth",
@@ -134,7 +134,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+11.5%"
+          "display": "+10.0%"
         },
         {
           "name": "Maximum drawdown",
@@ -142,16 +142,16 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $20.50 (Finnhub; 11/27/2026, 9:00:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.13. Estimated reward/risk from entry midpoint: 10.06:1; illustrative model gap: 0.45×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $20.50 (Finnhub; 11/27/2026, 9:00:00 PM). Model entry watch zone: $34.01–$36.28; base-case reference: $45.35; risk reference: $34.13. Estimated reward/risk from entry midpoint: 10.08:1; illustrative model gap: 0.45×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "V",
       "name": "Visa Inc.",
-      "score": 85.6,
+      "score": 86.2,
       "financialPeriod": "2026-09-30",
       "fundamentalAgeDays": 59,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-28 to 2026-11-25",
+      "historyPeriod": "2025-11-28 to 2026-11-27",
       "components": [
         {
           "name": "Revenue growth",
@@ -167,7 +167,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+26.9%"
+          "display": "+28.4%"
         },
         {
           "name": "Maximum drawdown",
@@ -211,37 +211,37 @@
       "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $275.51 (Finnhub; 11/27/2026, 9:00:00 PM). Model entry watch zone: $93.31–$99.54; base-case reference: $124.42; risk reference: $83.45. Estimated reward/risk from entry midpoint: 2.16:1; illustrative model gap: 2.21×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
-      "ticker": "VRTX",
-      "name": "Vertex Pharmaceuticals Inc. / Ma",
-      "score": 84.2,
-      "financialPeriod": "2025-12-31",
-      "fundamentalAgeDays": 332,
-      "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-28 to 2026-11-25",
+      "ticker": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing Co. Ltd.",
+      "score": 84.3,
+      "financialPeriod": "2024-12-31",
+      "fundamentalAgeDays": 697,
+      "fundamentalFreshness": "STALE_OR_UNVERIFIED",
+      "historyPeriod": "2025-11-28 to 2026-11-27",
       "components": [
         {
           "name": "Revenue growth",
-          "display": "8.9%"
+          "display": "33.9%"
         },
         {
           "name": "Net profit margin",
-          "display": "32.9%"
+          "display": "40.0%"
         },
         {
           "name": "Approx. FCF margin",
-          "display": "26.6%"
+          "display": "30.1%"
         },
         {
           "name": "1-year price return",
-          "display": "+30.1%"
+          "display": "+21.2%"
         },
         {
           "name": "Maximum drawdown",
-          "display": "-15.2%"
+          "display": "-34.4%"
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — valuation unavailable; upcoming earnings date not verified. Latest provider price: $534.57 (Finnhub; 11/27/2026, 9:00:00 PM). Entry, target and risk levels withheld until quote, valuation and risk inputs pass checks. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "BLOCKED: annual fundamentals are stale or unverified; refresh and reconcile the latest reported period before any entry decision."
     },
     {
       "ticker": "AMGN",
@@ -250,7 +250,7 @@
       "financialPeriod": "2025-12-31",
       "fundamentalAgeDays": 332,
       "fundamentalFreshness": "CURRENT_WITHIN_18_MONTHS",
-      "historyPeriod": "2025-11-28 to 2026-11-27",
+      "historyPeriod": "2025-11-28 to 2026-11-25",
       "components": [
         {
           "name": "Revenue growth",
@@ -266,7 +266,7 @@
         },
         {
           "name": "1-year price return",
-          "display": "+37.2%"
+          "display": "+35.8%"
         },
         {
           "name": "Maximum drawdown",
@@ -274,7 +274,7 @@
         }
       ],
       "entryReady": false,
-      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $474.08 (Finnhub; 11/27/2026, 9:00:00 PM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $191.10. Estimated reward/risk from entry midpoint: 2.65:1; illustrative model gap: 1.71×. Historical validation remains incomplete; no profit probability is claimed."
+      "entryStatus": "NOT ENTRY-READY — price outside model watch zone; upcoming earnings date not verified. Latest provider price: $474.08 (Finnhub; 11/27/2026, 9:00:00 PM). Model entry watch zone: $207.70–$221.54; base-case reference: $276.93; risk reference: $189.96. Estimated reward/risk from entry midpoint: 2.53:1; illustrative model gap: 1.71×. Historical validation remains incomplete; no profit probability is claimed."
     },
     {
       "ticker": "DXCM",
@@ -344,9 +344,9 @@
     }
   ],
   "note": "Research-priority ranking only; not a validated BUY signal. Verify live data in full analysis.",
-  "completedAt": "2026-11-28T02:01:01.707Z",
-  "workflowRunId": "46095434585",
-  "sourceCommit": "d51d4fb1e0d1a7d9788f5aff5523ee27dc5b2707",
-  "scanDurationSeconds": 342,
+  "completedAt": "2026-11-28T10:20:38.354Z",
+  "workflowRunId": "46134248487",
+  "sourceCommit": "6bc20ccd00e803636befae1ae4126fe38756af84",
+  "scanDurationSeconds": 325,
   "enrichedCount": 10
 }
